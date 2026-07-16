@@ -168,6 +168,43 @@
   flex-shrink: 0;
 }
 
+.card-id .card-type {
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.card-id .type-bug {
+  background: color-mix(in srgb, #e5484d 15%, transparent);
+  color: #e5484d;
+}
+
+.card-ref,
+.card-backlinks {
+  padding: 0.4rem 1.25rem 0;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-link {
+  font: inherit;
+  border: none;
+  background: transparent;
+  color: #4c8bf5;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.card-ref-dangling {
+  color: #b97a0a;
+}
+
 .card-detail-body {
   padding: 0.75rem 1.25rem 1.25rem;
   overflow-y: auto;

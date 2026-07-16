@@ -144,6 +144,30 @@
   padding: 0.1rem 0.45rem;
 }
 
+.card-meta-badges {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+/* generic badge for any board.yaml-defined type; bug gets its own color */
+.card-type {
+  font-size: 0.65rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+
+.type-bug {
+  background: color-mix(in srgb, #e5484d 15%, transparent);
+  color: #e5484d;
+}
+
+.board-toolbar {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .priority-high {
   background: color-mix(in srgb, #e5484d 18%, transparent);
   color: #e5484d;

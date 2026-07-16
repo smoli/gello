@@ -99,16 +99,43 @@ function slugify(title: string): string {
 export function createCard(
   root: string,
   model: BoardModel,
-  input: { title: string; body: string },
+  input: { title: string; body: string; type?: string },
   today: string,
 ): MoveResult {
   const id = nextCardId(model);
   const path = `inbox/${id}-${slugify(input.title)}.md`;
-  const raw = newCardRaw(id, input.title, input.body, today);
+  const raw = newCardRaw(id, input.title, input.body, today, { type: input.type });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {
     // internal invariant: newCardRaw output must always parse
     throw new Error(`new card would be invalid: ${parsed.invalid.reason}`);
+  }
+  const persisted = writeFileAtomic(`${root}/${path}`, raw);
+  return { card: parsed.card, persisted };
+}
+
+/**
+ * Report a bug against a card (c024): the bug is born next to its source —
+ * same folder, source's milestone, `ref` pre-filled, status backlog.
+ */
+export function createBugFor(
+  root: string,
+  model: BoardModel,
+  source: Card,
+  today: string,
+): MoveResult {
+  const id = nextCardId(model);
+  const title = `Bug in ${source.id}`;
+  const folder = source.path.slice(0, source.path.lastIndexOf("/"));
+  const path = `${folder}/${id}-${slugify(title)}.md`;
+  const raw = newCardRaw(id, title, "", today, {
+    type: "bug",
+    ref: source.id,
+    milestone: source.milestone ?? undefined,
+  });
+  const parsed = parseCard(path, raw, model.config);
+  if (!parsed.ok) {
+    throw new Error(`new bug would be invalid: ${parsed.invalid.reason}`);
   }
   const persisted = writeFileAtomic(`${root}/${path}`, raw);
   return { card: parsed.card, persisted };

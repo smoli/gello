@@ -1,7 +1,7 @@
 ---
 id: c024
 title: Bug as a separate card type
-status: discuss
+status: review
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16
@@ -19,7 +19,7 @@ Bugs are ordinary cards (same folders, same statuses) with two additions:
 1. **Optional reference** — a bug may carry `ref: <card-id>` pointing at the
    card (task or bug) it was found in. A bug can also exist with no
    reference.
-2. **Creation flow** — a bug can be created standalone (lands in inbox), or
+2. **Creation flow** — a bug can be created standalone (lands in inbox) by hitting CMD/CTRL+B so it is separate from the quick creation, or
    directly from the detail view of a card in `review` or `done`
    ("report bug"): the new bug lands in that card's milestone with
    `status: backlog` and `ref` pre-filled.
@@ -31,24 +31,25 @@ written into the referenced card's file).
 
 ## Acceptance criteria
 
-- [ ] concept.md §4 documents `type` (optional, default `task`, allowed
+- [x] concept.md §4 documents `type` (optional, default `task`, allowed
       values from `board.yaml`) and `ref` (optional card ID)
-- [ ] `board.yaml` defines the type set; boards without a `types` key
+- [x] `board.yaml` defines the type set; boards without a `types` key
       default to `[task, bug]`
-- [ ] Parser: absent `type` → `task`; a type not in the configured set →
+- [x] Parser: absent `type` → `task`; a type not in the configured set →
       needs-attention lane (symmetric with unknown status)
-- [ ] `ref` parses as a single card ID; a dangling ref (no such card on the
+- [x] `ref` parses as a single card ID; a dangling ref (no such card on the
       board) renders a visible warning on the bug card but the card stays
       valid
-- [ ] Frontmatter round-trip: setting/changing `type` or `ref` is a
-      surgical line edit; all other lines survive byte-for-byte
-- [ ] Card front + detail show a type badge for non-`task` types
-- [ ] Board toolbar gains a type filter alongside the milestone filter
-- [ ] "Report bug" action in card detail for cards in `review` or `done`
+- [x] Frontmatter round-trip: setting/changing `type` or `ref` is a
+      surgical line edit; all other lines survive byte-for-byte (newCardRaw
+      writes them at creation; the surgical-edit machinery is field-generic)
+- [x] Card front + detail show a type badge for non-`task` types
+- [x] Board toolbar gains a type filter alongside the milestone filter
+- [x] "Report bug" action in card detail for cards in `review` or `done`
       creates a bug in the same milestone, `status: backlog`, `ref` set to
       the source card, and opens it
-- [ ] Standalone bug creation (no ref) lands the card in inbox
-- [ ] Bug detail renders `ref` as a link that opens the referenced card;
+- [x] Standalone bug creation (no ref) lands the card in inbox
+- [x] Bug detail renders `ref` as a link that opens the referenced card;
       referenced card's detail lists open bugs pointing at it
 
 ## Discussion
@@ -78,3 +79,29 @@ written into the referenced card's file).
   (in-progress?), or strictly review/done; badge styling for future
   board.yaml-defined types the app doesn't know (generic badge from the
   type string?).
+
+## Notes
+
+- Data model: `Card.type` (default "task") + `Card.ref`; `BoardConfig.types`
+  (default [task, bug]); unknown type → invalid, mirroring unknown status.
+  `newCardRaw` takes options {type, ref, milestone}.
+- Helpers: `findCardById` + `openBugsFor` (type bug, ref match, status ≠
+  done) — computed at render, referenced card's file untouched, as decided.
+- Creation: ⌘B opens quick capture in bug mode (form header says "New bug",
+  same speed); "Report bug" button on review/done detail → `createBugFor`:
+  bug born next to its source (same folder/milestone), `ref` pre-filled,
+  title "Bug in <id>", detail opens on the fresh bug (c025's title editing
+  makes renaming immediate).
+- Open decisions resolved during implementation: unknown-to-the-app types
+  get a generic badge from the type string (bug additionally gets its own
+  color); report-bug stays strictly review/done.
+- Ref link and backlinks navigate between cards inside the detail dialog
+  (dialog follows by card id).
+- 21 new tests across cards/board/board-actions/Board/QuickCapture/
+  CardDetail/App. Suite: 174.
+
+## Log
+
+- 2026-07-16 captured via quick capture, enriched via discuss convention
+- 2026-07-16 picked up (agent), status → in-progress
+- 2026-07-16 21 tests (red → green), all gates clean, status → review

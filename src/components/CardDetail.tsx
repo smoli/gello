@@ -19,6 +19,12 @@ export interface MilestoneOption {
   label: string;
 }
 
+/** Resolution of this card's `ref`, computed by the App from the model. */
+export interface RefCardInfo {
+  exists: boolean;
+  title: string | null;
+}
+
 export function CardDetail({
   card,
   milestoneLabel,
@@ -28,6 +34,10 @@ export function CardDetail({
   onToggleTask,
   onSaveEdit,
   onTriage,
+  onReportBug,
+  onOpenCardId,
+  refCard,
+  openBugs,
   onClose,
 }: {
   card: Card;
@@ -38,6 +48,10 @@ export function CardDetail({
   onToggleTask: (index: number) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, milestoneId: string) => void;
+  onReportBug: () => void;
+  onOpenCardId: (id: string) => void;
+  refCard: RefCardInfo | null;
+  openBugs: Card[];
   onClose: () => void;
 }) {
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
@@ -118,7 +132,12 @@ export function CardDetail({
       >
         <header className="card-detail-header">
           <div className="card-detail-title">
-            <span className="card-id">{card.id}</span>
+            <span className="card-id">
+              {card.id}
+              {card.type !== "task" && (
+                <span className={`card-type type-${card.type}`}>{card.type}</span>
+              )}
+            </span>
             {editing ? (
               <input
                 aria-label="Card title"
@@ -132,6 +151,11 @@ export function CardDetail({
             )}
           </div>
           <div className="card-detail-actions">
+            {(card.status === "review" || card.status === "done") && (
+              <button type="button" onClick={onReportBug}>
+                Report bug
+              </button>
+            )}
             {!editing && (
               <button type="button" onClick={startEdit}>
                 Edit
@@ -248,6 +272,39 @@ export function CardDetail({
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+        {card.ref && (
+          <div className="card-ref">
+            found in:{" "}
+            {refCard?.exists ? (
+              <button
+                type="button"
+                className="card-link"
+                onClick={() => onOpenCardId(card.ref!)}
+              >
+                {card.ref} — {refCard.title}
+              </button>
+            ) : (
+              <span className="card-ref-dangling">
+                {card.ref} (not found on this board)
+              </span>
+            )}
+          </div>
+        )}
+        {openBugs.length > 0 && (
+          <div className="card-backlinks">
+            <span className="field-label">Open bugs against this card:</span>
+            {openBugs.map((bug) => (
+              <button
+                key={bug.path}
+                type="button"
+                className="card-link"
+                onClick={() => onOpenCardId(bug.id)}
+              >
+                {bug.id} — {bug.title}
+              </button>
+            ))}
           </div>
         )}
         <div className="card-detail-body" hidden={editing}>

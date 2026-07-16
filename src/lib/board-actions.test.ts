@@ -7,6 +7,7 @@ import { removeFile } from "./board-io";
 import { loadBoard } from "./board";
 import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
+  createBugFor,
   createCard,
   moveCard,
   saveCardBody,
@@ -154,6 +155,7 @@ describe("custom-column statuses (c033)", () => {
   const DISCUSS_CONFIG = {
     columns: ["discuss", "backlog", "ready", "in-progress", "review", "done"],
     wipLimits: {},
+    types: ["task", "bug"],
   };
 
   function discussCard() {
@@ -305,6 +307,66 @@ describe("createCard", () => {
 
     await persisted;
     expect(writeMock.mock.calls[0][1]).toContain("Details here.");
+  });
+});
+
+describe("bug creation (c024)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  it("creates a standalone bug in the inbox via createCard", async () => {
+    const { card, persisted } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      { title: "Something broke", body: "", type: "bug" },
+      "2026-07-16",
+    );
+
+    expect(card.type).toBe("bug");
+    expect(card.ref).toBeNull();
+    expect(card.path).toBe("inbox/c008-something-broke.md");
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("type: bug\n");
+  });
+
+  it("creates a referenced bug next to the source card via createBugFor", async () => {
+    const source = parseCard(
+      "milestones/m02-board-ui/c005-view.md",
+      "---\nid: c005\ntitle: The view\nstatus: review\nmilestone: m02\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createBugFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      "2026-07-16",
+    );
+
+    expect(card.type).toBe("bug");
+    expect(card.ref).toBe("c005");
+    expect(card.status).toBe("backlog");
+    expect(card.milestone).toBe("m02");
+    expect(card.path).toBe("milestones/m02-board-ui/c008-bug-in-c005.md");
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("ref: c005\n");
+    expect(written).toContain("milestone: m02\n");
+  });
+
+  it("creates a bug for an inbox source card in the inbox", async () => {
+    const source = parseCard(
+      "inbox/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: review\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card } = createBugFor("/repo/.gello", CAPTURE_MODEL, source.card, "2026-07-16");
+
+    expect(card.path).toBe("inbox/c008-bug-in-c007.md");
+    expect(card.milestone).toBeNull();
   });
 });
 

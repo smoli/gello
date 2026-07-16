@@ -14,17 +14,24 @@ const PRIORITIES: readonly Priority[] = ["low", "normal", "high"];
 export interface BoardConfig {
   columns: string[];
   wipLimits: Record<string, number>;
+  /** Card types (c024): open set, `task` is the implicit default type. */
+  types: string[];
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   columns: ["backlog", "ready", "in-progress", "review", "done"],
   wipLimits: {},
+  types: ["task", "bug"],
 };
 
 export interface Card {
   id: string;
   title: string;
   status: string;
+  /** Card type (c024): "task" unless the frontmatter says otherwise. */
+  type: string;
+  /** Provenance (c024): id of the card this one was found in, or null. */
+  ref: string | null;
   milestone: string | null;
   priority: Priority;
   depends: string[];
@@ -160,6 +167,13 @@ export function parseCard(
     );
   }
 
+  const type = asOptionalString(data, "type") ?? "task";
+  if (!config.types.includes(type)) {
+    return invalid(
+      `unknown type "${type}" (allowed: ${config.types.join(", ")})`,
+    );
+  }
+
   const priorityRaw = data["priority"];
   let priority: Priority = "normal";
   if (priorityRaw !== undefined && priorityRaw !== null) {
@@ -182,6 +196,8 @@ export function parseCard(
       id,
       title,
       status,
+      type,
+      ref: asOptionalString(data, "ref"),
       milestone: asOptionalString(data, "milestone"),
       priority,
       depends: depends.value,
@@ -236,6 +252,7 @@ export function parseBoardConfig(raw: string): {
   const defaults = (): BoardConfig => ({
     columns: [...DEFAULT_BOARD_CONFIG.columns],
     wipLimits: {},
+    types: [...DEFAULT_BOARD_CONFIG.types],
   });
 
   let data: unknown;
@@ -260,6 +277,11 @@ export function parseBoardConfig(raw: string): {
     config.columns = columns.map(String);
   }
 
+  const types = record["types"];
+  if (Array.isArray(types) && types.length > 0) {
+    config.types = types.map(String);
+  }
+
   const wipLimits = record["wip_limits"];
   if (wipLimits !== null && typeof wipLimits === "object" && !Array.isArray(wipLimits)) {
     for (const [column, limit] of Object.entries(wipLimits)) {
@@ -272,26 +294,38 @@ export function parseBoardConfig(raw: string): {
 
 // --- creation -----------------------------------------------------------------
 
+export interface NewCardOptions {
+  /** Non-default card type, e.g. "bug". */
+  type?: string;
+  /** Provenance: card this one was found in. */
+  ref?: string;
+  /** Milestone id when the card is born inside a milestone folder. */
+  milestone?: string;
+}
+
 /**
- * Raw content for a brand-new card (quick capture): minimal frontmatter with
- * sensible defaults, optional body.
+ * Raw content for a brand-new card (quick capture, report-bug): minimal
+ * frontmatter with sensible defaults, optional body.
  */
 export function newCardRaw(
   id: string,
   title: string,
   body: string,
   today: string,
+  options: NewCardOptions = {},
 ): string {
-  const block = [
+  const lines = [
     `id: ${id}`,
     `title: ${formatScalar(title)}`,
     "status: backlog",
     "priority: normal",
-    `created: ${today}`,
-    `updated: ${today}`,
-  ].join("\n");
+  ];
+  if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
+  if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);
+  if (options.milestone) lines.push(`milestone: ${formatScalar(options.milestone)}`);
+  lines.push(`created: ${today}`, `updated: ${today}`);
   const trimmedBody = body.trim();
-  return `---\n${block}\n---\n${trimmedBody ? `\n${trimmedBody}\n` : ""}`;
+  return `---\n${lines.join("\n")}\n---\n${trimmedBody ? `\n${trimmedBody}\n` : ""}`;
 }
 
 // --- serialization (surgical edits) ------------------------------------------

@@ -35,6 +35,11 @@ function loadedFixture() {
         content:
           "---\nid: c005\ntitle: Board card\nstatus: backlog\nmilestone: m02\n---\nx\n",
       },
+      {
+        path: "milestones/m02-board-ui/c006-reviewed.md",
+        content:
+          "---\nid: c006\ntitle: Reviewed card\nstatus: review\nmilestone: m02\n---\nx\n",
+      },
     ]),
   };
 }
@@ -212,7 +217,7 @@ describe("App", () => {
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c006-dark-mode.md",
+      "/repo/.gello/inbox/c007-dark-mode.md",
       expect.stringContaining("title: Dark mode"),
     );
     const inbox = screen.getByRole("region", { name: "inbox" });
@@ -341,6 +346,27 @@ describe("App", () => {
     // card now renders under the milestone in its status column
     const backlog = screen.getByRole("region", { name: "backlog" });
     expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
+  });
+
+  it("report-bug creates a referenced bug in the source's milestone and opens it (c024)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/c007-bug-in-c006.md",
+      expect.stringContaining("ref: c006"),
+    );
+    // the fresh bug's detail is open
+    const dialog = screen.getByRole("dialog", { name: "c007" });
+    expect(within(dialog).getByText("Bug in c006")).toBeInTheDocument();
+    expect(within(dialog).getByText("bug")).toBeInTheDocument();
+    // and it links back to the source
+    fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
+    expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

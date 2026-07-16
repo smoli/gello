@@ -25,7 +25,7 @@ describe("QuickCapture", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Dark mode", "Some notes");
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Dark mode", "Some notes", "task");
     expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
 
     // reopens empty
@@ -43,7 +43,22 @@ describe("QuickCapture", () => {
     });
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
-    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Quick one", "");
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Quick one", "", "task");
+  });
+
+  it("opens in bug mode via mod+B and creates a bug (c024)", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+
+    fireEvent.keyDown(window, { key: "b", metaKey: true });
+    expect(screen.getByText(/new bug/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "It crashed" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("It crashed", "", "bug");
   });
 
   it("ignores submission with an empty title", () => {

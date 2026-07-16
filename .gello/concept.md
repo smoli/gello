@@ -80,6 +80,8 @@ Notes:
 id: c003
 title: Kanban view with drag & drop
 status: ready            # discuss | backlog | ready | in-progress | review | done
+type: bug                # optional; default task; allowed values from board.yaml types
+ref: c001                # optional; card this bug was found in (provenance, not dependency)
 milestone: m02-board-ui
 priority: high           # low | normal | high
 depends: [c001]
@@ -142,6 +144,7 @@ due: 2026-08-15
 
 ```yaml
 columns: [discuss, backlog, ready, in-progress, review, done]
+types: [task, bug]     # optional; card types, open set; default [task, bug]
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```

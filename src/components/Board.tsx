@@ -61,16 +61,21 @@ export function Board({
   onTriageCard?: TriageCardHandler;
 }) {
   const [filter, setFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [dragging, setDragging] = useState<Card | null>(null);
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const inboxUnprocessed = useMemo(
     () => model.inbox.filter((card) => card.status === "backlog"),
     [model],
   );
-  const visible =
+  const byMilestone =
     filter === "all"
       ? statusCards
       : statusCards.filter((c) => c.filterKey === filter || c.filterKey === "inbox");
+  const visible =
+    typeFilter === "all"
+      ? byMilestone
+      : byMilestone.filter((c) => c.card.type === typeFilter);
 
   const columns = model.config.columns;
 
@@ -118,6 +123,18 @@ export function Board({
           {model.milestones.map((group) => (
             <option key={group.folder} value={group.folder}>
               {group.milestone?.title ?? group.folder}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Type filter"
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value)}
+        >
+          <option value="all">All types</option>
+          {model.config.types.map((type) => (
+            <option key={type} value={type}>
+              {type}
             </option>
           ))}
         </select>
@@ -298,8 +315,13 @@ function CardFront({
     >
       <div className="card-meta">
         <span className="card-id">{card.id}</span>
-        <span className={`card-priority priority-${card.priority}`}>
-          {card.priority}
+        <span className="card-meta-badges">
+          {card.type !== "task" && (
+            <span className={`card-type type-${card.type}`}>{card.type}</span>
+          )}
+          <span className={`card-priority priority-${card.priority}`}>
+            {card.priority}
+          </span>
         </span>
       </div>
       <p className="card-title">{card.title}</p>

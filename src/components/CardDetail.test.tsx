@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { parseCard } from "../lib/cards";
 import { CardDetail } from "./CardDetail";
 
@@ -42,6 +42,10 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     onToggleTask: vi.fn(),
     onSaveEdit: vi.fn().mockResolvedValue("saved" as const),
     onTriage: vi.fn(),
+    onReportBug: vi.fn(),
+    onOpenCardId: vi.fn(),
+    refCard: null,
+    openBugs: [],
     milestoneOptions: [
       { folder: "m01-alpha", milestoneId: "m01", label: "Alpha" },
       { folder: "m03-card-detail", milestoneId: "m03", label: "Card detail & capture" },
@@ -265,6 +269,56 @@ describe("CardDetail", () => {
     expect(
       screen.queryByRole("textbox", { name: "Card body" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows a report-bug action only for review/done cards (c024)", () => {
+    const props = renderDetail(); // fixture card is in-progress
+    expect(
+      screen.queryByRole("button", { name: /report bug/i }),
+    ).not.toBeInTheDocument();
+    cleanup();
+
+    const reviewCard = { ...fixture(), status: "review" };
+    const props2 = renderDetail({ card: reviewCard });
+    fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
+    expect(props2.onReportBug).toHaveBeenCalledTimes(1);
+    expect(props.onReportBug).not.toHaveBeenCalled();
+  });
+
+  it("renders a bug's ref as a link to the referenced card", () => {
+    const bug = {
+      ...fixture(),
+      type: "bug",
+      ref: "c001",
+    };
+    const props = renderDetail({
+      card: bug,
+      refCard: { exists: true, title: "The source card" },
+    });
+
+    expect(screen.getByText("bug")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /c001/ }));
+    expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c001");
+  });
+
+  it("warns on a dangling ref instead of hiding it", () => {
+    const bug = { ...fixture(), type: "bug", ref: "c999" };
+    renderDetail({ card: bug, refCard: { exists: false, title: null } });
+
+    expect(screen.getByText(/c999/)).toBeInTheDocument();
+    expect(screen.getByText(/not found/i)).toBeInTheDocument();
+  });
+
+  it("lists open bugs pointing at this card", () => {
+    const props = renderDetail({
+      openBugs: [
+        { ...fixture(), id: "c050", title: "Broke the filter", path: "inbox/c050-x.md" },
+      ],
+    });
+
+    expect(screen.getByText(/open bugs/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Broke the filter/ }));
+    expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c050");
   });
 
   it("closes via button and Escape", () => {

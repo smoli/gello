@@ -31,6 +31,15 @@
   font-size: 0.8rem;
 }
 
+.quick-capture-mode {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+}
+
 .quick-capture label {
   display: flex;
   flex-direction: column;

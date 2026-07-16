@@ -148,6 +148,26 @@ export function applyFileChanges(
   return loadBoard([...files].map(([path, content]) => ({ path, content })));
 }
 
+/** All cards on the board, inbox and milestones alike. */
+function allCards(model: BoardModel): Card[] {
+  return [...model.inbox, ...model.milestones.flatMap((g) => g.cards)];
+}
+
+/** Find a card by id anywhere on the board; null when absent (dangling ref). */
+export function findCardById(model: BoardModel, id: string): Card | null {
+  return allCards(model).find((card) => card.id === id) ?? null;
+}
+
+/**
+ * Bugs pointing at `id` via ref that are not done — computed at render time,
+ * never written into the referenced card (c024).
+ */
+export function openBugsFor(model: BoardModel, id: string): Card[] {
+  return allCards(model).filter(
+    (card) => card.type === "bug" && card.ref === id && card.status !== "done",
+  );
+}
+
 /** Immutably add a freshly captured card to the inbox, keeping sort order. */
 export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
   return { ...model, inbox: [...model.inbox, card].sort(byPriorityThenId) };

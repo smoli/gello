@@ -4,12 +4,15 @@ import { CardDetail, type MilestoneOption } from "./components/CardDetail";
 import { QuickCapture } from "./components/QuickCapture";
 import {
   applyFileChanges,
+  findCardById,
+  openBugsFor,
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
   type BoardModel,
 } from "./lib/board";
 import {
+  createBugFor,
   createCard,
   moveCard,
   saveCardBody,
@@ -193,12 +196,43 @@ function App() {
     );
   };
 
-  const handleCreate = (title: string, body: string) => {
+  const handleCreate = (title: string, body: string, type: "task" | "bug") => {
     if (!board) return;
     applyAction(
-      () => createCard(board.root, board.model, { title, body }, todayIsoDate()),
+      () =>
+        createCard(
+          board.root,
+          board.model,
+          { title, body, type: type === "task" ? undefined : type },
+          todayIsoDate(),
+        ),
       withNewInboxCard,
     );
+  };
+
+  const handleReportBug = (source: Card) => {
+    if (!board) return;
+    let created: Card | null = null;
+    applyAction(
+      () => {
+        const result = createBugFor(board.root, board.model, source, todayIsoDate());
+        created = result.card;
+        return result;
+      },
+      (model, card) =>
+        card.path.startsWith("inbox/")
+          ? withNewInboxCard(model, card)
+          : {
+              ...model,
+              milestones: model.milestones.map((group) =>
+                card.path.startsWith(`milestones/${group.folder}/`)
+                  ? { ...group, cards: [...group.cards, card] }
+                  : group,
+              ),
+            },
+    );
+    // the criterion: report-bug opens the fresh bug for editing
+    if (created !== null) setSelectedPath((created as Card).path);
   };
 
   const handleTriage = (card: Card, folder: string, milestoneId: string) => {
@@ -258,6 +292,20 @@ function App() {
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
             }
+            onReportBug={() => handleReportBug(selected.card)}
+            onOpenCardId={(id) => {
+              const target = findCardById(board.model, id);
+              if (target) setSelectedPath(target.path);
+            }}
+            refCard={
+              selected.card.ref
+                ? {
+                    exists: findCardById(board.model, selected.card.ref) !== null,
+                    title: findCardById(board.model, selected.card.ref)?.title ?? null,
+                  }
+                : null
+            }
+            openBugs={openBugsFor(board.model, selected.card.id)}
             onClose={() => setSelectedPath(null)}
           />
         )}
