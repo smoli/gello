@@ -137,6 +137,26 @@ describe("Board", () => {
 
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
   });
+
+  it("orders a column globally by priority then id, across milestones (c046)", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+      file("milestones/m01-a/c001-a-normal.md", card("c001", "A normal", "backlog", "normal")),
+      file("milestones/m01-a/c004-a-low.md", card("c004", "A low", "backlog", "low")),
+      file("milestones/m02-b/milestone.md", "---\nid: m02\ntitle: B\n---\ng\n"),
+      file("milestones/m02-b/c002-b-high.md", card("c002", "B high", "backlog", "high")),
+      file("milestones/m02-b/c003-b-normal.md", card("c003", "B normal", "backlog", "normal")),
+    ]);
+    render(<Board model={model} />);
+
+    const ids = within(column("backlog"))
+      .getAllByRole("article")
+      .map((el) => el.getAttribute("aria-label")!.split(":")[0]);
+
+    // NOT milestone-grouped (c001, c004, c002, c003) — globally sorted:
+    expect(ids).toEqual(["c002", "c001", "c003", "c004"]);
+  });
 });
 
 describe("card types on the board (c024)", () => {

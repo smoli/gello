@@ -1,10 +1,11 @@
 ---
 id: c022
 title: Fulltext search in cards
-status: discuss
+status: backlog
 priority: normal
 created: 2026-07-16
-updated: 2026-07-17
+updated: 2026-07-16
+milestone: m01
 ---
 
 ## What
@@ -51,3 +52,7 @@ involvement.
 - **Open**: whether card fronts should hint *why* they match when the hit
   is only in the body (e.g. a one-line snippet) — not in scope for the
   first cut.
+
+## Log
+
+- 2026-07-16 status → backlog (app)

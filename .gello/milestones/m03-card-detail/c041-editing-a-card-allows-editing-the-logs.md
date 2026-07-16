@@ -1,7 +1,7 @@
 ---
 id: c041
 title: Editing a card allows editing the logs
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-16
@@ -23,3 +23,4 @@ milestone: m03
 
 - 2026-07-16 reported (Stephan)
 - 2026-07-17 implemented with c042, status → review
+- 2026-07-16 status → done (app)

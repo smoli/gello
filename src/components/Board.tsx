@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { BoardModel } from "../lib/board";
+import { byPriorityThenId, type BoardModel } from "../lib/board";
 import type { Card, InvalidFile } from "../lib/cards";
 import "./Board.css";
 
@@ -194,7 +194,11 @@ export function Board({
           <Column
             key={column}
             name={column}
-            cards={visible.filter((c) => c.card.status === column)}
+            cards={visible
+              .filter((c) => c.card.status === column)
+              // c046: global column order — priority then id, never
+              // milestone-grouped
+              .sort((a, b) => byPriorityThenId(a.card, b.card))}
             onDropCard={(path) => dropOnColumn(column, path)}
             onMoveByKey={moveByKey}
             onSelect={onSelectCard}

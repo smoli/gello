@@ -39,7 +39,8 @@ export interface BoardModel {
 
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, normal: 1, low: 2 };
 
-function byPriorityThenId(a: Card, b: Card): number {
+/** Board-wide display order: priority (high first), then id. */
+export function byPriorityThenId(a: Card, b: Card): number {
   const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
   if (priority !== 0) return priority;
   return a.id.localeCompare(b.id);

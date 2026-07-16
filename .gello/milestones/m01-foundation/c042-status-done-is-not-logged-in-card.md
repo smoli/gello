@@ -1,7 +1,7 @@
 ---
 id: c042
 title: "Status -> done is not logged in card"
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-16
@@ -24,3 +24,4 @@ milestone: m01
 
 - 2026-07-16 reported (Stephan)
 - 2026-07-17 implemented with c041, status → review
+- 2026-07-16 status → done (app)
