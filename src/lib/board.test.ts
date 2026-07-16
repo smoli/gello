@@ -314,6 +314,56 @@ describe("issue refs (c024)", () => {
   });
 });
 
+describe("duplicate card IDs (c031)", () => {
+  it("keeps the first occurrence (by path) and flags the rest as invalid", () => {
+    const model = loadBoard([
+      file("inbox/c010-copy.md", card("c010", "backlog")),
+      file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+      file("milestones/m01-a/c010-original.md", card("c010", "review")),
+    ]);
+
+    // "inbox/..." sorts before "milestones/..." — inbox copy wins
+    expect(model.inbox.map((c) => c.id)).toEqual(["c010"]);
+    expect(model.milestones[0].cards).toEqual([]);
+    expect(model.invalid).toHaveLength(1);
+    expect(model.invalid[0].path).toBe("milestones/m01-a/c010-original.md");
+    expect(model.invalid[0].reason).toContain("duplicate id c010");
+    expect(model.invalid[0].reason).toContain("inbox/c010-copy.md");
+  });
+
+  it("flags every extra copy when an id appears three times", () => {
+    const model = loadBoard([
+      file("inbox/c010-a.md", card("c010")),
+      file("inbox/c010-b.md", card("c010")),
+      file("inbox/c010-c.md", card("c010")),
+    ]);
+
+    expect(model.inbox).toHaveLength(1);
+    expect(model.invalid).toHaveLength(2);
+    expect(model.invalid.every((e) => e.reason.includes("duplicate id"))).toBe(true);
+  });
+
+  it("does not reuse a duplicated id for the next card", () => {
+    const model = loadBoard([
+      file("inbox/c010-a.md", card("c010")),
+      file("inbox/c010-b.md", card("c010")),
+    ]);
+
+    expect(nextCardId(model)).toBe("c011");
+  });
+
+  it("propagates through applyFileChanges (watcher path)", () => {
+    const model = loadBoard([file("inbox/c010-a.md", card("c010"))]);
+
+    const next = applyFileChanges(model, [
+      { path: "inbox/c010-b.md", content: card("c010") },
+    ]);
+
+    expect(next.invalid).toHaveLength(1);
+    expect(next.invalid[0].reason).toContain("duplicate id c010");
+  });
+});
+
 describe("loadBoard edge cases", () => {
   it("uses the default config when board.yaml is missing", () => {
     const model = loadBoard([file("inbox/c001-x.md", card("c001"))]);

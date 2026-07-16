@@ -1,7 +1,7 @@
 ---
 id: c031
 title: Detect duplicate card IDs on the board
-status: ready
+status: review
 priority: normal
 tags: [core]
 created: 2026-07-16
@@ -26,12 +26,30 @@ file edits.
 
 ## Acceptance criteria
 
-- [ ] loadBoard flags all-but-one card per duplicated ID as invalid
+- [x] loadBoard flags all-but-one card per duplicated ID as invalid
       ("duplicate id cXXX, also used by <path>")
-- [ ] Dogfood test fails when this repo's board has duplicate IDs
-- [ ] Needs-attention lane shows the conflict
+- [x] Dogfood test fails when this repo's board has duplicate IDs
+- [x] Needs-attention lane shows the conflict
 
 ## Log
 
 - 2026-07-16 captured after a real c029 collision (app quick capture vs agent)
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → in-progress (app)
+- 2026-07-16 status → ready (app)
+
+## Notes
+
+- Dedup pass at the end of loadBoard: first occurrence in path order owns
+  the id; extras go invalid with "duplicate id cXXX, also used by <path>".
+  Works identically for watcher reconciliation (applyFileChanges rebuilds
+  through loadBoard) and the dogfood test now hard-fails on duplicates.
+- `nextCardId` never reuses a contested id (invalid entries reserve their
+  filename-derived ids — existing behavior, now covering this case too).
+- Validated by two real incidents before landing (c029 race, c041 copy).
+
+## Log
+
+- 2026-07-16 captured after a real c029 collision (app quick capture vs agent)
+- 2026-07-16 status → ready (app)
+- 2026-07-17 implemented, 4 tests red → green (202 total), status → review

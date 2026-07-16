@@ -87,14 +87,41 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     // everything else (concept.md, assets, deeper nesting) is not board data
   }
 
-  inbox.sort(byPriorityThenId);
+  // c031: duplicate card IDs — the first occurrence (by path order) owns the
+  // id; every other copy goes to the needs-attention lane. This also fails
+  // the dogfood test, so a duplicate can never sit silently on the board.
+  const owner = new Map<string, string>();
+  const duplicate = new Map<string, string>(); // path → reason
+  const everyCard = [...inbox, ...[...groups.values()].flatMap((g) => g.cards)];
+  everyCard.sort((a, b) => a.path.localeCompare(b.path));
+  for (const card of everyCard) {
+    const ownerPath = owner.get(card.id);
+    if (ownerPath === undefined) {
+      owner.set(card.id, card.path);
+    } else {
+      duplicate.set(card.path, `duplicate id ${card.id}, also used by ${ownerPath}`);
+    }
+  }
+  const dedup = (cards: Card[]): Card[] =>
+    cards.filter((card) => {
+      const reason = duplicate.get(card.path);
+      if (reason === undefined) return true;
+      invalid.push({ path: card.path, raw: card.raw, reason });
+      return false;
+    });
+
+  const dedupedInbox = dedup(inbox);
+  dedupedInbox.sort(byPriorityThenId);
   const milestones = [...groups.values()].sort((a, b) =>
     a.folder.localeCompare(b.folder),
   );
-  for (const group of milestones) group.cards.sort(byPriorityThenId);
+  for (const group of milestones) {
+    group.cards = dedup(group.cards);
+    group.cards.sort(byPriorityThenId);
+  }
   invalid.sort((a, b) => a.path.localeCompare(b.path));
 
-  return { config, configError, configRaw, milestones, inbox, invalid };
+  return { config, configError, configRaw, milestones, inbox: dedupedInbox, invalid };
 }
 
 // --- incremental reconciliation -------------------------------------------------
