@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges, Priority } from "../lib/cards";
@@ -62,6 +62,9 @@ export function CardDetail({
   const [bodyDraft, setBodyDraft] = useState(startInEdit ? card.body : "");
   const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
   const [conflict, setConflict] = useState(false);
+  // c038: a click "on the backdrop" only counts if the press started there —
+  // otherwise a text selection drifting outside the dialog would close it
+  const pressStartedOnBackdrop = useRef(false);
 
   // c023: Escape must close the dialog regardless of focus — the dialog
   // element only receives key events while focus is inside it, and after a
@@ -126,7 +129,17 @@ export function CardDetail({
   };
 
   return (
-    <div className="card-detail-backdrop" onClick={onClose}>
+    <div
+      className="card-detail-backdrop"
+      onMouseDown={(event) => {
+        pressStartedOnBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && pressStartedOnBackdrop.current) {
+          onClose();
+        }
+      }}
+    >
       <div
         role="dialog"
         aria-label={card.id}

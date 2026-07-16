@@ -321,6 +321,29 @@ describe("CardDetail", () => {
     expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c050");
   });
 
+  it("does not close when a drag-selection ends on the backdrop (c038)", () => {
+    const props = renderDetail();
+    const backdrop = document.querySelector(".card-detail-backdrop")!;
+
+    // text selection starting inside the dialog, released over the backdrop
+    fireEvent.mouseDown(screen.getByRole("heading", { name: "Card detail view" }));
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("still closes on a genuine backdrop click (press and release outside)", () => {
+    const props = renderDetail();
+    const backdrop = document.querySelector(".card-detail-backdrop")!;
+
+    fireEvent.mouseDown(backdrop);
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("can open directly in edit mode (c035)", () => {
     renderDetail({ startInEdit: true });
 
