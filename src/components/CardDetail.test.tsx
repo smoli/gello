@@ -239,4 +239,29 @@ describe("CardDetail", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(props.onClose).toHaveBeenCalledTimes(2);
   });
+
+  it("closes on Escape even when focus is outside the dialog (c023)", () => {
+    const props = renderDetail();
+
+    // reproduces the real-app situation: focus stayed on the card front
+    // behind the overlay, so the key event never reaches the dialog element
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("Escape while editing cancels only the edit, even with focus elsewhere", () => {
+    const props = renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Card body" }), {
+      key: "Escape",
+    });
+
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("textbox", { name: "Card body" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

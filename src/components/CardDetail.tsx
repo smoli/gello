@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges, Priority } from "../lib/cards";
@@ -40,6 +40,19 @@ export function CardDetail({
   const [bodyDraft, setBodyDraft] = useState("");
   const [conflict, setConflict] = useState(false);
 
+  // c023: Escape must close the dialog regardless of focus — the dialog
+  // element only receives key events while focus is inside it, and after a
+  // card click focus stays on the card front. Window-level listener instead;
+  // suspended while editing (the editor owns Escape = cancel edit).
+  useEffect(() => {
+    if (editing) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editing, onClose]);
+
   const startEdit = () => {
     setBodyDraft(card.body);
     setConflict(false);
@@ -80,9 +93,6 @@ export function CardDetail({
         aria-label={card.id}
         className="card-detail"
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") onClose();
-        }}
       >
         <header className="card-detail-header">
           <div className="card-detail-title">

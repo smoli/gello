@@ -52,7 +52,16 @@ export function QuickCapture({
   }
 
   return (
-    <div className="quick-capture" onKeyDown={(e) => e.key === "Escape" && close()}>
+    <div
+      className="quick-capture"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          // don't let Escape fall through to a card detail behind us
+          event.stopPropagation();
+          close();
+        }
+      }}
+    >
       <label>
         Title
         <input

@@ -1,7 +1,7 @@
 ---
 id: c014
 title: File watcher with debounced board reconciliation
-status: review
+status: done
 milestone: m04
 priority: high
 depends: [c003, c005]

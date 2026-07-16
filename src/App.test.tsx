@@ -97,6 +97,25 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("Escape in the quick-capture form leaves an open card detail alone (c023)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    expect(screen.getByRole("dialog", { name: "c001" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    // capture closed, detail untouched
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "c001" })).toBeInTheDocument();
+
+    // a second Escape (focus wherever) closes the detail
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("persists a priority change from the detail view", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
