@@ -46,6 +46,21 @@ describe("QuickCapture", () => {
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("Quick one", "", "task");
   });
 
+  it("offers a visible '+ New bug' button (c034)", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /new bug/i }));
+    expect(screen.getByText(/new bug/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Broken" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Broken", "", "bug");
+  });
+
   it("opens in bug mode via mod+B and creates a bug (c024)", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} />);

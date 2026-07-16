@@ -45,15 +45,29 @@ export function QuickCapture({
     close();
   };
 
+  const openAs = (nextMode: CaptureMode) => {
+    setMode(nextMode);
+    setOpen(true);
+  };
+
   if (!open) {
     return (
-      <button
-        type="button"
-        className="quick-capture-button"
-        onClick={() => setOpen(true)}
-      >
-        + New idea
-      </button>
+      <div className="quick-capture-buttons">
+        <button
+          type="button"
+          className="quick-capture-button"
+          onClick={() => openAs("task")}
+        >
+          + New idea
+        </button>
+        <button
+          type="button"
+          className="quick-capture-button quick-capture-button-bug"
+          onClick={() => openAs("bug")}
+        >
+          + New bug
+        </button>
+      </div>
     );
   }
 
