@@ -456,6 +456,18 @@ describe("Board card moves", () => {
     );
   });
 
+  it("marks the board while dragging so drop lanes can render feedback (c054)", () => {
+    const { container } = render(<Board model={MODEL} onMoveCard={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    expect(container.querySelector(".board")).not.toHaveClass("board-dragging");
+    fireEvent.dragStart(card, { dataTransfer });
+    expect(container.querySelector(".board")).toHaveClass("board-dragging");
+    fireEvent.dragEnd(card);
+    expect(container.querySelector(".board")).not.toHaveClass("board-dragging");
+  });
+
   it("accepts drops on the full-height track below a short column (c052)", () => {
     const onMove = vi.fn();
     const { container } = render(<Board model={MODEL} onMoveCard={onMove} />);

@@ -1,7 +1,7 @@
 ---
 id: c050
 title: There should be no vert scrollbar on the app
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-16
@@ -14,6 +14,7 @@ Since the columns scroll on their own there should be no vert scrollbar on the w
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 

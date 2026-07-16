@@ -119,9 +119,17 @@ export function Board({
   const stripVisible =
     dragging !== null && showsMilestoneZones(dragging) && model.milestones.length > 0;
 
+  const boardClasses = [
+    "board",
+    backgroundImage ? "board-with-bg" : "",
+    dragging ? "board-dragging" : "", // c054: drop lanes render feedback
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div
-      className={backgroundImage ? "board board-with-bg" : "board"}
+      className={boardClasses}
       style={
         backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined
       }
@@ -180,7 +188,8 @@ export function Board({
       )}
       <div className="board-columns">
         {inboxUnprocessed.length > 0 && (
-          <section className="column column-inbox" aria-label="inbox">
+          <div className="column-track column-track-inbox">
+            <section className="column column-inbox" aria-label="inbox">
             <div className="column-header">
               <h2>inbox</h2>
               <span className="column-count">{inboxUnprocessed.length}</span>
@@ -197,6 +206,7 @@ export function Board({
               ))}
             </div>
           </section>
+          </div>
         )}
         {columns.map((column) => (
           <Column

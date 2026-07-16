@@ -56,3 +56,5 @@ involvement.
 ## Log
 
 - 2026-07-16 status → backlog (app)
+- 2026-07-16 status → ready (app)
+- 2026-07-16 status → backlog (app)

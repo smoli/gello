@@ -89,14 +89,22 @@
   min-height: 0;
 }
 
-/* c052: invisible full-height lane — the actual drop target */
+/* c052: invisible full-height lane — the actual drop target.
+   c053: all lanes share one flex basis, so they grow uniformly. */
 .column-track {
+  flex: 1 1 220px;
   min-width: 220px;
-  width: 220px;
-  flex-shrink: 0;
   align-self: stretch;
   display: flex;
   flex-direction: column;
+}
+
+/* c054: while dragging, the drop lanes show themselves (not the inbox) */
+.board-dragging .column-track:not(.column-track-inbox) {
+  outline: 2px dashed color-mix(in srgb, #4c8bf5 40%, transparent);
+  outline-offset: -2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #4c8bf5 4%, transparent);
 }
 
 .column {
