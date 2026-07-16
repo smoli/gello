@@ -348,7 +348,7 @@ describe("App", () => {
     expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
   });
 
-  it("report-bug creates a referenced bug in the source's milestone and opens it (c024)", async () => {
+  it("report-bug drafts first, creates on submit, and opens the bug (c024/c035/c037)", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
 
@@ -356,28 +356,39 @@ describe("App", () => {
     fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
     fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
 
+    // nothing on disk yet — it's a draft form carrying the ref context
+    expect(writeMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/bug for c006/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "The filter flickers" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c007-bug-in-c006.md",
+      "/repo/.gello/milestones/m02-board-ui/c007-the-filter-flickers.md",
       expect.stringContaining("ref: c006"),
     );
-    // the fresh bug's detail is open — directly in edit mode (c035)
     const dialog = screen.getByRole("dialog", { name: "c007" });
-    expect(
-      within(dialog).getByRole("textbox", { name: "Card title" }),
-    ).toHaveValue("Bug in c006");
-    expect(
-      within(dialog).getByRole("textbox", { name: "Card body" }),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByText("The filter flickers")).toBeInTheDocument();
 
-    // leaving edit mode and navigating to the source works, in view mode
-    fireEvent.keyDown(within(dialog).getByRole("textbox", { name: "Card body" }), {
-      key: "Escape",
-    });
+    // ref link navigates to the source
     fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
-    const sourceDialog = screen.getByRole("dialog", { name: "c006" });
-    expect(
-      within(sourceDialog).queryByRole("textbox", { name: "Card body" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+  });
+
+  it("escaping the bug draft creates nothing (c037)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    expect(writeMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/bug for c006/i)).not.toBeInTheDocument();
+    // the source card's dialog is still open underneath
+    expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

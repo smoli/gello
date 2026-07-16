@@ -1,7 +1,7 @@
 ---
 id: c035
 title: Quicker entry for bugs by referrence
-status: review
+status: done
 priority: normal
 type: bug
 ref: c024

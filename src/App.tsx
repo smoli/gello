@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Board } from "./components/Board";
+import { CaptureForm } from "./components/CaptureForm";
 import { CardDetail, type MilestoneOption } from "./components/CardDetail";
 import { QuickCapture } from "./components/QuickCapture";
 import {
@@ -55,8 +56,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  // open the next selected card directly in edit mode (fresh report-bug)
-  const [editOnOpen, setEditOnOpen] = useState(false);
+  // report-bug draft target (c037): the form is open, nothing on disk yet
+  const [bugSource, setBugSource] = useState<Card | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,12 +213,19 @@ function App() {
     );
   };
 
-  const handleReportBug = (source: Card) => {
-    if (!board) return;
+  /** Draft submitted (c037) — only now does the bug come into existence. */
+  const submitBugDraft = (title: string, body: string) => {
+    if (!board || !bugSource) return;
     let created: Card | null = null;
     applyAction(
       () => {
-        const result = createBugFor(board.root, board.model, source, todayIsoDate());
+        const result = createBugFor(
+          board.root,
+          board.model,
+          bugSource,
+          { title, body },
+          todayIsoDate(),
+        );
         created = result.card;
         return result;
       },
@@ -233,11 +241,8 @@ function App() {
               ),
             },
     );
-    // the criterion: report-bug opens the fresh bug directly in edit mode
-    if (created !== null) {
-      setSelectedPath((created as Card).path);
-      setEditOnOpen(true);
-    }
+    setBugSource(null);
+    if (created !== null) setSelectedPath((created as Card).path);
   };
 
   const handleTriage = (card: Card, folder: string, milestoneId: string) => {
@@ -282,17 +287,20 @@ function App() {
         <Board
           model={board.model}
           onMoveCard={handleMove}
-          onSelectCard={(card) => {
-            setEditOnOpen(false);
-            setSelectedPath(card.path);
-          }}
+          onSelectCard={(card) => setSelectedPath(card.path)}
           onTriageCard={handleTriage}
         />
+        {bugSource && (
+          <CaptureForm
+            heading={`New bug for ${bugSource.id}`}
+            onSubmit={submitBugDraft}
+            onCancel={() => setBugSource(null)}
+          />
+        )}
         {selected && (
           <CardDetail
             // remount per card: navigation resets edit state and drafts
             key={selected.card.path}
-            startInEdit={editOnOpen && selected.card.path === selectedPath}
             card={selected.card}
             milestoneLabel={selected.milestoneLabel}
             columns={board.model.config.columns}
@@ -303,13 +311,10 @@ function App() {
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
             }
-            onReportBug={() => handleReportBug(selected.card)}
+            onReportBug={() => setBugSource(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
-              if (target) {
-                setEditOnOpen(false);
-                setSelectedPath(target.path);
-              }
+              if (target) setSelectedPath(target.path);
             }}
             refCard={
               selected.card.ref

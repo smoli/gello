@@ -342,6 +342,7 @@ describe("bug creation (c024)", () => {
       "/repo/.gello",
       CAPTURE_MODEL,
       source.card,
+      { title: "It broke badly", body: "Repro: click it." },
       "2026-07-16",
     );
 
@@ -349,11 +350,13 @@ describe("bug creation (c024)", () => {
     expect(card.ref).toBe("c005");
     expect(card.status).toBe("backlog");
     expect(card.milestone).toBe("m02");
-    expect(card.path).toBe("milestones/m02-board-ui/c008-bug-in-c005.md");
+    expect(card.title).toBe("It broke badly");
+    expect(card.path).toBe("milestones/m02-board-ui/c008-it-broke-badly.md");
     await persisted;
     const written = writeMock.mock.calls[0][1];
     expect(written).toContain("ref: c005\n");
     expect(written).toContain("milestone: m02\n");
+    expect(written).toContain("Repro: click it.");
   });
 
   it("creates a bug for an inbox source card in the inbox", async () => {
@@ -363,9 +366,15 @@ describe("bug creation (c024)", () => {
     );
     if (!source.ok) throw new Error("fixture must parse");
 
-    const { card } = createBugFor("/repo/.gello", CAPTURE_MODEL, source.card, "2026-07-16");
+    const { card } = createBugFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Inbox trouble", body: "" },
+      "2026-07-16",
+    );
 
-    expect(card.path).toBe("inbox/c008-bug-in-c007.md");
+    expect(card.path).toBe("inbox/c008-inbox-trouble.md");
     expect(card.milestone).toBeNull();
   });
 });

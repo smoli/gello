@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
+import { CaptureForm } from "./CaptureForm";
 import "./QuickCapture.css";
 
 type CaptureMode = "task" | "bug";
 
 /**
- * The idea inbox: a button (and global mod+N) opening a minimal capture
- * form; mod+B opens the same form in bug mode (c024). Title is the only
- * required field — triage happens later, on the board. Speed is the point.
+ * The idea inbox: buttons (and global mod+N / mod+B) opening a minimal
+ * capture form. Title is the only required field — triage happens later,
+ * on the board. Speed is the point.
  */
 export function QuickCapture({
   onCreate,
@@ -15,8 +16,6 @@ export function QuickCapture({
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>("task");
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -30,20 +29,6 @@ export function QuickCapture({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  const close = () => {
-    setOpen(false);
-    setMode("task");
-    setTitle("");
-    setBody("");
-  };
-
-  const submit = () => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
-    onCreate(trimmed, body, mode);
-    close();
-  };
 
   const openAs = (nextMode: CaptureMode) => {
     setMode(nextMode);
@@ -72,50 +57,17 @@ export function QuickCapture({
   }
 
   return (
-    <div
-      className="quick-capture"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          // don't let Escape fall through to a card detail behind us
-          event.stopPropagation();
-          close();
-        }
+    <CaptureForm
+      heading={mode === "bug" ? "New bug" : "New idea"}
+      onSubmit={(title, body) => {
+        onCreate(title, body, mode);
+        setOpen(false);
+        setMode("task");
       }}
-    >
-      <p className="quick-capture-mode">
-        {mode === "bug" ? "New bug" : "New idea"}
-      </p>
-      <label>
-        Title
-        <input
-          aria-label="Title"
-          autoFocus
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") submit();
-          }}
-          placeholder="One line is enough"
-        />
-      </label>
-      <label>
-        Details
-        <textarea
-          aria-label="Details"
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          placeholder="Optional"
-          rows={3}
-        />
-      </label>
-      <div className="quick-capture-actions">
-        <button type="button" onClick={submit}>
-          Add
-        </button>
-        <button type="button" onClick={close}>
-          Cancel
-        </button>
-      </div>
-    </div>
+      onCancel={() => {
+        setOpen(false);
+        setMode("task");
+      }}
+    />
   );
 }

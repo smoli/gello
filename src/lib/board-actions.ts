@@ -115,20 +115,21 @@ export function createCard(
 }
 
 /**
- * Report a bug against a card (c024): the bug is born next to its source —
- * same folder, source's milestone, `ref` pre-filled, status backlog.
+ * Report a bug against a card (c024/c037): the bug is born next to its
+ * source — same folder, source's milestone, `ref` pre-filled, status
+ * backlog. Called only on draft submit; escaping the draft creates nothing.
  */
 export function createBugFor(
   root: string,
   model: BoardModel,
   source: Card,
+  input: { title: string; body: string },
   today: string,
 ): MoveResult {
   const id = nextCardId(model);
-  const title = `Bug in ${source.id}`;
   const folder = source.path.slice(0, source.path.lastIndexOf("/"));
-  const path = `${folder}/${id}-${slugify(title)}.md`;
-  const raw = newCardRaw(id, title, "", today, {
+  const path = `${folder}/${id}-${slugify(input.title)}.md`;
+  const raw = newCardRaw(id, input.title, input.body, today, {
     type: "bug",
     ref: source.id,
     milestone: source.milestone ?? undefined,

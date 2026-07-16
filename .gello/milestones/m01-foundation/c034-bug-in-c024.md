@@ -1,7 +1,7 @@
 ---
 id: c034
 title: No button to create a new bug
-status: review
+status: done
 priority: normal
 type: bug
 ref: c024

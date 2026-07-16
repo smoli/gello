@@ -1,7 +1,7 @@
 ---
 id: c036
 title: Bug in c024
-status: review
+status: done
 priority: normal
 type: bug
 ref: c024
