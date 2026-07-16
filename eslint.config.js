@@ -23,10 +23,15 @@ export default tseslint.config(
               message:
                 "Frontmatter/YAML I/O must go through src/lib/cards.ts.",
             },
+            // exact bare names, so relative imports like ./fs stay legal
+            {
+              name: "fs",
+              message: "No direct FS access in app code; use src/lib/fs.ts.",
+            },
           ],
           patterns: [
             {
-              group: ["node:fs", "node:fs/*", "fs", "fs/*"],
+              group: ["node:fs", "node:fs/*", "fs/*"],
               message:
                 "No direct FS access in app code; use src/lib/fs.ts.",
             },

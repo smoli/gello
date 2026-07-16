@@ -25,11 +25,12 @@ describe("loadBoardFromDisk", () => {
       throw new Error(`unexpected command ${String(command)}`);
     });
 
-    const model = await loadBoardFromDisk();
+    const loaded = await loadBoardFromDisk();
 
-    expect(model).not.toBeNull();
-    expect(model?.config.columns).toEqual(["backlog", "ready"]);
-    expect(model?.inbox.map((c) => c.id)).toEqual(["c001"]);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.root).toBe("/repo/.gello");
+    expect(loaded?.model.config.columns).toEqual(["backlog", "ready"]);
+    expect(loaded?.model.inbox.map((c) => c.id)).toEqual(["c001"]);
   });
 
   it("returns null when no board root exists", async () => {

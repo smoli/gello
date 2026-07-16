@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard, type BoardFile } from "../lib/board";
 import { Board } from "./Board";
@@ -104,5 +104,86 @@ describe("Board", () => {
     render(<Board model={loadBoard([])} />);
 
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
+  });
+});
+
+function fakeDataTransfer() {
+  const data: Record<string, string> = {};
+  return {
+    setData: (type: string, value: string) => {
+      data[type] = value;
+    },
+    getData: (type: string) => data[type] ?? "",
+    dropEffect: "",
+    effectAllowed: "",
+  };
+}
+
+describe("Board card moves", () => {
+  it("fires onMoveCard when a card is dropped on another column", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(column("done"), { dataTransfer });
+    fireEvent.drop(column("done"), { dataTransfer });
+
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001", status: "ready" }),
+      "done",
+    );
+  });
+
+  it("ignores a drop on the card's own column", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(column("ready"), { dataTransfer });
+
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it("moves a focused card with arrow keys", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} />);
+    const card = screen.getByText("First card").closest("article")!;
+
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+    expect(onMove).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "c001" }),
+      "in-progress",
+    );
+
+    fireEvent.keyDown(card, { key: "ArrowLeft" });
+    expect(onMove).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "c001" }),
+      "backlog",
+    );
+  });
+
+  it("does not move past the first or last column", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} />);
+
+    const backlogCard = screen.getByText("Inbox idea").closest("article")!;
+    fireEvent.keyDown(backlogCard, { key: "ArrowLeft" });
+
+    const doneCard = screen.getByText("Second card").closest("article")!;
+    fireEvent.keyDown(doneCard, { key: "ArrowRight" });
+
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it("marks cards as draggable and focusable", () => {
+    render(<Board model={MODEL} onMoveCard={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+
+    expect(card).toHaveAttribute("draggable", "true");
+    expect(card).toHaveAttribute("tabindex", "0");
   });
 });

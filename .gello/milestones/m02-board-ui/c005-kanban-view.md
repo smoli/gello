@@ -1,7 +1,7 @@
 ---
 id: c005
 title: Kanban view (read-only) with milestone filter
-status: review
+status: done
 milestone: m02
 priority: high
 depends: [c003]

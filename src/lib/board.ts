@@ -94,6 +94,23 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   return { config, configError, milestones, inbox, invalid };
 }
 
+/**
+ * Immutably replace one card (matched by path) with an updated version —
+ * used for optimistic UI updates after a status change.
+ */
+export function withUpdatedCard(model: BoardModel, updated: Card): BoardModel {
+  const replace = (card: Card): Card =>
+    card.path === updated.path ? updated : card;
+  return {
+    ...model,
+    inbox: model.inbox.map(replace),
+    milestones: model.milestones.map((group) => ({
+      ...group,
+      cards: group.cards.map(replace),
+    })),
+  };
+}
+
 // --- ID derivation -------------------------------------------------------------
 
 function maxIdNumber(candidates: string[], prefix: string): number {

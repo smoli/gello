@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadBoard, nextCardId, nextMilestoneId, type BoardFile } from "./board";
+import {
+  loadBoard,
+  nextCardId,
+  nextMilestoneId,
+  withUpdatedCard,
+  type BoardFile,
+} from "./board";
 
 // --- helpers -----------------------------------------------------------------
 
@@ -117,6 +123,36 @@ describe("loadBoard on a synthetic tree", () => {
     // c104/c105 are invalid but their filenames still reserve the IDs
     expect(nextCardId(model)).toBe("c106");
     expect(nextMilestoneId(model)).toBe("m03");
+  });
+});
+
+describe("withUpdatedCard", () => {
+  it("replaces a milestone card by path without touching anything else", () => {
+    const model = loadBoard(SYNTHETIC);
+    const original = model.milestones[0].cards.find((c) => c.id === "c102")!;
+    const updated = { ...original, status: "done" };
+
+    const next = withUpdatedCard(model, updated);
+
+    expect(
+      next.milestones[0].cards.find((c) => c.id === "c102")?.status,
+    ).toBe("done");
+    // original model untouched (no mutation)
+    expect(
+      model.milestones[0].cards.find((c) => c.id === "c102")?.status,
+    ).toBe("ready");
+    expect(next.inbox).toEqual(model.inbox);
+    expect(next.invalid).toEqual(model.invalid);
+  });
+
+  it("replaces an inbox card by path", () => {
+    const model = loadBoard(SYNTHETIC);
+    const updated = { ...model.inbox[0], status: "ready" };
+
+    const next = withUpdatedCard(model, updated);
+
+    expect(next.inbox[0].status).toBe("ready");
+    expect(model.inbox[0].status).toBe("backlog");
   });
 });
 

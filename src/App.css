@@ -19,3 +19,11 @@ body {
 .empty-state {
   opacity: 0.6;
 }
+
+.board-error {
+  background: color-mix(in srgb, #e5484d 15%, Canvas);
+  color: #e5484d;
+  border-bottom: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
