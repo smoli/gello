@@ -269,9 +269,10 @@ function Column({
   onDragState: (card: Card | null) => void;
 }) {
   return (
-    <section
-      className="column"
-      aria-label={name}
+    // c052: the invisible full-height track is the drop target, so short
+    // content-height columns (c049) still catch drops anywhere in the lane
+    <div
+      className="column-track"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -280,22 +281,24 @@ function Column({
         onDragState(null);
       }}
     >
-      <div className="column-header">
-        <h2>{name}</h2>
-        <span className="column-count">{cards.length}</span>
-      </div>
-      <div className="column-cards">
-        {cards.map((entry) => (
-          <CardFront
-            key={entry.card.path}
-            entry={entry}
-            onMoveByKey={onMoveByKey}
-            onSelect={onSelect}
-            onDragState={onDragState}
-          />
-        ))}
-      </div>
-    </section>
+      <section className="column" aria-label={name}>
+        <div className="column-header">
+          <h2>{name}</h2>
+          <span className="column-count">{cards.length}</span>
+        </div>
+        <div className="column-cards">
+          {cards.map((entry) => (
+            <CardFront
+              key={entry.card.path}
+              entry={entry}
+              onMoveByKey={onMoveByKey}
+              onSelect={onSelect}
+              onDragState={onDragState}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 

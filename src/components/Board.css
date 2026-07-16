@@ -89,18 +89,25 @@
   min-height: 0;
 }
 
+/* c052: invisible full-height lane — the actual drop target */
+.column-track {
+  min-width: 220px;
+  width: 220px;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
 .column {
   background: color-mix(in srgb, CanvasText 6%, transparent);
   border-radius: 10px;
   padding: 0.6rem;
-  min-width: 220px;
-  width: 220px;
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
   overflow-y: auto;
-  /* content-height, but never taller than the board area */
+  /* content-height, but never taller than the track (c049) */
   max-height: 100%;
 }
 

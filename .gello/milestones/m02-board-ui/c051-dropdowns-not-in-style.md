@@ -1,7 +1,7 @@
 ---
 id: c051
 title: Dropdowns not in style
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-16
@@ -14,6 +14,7 @@ new issue and new bug have a „pilled“ style. the dropdowns for milestone and
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 

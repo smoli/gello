@@ -456,6 +456,25 @@ describe("Board card moves", () => {
     );
   });
 
+  it("accepts drops on the full-height track below a short column (c052)", () => {
+    const onMove = vi.fn();
+    const { container } = render(<Board model={MODEL} onMoveCard={onMove} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(card, { dataTransfer });
+    // the done column's track (the area below the visible column)
+    const track = column("done").closest(".column-track")!;
+    fireEvent.dragOver(track, { dataTransfer });
+    fireEvent.drop(track, { dataTransfer });
+
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+      "done",
+    );
+    expect(container.querySelectorAll(".column-track").length).toBeGreaterThan(0);
+  });
+
   it("status columns remain drop targets during an inbox drag", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} onTriageCard={vi.fn()} />);
