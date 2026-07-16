@@ -51,11 +51,36 @@ describe("Board", () => {
     expect(within(column("backlog")).getByText("Fourth card")).toBeInTheDocument();
   });
 
-  it("renders inbox cards in a dedicated inbox column, not in status columns", () => {
+  it("renders unprocessed (backlog) inbox cards in the inbox column only", () => {
     render(<Board model={MODEL} />);
 
     expect(within(column("inbox")).getByText("Inbox idea")).toBeInTheDocument();
     expect(within(column("backlog")).queryByText("Inbox idea")).not.toBeInTheDocument();
+  });
+
+  it("renders inbox cards with a non-backlog status in that status column, inbox-badged (c030)", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [discuss, backlog, done]\n"),
+      file("inbox/c010-raw.md", card("c010", "Raw idea", "backlog")),
+      file("inbox/c011-flagged.md", card("c011", "Flagged idea", "discuss")),
+    ]);
+    render(<Board model={model} />);
+
+    const discuss = column("discuss");
+    expect(within(discuss).getByText("Flagged idea")).toBeInTheDocument();
+    expect(within(discuss).getByText("inbox")).toBeInTheDocument();
+    expect(within(column("inbox")).queryByText("Flagged idea")).not.toBeInTheDocument();
+    expect(within(column("inbox")).getByText("Raw idea")).toBeInTheDocument();
+  });
+
+  it("hides the inbox column when every inbox card is flagged elsewhere", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [discuss, backlog]\n"),
+      file("inbox/c011-flagged.md", card("c011", "Flagged idea", "discuss")),
+    ]);
+    render(<Board model={model} />);
+
+    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
   });
 
   it("hides the inbox column when the inbox is empty", () => {
@@ -229,17 +254,41 @@ describe("Board card moves", () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
-  it("inbox cards are selectable but not draggable or key-movable", () => {
+  it("moves an inbox card to a status column by drag — no milestone needed (c030)", () => {
     const onMove = vi.fn();
-    const onSelect = vi.fn();
-    render(<Board model={MODEL} onMoveCard={onMove} onSelectCard={onSelect} />);
+    render(<Board model={MODEL} onMoveCard={onMove} />);
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    expect(inboxCard).toHaveAttribute("draggable", "true");
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    fireEvent.drop(column("in-progress"), { dataTransfer });
+
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010", milestone: null }),
+      "in-progress",
+    );
+  });
+
+  it("moves an inbox card by keyboard from its status position", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} />);
     const inboxCard = screen.getByText("Inbox idea").closest("article")!;
 
-    expect(inboxCard).toHaveAttribute("draggable", "false");
+    // status backlog (leftmost in this fixture); ArrowRight = next column
     fireEvent.keyDown(inboxCard, { key: "ArrowRight" });
-    expect(onMove).not.toHaveBeenCalled();
 
-    fireEvent.click(inboxCard);
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010" }),
+      "ready",
+    );
+  });
+
+  it("inbox cards stay selectable", () => {
+    const onSelect = vi.fn();
+    render(<Board model={MODEL} onSelectCard={onSelect} />);
+
+    fireEvent.click(screen.getByText("Inbox idea").closest("article")!);
     expect(onSelect).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c010" }),
     );

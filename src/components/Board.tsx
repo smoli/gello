@@ -16,14 +16,24 @@ interface BoardCard {
 
 export type MoveCardHandler = (card: Card, status: string) => void;
 
-function collectMilestoneCards(model: BoardModel): BoardCard[] {
-  return model.milestones.flatMap((group) =>
+/**
+ * Cards that live in the status columns: all milestone cards, plus inbox
+ * cards whose status is not backlog (c030 — e.g. flagged for discussion
+ * before any milestone is assigned). Backlog inbox cards stay in the inbox
+ * column: it means "unprocessed ideas", precisely.
+ */
+function collectStatusCards(model: BoardModel): BoardCard[] {
+  const flaggedInbox: BoardCard[] = model.inbox
+    .filter((card) => card.status !== "backlog")
+    .map((card) => ({ card, milestoneLabel: null, filterKey: "inbox" }));
+  const milestoneCards: BoardCard[] = model.milestones.flatMap((group) =>
     group.cards.map((card) => ({
       card,
       milestoneLabel: group.milestone?.title ?? group.folder,
       filterKey: group.folder,
     })),
   );
+  return [...flaggedInbox, ...milestoneCards];
 }
 
 export function Board({
@@ -36,16 +46,32 @@ export function Board({
   onSelectCard?: (card: Card) => void;
 }) {
   const [filter, setFilter] = useState("all");
-  const milestoneCards = useMemo(() => collectMilestoneCards(model), [model]);
+  const statusCards = useMemo(() => collectStatusCards(model), [model]);
+  const inboxUnprocessed = useMemo(
+    () => model.inbox.filter((card) => card.status === "backlog"),
+    [model],
+  );
   const visible =
     filter === "all"
-      ? milestoneCards
-      : milestoneCards.filter((c) => c.filterKey === filter);
+      ? statusCards
+      : statusCards.filter((c) => c.filterKey === filter || c.filterKey === "inbox");
 
   const columns = model.config.columns;
 
+  const allCards = useMemo(
+    () => [
+      ...statusCards,
+      ...inboxUnprocessed.map((card) => ({
+        card,
+        milestoneLabel: null,
+        filterKey: "inbox",
+      })),
+    ],
+    [statusCards, inboxUnprocessed],
+  );
+
   const dropOnColumn = (column: string, cardPath: string) => {
-    const entry = milestoneCards.find((c) => c.card.path === cardPath);
+    const entry = allCards.find((c) => c.card.path === cardPath);
     if (entry && entry.card.status !== column) {
       onMoveCard?.(entry.card, column);
     }
@@ -73,18 +99,17 @@ export function Board({
         </select>
       </header>
       <div className="board-columns">
-        {model.inbox.length > 0 && (
+        {inboxUnprocessed.length > 0 && (
           <section className="column column-inbox" aria-label="inbox">
             <div className="column-header">
               <h2>inbox</h2>
-              <span className="column-count">{model.inbox.length}</span>
+              <span className="column-count">{inboxUnprocessed.length}</span>
             </div>
             <div className="column-cards">
-              {model.inbox.map((card) => (
+              {inboxUnprocessed.map((card) => (
                 <CardFront
                   key={card.path}
                   entry={{ card, milestoneLabel: null, filterKey: "inbox" }}
-                  interactive={false}
                   onMoveByKey={moveByKey}
                   onSelect={onSelectCard}
                 />
@@ -175,7 +200,6 @@ function Column({
           <CardFront
             key={entry.card.path}
             entry={entry}
-            interactive
             onMoveByKey={onMoveByKey}
             onSelect={onSelect}
           />
@@ -187,13 +211,10 @@ function Column({
 
 function CardFront({
   entry,
-  interactive,
   onMoveByKey,
   onSelect,
 }: {
   entry: BoardCard;
-  /** Inbox cards are selectable only — status moves don't apply to them. */
-  interactive: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
 }) {
@@ -201,18 +222,17 @@ function CardFront({
   return (
     <article
       className="card-front"
-      draggable={interactive}
+      draggable
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
       onDragStart={(event) => {
-        if (!interactive) return;
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
       }}
       onKeyDown={(event) => {
-        if (interactive && event.key === "ArrowRight") onMoveByKey(card, 1);
-        if (interactive && event.key === "ArrowLeft") onMoveByKey(card, -1);
+        if (event.key === "ArrowRight") onMoveByKey(card, 1);
+        if (event.key === "ArrowLeft") onMoveByKey(card, -1);
         if (event.key === "Enter") onSelect?.(card);
       }}
     >
