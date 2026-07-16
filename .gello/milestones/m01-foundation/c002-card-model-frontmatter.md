@@ -1,7 +1,7 @@
 ---
 id: c002
 title: Card/milestone types + frontmatter parse & serialize
-status: review
+status: done
 milestone: m01
 priority: high
 depends: [c001]
