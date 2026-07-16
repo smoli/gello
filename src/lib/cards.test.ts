@@ -222,6 +222,36 @@ Body
     expect(reparsed.ok).toBe(true);
   });
 
+  it("updates tags as a flow-style list", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(
+      parsed.card,
+      { tags: ["ui", "agent-dx"] },
+      "2026-07-17",
+    );
+
+    expect(card.tags).toEqual(["ui", "agent-dx"]);
+    expect(raw).toContain("tags: [ui, agent-dx]\n");
+    expect(raw).toBe(
+      FULL_CARD.replace("tags: [ui, core]", "tags: [ui, agent-dx]").replace(
+        "updated: 2026-07-16",
+        "updated: 2026-07-17",
+      ),
+    );
+  });
+
+  it("clears tags with an empty list", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(parsed.card, { tags: [] }, "2026-07-17");
+
+    expect(card.tags).toEqual([]);
+    expect(raw).toContain("tags: []\n");
+  });
+
   it("rejects a field update whose result would not parse", () => {
     const parsed = parseCard("x.md", FULL_CARD);
     if (!parsed.ok) throw new Error("fixture must parse");

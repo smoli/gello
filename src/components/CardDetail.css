@@ -1,0 +1,101 @@
+.card-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, CanvasText 35%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.card-detail {
+  background: Canvas;
+  border-radius: 12px;
+  width: min(680px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px color-mix(in srgb, CanvasText 25%, transparent);
+}
+
+.card-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem 1.25rem 0.5rem;
+  gap: 1rem;
+}
+
+.card-detail-title h1 {
+  margin: 0.15rem 0 0;
+  font-size: 1.15rem;
+}
+
+.card-detail-header button {
+  font: inherit;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 1rem;
+}
+
+.card-detail-header button:hover {
+  opacity: 1;
+}
+
+.card-detail-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 0.5rem 1.25rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 10%, transparent);
+  font-size: 0.8rem;
+}
+
+.card-detail-fields label,
+.card-detail-milestone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  opacity: 0.9;
+}
+
+.field-label {
+  font-size: 0.8rem;
+}
+
+.card-detail-fields select,
+.card-detail-fields input {
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+
+.card-detail-body {
+  padding: 0.75rem 1.25rem 1.25rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.card-detail-body pre {
+  background: color-mix(in srgb, CanvasText 6%, transparent);
+  padding: 0.6rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.8rem;
+}
+
+.card-detail-body img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.card-detail-body li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.25rem;
+}

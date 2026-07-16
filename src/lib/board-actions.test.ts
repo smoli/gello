@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./fs";
 import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
-import { moveCard } from "./board-actions";
+import { moveCard, saveCardBody, saveCardFields } from "./board-actions";
 
 vi.mock("./fs", () => ({ writeFileAtomic: vi.fn() }));
 const writeMock = vi.mocked(writeFileAtomic);
@@ -81,6 +81,39 @@ describe("moveCard", () => {
     );
 
     await expect(persisted).rejects.toThrow("disk full");
+  });
+
+  it("persists combined field edits (priority + tags)", async () => {
+    const { card, persisted } = saveCardFields(
+      "/repo/.gello",
+      fixtureCard(),
+      { priority: "low", tags: ["ui", "core"] },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.priority).toBe("low");
+    expect(card.tags).toEqual(["ui", "core"]);
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("priority: low\n");
+    expect(written).toContain("tags: [ui, core]\n");
+  });
+
+  it("persists a body replacement, frontmatter intact", async () => {
+    const { card, persisted } = saveCardBody(
+      "/repo/.gello",
+      fixtureCard(),
+      "\nnew body\n",
+      "2026-07-16",
+    );
+
+    expect(card.body).toBe("\nnew body\n");
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("status: ready\n");
+    expect(written.endsWith("\nnew body\n")).toBe(true);
+    expect(written).toContain("updated: 2026-07-16");
   });
 
   it("rejects an illegal target status without writing", () => {

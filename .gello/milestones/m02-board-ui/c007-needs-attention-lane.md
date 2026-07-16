@@ -1,7 +1,7 @@
 ---
 id: c007
 title: Needs-attention lane for malformed cards
-status: review
+status: done
 milestone: m02
 priority: normal
 depends: [c005]

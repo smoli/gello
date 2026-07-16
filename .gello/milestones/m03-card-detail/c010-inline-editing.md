@@ -1,7 +1,7 @@
 ---
 id: c010
 title: Inline body editing
-status: backlog
+status: ready
 milestone: m03
 priority: normal
 depends: [c009]

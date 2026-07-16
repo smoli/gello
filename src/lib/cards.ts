@@ -281,10 +281,19 @@ function formatScalar(value: string): string {
 
 /** Replace (or append) one `field: value` line inside the frontmatter block. */
 function setFrontmatterField(raw: string, field: string, value: string): string {
+  return setFrontmatterRawValue(raw, field, formatScalar(value));
+}
+
+/** Like setFrontmatterField, but takes an already-formatted YAML value. */
+function setFrontmatterRawValue(
+  raw: string,
+  field: string,
+  formattedValue: string,
+): string {
   const split = splitFrontmatter(raw);
   if (!split) throw new Error("no frontmatter block found");
 
-  const line = `${field}: ${formatScalar(value)}`;
+  const line = `${field}: ${formattedValue}`;
   const lineRe = new RegExp(`^${field}:.*$`, "m");
   const block = lineRe.test(split.block)
     ? split.block.replace(lineRe, line)
@@ -294,8 +303,13 @@ function setFrontmatterField(raw: string, field: string, value: string): string 
 }
 
 export type CardFieldChanges = Partial<
-  Pick<Card, "status" | "priority" | "milestone" | "title">
+  Pick<Card, "status" | "priority" | "milestone" | "title" | "tags">
 >;
+
+/** Format a string[] as a flow-style YAML list: `[a, b]`. */
+function formatFlowList(values: string[]): string {
+  return `[${values.map(formatScalar).join(", ")}]`;
+}
 
 /**
  * Apply frontmatter field changes and bump `updated`. Untouched lines are
@@ -317,7 +331,11 @@ export function updateCardFields(
   let raw = card.raw;
   for (const [field, value] of Object.entries(changes)) {
     if (value === undefined || value === null) continue;
-    raw = setFrontmatterField(raw, field, String(value));
+    raw = setFrontmatterRawValue(
+      raw,
+      field,
+      Array.isArray(value) ? formatFlowList(value) : formatScalar(String(value)),
+    );
   }
   raw = setFrontmatterField(raw, "updated", today);
 

@@ -222,6 +222,20 @@ describe("Board card moves", () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
+  it("selects a card on click or Enter", () => {
+    const onSelect = vi.fn();
+    render(<Board model={MODEL} onSelectCard={onSelect} />);
+    const card = screen.getByText("First card").closest("article")!;
+
+    fireEvent.click(card);
+    expect(onSelect).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "c001" }),
+    );
+
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(onSelect).toHaveBeenCalledTimes(2);
+  });
+
   it("marks cards as draggable and focusable", () => {
     render(<Board model={MODEL} onMoveCard={vi.fn()} />);
     const card = screen.getByText("First card").closest("article")!;

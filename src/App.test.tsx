@@ -16,7 +16,8 @@ function loadedFixture() {
     model: loadBoard([
       {
         path: "inbox/c001-hello.md",
-        content: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+        content:
+          "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\n\n- [ ] a first task\n",
       },
     ]),
   };
@@ -62,6 +63,51 @@ describe("App", () => {
       expect.stringContaining("status: ready"),
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("opens the card detail on click and closes on Escape", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+
+    const dialog = screen.getByRole("dialog", { name: "c001" });
+    expect(dialog).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("persists a priority change from the detail view", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.change(screen.getByLabelText("Priority"), {
+      target: { value: "high" },
+    });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c001-hello.md",
+      expect.stringContaining("priority: high"),
+    );
+  });
+
+  it("persists a checkbox toggle from the detail view", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c001-hello.md",
+      expect.stringContaining("- [x] a first task"),
+    );
+    // and the dialog reflects the optimistic update
+    expect(screen.getByRole("checkbox")).toBeChecked();
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

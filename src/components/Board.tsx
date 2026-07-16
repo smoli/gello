@@ -35,9 +35,11 @@ function collectCards(model: BoardModel): BoardCard[] {
 export function Board({
   model,
   onMoveCard,
+  onSelectCard,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
+  onSelectCard?: (card: Card) => void;
 }) {
   const [filter, setFilter] = useState("all");
   const allCards = useMemo(() => collectCards(model), [model]);
@@ -83,6 +85,7 @@ export function Board({
             cards={visible.filter((c) => c.card.status === column)}
             onDropCard={(path) => dropOnColumn(column, path)}
             onMoveByKey={moveByKey}
+            onSelect={onSelectCard}
           />
         ))}
       </div>
@@ -130,11 +133,13 @@ function Column({
   cards,
   onDropCard,
   onMoveByKey,
+  onSelect,
 }: {
   name: string;
   cards: BoardCard[];
   onDropCard: (cardPath: string) => void;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
+  onSelect?: (card: Card) => void;
 }) {
   return (
     <section
@@ -153,7 +158,12 @@ function Column({
       </div>
       <div className="column-cards">
         {cards.map((entry) => (
-          <CardFront key={entry.card.path} entry={entry} onMoveByKey={onMoveByKey} />
+          <CardFront
+            key={entry.card.path}
+            entry={entry}
+            onMoveByKey={onMoveByKey}
+            onSelect={onSelect}
+          />
         ))}
       </div>
     </section>
@@ -163,9 +173,11 @@ function Column({
 function CardFront({
   entry,
   onMoveByKey,
+  onSelect,
 }: {
   entry: BoardCard;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
+  onSelect?: (card: Card) => void;
 }) {
   const { card, milestoneLabel } = entry;
   return (
@@ -174,6 +186,7 @@ function CardFront({
       draggable
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
+      onClick={() => onSelect?.(card)}
       onDragStart={(event) => {
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
@@ -181,6 +194,7 @@ function CardFront({
       onKeyDown={(event) => {
         if (event.key === "ArrowRight") onMoveByKey(card, 1);
         if (event.key === "ArrowLeft") onMoveByKey(card, -1);
+        if (event.key === "Enter") onSelect?.(card);
       }}
     >
       <div className="card-meta">
