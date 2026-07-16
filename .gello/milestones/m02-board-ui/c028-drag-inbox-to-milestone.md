@@ -67,9 +67,12 @@ milestone never show the strip.
   `updated`, and rewrites asset-link prefixes; status preserved as specced.
   Write-new-then-delete-old and watcher self-echo suppression come along
   for free (criterion 8).
-- Strip renders between toolbar and columns, one dashed zone per milestone
-  group; milestone id falls back to the folder's `m\d+` prefix for groups
-  without milestone.md.
+- Strip is an **overlay** pinned over the toolbar + column-header zone
+  (absolute within .board) — review feedback: the original in-flow strip
+  pushed the whole board down mid-drag, which moved the drop targets while
+  aiming. Out-of-flow = zero layout shift. One dashed zone per milestone
+  group (generous hit targets); milestone id falls back to the folder's
+  `m\d+` prefix for groups without milestone.md.
 - App fix: `handleTriage` no longer force-opens the detail — it follows the
   card only if that card's dialog was already open.
 - "Dropping outside cancels" = native DnD default (no drop handler → no
@@ -83,3 +86,4 @@ milestone never show the strip.
 - 2026-07-16 captured via quick capture, enriched via discuss convention, triaged to m02
 - 2026-07-16 picked up (agent), status → in-progress
 - 2026-07-16 6 tests (red → green), all gates clean, status → review
+- 2026-07-16 review feedback (Stephan): in-flow strip shifts layout — reworked as overlay, status → review

@@ -1,7 +1,7 @@
 ---
 id: c025
 title: Editing Card title
-status: backlog
+status: discuss
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16
