@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { CaptureForm } from "./CaptureForm";
 import "./QuickCapture.css";
 
-type CaptureMode = "task" | "bug";
+type CaptureMode = "task" | "issue";
 
 /**
- * The idea inbox: buttons (and global mod+N / mod+B) opening a minimal
+ * The idea inbox: buttons (and global mod+N / mod+I) opening a minimal
  * capture form. Title is the only required field — triage happens later,
  * on the board. Speed is the point.
  */
@@ -20,9 +20,9 @@ export function QuickCapture({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey)) return;
-      if (event.key === "n" || event.key === "b") {
+      if (event.key === "n" || event.key === "i") {
         event.preventDefault();
-        setMode(event.key === "b" ? "bug" : "task");
+        setMode(event.key === "i" ? "issue" : "task");
         setOpen(true);
       }
     };
@@ -47,10 +47,10 @@ export function QuickCapture({
         </button>
         <button
           type="button"
-          className="quick-capture-button quick-capture-button-bug"
-          onClick={() => openAs("bug")}
+          className="quick-capture-button quick-capture-button-issue"
+          onClick={() => openAs("issue")}
         >
-          + New bug
+          + New issue
         </button>
       </div>
     );
@@ -58,7 +58,7 @@ export function QuickCapture({
 
   return (
     <CaptureForm
-      heading={mode === "bug" ? "New bug" : "New idea"}
+      heading={mode === "issue" ? "New issue" : "New idea"}
       onSubmit={(title, body) => {
         onCreate(title, body, mode);
         setOpen(false);

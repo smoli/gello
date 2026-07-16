@@ -1,9 +1,9 @@
 ---
 id: c040
 title: Uses quick bug UI but under the overlay
-status: review
+status: done
 priority: normal
-type: bug
+type: issue
 ref: c037
 milestone: m01
 created: 2026-07-16

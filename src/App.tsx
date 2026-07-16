@@ -6,14 +6,14 @@ import { QuickCapture } from "./components/QuickCapture";
 import {
   applyFileChanges,
   findCardById,
-  openBugsFor,
+  openIssuesFor,
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
   type BoardModel,
 } from "./lib/board";
 import {
-  createBugFor,
+  createIssueFor,
   createCard,
   moveCard,
   saveCardBody,
@@ -56,8 +56,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  // report-bug draft target (c037): the form is open, nothing on disk yet
-  const [bugSource, setBugSource] = useState<Card | null>(null);
+  // report-issue draft target (c037): the form is open, nothing on disk yet
+  const [issueSource, setIssueSource] = useState<Card | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,7 +199,7 @@ function App() {
     );
   };
 
-  const handleCreate = (title: string, body: string, type: "task" | "bug") => {
+  const handleCreate = (title: string, body: string, type: "task" | "issue") => {
     if (!board) return;
     applyAction(
       () =>
@@ -213,16 +213,16 @@ function App() {
     );
   };
 
-  /** Draft submitted (c037) — only now does the bug come into existence. */
-  const submitBugDraft = (title: string, body: string) => {
-    if (!board || !bugSource) return;
+  /** Draft submitted (c037) — only now does the issue come into existence. */
+  const submitIssueDraft = (title: string, body: string) => {
+    if (!board || !issueSource) return;
     let created: Card | null = null;
     applyAction(
       () => {
-        const result = createBugFor(
+        const result = createIssueFor(
           board.root,
           board.model,
-          bugSource,
+          issueSource,
           { title, body },
           todayIsoDate(),
         );
@@ -241,7 +241,7 @@ function App() {
               ),
             },
     );
-    setBugSource(null);
+    setIssueSource(null);
     if (created !== null) setSelectedPath((created as Card).path);
   };
 
@@ -290,12 +290,12 @@ function App() {
           onSelectCard={(card) => setSelectedPath(card.path)}
           onTriageCard={handleTriage}
         />
-        {bugSource && (
-          <div className="bug-draft-overlay">
+        {issueSource && (
+          <div className="issue-draft-overlay">
             <CaptureForm
-              heading={`New bug for ${bugSource.id}`}
-              onSubmit={submitBugDraft}
-              onCancel={() => setBugSource(null)}
+              heading={`New issue for ${issueSource.id}`}
+              onSubmit={submitIssueDraft}
+              onCancel={() => setIssueSource(null)}
             />
           </div>
         )}
@@ -313,7 +313,7 @@ function App() {
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
             }
-            onReportBug={() => setBugSource(selected.card)}
+            onReportIssue={() => setIssueSource(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
               if (target) setSelectedPath(target.path);
@@ -326,7 +326,7 @@ function App() {
                   }
                 : null
             }
-            openBugs={openBugsFor(board.model, selected.card.id)}
+            openIssues={openIssuesFor(board.model, selected.card.id)}
             onClose={() => setSelectedPath(null)}
           />
         )}

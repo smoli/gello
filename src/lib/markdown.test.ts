@@ -34,7 +34,7 @@ describe("retargetAssetLinks", () => {
 id: c042
 ---
 
-An image ![bug](../assets/c042/bug.png) and a [file link](../assets/c042/log.txt).
+An image ![issue](../assets/c042/issue.png) and a [file link](../assets/c042/log.txt).
 
 Untouched: [absolute](/assets/x.png), [web](https://example.com/../assets/x.png),
 and a plain mention of ../assets/c042/other.png outside link syntax.
@@ -43,7 +43,7 @@ and a plain mention of ../assets/c042/other.png outside link syntax.
   it("rewrites markdown link/image targets from one asset prefix to another", () => {
     const result = retargetAssetLinks(RAW, "../assets/", "../../assets/");
 
-    expect(result).toContain("![bug](../../assets/c042/bug.png)");
+    expect(result).toContain("![issue](../../assets/c042/issue.png)");
     expect(result).toContain("[file link](../../assets/c042/log.txt)");
   });
 

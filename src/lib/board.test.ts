@@ -7,7 +7,7 @@ import {
   loadBoard,
   nextCardId,
   nextMilestoneId,
-  openBugsFor,
+  openIssuesFor,
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
@@ -287,30 +287,30 @@ describe("applyFileChanges", () => {
   });
 });
 
-describe("bug refs (c024)", () => {
-  function bug(id: string, ref: string | null, status = "backlog"): string {
-    return `---\nid: ${id}\ntitle: Bug ${id}\nstatus: ${status}\ntype: bug\n${
+describe("issue refs (c024)", () => {
+  function issue(id: string, ref: string | null, status = "backlog"): string {
+    return `---\nid: ${id}\ntitle: Issue ${id}\nstatus: ${status}\ntype: issue\n${
       ref ? `ref: ${ref}\n` : ""
     }---\nbody\n`;
   }
 
   const model = loadBoard([
     file("milestones/m01-x/c001-task.md", card("c001", "review")),
-    file("milestones/m01-x/c002-bug-open.md", bug("c002", "c001")),
-    file("milestones/m01-x/c003-bug-done.md", bug("c003", "c001", "done")),
-    file("inbox/c004-bug-elsewhere.md", bug("c004", "c099")),
-    file("inbox/c005-bug-unanchored.md", bug("c005", null)),
+    file("milestones/m01-x/c002-issue-open.md", issue("c002", "c001")),
+    file("milestones/m01-x/c003-issue-done.md", issue("c003", "c001", "done")),
+    file("inbox/c004-issue-elsewhere.md", issue("c004", "c099")),
+    file("inbox/c005-issue-unanchored.md", issue("c005", null)),
   ]);
 
   it("finds cards by id across inbox and milestones", () => {
     expect(findCardById(model, "c001")?.title).toBe("Card c001");
-    expect(findCardById(model, "c005")?.path).toBe("inbox/c005-bug-unanchored.md");
+    expect(findCardById(model, "c005")?.path).toBe("inbox/c005-issue-unanchored.md");
     expect(findCardById(model, "c099")).toBeNull();
   });
 
-  it("computes open bugs pointing at a card, excluding done ones", () => {
-    expect(openBugsFor(model, "c001").map((c) => c.id)).toEqual(["c002"]);
-    expect(openBugsFor(model, "c005")).toEqual([]);
+  it("computes open issues pointing at a card, excluding done ones", () => {
+    expect(openIssuesFor(model, "c001").map((c) => c.id)).toEqual(["c002"]);
+    expect(openIssuesFor(model, "c005")).toEqual([]);
   });
 });
 

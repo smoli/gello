@@ -3,7 +3,7 @@ id: c034
 title: No button to create a new bug
 status: done
 priority: normal
-type: bug
+type: issue
 ref: c024
 milestone: m01
 created: 2026-07-16

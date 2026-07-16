@@ -19,7 +19,7 @@
   box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
 }
 
-.quick-capture-button-bug {
+.quick-capture-button-issue {
   color: #e5484d;
   border-color: color-mix(in srgb, #e5484d 40%, transparent);
 }
@@ -41,8 +41,8 @@
   font-size: 0.8rem;
 }
 
-/* report-bug draft (c040): centered above the card-detail dialog (z 10) */
-.bug-draft-overlay {
+/* report-issue draft (c040): centered above the card-detail dialog (z 10) */
+.issue-draft-overlay {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -52,7 +52,7 @@
   background: color-mix(in srgb, CanvasText 20%, transparent);
 }
 
-.bug-draft-overlay .quick-capture {
+.issue-draft-overlay .quick-capture {
   position: static;
   width: min(380px, 92vw);
 }

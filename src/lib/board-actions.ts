@@ -115,11 +115,11 @@ export function createCard(
 }
 
 /**
- * Report a bug against a card (c024/c037): the bug is born next to its
+ * Report a issue against a card (c024/c037): the issue is born next to its
  * source — same folder, source's milestone, `ref` pre-filled, status
  * backlog. Called only on draft submit; escaping the draft creates nothing.
  */
-export function createBugFor(
+export function createIssueFor(
   root: string,
   model: BoardModel,
   source: Card,
@@ -130,13 +130,13 @@ export function createBugFor(
   const folder = source.path.slice(0, source.path.lastIndexOf("/"));
   const path = `${folder}/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, {
-    type: "bug",
+    type: "issue",
     ref: source.id,
     milestone: source.milestone ?? undefined,
   });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {
-    throw new Error(`new bug would be invalid: ${parsed.invalid.reason}`);
+    throw new Error(`new issue would be invalid: ${parsed.invalid.reason}`);
   }
   const persisted = writeFileAtomic(`${root}/${path}`, raw);
   return { card: parsed.card, persisted };

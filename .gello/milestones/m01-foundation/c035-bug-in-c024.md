@@ -3,7 +3,7 @@ id: c035
 title: Quicker entry for bugs by referrence
 status: done
 priority: normal
-type: bug
+type: issue
 ref: c024
 milestone: m01
 created: 2026-07-16

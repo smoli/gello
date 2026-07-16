@@ -145,16 +145,16 @@ describe("card types on the board (c024)", () => {
     file("milestones/m01-x/milestone.md", "---\nid: m01\ntitle: Alpha\n---\ngoal\n"),
     file("milestones/m01-x/c001-task.md", card("c001", "Plain task", "backlog")),
     file(
-      "milestones/m01-x/c002-bug.md",
-      "---\nid: c002\ntitle: A bug\nstatus: backlog\ntype: bug\nref: c001\n---\nx\n",
+      "milestones/m01-x/c002-issue.md",
+      "---\nid: c002\ntitle: A issue\nstatus: backlog\ntype: issue\nref: c001\n---\nx\n",
     ),
   ]);
 
   it("shows a type badge on non-task cards only", () => {
     render(<Board model={TYPED_MODEL} />);
 
-    const bugCard = screen.getByText("A bug").closest("article")!;
-    expect(within(bugCard).getByText("bug")).toBeInTheDocument();
+    const issueCard = screen.getByText("A issue").closest("article")!;
+    expect(within(issueCard).getByText("issue")).toBeInTheDocument();
     const taskCard = screen.getByText("Plain task").closest("article")!;
     expect(within(taskCard).queryByText("task")).not.toBeInTheDocument();
   });
@@ -163,8 +163,8 @@ describe("card types on the board (c024)", () => {
     render(<Board model={TYPED_MODEL} />);
     const filter = screen.getByLabelText("Type filter");
 
-    fireEvent.change(filter, { target: { value: "bug" } });
-    expect(screen.getByText("A bug")).toBeInTheDocument();
+    fireEvent.change(filter, { target: { value: "issue" } });
+    expect(screen.getByText("A issue")).toBeInTheDocument();
     expect(screen.queryByText("Plain task")).not.toBeInTheDocument();
 
     fireEvent.change(filter, { target: { value: "all" } });
@@ -176,17 +176,17 @@ describe("card types on the board (c024)", () => {
       file("board.yaml", "columns: [backlog, done]\n"),
       file("inbox/c010-idea.md", card("c010", "Inbox task", "backlog")),
       file(
-        "inbox/c011-bug.md",
-        "---\nid: c011\ntitle: Inbox bug\nstatus: backlog\ntype: bug\n---\nx\n",
+        "inbox/c011-issue.md",
+        "---\nid: c011\ntitle: Inbox issue\nstatus: backlog\ntype: issue\n---\nx\n",
       ),
     ]);
     render(<Board model={model} />);
 
     fireEvent.change(screen.getByLabelText("Type filter"), {
-      target: { value: "bug" },
+      target: { value: "issue" },
     });
 
-    expect(screen.getByText("Inbox bug")).toBeInTheDocument();
+    expect(screen.getByText("Inbox issue")).toBeInTheDocument();
     expect(screen.queryByText("Inbox task")).not.toBeInTheDocument();
   });
 });

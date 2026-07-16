@@ -159,12 +159,12 @@ export function findCardById(model: BoardModel, id: string): Card | null {
 }
 
 /**
- * Bugs pointing at `id` via ref that are not done — computed at render time,
+ * Issues pointing at `id` via ref that are not done — computed at render time,
  * never written into the referenced card (c024).
  */
-export function openBugsFor(model: BoardModel, id: string): Card[] {
+export function openIssuesFor(model: BoardModel, id: string): Card[] {
   return allCards(model).filter(
-    (card) => card.type === "bug" && card.ref === id && card.status !== "done",
+    (card) => card.type === "issue" && card.ref === id && card.status !== "done",
   );
 }
 

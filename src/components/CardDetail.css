@@ -176,7 +176,7 @@
   background: color-mix(in srgb, CanvasText 10%, transparent);
 }
 
-.card-id .type-bug {
+.card-id .type-issue {
   background: color-mix(in srgb, #e5484d 15%, transparent);
   color: #e5484d;
 }

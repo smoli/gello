@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./QuickCapture.css";
 
 /**
- * The minimal draft form shared by quick capture (⌘N/⌘B) and report-bug
+ * The minimal draft form shared by quick capture (⌘N/⌘I) and report-issue
  * (c037): nothing exists on disk until submit; Escape aborts without a
  * trace.
  */

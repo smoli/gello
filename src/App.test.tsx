@@ -348,19 +348,19 @@ describe("App", () => {
     expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
   });
 
-  it("report-bug drafts first, creates on submit, and opens the bug (c024/c035/c037)", async () => {
+  it("report-issue drafts first, creates on submit, and opens the issue (c024/c035/c037)", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
     fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
-    fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
+    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
 
     // nothing on disk yet — it's a draft form carrying the ref context
     expect(writeMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/bug for c006/i)).toBeInTheDocument();
+    expect(screen.getByText(/issue for c006/i)).toBeInTheDocument();
     // rendered in its own overlay above the card-detail dialog (c040)
-    const overlay = document.querySelector(".bug-draft-overlay");
+    const overlay = document.querySelector(".issue-draft-overlay");
     expect(overlay).not.toBeNull();
     expect(overlay!.querySelector(".quick-capture")).not.toBeNull();
 
@@ -381,16 +381,16 @@ describe("App", () => {
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
   });
 
-  it("escaping the bug draft creates nothing (c037)", async () => {
+  it("escaping the issue draft creates nothing (c037)", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
     render(<App />);
     fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
-    fireEvent.click(screen.getByRole("button", { name: /report bug/i }));
+    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
 
     expect(writeMock).not.toHaveBeenCalled();
-    expect(screen.queryByText(/bug for c006/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/issue for c006/i)).not.toBeInTheDocument();
     // the source card's dialog is still open underneath
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
   });

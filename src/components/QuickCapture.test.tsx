@@ -46,34 +46,34 @@ describe("QuickCapture", () => {
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("Quick one", "", "task");
   });
 
-  it("offers a visible '+ New bug' button (c034)", () => {
+  it("offers a visible '+ New issue' button (c034)", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /new bug/i }));
-    expect(screen.getByText(/new bug/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    expect(screen.getByText(/new issue/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Broken" },
     });
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
-    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Broken", "", "bug");
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Broken", "", "issue");
   });
 
-  it("opens in bug mode via mod+B and creates a bug (c024)", () => {
+  it("opens in issue mode via mod+I and creates an issue (c024)", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} />);
 
-    fireEvent.keyDown(window, { key: "b", metaKey: true });
-    expect(screen.getByText(/new bug/i)).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "i", metaKey: true });
+    expect(screen.getByText(/new issue/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "It crashed" },
     });
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
-    expect(onCreate).toHaveBeenCalledExactlyOnceWith("It crashed", "", "bug");
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("It crashed", "", "issue");
   });
 
   it("ignores submission with an empty title", () => {

@@ -1,7 +1,7 @@
 ---
 id: c024
 title: Bug as a separate card type
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16

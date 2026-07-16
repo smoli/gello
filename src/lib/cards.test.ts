@@ -297,13 +297,13 @@ describe("card types and refs (c024)", () => {
   it("parses an explicit type and ref", () => {
     const raw = MINIMAL_CARD.replace(
       "status: backlog",
-      "status: backlog\ntype: bug\nref: c007",
+      "status: backlog\ntype: issue\nref: c007",
     );
     const result = parseCard("x.md", raw);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.card.type).toBe("bug");
+    expect(result.card.type).toBe("issue");
     expect(result.card.ref).toBe("c007");
   });
 
@@ -328,26 +328,26 @@ describe("card types and refs (c024)", () => {
     const config = {
       columns: ["backlog"],
       wipLimits: {},
-      types: ["task", "bug", "chore"],
+      types: ["task", "issue", "chore"],
     };
     const result = parseCard("x.md", raw, config);
 
     expect(result.ok).toBe(true);
   });
 
-  it("board.yaml types key parses, defaulting to [task, bug]", () => {
-    expect(parseBoardConfig("types: [task, bug, chore]\n").config.types).toEqual([
+  it("board.yaml types key parses, defaulting to [task, issue]", () => {
+    expect(parseBoardConfig("types: [task, issue, chore]\n").config.types).toEqual([
       "task",
-      "bug",
+      "issue",
       "chore",
     ]);
-    expect(parseBoardConfig("columns: [a]\n").config.types).toEqual(["task", "bug"]);
-    expect(DEFAULT_BOARD_CONFIG.types).toEqual(["task", "bug"]);
+    expect(parseBoardConfig("columns: [a]\n").config.types).toEqual(["task", "issue"]);
+    expect(DEFAULT_BOARD_CONFIG.types).toEqual(["task", "issue"]);
   });
 
   it("newCardRaw can create a typed, referenced, milestoned card", () => {
     const raw = newCardRaw("c040", "Broken thing", "It broke.", "2026-07-16", {
-      type: "bug",
+      type: "issue",
       ref: "c007",
       milestone: "m02",
     });
@@ -355,7 +355,7 @@ describe("card types and refs (c024)", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.card.type).toBe("bug");
+    expect(result.card.type).toBe("issue");
     expect(result.card.ref).toBe("c007");
     expect(result.card.milestone).toBe("m02");
     expect(result.card.status).toBe("backlog");

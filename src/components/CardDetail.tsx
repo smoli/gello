@@ -34,10 +34,10 @@ export function CardDetail({
   onToggleTask,
   onSaveEdit,
   onTriage,
-  onReportBug,
+  onReportIssue,
   onOpenCardId,
   refCard,
-  openBugs,
+  openIssues,
   startInEdit,
   onClose,
 }: {
@@ -49,11 +49,11 @@ export function CardDetail({
   onToggleTask: (index: number) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, milestoneId: string) => void;
-  onReportBug: () => void;
+  onReportIssue: () => void;
   onOpenCardId: (id: string) => void;
   refCard: RefCardInfo | null;
-  openBugs: Card[];
-  /** Open directly in edit mode (c035: fresh report-bug cards). */
+  openIssues: Card[];
+  /** Open directly in edit mode (c035: fresh report-issue cards). */
   startInEdit?: boolean;
   onClose: () => void;
 }) {
@@ -168,8 +168,8 @@ export function CardDetail({
           </div>
           <div className="card-detail-actions">
             {(card.status === "review" || card.status === "done") && (
-              <button type="button" onClick={onReportBug}>
-                Report bug
+              <button type="button" onClick={onReportIssue}>
+                Report issue
               </button>
             )}
             {!editing && (
@@ -308,17 +308,17 @@ export function CardDetail({
             )}
           </div>
         )}
-        {openBugs.length > 0 && (
+        {openIssues.length > 0 && (
           <div className="card-backlinks">
-            <span className="field-label">Open bugs against this card:</span>
-            {openBugs.map((bug) => (
+            <span className="field-label">Open issues against this card:</span>
+            {openIssues.map((issue) => (
               <button
-                key={bug.path}
+                key={issue.path}
                 type="button"
                 className="card-link"
-                onClick={() => onOpenCardId(bug.id)}
+                onClick={() => onOpenCardId(issue.id)}
               >
-                {bug.id} — {bug.title}
+                {issue.id} — {issue.title}
               </button>
             ))}
           </div>

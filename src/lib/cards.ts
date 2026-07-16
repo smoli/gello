@@ -21,7 +21,7 @@ export interface BoardConfig {
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   columns: ["backlog", "ready", "in-progress", "review", "done"],
   wipLimits: {},
-  types: ["task", "bug"],
+  types: ["task", "issue"],
 };
 
 export interface Card {
@@ -295,7 +295,7 @@ export function parseBoardConfig(raw: string): {
 // --- creation -----------------------------------------------------------------
 
 export interface NewCardOptions {
-  /** Non-default card type, e.g. "bug". */
+  /** Non-default card type, e.g. "issue". */
   type?: string;
   /** Provenance: card this one was found in. */
   ref?: string;
@@ -304,7 +304,7 @@ export interface NewCardOptions {
 }
 
 /**
- * Raw content for a brand-new card (quick capture, report-bug): minimal
+ * Raw content for a brand-new card (quick capture, report-issue): minimal
  * frontmatter with sensible defaults, optional body.
  */
 export function newCardRaw(
