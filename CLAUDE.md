@@ -54,9 +54,13 @@ Keep this section current as the project scaffolds up.
 pnpm test            # run all frontend tests once
 pnpm test:watch      # Vitest watch mode — keep it running during TDD
 pnpm typecheck       # tsc --noEmit
+pnpm lint            # eslint (enforces the fs.ts / cards.ts layer bans)
 cd src-tauri && cargo test   # Rust tests
 pnpm tauri dev       # run the app
 ```
+
+"Never commit red" includes lint: test, typecheck, and lint must all pass
+before every commit.
 
 ## Code conventions
 

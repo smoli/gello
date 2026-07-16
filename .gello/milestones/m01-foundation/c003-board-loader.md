@@ -1,7 +1,7 @@
 ---
 id: c003
 title: Board loader — .gello tree to board model
-status: review
+status: done
 milestone: m01
 priority: high
 depends: [c002]
