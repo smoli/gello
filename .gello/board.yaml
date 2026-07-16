@@ -1,0 +1,3 @@
+columns: [backlog, ready, in-progress, review, done]
+wip_limits:
+  in-progress: 2
