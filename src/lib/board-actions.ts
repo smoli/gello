@@ -51,7 +51,7 @@ export function moveCard(
   return saveCardFields(root, card, { status }, config, today);
 }
 
-/** Replace the card body (checkbox toggles, later inline editing). */
+/** Replace the card body (checkbox toggles). */
 export function saveCardBody(
   root: string,
   card: Card,
@@ -59,6 +59,26 @@ export function saveCardBody(
   today: string,
 ): MoveResult {
   const { card: updated, raw } = replaceCardBody(card, newBody, today);
+  const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
+  return { card: updated, persisted };
+}
+
+/**
+ * Persist an inline edit (title + body) as ONE atomic write: the title is a
+ * surgical frontmatter edit, the body a replacement, composed before writing.
+ */
+export function saveCardEdit(
+  root: string,
+  card: Card,
+  edit: { title: string; body: string },
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  let current = card;
+  if (edit.title !== card.title) {
+    current = updateCardFields(current, { title: edit.title }, today, config).card;
+  }
+  const { card: updated, raw } = replaceCardBody(current, edit.body, today);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
 }

@@ -10,6 +10,7 @@ import {
   createCard,
   moveCard,
   saveCardBody,
+  saveCardEdit,
   saveCardFields,
   triageCard,
 } from "./board-actions";
@@ -140,6 +141,59 @@ describe("moveCard", () => {
       ),
     ).toThrow(/status/i);
     expect(writeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveCardEdit", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  it("persists a title and body change in one atomic write", async () => {
+    const { card, persisted } = saveCardEdit(
+      "/repo/.gello",
+      fixtureCard(),
+      { title: "Renamed card", body: "\nnew body\n" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.title).toBe("Renamed card");
+    expect(card.body).toBe("\nnew body\n");
+    await persisted;
+    expect(writeMock).toHaveBeenCalledTimes(1);
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("title: Renamed card\n");
+    expect(written.endsWith("\nnew body\n")).toBe(true);
+    expect(written).toContain("status: ready\n");
+  });
+
+  it("leaves the title line untouched when unchanged", async () => {
+    const original = fixtureCard();
+    const { persisted } = saveCardEdit(
+      "/repo/.gello",
+      original,
+      { title: original.title, body: "\nonly body changed\n" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("title: First\n");
+  });
+
+  it("quotes titles that YAML would misread", async () => {
+    const { card, persisted } = saveCardEdit(
+      "/repo/.gello",
+      fixtureCard(),
+      { title: "fix: [everything]", body: "x" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    await persisted;
+    expect(card.title).toBe("fix: [everything]");
   });
 });
 

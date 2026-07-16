@@ -8,6 +8,11 @@ const PRIORITIES: Priority[] = ["low", "normal", "high"];
 
 export type SaveBodyResult = "saved" | "conflict";
 
+export interface CardEdit {
+  title: string;
+  body: string;
+}
+
 export interface MilestoneOption {
   folder: string;
   milestoneId: string;
@@ -21,7 +26,7 @@ export function CardDetail({
   milestoneOptions,
   onChangeFields,
   onToggleTask,
-  onSaveBody,
+  onSaveEdit,
   onTriage,
   onClose,
 }: {
@@ -31,13 +36,14 @@ export function CardDetail({
   milestoneOptions: MilestoneOption[];
   onChangeFields: (changes: CardFieldChanges) => void;
   onToggleTask: (index: number) => void;
-  onSaveBody: (body: string, force: boolean) => Promise<SaveBodyResult>;
+  onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, milestoneId: string) => void;
   onClose: () => void;
 }) {
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
   const [editing, setEditing] = useState(false);
   const [bodyDraft, setBodyDraft] = useState("");
+  const [titleDraft, setTitleDraft] = useState("");
   const [conflict, setConflict] = useState(false);
 
   // c023: Escape must close the dialog regardless of focus — the dialog
@@ -55,6 +61,7 @@ export function CardDetail({
 
   const startEdit = () => {
     setBodyDraft(card.body);
+    setTitleDraft(card.title);
     setConflict(false);
     setEditing(true);
   };
@@ -65,12 +72,27 @@ export function CardDetail({
   };
 
   const save = async (force: boolean) => {
-    const result = await onSaveBody(bodyDraft, force);
+    const result = await onSaveEdit(
+      // blank titles fall back to the original — no accidental nameless cards
+      { title: titleDraft.trim() || card.title, body: bodyDraft },
+      force,
+    );
     if (result === "saved") {
       setEditing(false);
       setConflict(false);
     } else {
       setConflict(true);
+    }
+  };
+
+  const editorKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      cancelEdit();
+    }
+    if (event.key === "s" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      void save(false);
     }
   };
 
@@ -97,7 +119,17 @@ export function CardDetail({
         <header className="card-detail-header">
           <div className="card-detail-title">
             <span className="card-id">{card.id}</span>
-            <h1>{card.title}</h1>
+            {editing ? (
+              <input
+                aria-label="Card title"
+                className="card-title-input"
+                value={titleDraft}
+                onChange={(event) => setTitleDraft(event.target.value)}
+                onKeyDown={editorKeyDown}
+              />
+            ) : (
+              <h1>{card.title}</h1>
+            )}
           </div>
           <div className="card-detail-actions">
             {!editing && (
@@ -206,16 +238,7 @@ export function CardDetail({
               value={bodyDraft}
               autoFocus
               onChange={(event) => setBodyDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.stopPropagation();
-                  cancelEdit();
-                }
-                if (event.key === "s" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  void save(false);
-                }
-              }}
+              onKeyDown={editorKeyDown}
             />
             <div className="editor-actions">
               <button type="button" onClick={() => void save(false)}>

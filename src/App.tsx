@@ -13,11 +13,13 @@ import {
   createCard,
   moveCard,
   saveCardBody,
+  saveCardEdit,
   saveCardFields,
   todayIsoDate,
   triageCard,
   type MoveResult,
 } from "./lib/board-actions";
+import type { CardEdit } from "./components/CardDetail";
 import {
   loadBoardFromDisk,
   readFileRaw,
@@ -142,15 +144,15 @@ function App() {
   };
 
   /**
-   * Save an edited body. Pre-watcher conflict policy (full policy = c015):
-   * compare the file's current disk content against the raw this edit was
-   * based on; a mismatch is surfaced as a conflict — never silently
-   * clobbered. The model is refreshed from disk so "discard" shows the
-   * newer version.
+   * Save an inline edit (title + body). Pre-watcher conflict policy (full
+   * policy = c015): compare the file's current disk content against the raw
+   * this edit was based on; a mismatch is surfaced as a conflict — never
+   * silently clobbered. The model is refreshed from disk so "discard" shows
+   * the newer version.
    */
-  const handleSaveBody = async (
+  const handleSaveEdit = async (
     card: Card,
-    newBody: string,
+    edit: CardEdit,
     force: boolean,
   ): Promise<SaveBodyResult> => {
     if (!board) return "conflict";
@@ -172,7 +174,9 @@ function App() {
         return "conflict";
       }
     }
-    applyAction(() => saveCardBody(board.root, card, newBody, todayIsoDate()));
+    applyAction(() =>
+      saveCardEdit(board.root, card, edit, board.model.config, todayIsoDate()),
+    );
     return "saved";
   };
 
@@ -244,7 +248,7 @@ function App() {
             milestoneOptions={milestoneOptions}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}
             onToggleTask={(index) => handleToggleTask(selected.card, index)}
-            onSaveBody={(body, force) => handleSaveBody(selected.card, body, force)}
+            onSaveEdit={(edit, force) => handleSaveEdit(selected.card, edit, force)}
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
             }

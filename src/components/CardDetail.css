@@ -31,6 +31,25 @@
   font-size: 1.15rem;
 }
 
+.card-detail-title {
+  flex: 1;
+}
+
+.card-title-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.15rem;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+
 .card-detail-header button {
   font: inherit;
   border: none;

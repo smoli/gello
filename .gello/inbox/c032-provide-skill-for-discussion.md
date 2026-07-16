@@ -1,7 +1,7 @@
 ---
 id: c032
 title: Provide skill for discussion
-status: discuss
+status: backlog
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16
@@ -13,7 +13,8 @@ When initiaing a project with gallo look if there’s a place for skills, e.g. .
 
 When the desktop app creates a new `.gello/` board — or opens a project
 where the skill is missing — it detects agent skill locations
-(`.claude/skills/`, `.pi/`) and, after a one-time confirmation, installs a
+(`.claude/skills/`, `.pi/skills/`, `.agents/skills/`) and, after a one-time
+confirmation, installs a
 gello-managed **discuss** skill into each detected location. The skill lets
 the user run a structured discussion of a card in `discuss` status: take a
 card ID (or list discuss cards), read the card, interview the human (goal,
@@ -24,8 +25,12 @@ say-so.
 
 ## Acceptance criteria
 
-- [ ] On board create/open, the app detects `.claude/skills/` and `.pi/`;
-      folders that don't exist are never created
+- [ ] On board create/open, the app detects `.claude/skills/`,
+      `.pi/skills/`, and `.agents/skills/`; folders that don't exist are
+      never created
+- [ ] When both `.pi/skills/` and `.agents/skills/` exist, the skill is
+      installed only into `.agents/skills/` (pi discovers both — one copy,
+      no duplicate skill)
 - [ ] First install asks the user once; a decline is remembered and not
       re-prompted on every open
 - [ ] The installed skill file carries a gello-managed marker + version;
@@ -47,9 +52,14 @@ say-so.
 
 - **Trigger = app on board create/open**: no dependency on the c020 CLI
   (backlog/low); the app is what every gello user runs anyway.
-- **Locations: `.claude/skills/` and `.pi/`, existing only**: matches the
-  card's "look if there's a place" — gello never introduces an agent
-  ecosystem into a project that doesn't use it.
+- **Locations: `.claude/skills/`, `.pi/skills/`, `.agents/skills/` —
+  existing only**: matches the card's "look if there's a place" — gello
+  never introduces an agent ecosystem into a project that doesn't use it.
+  Per pi's docs (2026-07-16), pi discovers project skills in `.pi/skills/`
+  and `.agents/skills/` (cwd + ancestors, only after the project is
+  trusted — trust is pi's concern, not gello's). Dedupe rule: prefer
+  `.agents/skills/` over `.pi/skills/` when both exist. Both ecosystems
+  use the SKILL.md folder format, so one template serves all locations.
 - **Skill scope: interview + write-back + offer triage**: triage stays a
   human decision, the skill just executes it on request. Teaching broader
   board conventions (statuses, query recipes for general work) was
@@ -60,6 +70,6 @@ say-so.
 - **Installer should be generic**: c029 (onboard-legacy-projects skill)
   will want the same detect/confirm/install/update mechanism — design it
   as "gello installs skills", with discuss as the first skill.
-- **Open**: exact `.pi` skill file format/naming to confirm; where the
-  "user declined" flag lives (app config vs. `board.yaml`); how user-edit
-  detection works (content hash vs. version line).
+- **Open**: where the "user declined" flag lives (app config vs.
+  `board.yaml`); how user-edit detection works (content hash vs. version
+  line).
