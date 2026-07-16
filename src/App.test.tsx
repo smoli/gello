@@ -378,10 +378,10 @@ describe("App", () => {
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c007-the-filter-flickers.md",
+      "/repo/.gello/milestones/m02-board-ui/b001-the-filter-flickers.md",
       expect.stringContaining("ref: c006"),
     );
-    const dialog = screen.getByRole("dialog", { name: "c007" });
+    const dialog = screen.getByRole("dialog", { name: "b001" });
     expect(within(dialog).getByText("The filter flickers")).toBeInTheDocument();
 
     // ref link navigates to the source

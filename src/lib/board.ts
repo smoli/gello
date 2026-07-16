@@ -255,18 +255,28 @@ function basename(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-/**
- * Next free card ID. Invalid files reserve their filename-derived ID too, so
- * a broken card never gets its ID handed out twice.
- */
-export function nextCardId(model: BoardModel): string {
+function nextIdInNamespace(model: BoardModel, prefix: string): string {
   const candidates = [
     ...model.inbox.map((c) => c.id),
     ...model.milestones.flatMap((g) => g.cards.map((c) => c.id)),
     ...model.invalid.map((entry) => basename(entry.path)),
   ];
-  const next = maxIdNumber(candidates, "c") + 1;
-  return `c${String(next).padStart(3, "0")}`;
+  const next = maxIdNumber(candidates, prefix) + 1;
+  return `${prefix}${String(next).padStart(3, "0")}`;
+}
+
+/**
+ * Next free task ID (c-namespace). Invalid files reserve their
+ * filename-derived ID too, so a broken card never gets its ID handed out
+ * twice.
+ */
+export function nextCardId(model: BoardModel): string {
+  return nextIdInNamespace(model, "c");
+}
+
+/** Next free issue ID — issues live in their own b-namespace (c043). */
+export function nextIssueId(model: BoardModel): string {
+  return nextIdInNamespace(model, "b");
 }
 
 export function nextMilestoneId(model: BoardModel): string {

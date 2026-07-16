@@ -82,11 +82,11 @@ do not maintain parallel plan/TODO files.
 
 - **Query the board** (cheap, one grep each — never read all cards to find one):
   ```bash
-  # cards by status (card files are c*.md with a numeric id; this glob
+  # cards by status (task files c*.md, issue files b*.md; this glob
   # excludes concept.md and milestone.md)
-  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="c[0-9]*.md"
+  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="[bc][0-9]*.md"
   # status overview
-  grep -rh "^status:" .gello/inbox .gello/milestones --include="c[0-9]*.md" | sort | uniq -c
+  grep -rh "^status:" .gello/inbox .gello/milestones --include="[bc][0-9]*.md" | sort | uniq -c
   # one card's frontmatter at a glance
   sed -n '/^---$/,/^---$/p' <card-file>
   ```
@@ -108,7 +108,7 @@ do not maintain parallel plan/TODO files.
   back into the card: a refined `## What`, drafted `## Acceptance criteria`,
   and a compact `## Discussion` section (key decisions, rejected
   alternatives, open questions — no verbatim transcript). Find candidates:
-  `grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="c[0-9]*.md"`.
+  `grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="[bc][0-9]*.md"`.
   Exit is the human's call: triage to a milestone / `backlog` / `ready`.
 - **Attachments**: store under `.gello/assets/<card-id>/`, link with relative
   Markdown image paths. When moving a card file between folders, rewrite its

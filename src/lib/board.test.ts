@@ -6,6 +6,7 @@ import {
   findCardById,
   loadBoard,
   nextCardId,
+  nextIssueId,
   nextMilestoneId,
   openIssuesFor,
   withCardTriaged,
@@ -311,6 +312,34 @@ describe("issue refs (c024)", () => {
   it("computes open issues pointing at a card, excluding done ones", () => {
     expect(openIssuesFor(model, "c001").map((c) => c.id)).toEqual(["c002"]);
     expect(openIssuesFor(model, "c005")).toEqual([]);
+  });
+});
+
+describe("issue id namespace (c043)", () => {
+  function issue(id: string): string {
+    return `---\nid: ${id}\ntitle: Issue ${id}\nstatus: backlog\ntype: issue\n---\nx\n`;
+  }
+
+  it("allocates issue ids in the b-namespace, independent of tasks", () => {
+    const model = loadBoard([
+      file("inbox/c010-task.md", card("c010")),
+      file("inbox/b002-issue.md", issue("b002")),
+    ]);
+
+    expect(nextIssueId(model)).toBe("b003");
+    expect(nextCardId(model)).toBe("c011");
+  });
+
+  it("starts at b001 on a board without issues", () => {
+    expect(nextIssueId(loadBoard([]))).toBe("b001");
+  });
+
+  it("counts invalid b-files by filename so broken issues reserve their id", () => {
+    const model = loadBoard([
+      file("inbox/b009-broken.md", "---\nid: [unclosed\n---\nx\n"),
+    ]);
+
+    expect(nextIssueId(model)).toBe("b010");
   });
 });
 

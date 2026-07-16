@@ -1,6 +1,6 @@
 // Board mutations: pure planning via cards.ts, persistence via fs.ts.
 
-import { nextCardId, type BoardModel } from "./board";
+import { nextCardId, nextIssueId, type BoardModel } from "./board";
 import { removeFile } from "./board-io";
 import {
   newCardRaw,
@@ -111,7 +111,8 @@ export function createCard(
   input: { title: string; body: string; type?: string },
   today: string,
 ): MoveResult {
-  const id = nextCardId(model);
+  // c043: issues get their own b-namespace; everything else allocates c-ids
+  const id = input.type === "issue" ? nextIssueId(model) : nextCardId(model);
   const path = `inbox/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, { type: input.type });
   const parsed = parseCard(path, raw, model.config);
@@ -135,7 +136,7 @@ export function createIssueFor(
   input: { title: string; body: string },
   today: string,
 ): MoveResult {
-  const id = nextCardId(model);
+  const id = nextIssueId(model); // c043: b-namespace
   const folder = source.path.slice(0, source.path.lastIndexOf("/"));
   const path = `${folder}/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, {

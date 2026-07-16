@@ -70,8 +70,10 @@ Notes:
   an archive action moves long-done cards to `archive/` to keep folders small.
 - The **inbox** is a first-class concept: new ideas become cards immediately;
   triage (assign to milestone, refine) happens later on the board.
-- IDs (`c001`) are per-board sequential and part of the filename → stable
-  references in commits, card bodies (`depends on c002`), and conversation.
+- IDs are per-board sequential and part of the filename → stable references
+  in commits, card bodies (`depends on c002`), and conversation. Tasks live
+  in the `c` namespace (`c001`), issues in the `b` namespace (`b001`);
+  existing IDs never change — only new cards allocate from their namespace.
 
 ### Card format
 
