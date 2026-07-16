@@ -300,7 +300,7 @@ function App() {
         label: group.milestone!.title,
       }));
     return (
-      <>
+      <div className="app-shell">
         {error && (
           <div role="alert" className="board-error">
             {error}
@@ -354,7 +354,7 @@ function App() {
             onClose={() => setSelectedPath(null)}
           />
         )}
-      </>
+      </div>
     );
   }
 

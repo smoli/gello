@@ -7,6 +7,20 @@ body {
   margin: 0;
 }
 
+/* c050: the app never scrolls as a whole — columns scroll internally */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 .app {
   display: flex;
   flex-direction: column;

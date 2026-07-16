@@ -1,7 +1,7 @@
 ---
 id: c049
 title: Columns should be only as long as needed for the cards in them
-status: review
+status: done
 priority: normal
 type: issue
 ref: c047
@@ -13,6 +13,7 @@ updated: 2026-07-16
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 
