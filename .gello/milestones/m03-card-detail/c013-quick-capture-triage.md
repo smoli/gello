@@ -1,7 +1,7 @@
 ---
 id: c013
 title: Quick capture to inbox + triage to milestone
-status: review
+status: done
 milestone: m03
 priority: high
 depends: [c005, c009]

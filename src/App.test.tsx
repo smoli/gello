@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
-import { loadBoardFromDisk, readFileRaw } from "./lib/board-io";
+import { loadBoardFromDisk, readFileRaw, watchBoard } from "./lib/board-io";
 import { writeFileAtomic } from "./lib/fs";
 import App from "./App";
 
@@ -9,11 +9,13 @@ vi.mock("./lib/board-io", () => ({
   loadBoardFromDisk: vi.fn(),
   readFileRaw: vi.fn(),
   removeFile: vi.fn(),
+  watchBoard: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
 const readMock = vi.mocked(readFileRaw);
 const writeMock = vi.mocked(writeFileAtomic);
+const watchMock = vi.mocked(watchBoard);
 
 function loadedFixture() {
   return {
@@ -42,6 +44,8 @@ describe("App", () => {
     loadMock.mockReset();
     readMock.mockReset();
     writeMock.mockReset();
+    watchMock.mockReset();
+    watchMock.mockResolvedValue(() => {});
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -218,6 +222,73 @@ describe("App", () => {
     const dialog = screen.getByRole("dialog", { name: "c001" });
     expect(within(dialog).getByText("Board UI")).toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Milestone")).not.toBeInTheDocument();
+  });
+
+  it("applies external file changes to the board live (debounced)", async () => {
+    vi.useFakeTimers();
+    try {
+      const fixture = loadedFixture();
+      loadMock.mockResolvedValueOnce(fixture);
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      const movedRaw = fixture.model.milestones[0].cards[0].raw.replace(
+        "status: backlog",
+        "status: review",
+      );
+      readMock.mockResolvedValue(movedRaw);
+
+      render(<App />);
+      await vi.waitFor(() => {
+        expect(screen.getByText("Board card")).toBeInTheDocument();
+      });
+      expect(watchMock).toHaveBeenCalledWith("/repo/.gello", expect.any(Function));
+
+      // burst of three events for the same file → one coalesced re-read
+      emitChange!(["milestones/m02-board-ui/c005-board-card.md"]);
+      emitChange!(["milestones/m02-board-ui/c005-board-card.md"]);
+      emitChange!(["milestones/m02-board-ui/c005-board-card.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      expect(readMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/milestones/m02-board-ui/c005-board-card.md",
+      );
+      const review = screen.getByRole("region", { name: "review" });
+      expect(within(review).getByText("Board card")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes a card from the board when its file is deleted externally", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      readMock.mockRejectedValue(new Error("NotFound"));
+
+      render(<App />);
+      await vi.waitFor(() => {
+        expect(screen.getByText("Hello board")).toBeInTheDocument();
+      });
+
+      emitChange!(["inbox/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      expect(screen.queryByText("Hello board")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

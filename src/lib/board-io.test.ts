@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { loadBoardFromDisk, readFileRaw } from "./board-io";
+import { listen } from "@tauri-apps/api/event";
+import { loadBoardFromDisk, readFileRaw, watchBoard } from "./board-io";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
+const listenMock = vi.mocked(listen);
 
 const CARD = `---\nid: c001\ntitle: First\nstatus: ready\n---\nbody\n`;
 
@@ -44,6 +47,44 @@ describe("loadBoardFromDisk", () => {
     invokeMock.mockRejectedValueOnce(new Error("window.__TAURI_INTERNALS__ missing"));
 
     expect(await loadBoardFromDisk()).toBeNull();
+  });
+});
+
+describe("watchBoard", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    listenMock.mockReset();
+  });
+
+  it("subscribes to change events before starting the Rust watcher", async () => {
+    const unlisten = vi.fn();
+    let handler: ((event: { payload: string[] }) => void) | null = null;
+    listenMock.mockImplementation(async (_name, callback) => {
+      handler = callback as typeof handler;
+      return unlisten;
+    });
+    invokeMock.mockResolvedValueOnce(undefined);
+    const onChange = vi.fn();
+
+    const stop = await watchBoard("/repo/.gello", onChange);
+
+    expect(listenMock).toHaveBeenCalledExactlyOnceWith(
+      "board-files-changed",
+      expect.any(Function),
+    );
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("watch_board", {
+      root: "/repo/.gello",
+    });
+    // both calls happened; listen strictly first (no missed events)
+    expect(listenMock.mock.invocationCallOrder[0]).toBeLessThan(
+      invokeMock.mock.invocationCallOrder[0],
+    );
+
+    handler!({ payload: ["inbox/c001-x.md"] });
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(["inbox/c001-x.md"]);
+
+    stop();
+    expect(unlisten).toHaveBeenCalled();
   });
 });
 

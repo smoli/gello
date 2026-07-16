@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyFileChanges,
   loadBoard,
   nextCardId,
   nextMilestoneId,
@@ -196,6 +197,91 @@ describe("withCardTriaged", () => {
     // original untouched
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
     expect(model.milestones[0].cards).toHaveLength(2);
+  });
+});
+
+describe("applyFileChanges", () => {
+  const model = loadBoard(SYNTHETIC);
+
+  it("applies an external status edit to the model", () => {
+    const changed = card("c101", "review", "low");
+    const next = applyFileChanges(model, [
+      { path: "milestones/m01-alpha/c101-first.md", content: changed },
+    ]);
+
+    expect(
+      next.milestones[0].cards.find((c) => c.id === "c101")?.status,
+    ).toBe("review");
+  });
+
+  it("returns the same reference when content matches the model (self-write echo)", () => {
+    const existing = model.milestones[0].cards.find((c) => c.id === "c101")!;
+    const next = applyFileChanges(model, [
+      { path: existing.path, content: existing.raw },
+    ]);
+
+    expect(next).toBe(model);
+  });
+
+  it("adds a new card file", () => {
+    const next = applyFileChanges(model, [
+      { path: "inbox/c200-new.md", content: card("c200") },
+    ]);
+
+    expect(next.inbox.map((c) => c.id)).toContain("c200");
+  });
+
+  it("removes a deleted card file", () => {
+    const next = applyFileChanges(model, [
+      { path: "inbox/c103-an-idea.md", content: null },
+    ]);
+
+    expect(next.inbox).toEqual([]);
+  });
+
+  it("moves a card that became invalid into the invalid list", () => {
+    const next = applyFileChanges(model, [
+      { path: "milestones/m01-alpha/c101-first.md", content: "---\nbroken: [\n---\n" },
+    ]);
+
+    expect(next.milestones[0].cards.map((c) => c.id)).not.toContain("c101");
+    expect(next.invalid.map((e) => e.path)).toContain(
+      "milestones/m01-alpha/c101-first.md",
+    );
+  });
+
+  it("heals a previously invalid file", () => {
+    const next = applyFileChanges(model, [
+      { path: "milestones/m02-beta/c104-broken.md", content: card("c104") },
+    ]);
+
+    expect(next.invalid.map((e) => e.path)).not.toContain(
+      "milestones/m02-beta/c104-broken.md",
+    );
+    expect(next.milestones[1].cards.map((c) => c.id)).toContain("c104");
+  });
+
+  it("applies milestone.md and board.yaml changes", () => {
+    const next = applyFileChanges(model, [
+      {
+        path: "milestones/m01-alpha/milestone.md",
+        content: "---\nid: m01\ntitle: Alpha Renamed\n---\ngoal\n",
+      },
+      { path: "board.yaml", content: "columns: [todo, doing]\n" },
+    ]);
+
+    expect(next.milestones[0].milestone?.title).toBe("Alpha Renamed");
+    expect(next.config.columns).toEqual(["todo", "doing"]);
+    // cards whose status no longer exists become invalid under the new config
+    expect(next.invalid.length).toBeGreaterThan(model.invalid.length);
+  });
+
+  it("ignores no-op deletions of unknown paths", () => {
+    const next = applyFileChanges(model, [
+      { path: "inbox/never-existed.md", content: null },
+    ]);
+
+    expect(next).toBe(model);
   });
 });
 

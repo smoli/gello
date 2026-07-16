@@ -3,6 +3,7 @@ import { Board } from "./components/Board";
 import { CardDetail, type MilestoneOption } from "./components/CardDetail";
 import { QuickCapture } from "./components/QuickCapture";
 import {
+  applyFileChanges,
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
@@ -17,7 +18,12 @@ import {
   triageCard,
   type MoveResult,
 } from "./lib/board-actions";
-import { loadBoardFromDisk, readFileRaw, type LoadedBoard } from "./lib/board-io";
+import {
+  loadBoardFromDisk,
+  readFileRaw,
+  watchBoard,
+  type LoadedBoard,
+} from "./lib/board-io";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -58,6 +64,46 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  // Live sync: watch the board directory, coalesce event bursts, re-read
+  // only the changed files, and reconcile through applyFileChanges — which
+  // returns the same model reference for self-write echoes (no re-render).
+  const root = board?.root ?? null;
+  useEffect(() => {
+    if (!root) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const pending = new Set<string>();
+
+    const reconcile = async () => {
+      const paths = [...pending];
+      pending.clear();
+      const changes = await Promise.all(
+        paths.map(async (path) => ({
+          path,
+          content: await readFileRaw(`${root}/${path}`).catch(() => null),
+        })),
+      );
+      if (stopped) return;
+      setBoard((current) => {
+        if (!current) return current;
+        const next = applyFileChanges(current.model, changes);
+        return next === current.model ? current : { ...current, model: next };
+      });
+    };
+
+    const stopPromise = watchBoard(root, (paths) => {
+      for (const path of paths) pending.add(path);
+      clearTimeout(timer);
+      timer = setTimeout(() => void reconcile(), 150);
+    }).catch(() => () => {});
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      void stopPromise.then((stop) => stop());
+    };
+  }, [root]);
 
   /** Optimistic update + rollback around any card-writing action. */
   const applyAction = (

@@ -1,6 +1,7 @@
 // Bridges the Rust FS commands to the pure board loader.
 
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { loadBoard, type BoardFile, type BoardModel } from "./board";
 
 /** Current content of one file (absolute path) — for conflict checks. */
@@ -11,6 +12,22 @@ export async function readFileRaw(path: string): Promise<string> {
 /** Delete one file (absolute path) — used by triage after the rewrite. */
 export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });
+}
+
+/**
+ * Watch the board directory. `onChange` receives root-relative paths of
+ * changed board files. Subscribes to the event stream *before* starting the
+ * Rust watcher so no early event is missed. Returns a stop function.
+ */
+export async function watchBoard(
+  root: string,
+  onChange: (paths: string[]) => void,
+): Promise<() => void> {
+  const unlisten = await listen<string[]>("board-files-changed", (event) =>
+    onChange(event.payload),
+  );
+  await invoke("watch_board", { root });
+  return unlisten;
 }
 
 export interface LoadedBoard {

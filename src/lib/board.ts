@@ -29,6 +29,9 @@ export interface MilestoneGroup {
 export interface BoardModel {
   config: BoardConfig;
   configError: string | null;
+  /** Raw board.yaml content ("" if absent) — kept so the model can be
+   *  reconstructed into files for incremental reconciliation. */
+  configRaw: string;
   milestones: MilestoneGroup[];
   inbox: Card[];
   invalid: InvalidFile[];
@@ -44,9 +47,8 @@ function byPriorityThenId(a: Card, b: Card): number {
 
 export function loadBoard(files: BoardFile[]): BoardModel {
   const configFile = files.find((f) => f.path === "board.yaml");
-  const { config, error: configError } = parseBoardConfig(
-    configFile?.content ?? "",
-  );
+  const configRaw = configFile?.content ?? "";
+  const { config, error: configError } = parseBoardConfig(configRaw);
 
   const inbox: Card[] = [];
   const invalid: InvalidFile[] = [];
@@ -91,7 +93,59 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   for (const group of milestones) group.cards.sort(byPriorityThenId);
   invalid.sort((a, b) => a.path.localeCompare(b.path));
 
-  return { config, configError, milestones, inbox, invalid };
+  return { config, configError, configRaw, milestones, inbox, invalid };
+}
+
+// --- incremental reconciliation -------------------------------------------------
+
+export interface FileChange {
+  /** Path relative to .gello root. */
+  path: string;
+  /** New content, or null when the file was deleted. */
+  content: string | null;
+}
+
+/** Reconstruct the BoardFile list a model was built from. */
+function modelToFiles(model: BoardModel): Map<string, string> {
+  const files = new Map<string, string>();
+  if (model.configRaw !== "") files.set("board.yaml", model.configRaw);
+  for (const card of model.inbox) files.set(card.path, card.raw);
+  for (const group of model.milestones) {
+    if (group.milestone) files.set(group.milestone.path, group.milestone.raw);
+    for (const card of group.cards) files.set(card.path, card.raw);
+  }
+  for (const entry of model.invalid) files.set(entry.path, entry.raw);
+  return files;
+}
+
+/**
+ * Apply external file changes (from the watcher) to a model. Rebuilds via
+ * loadBoard so every rule — validation, grouping, ordering, config — applies
+ * identically to watched changes and fresh loads.
+ *
+ * Returns the SAME model reference when no change has an effect (e.g. our
+ * own atomic writes echoing back), so callers can skip re-rendering.
+ */
+export function applyFileChanges(
+  model: BoardModel,
+  changes: FileChange[],
+): BoardModel {
+  const files = modelToFiles(model);
+  let dirty = false;
+  for (const { path, content } of changes) {
+    const existing = files.get(path);
+    if (content === null) {
+      if (existing !== undefined) {
+        files.delete(path);
+        dirty = true;
+      }
+    } else if (existing !== content) {
+      files.set(path, content);
+      dirty = true;
+    }
+  }
+  if (!dirty) return model;
+  return loadBoard([...files].map(([path, content]) => ({ path, content })));
 }
 
 /** Immutably add a freshly captured card to the inbox, keeping sort order. */
