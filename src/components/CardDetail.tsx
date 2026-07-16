@@ -38,6 +38,7 @@ export function CardDetail({
   onOpenCardId,
   refCard,
   openBugs,
+  startInEdit,
   onClose,
 }: {
   card: Card;
@@ -52,12 +53,14 @@ export function CardDetail({
   onOpenCardId: (id: string) => void;
   refCard: RefCardInfo | null;
   openBugs: Card[];
+  /** Open directly in edit mode (c035: fresh report-bug cards). */
+  startInEdit?: boolean;
   onClose: () => void;
 }) {
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
-  const [editing, setEditing] = useState(false);
-  const [bodyDraft, setBodyDraft] = useState("");
-  const [titleDraft, setTitleDraft] = useState("");
+  const [editing, setEditing] = useState(startInEdit ?? false);
+  const [bodyDraft, setBodyDraft] = useState(startInEdit ? card.body : "");
+  const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
   const [conflict, setConflict] = useState(false);
 
   // c023: Escape must close the dialog regardless of focus — the dialog

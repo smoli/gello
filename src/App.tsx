@@ -55,6 +55,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  // open the next selected card directly in edit mode (fresh report-bug)
+  const [editOnOpen, setEditOnOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -231,8 +233,11 @@ function App() {
               ),
             },
     );
-    // the criterion: report-bug opens the fresh bug for editing
-    if (created !== null) setSelectedPath((created as Card).path);
+    // the criterion: report-bug opens the fresh bug directly in edit mode
+    if (created !== null) {
+      setSelectedPath((created as Card).path);
+      setEditOnOpen(true);
+    }
   };
 
   const handleTriage = (card: Card, folder: string, milestoneId: string) => {
@@ -277,11 +282,17 @@ function App() {
         <Board
           model={board.model}
           onMoveCard={handleMove}
-          onSelectCard={(card) => setSelectedPath(card.path)}
+          onSelectCard={(card) => {
+            setEditOnOpen(false);
+            setSelectedPath(card.path);
+          }}
           onTriageCard={handleTriage}
         />
         {selected && (
           <CardDetail
+            // remount per card: navigation resets edit state and drafts
+            key={selected.card.path}
+            startInEdit={editOnOpen && selected.card.path === selectedPath}
             card={selected.card}
             milestoneLabel={selected.milestoneLabel}
             columns={board.model.config.columns}
@@ -295,7 +306,10 @@ function App() {
             onReportBug={() => handleReportBug(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
-              if (target) setSelectedPath(target.path);
+              if (target) {
+                setEditOnOpen(false);
+                setSelectedPath(target.path);
+              }
             }}
             refCard={
               selected.card.ref

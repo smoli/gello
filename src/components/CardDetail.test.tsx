@@ -321,6 +321,17 @@ describe("CardDetail", () => {
     expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c050");
   });
 
+  it("can open directly in edit mode (c035)", () => {
+    renderDetail({ startInEdit: true });
+
+    expect(screen.getByRole("textbox", { name: "Card body" })).toHaveValue(
+      fixture().body,
+    );
+    expect(screen.getByRole("textbox", { name: "Card title" })).toHaveValue(
+      "Card detail view",
+    );
+  });
+
   it("closes via button and Escape", () => {
     const props = renderDetail();
 

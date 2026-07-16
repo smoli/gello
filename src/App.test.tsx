@@ -360,13 +360,24 @@ describe("App", () => {
       "/repo/.gello/milestones/m02-board-ui/c007-bug-in-c006.md",
       expect.stringContaining("ref: c006"),
     );
-    // the fresh bug's detail is open
+    // the fresh bug's detail is open — directly in edit mode (c035)
     const dialog = screen.getByRole("dialog", { name: "c007" });
-    expect(within(dialog).getByText("Bug in c006")).toBeInTheDocument();
-    expect(within(dialog).getByText("bug")).toBeInTheDocument();
-    // and it links back to the source
+    expect(
+      within(dialog).getByRole("textbox", { name: "Card title" }),
+    ).toHaveValue("Bug in c006");
+    expect(
+      within(dialog).getByRole("textbox", { name: "Card body" }),
+    ).toBeInTheDocument();
+
+    // leaving edit mode and navigating to the source works, in view mode
+    fireEvent.keyDown(within(dialog).getByRole("textbox", { name: "Card body" }), {
+      key: "Escape",
+    });
     fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
-    expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+    const sourceDialog = screen.getByRole("dialog", { name: "c006" });
+    expect(
+      within(sourceDialog).queryByRole("textbox", { name: "Card body" }),
+    ).not.toBeInTheDocument();
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

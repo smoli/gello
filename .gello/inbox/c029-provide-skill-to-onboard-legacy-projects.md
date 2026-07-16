@@ -1,7 +1,7 @@
 ---
 id: c029
 title: Provide skill to onboard legacy projects
-status: discuss
+status: backlog
 priority: normal
 depends: [c032]
 created: 2026-07-16
