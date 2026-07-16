@@ -56,9 +56,10 @@ export function saveCardBody(
   root: string,
   card: Card,
   newBody: string,
+  config: BoardConfig,
   today: string,
 ): MoveResult {
-  const { card: updated, raw } = replaceCardBody(card, newBody, today);
+  const { card: updated, raw } = replaceCardBody(card, newBody, today, config);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
 }
@@ -78,7 +79,7 @@ export function saveCardEdit(
   if (edit.title !== card.title) {
     current = updateCardFields(current, { title: edit.title }, today, config).card;
   }
-  const { card: updated, raw } = replaceCardBody(current, edit.body, today);
+  const { card: updated, raw } = replaceCardBody(current, edit.body, today, config);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
 }

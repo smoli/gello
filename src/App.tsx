@@ -183,7 +183,13 @@ function App() {
   const handleToggleTask = (card: Card, index: number) => {
     if (!board) return;
     applyAction(() =>
-      saveCardBody(board.root, card, toggleTaskItem(card.body, index), todayIsoDate()),
+      saveCardBody(
+        board.root,
+        card,
+        toggleTaskItem(card.body, index),
+        board.model.config,
+        todayIsoDate(),
+      ),
     );
   };
 

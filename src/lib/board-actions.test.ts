@@ -119,6 +119,7 @@ describe("moveCard", () => {
       "/repo/.gello",
       fixtureCard(),
       "\nnew body\n",
+      DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
 
@@ -141,6 +142,57 @@ describe("moveCard", () => {
       ),
     ).toThrow(/status/i);
     expect(writeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("custom-column statuses (c033)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  const DISCUSS_CONFIG = {
+    columns: ["discuss", "backlog", "ready", "in-progress", "review", "done"],
+    wipLimits: {},
+  };
+
+  function discussCard() {
+    const parsed = parseCard(
+      "inbox/c033-idea.md",
+      "---\nid: c033\ntitle: Idea\nstatus: discuss\n---\n\n- [ ] a task\n",
+      DISCUSS_CONFIG,
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  it("saves a body edit on a discuss-status card", async () => {
+    const { card, persisted } = saveCardBody(
+      "/repo/.gello",
+      discussCard(),
+      "\nnew body\n",
+      DISCUSS_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.status).toBe("discuss");
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("status: discuss");
+  });
+
+  it("saves a title+body edit on a discuss-status card", async () => {
+    const { card, persisted } = saveCardEdit(
+      "/repo/.gello",
+      discussCard(),
+      { title: "Refined idea", body: "\nrefined\n" },
+      DISCUSS_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.title).toBe("Refined idea");
+    expect(card.status).toBe("discuss");
+    await persisted;
+    expect(writeMock).toHaveBeenCalledTimes(1);
   });
 });
 
