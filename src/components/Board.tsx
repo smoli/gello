@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { BoardModel } from "../lib/board";
-import type { Card } from "../lib/cards";
+import type { Card, InvalidFile } from "../lib/cards";
 import "./Board.css";
 
 const CARD_DRAG_TYPE = "application/x-gello-card-path";
@@ -86,7 +86,42 @@ export function Board({
           />
         ))}
       </div>
+      {model.invalid.length > 0 && <NeedsAttentionLane entries={model.invalid} />}
     </div>
+  );
+}
+
+function NeedsAttentionLane({ entries }: { entries: InvalidFile[] }) {
+  return (
+    <section className="needs-attention" aria-label="needs attention">
+      <div className="column-header">
+        <h2>needs attention</h2>
+        <span className="column-count">{entries.length}</span>
+      </div>
+      <div className="needs-attention-entries">
+        {entries.map((entry) => (
+          <InvalidFileEntry key={entry.path} entry={entry} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InvalidFileEntry({ entry }: { entry: InvalidFile }) {
+  const [showRaw, setShowRaw] = useState(false);
+  return (
+    <article className="invalid-entry">
+      <div className="invalid-entry-header">
+        <div>
+          <p className="invalid-path">{entry.path}</p>
+          <p className="invalid-reason">{entry.reason}</p>
+        </div>
+        <button type="button" onClick={() => setShowRaw((v) => !v)}>
+          {showRaw ? "hide file" : "show file"}
+        </button>
+      </div>
+      {showRaw && <pre className="invalid-raw">{entry.raw}</pre>}
+    </article>
   );
 }
 

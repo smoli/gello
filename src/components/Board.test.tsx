@@ -107,6 +107,49 @@ describe("Board", () => {
   });
 });
 
+describe("needs-attention lane", () => {
+  const MODEL_WITH_INVALID = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\n"),
+    file("inbox/c001-fine.md", card("c001", "Fine card", "backlog")),
+    file("inbox/c002-broken.md", "---\nid: [unclosed\n---\nbody\n"),
+    file(
+      "milestones/m01-x/c003-bad-status.md",
+      "---\nid: c003\ntitle: Bad status\nstatus: wip\n---\nraw card text here\n",
+    ),
+  ]);
+
+  it("lists invalid files with path and reason", () => {
+    render(<Board model={MODEL_WITH_INVALID} />);
+
+    const lane = screen.getByRole("region", { name: "needs attention" });
+    expect(within(lane).getByText("inbox/c002-broken.md")).toBeInTheDocument();
+    expect(within(lane).getByText(/yaml/i)).toBeInTheDocument();
+    expect(
+      within(lane).getByText("milestones/m01-x/c003-bad-status.md"),
+    ).toBeInTheDocument();
+    expect(within(lane).getByText(/unknown status "wip"/)).toBeInTheDocument();
+  });
+
+  it("is absent when every file parses", () => {
+    render(<Board model={MODEL} />);
+
+    expect(
+      screen.queryByRole("region", { name: "needs attention" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reveals the raw file content on demand", () => {
+    render(<Board model={MODEL_WITH_INVALID} />);
+    const lane = screen.getByRole("region", { name: "needs attention" });
+
+    expect(within(lane).queryByText(/raw card text here/)).not.toBeInTheDocument();
+    const toggles = within(lane).getAllByRole("button", { name: /show file/i });
+    fireEvent.click(toggles[1]);
+
+    expect(within(lane).getByText(/raw card text here/)).toBeInTheDocument();
+  });
+});
+
 function fakeDataTransfer() {
   const data: Record<string, string> = {};
   return {

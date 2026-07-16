@@ -1,7 +1,7 @@
 ---
 id: c009
 title: Card detail view with rendered Markdown
-status: backlog
+status: ready
 milestone: m03
 priority: high
 depends: [c005]

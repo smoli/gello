@@ -1,7 +1,7 @@
 ---
 id: c006
 title: Drag & drop persists status to frontmatter
-status: review
+status: done
 milestone: m02
 priority: high
 depends: [c004, c005]
