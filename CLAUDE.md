@@ -11,7 +11,10 @@ it is the authoritative product spec.
 - **Shell**: Tauri 2 (Rust). Keep the Rust layer thin: FS read/write/watch,
   clipboard image access. No business logic in Rust unless it must be there.
 - **Frontend**: React + TypeScript (strict mode) + Vite.
-- **Parsing**: `gray-matter` for frontmatter, in the frontend.
+- **Parsing**: the `yaml` package (browser-clean, no Buffer polyfill needed in
+  the webview). YAML is only ever *parsed* — writes are surgical line edits on
+  the raw text so untouched lines (formatting, comments, unknown fields)
+  survive byte-for-byte. Never dump/stringify YAML.
 - **Unit/component tests**: Vitest + React Testing Library.
 - **Rust tests**: `cargo test` in `src-tauri/`.
 - **E2E**: Playwright against the Vite dev build (Tauri APIs mocked at the

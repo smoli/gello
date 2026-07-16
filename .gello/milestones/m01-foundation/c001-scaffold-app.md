@@ -1,7 +1,7 @@
 ---
 id: c001
 title: Scaffold Tauri 2 + React/TS app with test harness
-status: review
+status: done
 milestone: m01
 priority: high
 depends: []

@@ -209,8 +209,9 @@ of the file tree:
 - **Tauri 2** (Rust shell): small binary, native FS access + `notify` file
   watcher, clipboard image access for paste-to-attach.
 - **Frontend**: React + TypeScript + Vite (Svelte acceptable alternative).
-- **Parsing**: frontmatter via `gray-matter` (frontend) — keeps Rust layer thin
-  (FS read/write/watch only).
+- **Parsing**: frontmatter via the `yaml` package (frontend) — keeps the Rust
+  layer thin (FS read/write/watch only). Writes are surgical line edits, never
+  YAML dumps, to preserve formatting and comments byte-for-byte.
 - **Drag & drop**: `@dnd-kit` or `pragmatic-drag-and-drop`.
 - **No backend, no DB.**
 
