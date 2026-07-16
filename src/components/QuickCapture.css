@@ -41,6 +41,22 @@
   font-size: 0.8rem;
 }
 
+/* report-bug draft (c040): centered above the card-detail dialog (z 10) */
+.bug-draft-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+.bug-draft-overlay .quick-capture {
+  position: static;
+  width: min(380px, 92vw);
+}
+
 .quick-capture-mode {
   margin: 0;
   font-size: 0.75rem;

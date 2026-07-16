@@ -291,11 +291,13 @@ function App() {
           onTriageCard={handleTriage}
         />
         {bugSource && (
-          <CaptureForm
-            heading={`New bug for ${bugSource.id}`}
-            onSubmit={submitBugDraft}
-            onCancel={() => setBugSource(null)}
-          />
+          <div className="bug-draft-overlay">
+            <CaptureForm
+              heading={`New bug for ${bugSource.id}`}
+              onSubmit={submitBugDraft}
+              onCancel={() => setBugSource(null)}
+            />
+          </div>
         )}
         {selected && (
           <CardDetail
