@@ -145,6 +145,7 @@ due: 2026-08-15
 ```yaml
 columns: [discuss, backlog, ready, in-progress, review, done]
 types: [task, issue]     # optional; card types, open set; default [task, issue]
+background: assets/board/bg.jpg  # optional; full-image board background
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```

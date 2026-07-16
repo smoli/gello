@@ -8,6 +8,22 @@
   position: relative; /* anchor for the milestone-strip overlay */
 }
 
+/* c047: full-image board background, Trello-style */
+.board-with-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.board-with-bg .column {
+  background: color-mix(in srgb, Canvas 72%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.board-with-bg .board-toolbar select {
+  background: color-mix(in srgb, Canvas 85%, transparent);
+}
+
 .board-toolbar select {
   font: inherit;
   padding: 0.3rem 0.5rem;

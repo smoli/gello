@@ -54,11 +54,14 @@ export function Board({
   onMoveCard,
   onSelectCard,
   onTriageCard,
+  backgroundImage,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
   onSelectCard?: (card: Card) => void;
   onTriageCard?: TriageCardHandler;
+  /** Data URL of the board background (c047). */
+  backgroundImage?: string;
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -117,7 +120,12 @@ export function Board({
     dragging !== null && showsMilestoneZones(dragging) && model.milestones.length > 0;
 
   return (
-    <div className="board">
+    <div
+      className={backgroundImage ? "board board-with-bg" : "board"}
+      style={
+        backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined
+      }
+    >
       <header className="board-toolbar">
         <select
           aria-label="Milestone filter"

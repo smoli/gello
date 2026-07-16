@@ -25,6 +25,7 @@ import {
 } from "./lib/board-actions";
 import type { CardEdit } from "./components/CardDetail";
 import {
+  imageDataUrl,
   loadBoardFromDisk,
   readFileRaw,
   watchBoard,
@@ -58,6 +59,8 @@ function App() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // report-issue draft target (c037): the form is open, nothing on disk yet
   const [issueSource, setIssueSource] = useState<Card | null>(null);
+  // board background (c047): data URL loaded from config.background
+  const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +80,26 @@ function App() {
   // only the changed files, and reconcile through applyFileChanges — which
   // returns the same model reference for self-write echoes (no re-render).
   const root = board?.root ?? null;
+
+  // c047: load (or clear) the configured background image
+  const backgroundPath = board?.model.config.background ?? null;
+  useEffect(() => {
+    if (!root || !backgroundPath) {
+      setBackgroundUrl(undefined);
+      return;
+    }
+    let cancelled = false;
+    void imageDataUrl(`${root}/${backgroundPath}`)
+      .then((url) => {
+        if (!cancelled) setBackgroundUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setBackgroundUrl(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [root, backgroundPath]);
   useEffect(() => {
     if (!root) return;
     let stopped = false;
@@ -285,6 +308,7 @@ function App() {
         )}
         <QuickCapture onCreate={handleCreate} />
         <Board
+          backgroundImage={backgroundUrl}
           model={board.model}
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}

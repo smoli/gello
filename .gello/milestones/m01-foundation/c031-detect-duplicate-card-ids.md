@@ -1,7 +1,7 @@
 ---
 id: c031
 title: Detect duplicate card IDs on the board
-status: backlog
+status: ready
 priority: normal
 tags: [core]
 created: 2026-07-16
@@ -34,3 +34,4 @@ file edits.
 ## Log
 
 - 2026-07-16 captured after a real c029 collision (app quick capture vs agent)
+- 2026-07-16 status → ready (app)

@@ -9,6 +9,22 @@ export async function readFileRaw(path: string): Promise<string> {
   return invoke<string>("read_file", { path });
 }
 
+const IMAGE_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/** Load a local image (absolute path) as a data URL — board backgrounds. */
+export async function imageDataUrl(path: string): Promise<string> {
+  const base64 = await invoke<string>("read_file_base64", { path });
+  const extension = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  const mime = IMAGE_MIME[extension] ?? "image/png";
+  return `data:${mime};base64,${base64}`;
+}
+
 /** Delete one file (absolute path) — used by triage after the rewrite. */
 export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });

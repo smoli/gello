@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
-import { loadBoardFromDisk, readFileRaw, watchBoard } from "./lib/board-io";
+import {
+  imageDataUrl,
+  loadBoardFromDisk,
+  readFileRaw,
+  watchBoard,
+} from "./lib/board-io";
 import { writeFileAtomic } from "./lib/fs";
 import App from "./App";
 
@@ -10,12 +15,14 @@ vi.mock("./lib/board-io", () => ({
   readFileRaw: vi.fn(),
   removeFile: vi.fn(),
   watchBoard: vi.fn(),
+  imageDataUrl: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
 const readMock = vi.mocked(readFileRaw);
 const writeMock = vi.mocked(writeFileAtomic);
 const watchMock = vi.mocked(watchBoard);
+const imageMock = vi.mocked(imageDataUrl);
 
 function loadedFixture() {
   return {
@@ -51,6 +58,7 @@ describe("App", () => {
     writeMock.mockReset();
     watchMock.mockReset();
     watchMock.mockResolvedValue(() => {});
+    imageMock.mockReset();
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -393,6 +401,33 @@ describe("App", () => {
     expect(screen.queryByText(/issue for c006/i)).not.toBeInTheDocument();
     // the source card's dialog is still open underneath
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+  });
+
+  it("loads the configured board background image (c047)", async () => {
+    const fixture = {
+      root: "/repo/.gello",
+      model: loadBoard([
+        { path: "board.yaml", content: "background: assets/board/bg.jpg\n" },
+        {
+          path: "inbox/c001-hello.md",
+          content: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+        },
+      ]),
+    };
+    loadMock.mockResolvedValueOnce(fixture);
+    imageMock.mockResolvedValueOnce("data:image/jpeg;base64,QUJD");
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+
+    expect(imageMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/assets/board/bg.jpg",
+    );
+    await vi.waitFor(() => {
+      expect(
+        (container.querySelector(".board") as HTMLElement).style.backgroundImage,
+      ).toContain("data:image/jpeg;base64,QUJD");
+    });
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

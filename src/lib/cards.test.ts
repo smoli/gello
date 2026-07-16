@@ -105,7 +105,7 @@ describe("parseCard", () => {
 
   it("accepts a custom status when the board config allows it", () => {
     const raw = MINIMAL_CARD.replace("status: backlog", "status: doing");
-    const config = { columns: ["todo", "doing"], wipLimits: {}, types: ["task"] };
+    const config = { columns: ["todo", "doing"], wipLimits: {}, types: ["task"], background: null };
     const result = parseCard("x.md", raw, config);
 
     expect(result.ok).toBe(true);
@@ -329,6 +329,7 @@ describe("card types and refs (c024)", () => {
       columns: ["backlog"],
       wipLimits: {},
       types: ["task", "issue", "chore"],
+      background: null,
     };
     const result = parseCard("x.md", raw, config);
 
@@ -471,5 +472,12 @@ describe("parseBoardConfig", () => {
 
     expect(error).toBeNull();
     expect(config).toEqual(DEFAULT_BOARD_CONFIG);
+  });
+
+  it("parses an optional background image path (c047)", () => {
+    expect(
+      parseBoardConfig("background: assets/board/bg.jpg\n").config.background,
+    ).toBe("assets/board/bg.jpg");
+    expect(parseBoardConfig("columns: [a]\n").config.background).toBeNull();
   });
 });

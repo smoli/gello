@@ -16,12 +16,15 @@ export interface BoardConfig {
   wipLimits: Record<string, number>;
   /** Card types (c024): open set, `task` is the implicit default type. */
   types: string[];
+  /** Board background image (c047), path relative to the .gello root. */
+  background: string | null;
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   columns: ["backlog", "ready", "in-progress", "review", "done"],
   wipLimits: {},
   types: ["task", "issue"],
+  background: null,
 };
 
 export interface Card {
@@ -253,6 +256,7 @@ export function parseBoardConfig(raw: string): {
     columns: [...DEFAULT_BOARD_CONFIG.columns],
     wipLimits: {},
     types: [...DEFAULT_BOARD_CONFIG.types],
+    background: null,
   });
 
   let data: unknown;
@@ -280,6 +284,11 @@ export function parseBoardConfig(raw: string): {
   const types = record["types"];
   if (Array.isArray(types) && types.length > 0) {
     config.types = types.map(String);
+  }
+
+  const background = record["background"];
+  if (typeof background === "string" && background.trim() !== "") {
+    config.background = background;
   }
 
   const wipLimits = record["wip_limits"];

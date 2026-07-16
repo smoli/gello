@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { loadBoardFromDisk, readFileRaw, watchBoard } from "./board-io";
+import { imageDataUrl, loadBoardFromDisk, readFileRaw, watchBoard } from "./board-io";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
@@ -85,6 +85,32 @@ describe("watchBoard", () => {
 
     stop();
     expect(unlisten).toHaveBeenCalled();
+  });
+});
+
+describe("imageDataUrl (c047)", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("builds a data URL with the mime type inferred from the extension", async () => {
+    invokeMock.mockResolvedValueOnce("aWJhc2U2NA==");
+
+    const url = await imageDataUrl("/repo/.gello/assets/board/bg.jpg");
+
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("read_file_base64", {
+      path: "/repo/.gello/assets/board/bg.jpg",
+    });
+    expect(url).toBe("data:image/jpeg;base64,aWJhc2U2NA==");
+  });
+
+  it("supports png/webp/gif and falls back to png for unknown extensions", async () => {
+    invokeMock.mockResolvedValue("eA==");
+
+    expect(await imageDataUrl("/x/a.png")).toContain("data:image/png;base64,");
+    expect(await imageDataUrl("/x/a.webp")).toContain("data:image/webp;base64,");
+    expect(await imageDataUrl("/x/a.gif")).toContain("data:image/gif;base64,");
+    expect(await imageDataUrl("/x/a.unknown")).toContain("data:image/png;base64,");
   });
 });
 

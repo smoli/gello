@@ -184,6 +184,7 @@ describe("custom-column statuses (c033)", () => {
     columns: ["discuss", "backlog", "ready", "in-progress", "review", "done"],
     wipLimits: {},
     types: ["task", "issue"],
+    background: null,
   };
 
   function discussCard() {

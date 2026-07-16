@@ -84,6 +84,15 @@ fn read_file(path: String) -> Result<String, FsError> {
 }
 
 #[tauri::command]
+fn read_file_base64(path: String) -> Result<String, FsError> {
+    fs_read::read_file_base64(std::path::Path::new(&path)).map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path,
+    })
+}
+
+#[tauri::command]
 fn read_board_files(root: String) -> Result<Vec<fs_read::BoardFileEntry>, FsError> {
     fs_read::read_board_files(std::path::Path::new(&root)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -102,6 +111,7 @@ pub fn run() {
             remove_file,
             find_board_root,
             read_file,
+            read_file_base64,
             read_board_files,
             watch_board
         ])

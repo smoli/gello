@@ -1,7 +1,7 @@
 ---
 id: c046
 title: The sorting of cards seems random
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-16
@@ -17,6 +17,7 @@ Create a card to discuss better options
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 

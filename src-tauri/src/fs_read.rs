@@ -55,6 +55,14 @@ pub fn read_file(path: &Path) -> std::io::Result<String> {
     std::fs::read_to_string(path)
 }
 
+/// Read one file as base64 — used to serve board background images (c047)
+/// into the webview without widening the asset-protocol scope.
+pub fn read_file_base64(path: &Path) -> std::io::Result<String> {
+    use base64::Engine;
+    let bytes = std::fs::read(path)?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
 /// Walk upwards from `start` looking for a `.gello` directory; return its path.
 pub fn find_board_root(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
@@ -139,6 +147,22 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         assert!(read_file(&dir.path().join("nope.md")).is_err());
+    }
+
+    #[test]
+    fn reads_a_file_as_base64() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bg.png");
+        fs::write(&path, [0x89u8, 0x50, 0x4e, 0x47]).unwrap();
+
+        assert_eq!(read_file_base64(&path).unwrap(), "iVBORw==");
+    }
+
+    #[test]
+    fn read_file_base64_errors_on_missing_path() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert!(read_file_base64(&dir.path().join("nope.png")).is_err());
     }
 
     #[test]

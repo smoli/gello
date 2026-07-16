@@ -138,6 +138,24 @@ describe("Board", () => {
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
   });
 
+  it("applies a background image with readable translucent columns (c047)", () => {
+    const { container } = render(
+      <Board model={MODEL} backgroundImage="data:image/png;base64,xyz" />,
+    );
+
+    const board = container.querySelector(".board")!;
+    expect(board).toHaveClass("board-with-bg");
+    expect((board as HTMLElement).style.backgroundImage).toContain(
+      "data:image/png;base64,xyz",
+    );
+  });
+
+  it("renders without background styling when none is set", () => {
+    const { container } = render(<Board model={MODEL} />);
+
+    expect(container.querySelector(".board")).not.toHaveClass("board-with-bg");
+  });
+
   it("orders a column globally by priority then id, across milestones (c046)", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [backlog, done]\n"),
