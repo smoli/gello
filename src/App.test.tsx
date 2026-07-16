@@ -310,6 +310,39 @@ describe("App", () => {
     }
   });
 
+  it("drag-triages an inbox card onto a milestone zone without opening the detail", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const inboxCard = (await screen.findByText("Hello board")).closest("article")!;
+    const dataTransfer = {
+      data: {} as Record<string, string>,
+      setData(type: string, value: string) {
+        this.data[type] = value;
+      },
+      getData(type: string) {
+        return this.data[type] ?? "";
+      },
+      effectAllowed: "",
+    };
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    const strip = screen.getByRole("region", { name: "assign to milestone" });
+    const zone = within(strip).getByText("Board UI").closest("div")!;
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      expect.stringContaining("status: backlog"),
+    );
+    // no dialog popped open by the drag
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // card now renders under the milestone in its status column
+    const backlog = screen.getByRole("region", { name: "backlog" });
+    expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
+  });
+
   it("rolls the card back and shows an alert when the write fails", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockRejectedValueOnce(new Error("disk full"));

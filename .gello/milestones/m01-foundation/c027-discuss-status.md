@@ -1,7 +1,7 @@
 ---
 id: c027
 title: Discuss status
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16

@@ -205,8 +205,10 @@ function App() {
         ),
       (model, moved) => withCardTriaged(model, oldPath, moved, folder),
     );
-    // keep the detail open on the card's new location
-    setSelectedPath(`milestones/${folder}/${oldPath.slice(oldPath.lastIndexOf("/") + 1)}`);
+    // if the detail was open on this card, follow it to its new location —
+    // but never open a dialog as a side effect (drag-triage, c028)
+    const newPath = `milestones/${folder}/${oldPath.slice(oldPath.lastIndexOf("/") + 1)}`;
+    setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
   if (loading) return null;
@@ -232,6 +234,7 @@ function App() {
           model={board.model}
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
+          onTriageCard={handleTriage}
         />
         {selected && (
           <CardDetail

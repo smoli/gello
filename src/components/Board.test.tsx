@@ -284,6 +284,104 @@ describe("Board card moves", () => {
     );
   });
 
+  it("shows milestone drop zones while dragging an unprocessed inbox card (c028)", () => {
+    render(<Board model={MODEL} onTriageCard={vi.fn()} />);
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    expect(
+      screen.queryByRole("region", { name: "assign to milestone" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    const strip = screen.getByRole("region", { name: "assign to milestone" });
+    expect(within(strip).getByText("Alpha")).toBeInTheDocument();
+    expect(within(strip).getByText("Beta")).toBeInTheDocument();
+
+    fireEvent.dragEnd(inboxCard);
+    expect(
+      screen.queryByRole("region", { name: "assign to milestone" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the strip for discuss-status inbox cards, but not ready-status or milestone cards", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [discuss, backlog, ready, done]\n"),
+      file("inbox/c011-flagged.md", card("c011", "Discussing idea", "discuss")),
+      file("inbox/c012-queued.md", card("c012", "Queued idea", "ready")),
+      file("milestones/m01-alpha/milestone.md", "---\nid: m01\ntitle: Alpha\n---\ngoal\n"),
+      file("milestones/m01-alpha/c001-first.md", card("c001", "Milestone card", "ready")),
+    ]);
+    render(<Board model={model} onTriageCard={vi.fn()} />);
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(screen.getByText("Discussing idea").closest("article")!, { dataTransfer });
+    expect(screen.getByRole("region", { name: "assign to milestone" })).toBeInTheDocument();
+    fireEvent.dragEnd(screen.getByText("Discussing idea").closest("article")!);
+
+    fireEvent.dragStart(screen.getByText("Queued idea").closest("article")!, { dataTransfer });
+    expect(
+      screen.queryByRole("region", { name: "assign to milestone" }),
+    ).not.toBeInTheDocument();
+    fireEvent.dragEnd(screen.getByText("Queued idea").closest("article")!);
+
+    fireEvent.dragStart(screen.getByText("Milestone card").closest("article")!, { dataTransfer });
+    expect(
+      screen.queryByRole("region", { name: "assign to milestone" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows no strip when the board has no milestones", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("inbox/c010-idea.md", card("c010", "Lonely idea", "backlog")),
+    ]);
+    render(<Board model={model} onTriageCard={vi.fn()} />);
+
+    fireEvent.dragStart(screen.getByText("Lonely idea").closest("article")!, {
+      dataTransfer: fakeDataTransfer(),
+    });
+
+    expect(
+      screen.queryByRole("region", { name: "assign to milestone" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("dropping on a milestone zone triages the card, keeping its status", () => {
+    const onTriage = vi.fn();
+    render(<Board model={MODEL} onTriageCard={onTriage} />);
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    const strip = screen.getByRole("region", { name: "assign to milestone" });
+    const zone = within(strip).getByText("Beta").closest("div")!;
+    fireEvent.dragOver(zone, { dataTransfer });
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(onTriage).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010", status: "backlog" }),
+      "m02-beta",
+      "m02",
+    );
+  });
+
+  it("status columns remain drop targets during an inbox drag", () => {
+    const onMove = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} onTriageCard={vi.fn()} />);
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    expect(screen.getByRole("region", { name: "assign to milestone" })).toBeInTheDocument();
+    fireEvent.drop(column("in-progress"), { dataTransfer });
+
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010" }),
+      "in-progress",
+    );
+  });
+
   it("inbox cards stay selectable", () => {
     const onSelect = vi.fn();
     render(<Board model={MODEL} onSelectCard={onSelect} />);

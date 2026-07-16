@@ -15,6 +15,19 @@ interface BoardCard {
 }
 
 export type MoveCardHandler = (card: Card, status: string) => void;
+export type TriageCardHandler = (
+  card: Card,
+  folder: string,
+  milestoneId: string,
+) => void;
+
+/** Milestone-zone strip trigger (c028): an untriaged idea being dragged. */
+function showsMilestoneZones(card: Card): boolean {
+  return (
+    card.path.startsWith("inbox/") &&
+    (card.status === "backlog" || card.status === "discuss")
+  );
+}
 
 /**
  * Cards that live in the status columns: all milestone cards, plus inbox
@@ -40,12 +53,15 @@ export function Board({
   model,
   onMoveCard,
   onSelectCard,
+  onTriageCard,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
   onSelectCard?: (card: Card) => void;
+  onTriageCard?: TriageCardHandler;
 }) {
   const [filter, setFilter] = useState("all");
+  const [dragging, setDragging] = useState<Card | null>(null);
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const inboxUnprocessed = useMemo(
     () => model.inbox.filter((card) => card.status === "backlog"),
@@ -82,6 +98,14 @@ export function Board({
     if (target) onMoveCard?.(card, target);
   };
 
+  const dropOnMilestone = (folder: string, milestoneId: string, cardPath: string) => {
+    const card = model.inbox.find((c) => c.path === cardPath);
+    if (card) onTriageCard?.(card, folder, milestoneId);
+  };
+
+  const stripVisible =
+    dragging !== null && showsMilestoneZones(dragging) && model.milestones.length > 0;
+
   return (
     <div className="board">
       <header className="board-toolbar">
@@ -98,6 +122,32 @@ export function Board({
           ))}
         </select>
       </header>
+      {stripVisible && (
+        <section className="milestone-strip" aria-label="assign to milestone">
+          <span className="milestone-strip-hint">assign to milestone:</span>
+          {model.milestones.map((group) => (
+            <div
+              key={group.folder}
+              className="milestone-zone"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
+                if (path) {
+                  dropOnMilestone(
+                    group.folder,
+                    group.milestone?.id ?? group.folder.match(/^m\d+/)?.[0] ?? group.folder,
+                    path,
+                  );
+                }
+                setDragging(null);
+              }}
+            >
+              {group.milestone?.title ?? group.folder}
+            </div>
+          ))}
+        </section>
+      )}
       <div className="board-columns">
         {inboxUnprocessed.length > 0 && (
           <section className="column column-inbox" aria-label="inbox">
@@ -112,6 +162,7 @@ export function Board({
                   entry={{ card, milestoneLabel: null, filterKey: "inbox" }}
                   onMoveByKey={moveByKey}
                   onSelect={onSelectCard}
+                  onDragState={setDragging}
                 />
               ))}
             </div>
@@ -125,6 +176,7 @@ export function Board({
             onDropCard={(path) => dropOnColumn(column, path)}
             onMoveByKey={moveByKey}
             onSelect={onSelectCard}
+            onDragState={setDragging}
           />
         ))}
       </div>
@@ -173,12 +225,14 @@ function Column({
   onDropCard,
   onMoveByKey,
   onSelect,
+  onDragState,
 }: {
   name: string;
   cards: BoardCard[];
   onDropCard: (cardPath: string) => void;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  onDragState: (card: Card | null) => void;
 }) {
   return (
     <section
@@ -189,6 +243,7 @@ function Column({
         event.preventDefault();
         const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
         if (path) onDropCard(path);
+        onDragState(null);
       }}
     >
       <div className="column-header">
@@ -202,6 +257,7 @@ function Column({
             entry={entry}
             onMoveByKey={onMoveByKey}
             onSelect={onSelect}
+            onDragState={onDragState}
           />
         ))}
       </div>
@@ -213,10 +269,12 @@ function CardFront({
   entry,
   onMoveByKey,
   onSelect,
+  onDragState,
 }: {
   entry: BoardCard;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  onDragState: (card: Card | null) => void;
 }) {
   const { card, milestoneLabel } = entry;
   return (
@@ -229,7 +287,9 @@ function CardFront({
       onDragStart={(event) => {
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
+        onDragState(card);
       }}
+      onDragEnd={() => onDragState(null)}
       onKeyDown={(event) => {
         if (event.key === "ArrowRight") onMoveByKey(card, 1);
         if (event.key === "ArrowLeft") onMoveByKey(card, -1);
