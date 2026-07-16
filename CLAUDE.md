@@ -100,6 +100,16 @@ do not maintain parallel plan/TODO files.
 - **Finish**: set `status: review`. Only a human moves cards to `done`.
 - **New ideas**: create a card in `.gello/inbox/` — a heading and a sentence is
   enough. Never bloat an existing card with unrelated scope.
+- **Discuss** (`status: discuss`): the human flags a card they want to think
+  through with you before it becomes implementable — typically an inbox idea
+  before triage. When asked to discuss (or picking work and only discuss
+  cards are flagged): read the card, then *interview the human* — goal,
+  scope, constraints, edge cases, what done looks like. Write the outcomes
+  back into the card: a refined `## What`, drafted `## Acceptance criteria`,
+  and a compact `## Discussion` section (key decisions, rejected
+  alternatives, open questions — no verbatim transcript). Find candidates:
+  `grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="c[0-9]*.md"`.
+  Exit is the human's call: triage to a milestone / `backlog` / `ready`.
 - **Attachments**: store under `.gello/assets/<card-id>/`, link with relative
   Markdown image paths. When moving a card file between folders, rewrite its
   relative asset links.

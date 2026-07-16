@@ -79,7 +79,7 @@ Notes:
 ---
 id: c003
 title: Kanban view with drag & drop
-status: ready            # backlog | ready | in-progress | review | done
+status: ready            # discuss | backlog | ready | in-progress | review | done
 milestone: m02-board-ui
 priority: high           # low | normal | high
 depends: [c001]
@@ -141,10 +141,14 @@ due: 2026-08-15
 ### board.yaml
 
 ```yaml
-columns: [backlog, ready, in-progress, review, done]
+columns: [discuss, backlog, ready, in-progress, review, done]
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```
+
+The `discuss` column is a triage stage: the human flags a card (typically a
+raw inbox idea) for a structured conversation with an agent; the discussion's
+outcomes are written back into the card, which then graduates to a milestone.
 
 ## 5. The agent workflow (convention)
 

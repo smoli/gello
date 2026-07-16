@@ -65,7 +65,7 @@ describe("loadBoard on this repo's own .gello tree", () => {
   it("finds the real milestones and cards", () => {
     expect(model.configError).toBeNull();
     expect(model.config.columns).toEqual([
-      "backlog", "ready", "in-progress", "review", "done",
+      "discuss", "backlog", "ready", "in-progress", "review", "done",
     ]);
     expect(model.config.wipLimits).toEqual({ "in-progress": 2 });
     expect(model.milestones.length).toBeGreaterThanOrEqual(5);
