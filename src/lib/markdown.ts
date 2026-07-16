@@ -23,6 +23,26 @@ export function countTaskItems(body: string): number {
   return taskLineNumbers(body).length;
 }
 
+/** Escape a string for literal use inside a RegExp. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Rewrite relative asset-link targets when a card file changes folder depth
+ * (triage: inbox/ → milestones/<m>/). Only markdown link/image targets that
+ * start with `fromPrefix` are touched; absolute paths, web URLs, and plain
+ * text mentions stay as they are.
+ */
+export function retargetAssetLinks(
+  raw: string,
+  fromPrefix: string,
+  toPrefix: string,
+): string {
+  const re = new RegExp(`\\]\\(${escapeRegExp(fromPrefix)}`, "g");
+  return raw.replace(re, `](${toPrefix}`);
+}
+
 /**
  * Flip the checkbox of the `index`-th task item (document order).
  * Only that line changes; everything else is preserved byte-for-byte.

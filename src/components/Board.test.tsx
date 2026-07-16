@@ -22,6 +22,7 @@ const MODEL = loadBoard([
   file("milestones/m01-alpha/milestone.md", "---\nid: m01\ntitle: Alpha\n---\ngoal\n"),
   file("milestones/m01-alpha/c001-first.md", card("c001", "First card", "ready", "high")),
   file("milestones/m01-alpha/c002-second.md", card("c002", "Second card", "done")),
+  file("milestones/m01-alpha/c004-fourth.md", card("c004", "Fourth card", "backlog")),
   file("milestones/m02-beta/milestone.md", "---\nid: m02\ntitle: Beta\n---\ngoal\n"),
   file("milestones/m02-beta/c003-third.md", card("c003", "Third card", "ready")),
 ]);
@@ -41,13 +42,30 @@ describe("Board", () => {
     expect(headings).toEqual(["todo", "doing", "shipped"]);
   });
 
-  it("places cards in the column matching their status", () => {
+  it("places milestone cards in the column matching their status", () => {
     render(<Board model={MODEL} />);
 
     expect(within(column("ready")).getByText("First card")).toBeInTheDocument();
     expect(within(column("ready")).getByText("Third card")).toBeInTheDocument();
     expect(within(column("done")).getByText("Second card")).toBeInTheDocument();
-    expect(within(column("backlog")).getByText("Inbox idea")).toBeInTheDocument();
+    expect(within(column("backlog")).getByText("Fourth card")).toBeInTheDocument();
+  });
+
+  it("renders inbox cards in a dedicated inbox column, not in status columns", () => {
+    render(<Board model={MODEL} />);
+
+    expect(within(column("inbox")).getByText("Inbox idea")).toBeInTheDocument();
+    expect(within(column("backlog")).queryByText("Inbox idea")).not.toBeInTheDocument();
+  });
+
+  it("hides the inbox column when the inbox is empty", () => {
+    const noInbox = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("milestones/m01-x/c001-a.md", card("c001", "A", "backlog")),
+    ]);
+    render(<Board model={noInbox} />);
+
+    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
   });
 
   it("shows id, title, milestone, and priority on the card front", () => {
@@ -67,29 +85,18 @@ describe("Board", () => {
     expect(within(front!).getByText("inbox")).toBeInTheDocument();
   });
 
-  it("narrows to one milestone via the filter and back to all", () => {
+  it("narrows to one milestone via the filter and back to all, inbox unaffected", () => {
     render(<Board model={MODEL} />);
     const filter = screen.getByLabelText("Milestone filter");
 
     fireEvent.change(filter, { target: { value: "m01-alpha" } });
     expect(screen.getByText("First card")).toBeInTheDocument();
     expect(screen.queryByText("Third card")).not.toBeInTheDocument();
-    expect(screen.queryByText("Inbox idea")).not.toBeInTheDocument();
+    expect(screen.getByText("Inbox idea")).toBeInTheDocument();
 
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByText("Third card")).toBeInTheDocument();
     expect(screen.getByText("Inbox idea")).toBeInTheDocument();
-  });
-
-  it("offers an inbox-only filter option", () => {
-    render(<Board model={MODEL} />);
-
-    fireEvent.change(screen.getByLabelText("Milestone filter"), {
-      target: { value: "inbox" },
-    });
-
-    expect(screen.getByText("Inbox idea")).toBeInTheDocument();
-    expect(screen.queryByText("First card")).not.toBeInTheDocument();
   });
 
   it("renders empty columns with a zero count instead of hiding them", () => {
@@ -213,13 +220,29 @@ describe("Board card moves", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} />);
 
-    const backlogCard = screen.getByText("Inbox idea").closest("article")!;
+    const backlogCard = screen.getByText("Fourth card").closest("article")!;
     fireEvent.keyDown(backlogCard, { key: "ArrowLeft" });
 
     const doneCard = screen.getByText("Second card").closest("article")!;
     fireEvent.keyDown(doneCard, { key: "ArrowRight" });
 
     expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it("inbox cards are selectable but not draggable or key-movable", () => {
+    const onMove = vi.fn();
+    const onSelect = vi.fn();
+    render(<Board model={MODEL} onMoveCard={onMove} onSelectCard={onSelect} />);
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+
+    expect(inboxCard).toHaveAttribute("draggable", "false");
+    fireEvent.keyDown(inboxCard, { key: "ArrowRight" });
+    expect(onMove).not.toHaveBeenCalled();
+
+    fireEvent.click(inboxCard);
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010" }),
+    );
   });
 
   it("selects a card on click or Enter", () => {

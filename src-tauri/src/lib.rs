@@ -27,6 +27,15 @@ fn find_board_root() -> Option<String> {
 }
 
 #[tauri::command]
+fn remove_file(path: String) -> Result<(), FsError> {
+    fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path,
+    })
+}
+
+#[tauri::command]
 fn read_file(path: String) -> Result<String, FsError> {
     fs_read::read_file(std::path::Path::new(&path)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -50,6 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             write_file_atomic,
+            remove_file,
             find_board_root,
             read_file,
             read_board_files

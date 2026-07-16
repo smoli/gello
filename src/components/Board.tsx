@@ -10,26 +10,20 @@ interface BoardCard {
   card: Card;
   /** Milestone title (or folder as fallback); null = inbox. */
   milestoneLabel: string | null;
-  /** Filter key: milestone folder, or "inbox". */
+  /** Filter key: milestone folder. */
   filterKey: string;
 }
 
 export type MoveCardHandler = (card: Card, status: string) => void;
 
-function collectCards(model: BoardModel): BoardCard[] {
-  const inbox: BoardCard[] = model.inbox.map((card) => ({
-    card,
-    milestoneLabel: null,
-    filterKey: "inbox",
-  }));
-  const milestoneCards: BoardCard[] = model.milestones.flatMap((group) =>
+function collectMilestoneCards(model: BoardModel): BoardCard[] {
+  return model.milestones.flatMap((group) =>
     group.cards.map((card) => ({
       card,
       milestoneLabel: group.milestone?.title ?? group.folder,
       filterKey: group.folder,
     })),
   );
-  return [...inbox, ...milestoneCards];
 }
 
 export function Board({
@@ -42,14 +36,16 @@ export function Board({
   onSelectCard?: (card: Card) => void;
 }) {
   const [filter, setFilter] = useState("all");
-  const allCards = useMemo(() => collectCards(model), [model]);
+  const milestoneCards = useMemo(() => collectMilestoneCards(model), [model]);
   const visible =
-    filter === "all" ? allCards : allCards.filter((c) => c.filterKey === filter);
+    filter === "all"
+      ? milestoneCards
+      : milestoneCards.filter((c) => c.filterKey === filter);
 
   const columns = model.config.columns;
 
   const dropOnColumn = (column: string, cardPath: string) => {
-    const entry = allCards.find((c) => c.card.path === cardPath);
+    const entry = milestoneCards.find((c) => c.card.path === cardPath);
     if (entry && entry.card.status !== column) {
       onMoveCard?.(entry.card, column);
     }
@@ -69,7 +65,6 @@ export function Board({
           onChange={(event) => setFilter(event.target.value)}
         >
           <option value="all">All milestones</option>
-          <option value="inbox">Inbox</option>
           {model.milestones.map((group) => (
             <option key={group.folder} value={group.folder}>
               {group.milestone?.title ?? group.folder}
@@ -78,6 +73,25 @@ export function Board({
         </select>
       </header>
       <div className="board-columns">
+        {model.inbox.length > 0 && (
+          <section className="column column-inbox" aria-label="inbox">
+            <div className="column-header">
+              <h2>inbox</h2>
+              <span className="column-count">{model.inbox.length}</span>
+            </div>
+            <div className="column-cards">
+              {model.inbox.map((card) => (
+                <CardFront
+                  key={card.path}
+                  entry={{ card, milestoneLabel: null, filterKey: "inbox" }}
+                  interactive={false}
+                  onMoveByKey={moveByKey}
+                  onSelect={onSelectCard}
+                />
+              ))}
+            </div>
+          </section>
+        )}
         {columns.map((column) => (
           <Column
             key={column}
@@ -161,6 +175,7 @@ function Column({
           <CardFront
             key={entry.card.path}
             entry={entry}
+            interactive
             onMoveByKey={onMoveByKey}
             onSelect={onSelect}
           />
@@ -172,10 +187,13 @@ function Column({
 
 function CardFront({
   entry,
+  interactive,
   onMoveByKey,
   onSelect,
 }: {
   entry: BoardCard;
+  /** Inbox cards are selectable only — status moves don't apply to them. */
+  interactive: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
 }) {
@@ -183,17 +201,18 @@ function CardFront({
   return (
     <article
       className="card-front"
-      draggable
+      draggable={interactive}
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
       onDragStart={(event) => {
+        if (!interactive) return;
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
       }}
       onKeyDown={(event) => {
-        if (event.key === "ArrowRight") onMoveByKey(card, 1);
-        if (event.key === "ArrowLeft") onMoveByKey(card, -1);
+        if (interactive && event.key === "ArrowRight") onMoveByKey(card, 1);
+        if (interactive && event.key === "ArrowLeft") onMoveByKey(card, -1);
         if (event.key === "Enter") onSelect?.(card);
       }}
     >

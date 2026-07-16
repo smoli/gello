@@ -42,6 +42,12 @@ pub fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
     result
 }
 
+/// Delete one file — used by triage after its content has been rewritten to
+/// the new location (write-new-then-delete-old, never the other way around).
+pub fn remove_file(path: &Path) -> std::io::Result<()> {
+    std::fs::remove_file(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,6 +102,24 @@ mod tests {
         // parent dir of tempdir unchanged: no stray temp files anywhere
         let entries: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
         assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn remove_file_deletes_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("card.md");
+        fs::write(&path, "x").unwrap();
+
+        remove_file(&path).unwrap();
+
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn remove_file_errors_on_missing_path() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert!(remove_file(&dir.path().join("nope.md")).is_err());
     }
 
     #[test]

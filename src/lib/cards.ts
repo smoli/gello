@@ -270,6 +270,30 @@ export function parseBoardConfig(raw: string): {
   return { config, error: null };
 }
 
+// --- creation -----------------------------------------------------------------
+
+/**
+ * Raw content for a brand-new card (quick capture): minimal frontmatter with
+ * sensible defaults, optional body.
+ */
+export function newCardRaw(
+  id: string,
+  title: string,
+  body: string,
+  today: string,
+): string {
+  const block = [
+    `id: ${id}`,
+    `title: ${formatScalar(title)}`,
+    "status: backlog",
+    "priority: normal",
+    `created: ${today}`,
+    `updated: ${today}`,
+  ].join("\n");
+  const trimmedBody = body.trim();
+  return `---\n${block}\n---\n${trimmedBody ? `\n${trimmedBody}\n` : ""}`;
+}
+
 // --- serialization (surgical edits) ------------------------------------------
 
 /** Quote a scalar only when YAML would misread it plain. */

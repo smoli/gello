@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BOARD_CONFIG,
+  newCardRaw,
   parseBoardConfig,
   parseCard,
   parseMilestone,
@@ -280,6 +281,41 @@ describe("replaceCardBody", () => {
         "updated: 2026-07-18",
       ),
     );
+  });
+});
+
+describe("newCardRaw", () => {
+  it("produces a minimal card that parses with defaults", () => {
+    const raw = newCardRaw("c022", "A fresh idea", "", "2026-07-16");
+    const result = parseCard("inbox/c022-a-fresh-idea.md", raw);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.id).toBe("c022");
+    expect(result.card.title).toBe("A fresh idea");
+    expect(result.card.status).toBe("backlog");
+    expect(result.card.priority).toBe("normal");
+    expect(result.card.created).toBe("2026-07-16");
+    expect(result.card.updated).toBe("2026-07-16");
+    expect(result.card.body.trim()).toBe("");
+  });
+
+  it("includes an optional body", () => {
+    const raw = newCardRaw("c022", "Idea", "Some details.", "2026-07-16");
+    const result = parseCard("x.md", raw);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.body).toBe("\nSome details.\n");
+  });
+
+  it("quotes titles that YAML would misread", () => {
+    const raw = newCardRaw("c022", 'Fix: the "thing" [maybe]', "", "2026-07-16");
+    const result = parseCard("x.md", raw);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.title).toBe('Fix: the "thing" [maybe]');
   });
 });
 

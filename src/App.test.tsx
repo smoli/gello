@@ -8,6 +8,7 @@ import App from "./App";
 vi.mock("./lib/board-io", () => ({
   loadBoardFromDisk: vi.fn(),
   readFileRaw: vi.fn(),
+  removeFile: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -22,6 +23,15 @@ function loadedFixture() {
         path: "inbox/c001-hello.md",
         content:
           "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\n\n- [ ] a first task\n",
+      },
+      {
+        path: "milestones/m02-board-ui/milestone.md",
+        content: "---\nid: m02\ntitle: Board UI\n---\ngoal\n",
+      },
+      {
+        path: "milestones/m02-board-ui/c005-board-card.md",
+        content:
+          "---\nid: c005\ntitle: Board card\nstatus: backlog\nmilestone: m02\n---\nx\n",
       },
     ]),
   };
@@ -58,13 +68,13 @@ describe("App", () => {
     writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
-    const card = (await screen.findByText("Hello board")).closest("article")!;
+    const card = (await screen.findByText("Board card")).closest("article")!;
     fireEvent.keyDown(card, { key: "ArrowRight" });
 
     const ready = screen.getByRole("region", { name: "ready" });
-    expect(within(ready).getByText("Hello board")).toBeInTheDocument();
+    expect(within(ready).getByText("Board card")).toBeInTheDocument();
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
+      "/repo/.gello/milestones/m02-board-ui/c005-board-card.md",
       expect.stringContaining("status: ready"),
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -166,17 +176,61 @@ describe("App", () => {
     );
   });
 
+  it("captures a new idea into the inbox", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dark mode" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c006-dark-mode.md",
+      expect.stringContaining("title: Dark mode"),
+    );
+    const inbox = screen.getByRole("region", { name: "inbox" });
+    expect(within(inbox).getByText("Dark mode")).toBeInTheDocument();
+  });
+
+  it("triages an inbox card into a milestone", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.change(screen.getByLabelText("Milestone"), {
+      target: { value: "m02-board-ui" },
+    });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      expect.stringContaining("milestone: m02"),
+    );
+    // optimistic move out of the inbox into the milestone group
+    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
+    const backlog = screen.getByRole("region", { name: "backlog" });
+    expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
+    // detail stays open on the moved card, now with a read-only milestone
+    const dialog = screen.getByRole("dialog", { name: "c001" });
+    expect(within(dialog).getByText("Board UI")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Milestone")).not.toBeInTheDocument();
+  });
+
   it("rolls the card back and shows an alert when the write fails", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockRejectedValueOnce(new Error("disk full"));
 
     render(<App />);
-    const card = (await screen.findByText("Hello board")).closest("article")!;
+    const card = (await screen.findByText("Board card")).closest("article")!;
     fireEvent.keyDown(card, { key: "ArrowRight" });
 
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("disk full");
     const backlog = screen.getByRole("region", { name: "backlog" });
-    expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
+    expect(within(backlog).getByText("Board card")).toBeInTheDocument();
   });
 });

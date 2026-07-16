@@ -94,6 +94,32 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   return { config, configError, milestones, inbox, invalid };
 }
 
+/** Immutably add a freshly captured card to the inbox, keeping sort order. */
+export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
+  return { ...model, inbox: [...model.inbox, card].sort(byPriorityThenId) };
+}
+
+/**
+ * Immutably move a triaged card out of the inbox (matched by its old path)
+ * into a milestone group, keeping sort order.
+ */
+export function withCardTriaged(
+  model: BoardModel,
+  oldPath: string,
+  moved: Card,
+  targetFolder: string,
+): BoardModel {
+  return {
+    ...model,
+    inbox: model.inbox.filter((c) => c.path !== oldPath),
+    milestones: model.milestones.map((group) =>
+      group.folder === targetFolder
+        ? { ...group, cards: [...group.cards, moved].sort(byPriorityThenId) }
+        : group,
+    ),
+  };
+}
+
 /**
  * Immutably replace one card (matched by path) with an updated version —
  * used for optimistic UI updates after a status change.

@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Board } from "./components/Board";
-import { CardDetail } from "./components/CardDetail";
-import { withUpdatedCard, type BoardModel } from "./lib/board";
+import { CardDetail, type MilestoneOption } from "./components/CardDetail";
+import { QuickCapture } from "./components/QuickCapture";
 import {
+  withCardTriaged,
+  withNewInboxCard,
+  withUpdatedCard,
+  type BoardModel,
+} from "./lib/board";
+import {
+  createCard,
   moveCard,
   saveCardBody,
   saveCardFields,
   todayIsoDate,
+  triageCard,
   type MoveResult,
 } from "./lib/board-actions";
 import { loadBoardFromDisk, readFileRaw, type LoadedBoard } from "./lib/board-io";
@@ -52,13 +60,16 @@ function App() {
   }, []);
 
   /** Optimistic update + rollback around any card-writing action. */
-  const applyAction = (action: () => MoveResult) => {
+  const applyAction = (
+    action: () => MoveResult,
+    apply: (model: BoardModel, card: Card) => BoardModel = withUpdatedCard,
+  ) => {
     if (!board) return;
     const before = board.model;
     try {
       const { card: updated, persisted } = action();
       setBoard((current) =>
-        current ? { ...current, model: withUpdatedCard(current.model, updated) } : current,
+        current ? { ...current, model: apply(current.model, updated) } : current,
       );
       setError(null);
       persisted.catch((failure: unknown) => {
@@ -126,10 +137,43 @@ function App() {
     );
   };
 
+  const handleCreate = (title: string, body: string) => {
+    if (!board) return;
+    applyAction(
+      () => createCard(board.root, board.model, { title, body }, todayIsoDate()),
+      withNewInboxCard,
+    );
+  };
+
+  const handleTriage = (card: Card, folder: string, milestoneId: string) => {
+    if (!board) return;
+    const oldPath = card.path;
+    applyAction(
+      () =>
+        triageCard(
+          board.root,
+          card,
+          { folder, milestoneId },
+          board.model.config,
+          todayIsoDate(),
+        ),
+      (model, moved) => withCardTriaged(model, oldPath, moved, folder),
+    );
+    // keep the detail open on the card's new location
+    setSelectedPath(`milestones/${folder}/${oldPath.slice(oldPath.lastIndexOf("/") + 1)}`);
+  };
+
   if (loading) return null;
 
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;
+    const milestoneOptions: MilestoneOption[] = board.model.milestones
+      .filter((group) => group.milestone !== null)
+      .map((group) => ({
+        folder: group.folder,
+        milestoneId: group.milestone!.id,
+        label: group.milestone!.title,
+      }));
     return (
       <>
         {error && (
@@ -137,6 +181,7 @@ function App() {
             {error}
           </div>
         )}
+        <QuickCapture onCreate={handleCreate} />
         <Board
           model={board.model}
           onMoveCard={handleMove}
@@ -147,9 +192,13 @@ function App() {
             card={selected.card}
             milestoneLabel={selected.milestoneLabel}
             columns={board.model.config.columns}
+            milestoneOptions={milestoneOptions}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}
             onToggleTask={(index) => handleToggleTask(selected.card, index)}
             onSaveBody={(body, force) => handleSaveBody(selected.card, body, force)}
+            onTriage={(folder, milestoneId) =>
+              handleTriage(selected.card, folder, milestoneId)
+            }
             onClose={() => setSelectedPath(null)}
           />
         )}

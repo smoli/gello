@@ -1,6 +1,10 @@
 // Board mutations: pure planning via cards.ts, persistence via fs.ts.
 
+import { nextCardId, type BoardModel } from "./board";
+import { removeFile } from "./board-io";
 import {
+  newCardRaw,
+  parseCard,
   replaceCardBody,
   updateCardFields,
   type BoardConfig,
@@ -8,6 +12,7 @@ import {
   type CardFieldChanges,
 } from "./cards";
 import { writeFileAtomic } from "./fs";
+import { retargetAssetLinks } from "./markdown";
 
 export interface MoveResult {
   /** The card with new status/updated — available synchronously for
@@ -56,6 +61,72 @@ export function saveCardBody(
   const { card: updated, raw } = replaceCardBody(card, newBody, today);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
+}
+
+/** Filename-safe slug from a card title. */
+function slugify(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+  return slug || "idea";
+}
+
+/** Quick capture: create a new inbox card with the next free ID. */
+export function createCard(
+  root: string,
+  model: BoardModel,
+  input: { title: string; body: string },
+  today: string,
+): MoveResult {
+  const id = nextCardId(model);
+  const path = `inbox/${id}-${slugify(input.title)}.md`;
+  const raw = newCardRaw(id, input.title, input.body, today);
+  const parsed = parseCard(path, raw, model.config);
+  if (!parsed.ok) {
+    // internal invariant: newCardRaw output must always parse
+    throw new Error(`new card would be invalid: ${parsed.invalid.reason}`);
+  }
+  const persisted = writeFileAtomic(`${root}/${path}`, raw);
+  return { card: parsed.card, persisted };
+}
+
+/**
+ * Triage: move an inbox card into a milestone folder. Sets the `milestone`
+ * field, rewrites relative asset links for the new folder depth, writes the
+ * new file, and only then deletes the old one — a failure in between leaves
+ * a visible duplicate, never a lost card.
+ */
+export function triageCard(
+  root: string,
+  card: Card,
+  target: { folder: string; milestoneId: string },
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  const withMilestone = updateCardFields(
+    card,
+    { milestone: target.milestoneId },
+    today,
+    config,
+  );
+  const newRaw = retargetAssetLinks(withMilestone.raw, "../assets/", "../../assets/");
+  const newPath = `milestones/${target.folder}/${basename(card.path)}`;
+  const parsed = parseCard(newPath, newRaw, config);
+  if (!parsed.ok) {
+    throw new Error(`triaged card would be invalid: ${parsed.invalid.reason}`);
+  }
+
+  const persisted = writeFileAtomic(`${root}/${newPath}`, newRaw).then(() =>
+    removeFile(`${root}/${card.path}`),
+  );
+  return { card: parsed.card, persisted };
+}
+
+function basename(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
 }
 
 /** Today as an ISO date (YYYY-MM-DD) for `updated` bumps. */

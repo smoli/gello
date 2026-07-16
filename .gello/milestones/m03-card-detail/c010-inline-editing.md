@@ -1,7 +1,7 @@
 ---
 id: c010
 title: Inline body editing
-status: review
+status: done
 milestone: m03
 priority: normal
 depends: [c009]

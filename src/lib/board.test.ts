@@ -5,9 +5,12 @@ import {
   loadBoard,
   nextCardId,
   nextMilestoneId,
+  withCardTriaged,
+  withNewInboxCard,
   withUpdatedCard,
   type BoardFile,
 } from "./board";
+import { parseCard } from "./cards";
 
 // --- helpers -----------------------------------------------------------------
 
@@ -153,6 +156,46 @@ describe("withUpdatedCard", () => {
 
     expect(next.inbox[0].status).toBe("ready");
     expect(model.inbox[0].status).toBe("backlog");
+  });
+});
+
+describe("withNewInboxCard", () => {
+  it("adds the card to the inbox in sorted position", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard(
+      "inbox/c106-urgent.md",
+      card("c106", "backlog", "high"),
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withNewInboxCard(model, parsed.card);
+
+    // high priority sorts before the existing normal-priority c103
+    expect(next.inbox.map((c) => c.id)).toEqual(["c106", "c103"]);
+    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+  });
+});
+
+describe("withCardTriaged", () => {
+  it("moves a card from the inbox into a milestone group, sorted", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard(
+      "milestones/m01-alpha/c103-an-idea.md",
+      card("c103", "backlog", "high"),
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withCardTriaged(model, "inbox/c103-an-idea.md", parsed.card, "m01-alpha");
+
+    expect(next.inbox).toEqual([]);
+    expect(next.milestones[0].cards.map((c) => c.id)).toEqual([
+      "c102",
+      "c103",
+      "c101",
+    ]);
+    // original untouched
+    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+    expect(model.milestones[0].cards).toHaveLength(2);
   });
 });
 

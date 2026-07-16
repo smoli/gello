@@ -8,21 +8,31 @@ const PRIORITIES: Priority[] = ["low", "normal", "high"];
 
 export type SaveBodyResult = "saved" | "conflict";
 
+export interface MilestoneOption {
+  folder: string;
+  milestoneId: string;
+  label: string;
+}
+
 export function CardDetail({
   card,
   milestoneLabel,
   columns,
+  milestoneOptions,
   onChangeFields,
   onToggleTask,
   onSaveBody,
+  onTriage,
   onClose,
 }: {
   card: Card;
   milestoneLabel: string | null;
   columns: string[];
+  milestoneOptions: MilestoneOption[];
   onChangeFields: (changes: CardFieldChanges) => void;
   onToggleTask: (index: number) => void;
   onSaveBody: (body: string, force: boolean) => Promise<SaveBodyResult>;
+  onTriage: (folder: string, milestoneId: string) => void;
   onClose: () => void;
 }) {
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
@@ -134,10 +144,33 @@ export function CardDetail({
               }}
             />
           </label>
-          <div className="card-detail-milestone">
-            <span className="field-label">Milestone</span>
-            <span className="card-milestone">{milestoneLabel ?? "inbox"}</span>
-          </div>
+          {milestoneLabel === null ? (
+            <label>
+              Milestone
+              <select
+                aria-label="Milestone"
+                value="inbox"
+                onChange={(event) => {
+                  const option = milestoneOptions.find(
+                    (o) => o.folder === event.target.value,
+                  );
+                  if (option) onTriage(option.folder, option.milestoneId);
+                }}
+              >
+                <option value="inbox">inbox</option>
+                {milestoneOptions.map((option) => (
+                  <option key={option.folder} value={option.folder}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div className="card-detail-milestone">
+              <span className="field-label">Milestone</span>
+              <span className="card-milestone">{milestoneLabel}</span>
+            </div>
+          )}
         </div>
 
         {editing && (
