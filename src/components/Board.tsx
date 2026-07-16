@@ -65,8 +65,13 @@ export function Board({
   const [dragging, setDragging] = useState<Card | null>(null);
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const inboxUnprocessed = useMemo(
-    () => model.inbox.filter((card) => card.status === "backlog"),
-    [model],
+    () =>
+      model.inbox.filter(
+        (card) =>
+          card.status === "backlog" &&
+          (typeFilter === "all" || card.type === typeFilter),
+      ),
+    [model, typeFilter],
   );
   const byMilestone =
     filter === "all"

@@ -170,6 +170,25 @@ describe("card types on the board (c024)", () => {
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByText("Plain task")).toBeInTheDocument();
   });
+
+  it("applies the type filter to the inbox column too (c036)", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("inbox/c010-idea.md", card("c010", "Inbox task", "backlog")),
+      file(
+        "inbox/c011-bug.md",
+        "---\nid: c011\ntitle: Inbox bug\nstatus: backlog\ntype: bug\n---\nx\n",
+      ),
+    ]);
+    render(<Board model={model} />);
+
+    fireEvent.change(screen.getByLabelText("Type filter"), {
+      target: { value: "bug" },
+    });
+
+    expect(screen.getByText("Inbox bug")).toBeInTheDocument();
+    expect(screen.queryByText("Inbox task")).not.toBeInTheDocument();
+  });
 });
 
 describe("needs-attention lane", () => {
