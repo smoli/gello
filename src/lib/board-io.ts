@@ -3,6 +3,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { loadBoard, type BoardFile, type BoardModel } from "./board";
 
+/** Current content of one file (absolute path) — for conflict checks. */
+export async function readFileRaw(path: string): Promise<string> {
+  return invoke<string>("read_file", { path });
+}
+
 export interface LoadedBoard {
   /** Absolute path of the .gello directory — needed for writes. */
   root: string;

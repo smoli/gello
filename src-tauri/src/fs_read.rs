@@ -50,6 +50,11 @@ fn visit(dir: &Path, root: &Path, out: &mut Vec<BoardFileEntry>) -> std::io::Res
     Ok(())
 }
 
+/// Read one file's current content — used for conflict detection at save time.
+pub fn read_file(path: &Path) -> std::io::Result<String> {
+    std::fs::read_to_string(path)
+}
+
 /// Walk upwards from `start` looking for a `.gello` directory; return its path.
 pub fn find_board_root(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
@@ -118,6 +123,22 @@ mod tests {
         let result = read_board_files(&dir.path().join("no-such"));
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn reads_a_single_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("card.md");
+        fs::write(&path, "---\nid: c001\n---\nbody\n").unwrap();
+
+        assert_eq!(read_file(&path).unwrap(), "---\nid: c001\n---\nbody\n");
+    }
+
+    #[test]
+    fn read_file_errors_on_missing_path() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert!(read_file(&dir.path().join("nope.md")).is_err());
     }
 
     #[test]

@@ -27,6 +27,15 @@ fn find_board_root() -> Option<String> {
 }
 
 #[tauri::command]
+fn read_file(path: String) -> Result<String, FsError> {
+    fs_read::read_file(std::path::Path::new(&path)).map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path,
+    })
+}
+
+#[tauri::command]
 fn read_board_files(root: String) -> Result<Vec<fs_read::BoardFileEntry>, FsError> {
     fs_read::read_board_files(std::path::Path::new(&root)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -42,6 +51,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             write_file_atomic,
             find_board_root,
+            read_file,
             read_board_files
         ])
         .run(tauri::generate_context!())

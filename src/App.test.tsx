@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
-import { loadBoardFromDisk } from "./lib/board-io";
+import { loadBoardFromDisk, readFileRaw } from "./lib/board-io";
 import { writeFileAtomic } from "./lib/fs";
 import App from "./App";
 
-vi.mock("./lib/board-io", () => ({ loadBoardFromDisk: vi.fn() }));
+vi.mock("./lib/board-io", () => ({
+  loadBoardFromDisk: vi.fn(),
+  readFileRaw: vi.fn(),
+}));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
+const readMock = vi.mocked(readFileRaw);
 const writeMock = vi.mocked(writeFileAtomic);
 
 function loadedFixture() {
@@ -26,6 +30,7 @@ function loadedFixture() {
 describe("App", () => {
   beforeEach(() => {
     loadMock.mockReset();
+    readMock.mockReset();
     writeMock.mockReset();
   });
 
@@ -108,6 +113,57 @@ describe("App", () => {
     );
     // and the dialog reflects the optimistic update
     expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("saves an edited body when the disk is unchanged", async () => {
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    readMock.mockResolvedValueOnce(fixture.model.inbox[0].raw); // unchanged
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\nfresh body\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await screen.findByRole("button", { name: "Edit" });
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c001-hello.md",
+      expect.stringContaining("fresh body"),
+    );
+  });
+
+  it("surfaces an external change instead of clobbering it", async () => {
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    const externallyChanged = fixture.model.inbox[0].raw.replace(
+      "a first task",
+      "agent rewrote this task",
+    );
+    readMock.mockResolvedValue(externallyChanged);
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\nmy competing draft\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText(/changed on disk/i)).toBeInTheDocument();
+    expect(writeMock).not.toHaveBeenCalled();
+
+    // overwrite is an explicit second decision
+    fireEvent.click(screen.getByRole("button", { name: /overwrite/i }));
+    await screen.findByRole("button", { name: "Edit" });
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c001-hello.md",
+      expect.stringContaining("my competing draft"),
+    );
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { loadBoardFromDisk } from "./board-io";
+import { loadBoardFromDisk, readFileRaw } from "./board-io";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
@@ -44,5 +44,28 @@ describe("loadBoardFromDisk", () => {
     invokeMock.mockRejectedValueOnce(new Error("window.__TAURI_INTERNALS__ missing"));
 
     expect(await loadBoardFromDisk()).toBeNull();
+  });
+});
+
+describe("readFileRaw", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("reads one file's current content by absolute path", async () => {
+    invokeMock.mockResolvedValueOnce("---\nid: c001\n---\nx\n");
+
+    expect(await readFileRaw("/repo/.gello/inbox/c001.md")).toBe(
+      "---\nid: c001\n---\nx\n",
+    );
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("read_file", {
+      path: "/repo/.gello/inbox/c001.md",
+    });
+  });
+
+  it("propagates read failures", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "NotFound", message: "gone" });
+
+    await expect(readFileRaw("/x.md")).rejects.toBeTruthy();
   });
 });

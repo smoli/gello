@@ -9,9 +9,10 @@ import {
   todayIsoDate,
   type MoveResult,
 } from "./lib/board-actions";
-import { loadBoardFromDisk, type LoadedBoard } from "./lib/board-io";
-import type { Card, CardFieldChanges } from "./lib/cards";
+import { loadBoardFromDisk, readFileRaw, type LoadedBoard } from "./lib/board-io";
+import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
+import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
 
 /** Find a card and its milestone display label in the current model. */
@@ -83,6 +84,41 @@ function App() {
     );
   };
 
+  /**
+   * Save an edited body. Pre-watcher conflict policy (full policy = c015):
+   * compare the file's current disk content against the raw this edit was
+   * based on; a mismatch is surfaced as a conflict — never silently
+   * clobbered. The model is refreshed from disk so "discard" shows the
+   * newer version.
+   */
+  const handleSaveBody = async (
+    card: Card,
+    newBody: string,
+    force: boolean,
+  ): Promise<SaveBodyResult> => {
+    if (!board) return "conflict";
+    if (!force) {
+      try {
+        const diskRaw = await readFileRaw(`${board.root}/${card.path}`);
+        if (diskRaw !== card.raw) {
+          const parsed = parseCard(card.path, diskRaw, board.model.config);
+          if (parsed.ok) {
+            setBoard((current) =>
+              current
+                ? { ...current, model: withUpdatedCard(current.model, parsed.card) }
+                : current,
+            );
+          }
+          return "conflict";
+        }
+      } catch {
+        return "conflict";
+      }
+    }
+    applyAction(() => saveCardBody(board.root, card, newBody, todayIsoDate()));
+    return "saved";
+  };
+
   const handleToggleTask = (card: Card, index: number) => {
     if (!board) return;
     applyAction(() =>
@@ -113,6 +149,7 @@ function App() {
             columns={board.model.config.columns}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}
             onToggleTask={(index) => handleToggleTask(selected.card, index)}
+            onSaveBody={(body, force) => handleSaveBody(selected.card, body, force)}
             onClose={() => setSelectedPath(null)}
           />
         )}

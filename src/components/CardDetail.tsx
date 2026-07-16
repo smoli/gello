@@ -6,12 +6,15 @@ import "./CardDetail.css";
 
 const PRIORITIES: Priority[] = ["low", "normal", "high"];
 
+export type SaveBodyResult = "saved" | "conflict";
+
 export function CardDetail({
   card,
   milestoneLabel,
   columns,
   onChangeFields,
   onToggleTask,
+  onSaveBody,
   onClose,
 }: {
   card: Card;
@@ -19,9 +22,34 @@ export function CardDetail({
   columns: string[];
   onChangeFields: (changes: CardFieldChanges) => void;
   onToggleTask: (index: number) => void;
+  onSaveBody: (body: string, force: boolean) => Promise<SaveBodyResult>;
   onClose: () => void;
 }) {
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
+  const [editing, setEditing] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState("");
+  const [conflict, setConflict] = useState(false);
+
+  const startEdit = () => {
+    setBodyDraft(card.body);
+    setConflict(false);
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setConflict(false);
+  };
+
+  const save = async (force: boolean) => {
+    const result = await onSaveBody(bodyDraft, force);
+    if (result === "saved") {
+      setEditing(false);
+      setConflict(false);
+    } else {
+      setConflict(true);
+    }
+  };
 
   // assigns document-order indices to task checkboxes during the single
   // synchronous markdown render pass
@@ -51,9 +79,16 @@ export function CardDetail({
             <span className="card-id">{card.id}</span>
             <h1>{card.title}</h1>
           </div>
-          <button type="button" aria-label="close" onClick={onClose}>
-            ✕
-          </button>
+          <div className="card-detail-actions">
+            {!editing && (
+              <button type="button" onClick={startEdit}>
+                Edit
+              </button>
+            )}
+            <button type="button" aria-label="close" onClick={onClose}>
+              ✕
+            </button>
+          </div>
         </header>
 
         <div className="card-detail-fields">
@@ -105,7 +140,51 @@ export function CardDetail({
           </div>
         </div>
 
-        <div className="card-detail-body">
+        {editing && (
+          <div className="card-detail-editor">
+            {conflict && (
+              <div className="conflict-banner">
+                <span>
+                  This file changed on disk while you were editing — your draft
+                  is untouched.
+                </span>
+                <span className="conflict-actions">
+                  <button type="button" onClick={() => void save(true)}>
+                    Overwrite
+                  </button>
+                  <button type="button" onClick={cancelEdit}>
+                    Discard my edit
+                  </button>
+                </span>
+              </div>
+            )}
+            <textarea
+              aria-label="Card body"
+              value={bodyDraft}
+              autoFocus
+              onChange={(event) => setBodyDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.stopPropagation();
+                  cancelEdit();
+                }
+                if (event.key === "s" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  void save(false);
+                }
+              }}
+            />
+            <div className="editor-actions">
+              <button type="button" onClick={() => void save(false)}>
+                Save
+              </button>
+              <button type="button" onClick={cancelEdit}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="card-detail-body" hidden={editing}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{

@@ -40,6 +40,7 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     columns: ["backlog", "ready", "in-progress", "review", "done"],
     onChangeFields: vi.fn(),
     onToggleTask: vi.fn(),
+    onSaveBody: vi.fn().mockResolvedValue("saved" as const),
     onClose: vi.fn(),
     ...overrides,
   };
@@ -115,6 +116,102 @@ describe("CardDetail", () => {
 
     expect(screen.getByText("Card detail & capture")).toBeInTheDocument();
     expect(screen.queryByLabelText("Milestone")).not.toBeInTheDocument();
+  });
+
+  it("switches to a markdown textarea in edit mode", () => {
+    renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    const textarea = screen.getByRole("textbox", { name: "Card body" });
+    expect(textarea).toHaveValue(fixture().body);
+  });
+
+  it("saves the draft and returns to the rendered view", async () => {
+    const props = renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\nnew body\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(props.onSaveBody).toHaveBeenCalledExactlyOnceWith("\nnew body\n", false);
+    await screen.findByRole("button", { name: "Edit" });
+    expect(
+      screen.queryByRole("textbox", { name: "Card body" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("saves via mod+S inside the textarea", () => {
+    const props = renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Card body" }), {
+      key: "s",
+      metaKey: true,
+    });
+
+    expect(props.onSaveBody).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the edit with Escape, keeping the dialog open and saving nothing", () => {
+    const props = renderDetail();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\ndiscarded draft\n" },
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Card body" }), {
+      key: "Escape",
+    });
+
+    expect(props.onSaveBody).not.toHaveBeenCalled();
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "Card body" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("surfaces a conflict: draft kept, overwrite and discard offered", async () => {
+    const props = renderDetail({
+      onSaveBody: vi
+        .fn()
+        .mockResolvedValueOnce("conflict" as const)
+        .mockResolvedValueOnce("saved" as const),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\nmy draft\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText(/changed on disk/i)).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Card body" })).toHaveValue(
+      "\nmy draft\n",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /overwrite/i }));
+    expect(props.onSaveBody).toHaveBeenLastCalledWith("\nmy draft\n", true);
+  });
+
+  it("discards the draft on conflict without saving", async () => {
+    const props = renderDetail({
+      onSaveBody: vi.fn().mockResolvedValueOnce("conflict" as const),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText(/changed on disk/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /discard/i }));
+
+    expect(props.onSaveBody).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("textbox", { name: "Card body" }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes via button and Escape", () => {

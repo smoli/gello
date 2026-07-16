@@ -75,6 +75,80 @@
   color: CanvasText;
 }
 
+.card-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.card-detail-actions button:not([aria-label]) {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.card-detail-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem 1.25rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-detail-editor textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  min-height: 40vh;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  resize: vertical;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.editor-actions button,
+.conflict-actions button {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.conflict-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, #f5a623 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f5a623 35%, transparent);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
 .card-detail-body {
   padding: 0.75rem 1.25rem 1.25rem;
   overflow-y: auto;
