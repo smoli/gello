@@ -74,7 +74,9 @@
   gap: 0.75rem;
   flex: 1;
   overflow-x: auto;
-  align-items: stretch;
+  /* c049: columns hug their content instead of stretching full height */
+  align-items: flex-start;
+  min-height: 0;
 }
 
 .column {
@@ -88,6 +90,8 @@
   flex-direction: column;
   gap: 0.6rem;
   overflow-y: auto;
+  /* content-height, but never taller than the board area */
+  max-height: 100%;
 }
 
 .column-header {
