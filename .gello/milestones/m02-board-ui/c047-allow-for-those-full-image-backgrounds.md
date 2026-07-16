@@ -1,7 +1,7 @@
 ---
 id: c047
 title: Allow for those full image backgrounds
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16
@@ -13,6 +13,7 @@ just like trello
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 

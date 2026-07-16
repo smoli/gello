@@ -1,7 +1,7 @@
 ---
 id: c053
 title: Inbox column changes widht with horizontal resize
-status: review
+status: done
 priority: normal
 type: issue
 ref: c050
@@ -15,6 +15,7 @@ Columns should all be same width, have a reasonable min-widht and grow in widht 
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-16 status → done (app)
 
 ## Notes
 
