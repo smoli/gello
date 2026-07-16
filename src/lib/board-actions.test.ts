@@ -63,12 +63,12 @@ describe("moveCard", () => {
       RAW.replace("status: ready", "status: in-progress").replace(
         "updated: 2026-07-10",
         "updated: 2026-07-16",
-      ),
+      ) + "\n## Log\n\n- 2026-07-16 status → in-progress (app)\n",
     );
   });
 
-  it("changes nothing but the status and updated lines", async () => {
-    const { persisted } = moveCard(
+  it("changes only status + updated, and journals the move into the Log (c042)", async () => {
+    const { card, persisted } = moveCard(
       "/repo/.gello",
       fixtureCard(),
       "done",
@@ -78,10 +78,38 @@ describe("moveCard", () => {
     await persisted;
 
     const written = writeMock.mock.calls[0][1];
-    const changedLines = written
-      .split("\n")
-      .filter((line, i) => line !== RAW.split("\n")[i]);
-    expect(changedLines).toEqual(["status: done", "updated: 2026-07-16"]);
+    expect(written).toContain("status: done\n");
+    expect(written).toContain("updated: 2026-07-16\n");
+    // body untouched except the appended Log section
+    expect(written).toContain("body text");
+    expect(written).toContain("## Log\n\n- 2026-07-16 status → done (app)\n");
+    expect(card.body).toContain("- 2026-07-16 status → done (app)");
+  });
+
+  it("does not journal non-status field edits", async () => {
+    const { persisted } = saveCardFields(
+      "/repo/.gello",
+      fixtureCard(),
+      { priority: "low" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+    await persisted;
+
+    expect(writeMock.mock.calls[0][1]).not.toContain("## Log");
+  });
+
+  it("does not journal a no-op status 'change'", async () => {
+    const { persisted } = saveCardFields(
+      "/repo/.gello",
+      fixtureCard(),
+      { status: "ready" }, // already ready
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+    await persisted;
+
+    expect(writeMock.mock.calls[0][1]).not.toContain("## Log");
   });
 
   it("propagates write failures through the persisted promise", async () => {

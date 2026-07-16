@@ -344,6 +344,30 @@ describe("CardDetail", () => {
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("excludes the Log section from editing and reattaches it on save (c041)", () => {
+    const withLog = {
+      ...fixture(),
+      body: "\n## What\n\nEditable text.\n\n## Log\n\n- 2026-07-16 created\n",
+    };
+    const props = renderDetail({ card: withLog });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const textarea = screen.getByRole("textbox", { name: "Card body" });
+    expect(textarea).toHaveValue("\n## What\n\nEditable text.\n\n");
+    expect(screen.getByText(/log.*preserved automatically/i)).toBeInTheDocument();
+
+    fireEvent.change(textarea, { target: { value: "\n## What\n\nRewritten.\n\n" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(props.onSaveEdit).toHaveBeenCalledExactlyOnceWith(
+      {
+        title: "Card detail view",
+        body: "\n## What\n\nRewritten.\n\n## Log\n\n- 2026-07-16 created\n",
+      },
+      false,
+    );
+  });
+
   it("can open directly in edit mode (c035)", () => {
     renderDetail({ startInEdit: true });
 

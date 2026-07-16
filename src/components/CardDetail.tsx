@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges, Priority } from "../lib/cards";
+import { splitLogSection } from "../lib/markdown";
 import "./CardDetail.css";
 
 const PRIORITIES: Priority[] = ["low", "normal", "high"];
@@ -57,9 +58,13 @@ export function CardDetail({
   startInEdit?: boolean;
   onClose: () => void;
 }) {
+  // c041: the Log section is machine-managed — only the part before it is
+  // editable; the log is reattached untouched on save
+  const { editable: editableBody, log: logSection } = splitLogSection(card.body);
+
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
   const [editing, setEditing] = useState(startInEdit ?? false);
-  const [bodyDraft, setBodyDraft] = useState(startInEdit ? card.body : "");
+  const [bodyDraft, setBodyDraft] = useState(startInEdit ? editableBody : "");
   const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
   const [conflict, setConflict] = useState(false);
   // c038: a click "on the backdrop" only counts if the press started there —
@@ -80,7 +85,7 @@ export function CardDetail({
   }, [editing, onClose]);
 
   const startEdit = () => {
-    setBodyDraft(card.body);
+    setBodyDraft(editableBody);
     setTitleDraft(card.title);
     setConflict(false);
     setEditing(true);
@@ -93,8 +98,9 @@ export function CardDetail({
 
   const save = async (force: boolean) => {
     const result = await onSaveEdit(
-      // blank titles fall back to the original — no accidental nameless cards
-      { title: titleDraft.trim() || card.title, body: bodyDraft },
+      // blank titles fall back to the original — no accidental nameless
+      // cards; the machine-managed Log section is reattached untouched
+      { title: titleDraft.trim() || card.title, body: bodyDraft + logSection },
       force,
     );
     if (result === "saved") {
@@ -287,6 +293,11 @@ export function CardDetail({
               <button type="button" onClick={cancelEdit}>
                 Cancel
               </button>
+              {logSection !== "" && (
+                <span className="editor-hint">
+                  The ## Log section is machine-managed and preserved automatically.
+                </span>
+              )}
             </div>
           </div>
         )}

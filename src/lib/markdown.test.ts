@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { countTaskItems, retargetAssetLinks, toggleTaskItem } from "./markdown";
+import {
+  appendLogLine,
+  countTaskItems,
+  retargetAssetLinks,
+  splitLogSection,
+  toggleTaskItem,
+} from "./markdown";
 
 const BODY = `
 ## What
@@ -59,6 +65,60 @@ and a plain mention of ../assets/c042/other.png outside link syntax.
     expect(retargetAssetLinks("no links here\n", "../assets/", "../../assets/")).toBe(
       "no links here\n",
     );
+  });
+});
+
+describe("appendLogLine (c042)", () => {
+  it("appends to an existing Log section at its end", () => {
+    const body = "\n## What\n\nText.\n\n## Log\n\n- 2026-07-16 created\n";
+
+    const result = appendLogLine(body, "2026-07-17 status → done (app)");
+
+    expect(result).toBe(
+      "\n## What\n\nText.\n\n## Log\n\n- 2026-07-16 created\n- 2026-07-17 status → done (app)\n",
+    );
+  });
+
+  it("creates the Log section when missing", () => {
+    const result = appendLogLine("\nJust a note.\n", "2026-07-17 status → ready (app)");
+
+    expect(result).toBe(
+      "\nJust a note.\n\n## Log\n\n- 2026-07-17 status → ready (app)\n",
+    );
+  });
+
+  it("inserts before a following section if Log is not last", () => {
+    const body = "\n## Log\n\n- 2026-07-16 created\n\n## Notes\n\nn\n";
+
+    const result = appendLogLine(body, "2026-07-17 status → done (app)");
+
+    expect(result).toContain("- 2026-07-16 created\n- 2026-07-17 status → done (app)\n");
+    expect(result).toContain("## Notes\n\nn\n");
+  });
+
+  it("works on an empty body", () => {
+    const result = appendLogLine("", "2026-07-17 status → discuss (app)");
+
+    expect(result).toBe("\n## Log\n\n- 2026-07-17 status → discuss (app)\n");
+  });
+});
+
+describe("splitLogSection (c041)", () => {
+  it("splits editable content from the Log section", () => {
+    const body = "\n## What\n\nText.\n\n## Log\n\n- created\n";
+
+    const { editable, log } = splitLogSection(body);
+
+    expect(editable).toBe("\n## What\n\nText.\n\n");
+    expect(log).toBe("## Log\n\n- created\n");
+    expect(editable + log).toBe(body);
+  });
+
+  it("returns the whole body as editable when there is no Log", () => {
+    const { editable, log } = splitLogSection("\nplain body\n");
+
+    expect(editable).toBe("\nplain body\n");
+    expect(log).toBe("");
   });
 });
 

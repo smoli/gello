@@ -1,7 +1,7 @@
 ---
 id: c039
 title: Rename bug to issue
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-16

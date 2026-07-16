@@ -12,7 +12,7 @@ import {
   type CardFieldChanges,
 } from "./cards";
 import { writeFileAtomic } from "./fs";
-import { retargetAssetLinks } from "./markdown";
+import { appendLogLine, retargetAssetLinks } from "./markdown";
 
 export interface MoveResult {
   /** The card with new status/updated — available synchronously for
@@ -35,7 +35,16 @@ export function saveCardFields(
   config: BoardConfig,
   today: string,
 ): MoveResult {
-  const { card: updated, raw } = updateCardFields(card, changes, today, config);
+  let { card: updated, raw } = updateCardFields(card, changes, today, config);
+  // c042: the app journals status changes into the card's Log, like agents do
+  if (changes.status !== undefined && changes.status !== card.status) {
+    ({ card: updated, raw } = replaceCardBody(
+      updated,
+      appendLogLine(updated.body, `${today} status → ${changes.status} (app)`),
+      today,
+      config,
+    ));
+  }
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
 }
