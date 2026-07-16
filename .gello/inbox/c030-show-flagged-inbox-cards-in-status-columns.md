@@ -1,5 +1,5 @@
 ---
-id: c029
+id: c030
 title: Show flagged inbox cards in their status column
 status: backlog
 priority: normal
@@ -19,7 +19,9 @@ matching status column, inbox-badged. The inbox column then means
 "unprocessed ideas" (status backlog) precisely. Decide whether such cards
 become draggable between status columns (status change) while still untriaged.
 
-Origin: c027 discussion (2026-07-16), open question.
+Origin: c027 discussion (2026-07-16), open question. (Originally allocated
+c029, renumbered after colliding with a concurrently quick-captured card —
+see c031.)
 
 ## Log
 
