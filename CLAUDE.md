@@ -80,6 +80,16 @@ before every commit.
 gello is developed using its own format. The board in `.gello/` is the plan —
 do not maintain parallel plan/TODO files.
 
+- **Query the board** (cheap, one grep each — never read all cards to find one):
+  ```bash
+  # cards by status (card files are c*.md with a numeric id; this glob
+  # excludes concept.md and milestone.md)
+  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="c[0-9]*.md"
+  # status overview
+  grep -rh "^status:" .gello/inbox .gello/milestones --include="c[0-9]*.md" | sort | uniq -c
+  # one card's frontmatter at a glance
+  sed -n '/^---$/,/^---$/p' <card-file>
+  ```
 - **Pick up work**: take the highest-priority card in `ready` whose `depends`
   are all `done`. Set `status: in-progress` before starting.
 - **During work**: append decisions and blockers to the card's `## Notes`,
