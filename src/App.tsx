@@ -51,6 +51,7 @@ import { backgroundCss, classifyBackground } from "./lib/background";
 import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
 import { ProjectMenu } from "./components/ProjectMenu";
 import { BackgroundPicker } from "./components/BackgroundPicker";
+import { ContextMenu } from "./components/ContextMenu";
 import { MilestonePicker } from "./components/MilestonePicker";
 import { projectFolder } from "./lib/status";
 import {
@@ -102,6 +103,8 @@ function App() {
   // c0060: live preview override (color/gradient) + picker position
   const [bgPreview, setBgPreview] = useState<string | null>(null);
   const [bgMenu, setBgMenu] = useState<{ x: number; y: number } | null>(null);
+  // i0011: right-click background menu (Reload / Background… / room to grow)
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   // i0005: a milestone-less inbox card dropped on a triage column, awaiting a
   // milestone pick (or dismissal → apply status only, stay in inbox).
   const [pendingTriage, setPendingTriage] = useState<{
@@ -579,7 +582,7 @@ function App() {
         <QuickCapture onCreate={handleCreate} />
         <Board
           background={effectiveBackground}
-          onBackgroundContextMenu={(x, y) => setBgMenu({ x, y })}
+          onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           model={board.model}
           toolbarLeading={
             <ProjectMenu
@@ -627,6 +630,20 @@ function App() {
               handleMove(pendingTriage.card, target);
               setPendingTriage(null);
             }}
+          />
+        )}
+        {ctxMenu && (
+          <ContextMenu
+            position={ctxMenu}
+            onClose={() => setCtxMenu(null)}
+            items={[
+              { label: "Reload", onSelect: () => window.location.reload() },
+              {
+                label: "Background…",
+                // hand the menu's anchor point to the picker
+                onSelect: () => setBgMenu(ctxMenu),
+              },
+            ]}
           />
         )}
         {bgMenu && (

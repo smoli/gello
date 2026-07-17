@@ -1,0 +1,37 @@
+.context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  /* invisible click-catcher — no dimming, this is a context menu not a modal */
+  background: transparent;
+}
+
+.context-menu {
+  position: fixed;
+  min-width: 160px;
+  padding: 0.25rem;
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 28%, transparent);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-menu-item {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 0.4rem 0.7rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background: color-mix(in srgb, #4c8bf5 20%, Canvas);
+}

@@ -151,6 +151,8 @@ describe("App", () => {
     await screen.findByText("t");
     fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
 
+    // i0011: right-click opens a context menu; Background… opens the picker
+    fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
     fireEvent.click(screen.getByRole("button", { name: "Color" }));
     fireEvent.change(screen.getByLabelText("Background color"), {
       target: { value: "#123456" },
@@ -164,6 +166,31 @@ describe("App", () => {
       expect(boardYamlWrites).toHaveLength(1); // one write, not per slider tick
       expect(boardYamlWrites[0][0][0].content).toContain('background: "#123456"');
     });
+  });
+
+  it("i0011: right-click opens a context menu with Reload and Background…", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+
+    const { container } = render(<App />);
+    await screen.findByText("t");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getByRole("menuitem", { name: "Reload" })).toBeInTheDocument();
+    // the picker is not open yet — the menu comes first
+    expect(screen.queryByRole("dialog", { name: "board background" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Background…" }));
+
+    // menu closed, picker opened
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "board background" })).toBeInTheDocument();
   });
 
   it("renders the board once loaded", async () => {
