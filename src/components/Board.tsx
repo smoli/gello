@@ -189,30 +189,32 @@ export function Board({
       }
     >
       <header className="board-toolbar">
-        <select
-          aria-label="Milestone filter"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-        >
-          <option value="all">All milestones</option>
-          {model.milestones.map((group) => (
-            <option key={group.folder} value={group.folder}>
-              {group.milestone?.title ?? group.folder}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Type filter"
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-        >
-          <option value="all">All types</option>
-          {model.config.types.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+        <div className="toolbar-filters">
+          <select
+            aria-label="Milestone filter"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          >
+            <option value="all">All milestones</option>
+            {model.milestones.map((group) => (
+              <option key={group.folder} value={group.folder}>
+                {group.milestone?.title ?? group.folder}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Type filter"
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+          >
+            <option value="all">All types</option>
+            {model.config.types.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
         <input
           ref={searchRef}
           type="search"
@@ -225,6 +227,8 @@ export function Board({
             if (event.key === "Escape") setQuery("");
           }}
         />
+        {/* symmetry cell so the search sits at the true center */}
+        <div className="toolbar-spacer" aria-hidden="true" />
       </header>
       {stripVisible && (
         <section className="milestone-strip" aria-label="assign to milestone">
