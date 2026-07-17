@@ -61,3 +61,16 @@ involvement.
 - 2026-07-16 status → ready (app)
 - 2026-07-16 status → backlog (app)
 - 2026-07-17 status → ready (app)
+
+## Notes
+
+- Pure matcher `cardMatchesQuery(card, query)` in src/lib/search.ts:
+  case-insensitive substring, AND across space-separated terms, over
+  id/title/tags/body. Board composes it (AND) with the milestone and type
+  filters; column counts follow the filtered set. ⌘F/Ctrl+F focuses the
+  centered search input (preventDefault suppresses native find); Escape
+  clears. 16 tests (matcher + board).
+
+## Log
+
+- 2026-07-17 implemented, status → review
