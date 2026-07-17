@@ -2,7 +2,12 @@ name: release
 
 # Build installers for macOS, Windows, and Linux. Cross-platform bundles can
 # only be produced on their native runner (Tauri builds for the host OS), so
-# this is a matrix job — one runner per target.
+# the build is a matrix job — one runner per target.
+#
+# i0021: the release itself is created ONCE up front (create-release), then
+# every matrix leg uploads its assets to that one release by id. Previously
+# each leg ran tauri-action with releaseDraft:true and the same tag, so the
+# concurrent legs raced to create the release and produced duplicates.
 #
 # Trigger by pushing a version tag (e.g. `git tag v0.1.0 && git push --tags`),
 # or run manually from the Actions tab.
@@ -13,9 +18,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  create-release:
     permissions:
-      contents: write # tauri-action creates the GitHub Release
+      contents: write # create the GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - name: Create the draft release
+        id: create-release
+        uses: actions/github-script@v7
+        env:
+          TAG: ${{ github.ref_name }}
+        with:
+          script: |
+            const tag = process.env.TAG;
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `gello ${tag}`,
+              draft: true,
+              prerelease: false,
+            });
+            return data.id;
+
+  build:
+    needs: create-release
+    permissions:
+      contents: write # tauri-action uploads assets to the release
     strategy:
       fail-fast: false
       matrix:
@@ -71,13 +102,31 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build and release
+      - name: Build and upload to the release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "gello ${{ github.ref_name }}"
-          releaseDraft: true
-          prerelease: false
+          # upload into the single release created above — never create one
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+  publish-release:
+    permissions:
+      contents: write # flip the draft to published
+    runs-on: ubuntu-latest
+    needs: [create-release, build]
+    steps:
+      - name: Publish the release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: Number(process.env.RELEASE_ID),
+              draft: false,
+              prerelease: false,
+            });
