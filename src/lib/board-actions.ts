@@ -147,11 +147,14 @@ function slugify(title: string): string {
 export function createCard(
   root: string,
   model: BoardModel,
-  input: { title: string; body: string; type?: string },
+  input: { title: string; body: string; type?: string; id?: string },
   today: string,
 ): MoveResult {
-  // c043: issues get their own i-namespace; everything else allocates c-ids
-  const id = input.type === "issue" ? nextIssueId(model) : nextCardId(model);
+  // c043: issues get their own i-namespace; everything else allocates c-ids.
+  // i0013: an id may be pre-reserved when an image was pasted into the draft
+  // before the card existed — reuse it so the asset folder/link line up.
+  const id =
+    input.id ?? (input.type === "issue" ? nextIssueId(model) : nextCardId(model));
   const path = `inbox/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, { type: input.type });
   const parsed = parseCard(path, raw, model.config);

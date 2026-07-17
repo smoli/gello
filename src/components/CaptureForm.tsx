@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useImageInsert } from "./useImageInsert";
 import "./QuickCapture.css";
 
 /**
@@ -10,13 +11,17 @@ export function CaptureForm({
   heading,
   onSubmit,
   onCancel,
+  onSaveImage,
 }: {
   heading: string;
   onSubmit: (title: string, body: string) => void;
   onCancel: () => void;
+  /** i0013: persist a pasted/dropped image, returning its relative link path. */
+  onSaveImage?: (file: File) => Promise<string>;
 }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const imageInsert = useImageInsert(body, setBody, onSaveImage);
 
   const submit = () => {
     const trimmed = title.trim();
@@ -52,9 +57,13 @@ export function CaptureForm({
       <label>
         Details
         <textarea
+          ref={imageInsert.ref}
           aria-label="Details"
           value={body}
           onChange={(event) => setBody(event.target.value)}
+          onPaste={imageInsert.onPaste}
+          onDrop={imageInsert.onDrop}
+          onDragOver={imageInsert.onDragOver}
           placeholder="Optional"
           rows={3}
         />

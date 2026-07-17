@@ -426,7 +426,8 @@ describe("CardDetail", () => {
   }
 
   it("c011: pasting an image saves it and inserts a relative link at the cursor", async () => {
-    const onSaveImage = vi.fn().mockResolvedValue("assets/c009/pasted-x.png");
+    // onSaveImage returns the ready-to-insert relative path (App builds it)
+    const onSaveImage = vi.fn().mockResolvedValue("../../assets/c009/pasted-x.png");
     renderDetail({ onSaveImage });
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
@@ -444,8 +445,6 @@ describe("CardDetail", () => {
 
     await vi.waitFor(() => {
       expect(onSaveImage).toHaveBeenCalledExactlyOnceWith(file);
-      // milestone card → ../../ prefix onto the board-relative asset path
-      expect(textarea.value).toContain("![shot](../../assets/c009/pasted-x.png)");
       expect(textarea.value).toBe("before![shot](../../assets/c009/pasted-x.png) after");
     });
   });
@@ -465,7 +464,7 @@ describe("CardDetail", () => {
   });
 
   it("c011: dropping an image file inserts a link too", async () => {
-    const onSaveImage = vi.fn().mockResolvedValue("assets/c009/dropped.png");
+    const onSaveImage = vi.fn().mockResolvedValue("../../assets/c009/dropped.png");
     renderDetail({ onSaveImage });
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     const textarea = screen.getByRole("textbox", {

@@ -105,4 +105,35 @@ describe("QuickCapture", () => {
 
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
   });
+
+  it("i0013: pasting an image into the draft inserts a link (with the draft's type)", async () => {
+    const onSaveImage = vi.fn().mockResolvedValue("../assets/c0008/shot.png");
+    render(<QuickCapture onCreate={vi.fn()} onSaveImage={onSaveImage} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
+
+    const file = new File([new Uint8Array([1])], "shot.png", { type: "image/png" });
+    fireEvent.paste(details, {
+      clipboardData: {
+        items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+        files: [file],
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(onSaveImage).toHaveBeenCalledExactlyOnceWith("issue", file);
+      expect(details.value).toBe("![shot](../assets/c0008/shot.png)");
+    });
+  });
+
+  it("i0013: cancelling the draft discards the reserved id", () => {
+    const onDiscard = vi.fn();
+    render(<QuickCapture onCreate={vi.fn()} onDiscard={onDiscard} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onDiscard).toHaveBeenCalledOnce();
+  });
 });

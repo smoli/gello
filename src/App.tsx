@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Board } from "./components/Board";
 import { CaptureForm } from "./components/CaptureForm";
 import { CardDetail, type MilestoneOption } from "./components/CardDetail";
@@ -6,6 +6,8 @@ import { QuickCapture } from "./components/QuickCapture";
 import {
   applyFileChanges,
   findCardById,
+  nextCardId,
+  nextIssueId,
   openIssuesFor,
   withCardTriaged,
   withNewInboxCard,
@@ -48,6 +50,7 @@ import {
   type LoadedBoard,
 } from "./lib/board-io";
 import {
+  assetLinkPrefix,
   bytesToBase64,
   resolveFromCard,
   suggestedAssetName,
@@ -111,6 +114,9 @@ function App() {
   const [bgMenu, setBgMenu] = useState<{ x: number; y: number } | null>(null);
   // i0011: right-click background menu (Reload / Background… / room to grow)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  // i0013: an id reserved when an image is pasted into a quick-create draft
+  // before the card exists, so the asset folder and the eventual card agree.
+  const reservedCreate = useRef<{ type: "task" | "issue"; id: string } | null>(null);
   // i0005: a milestone-less inbox card dropped on a triage column, awaiting a
   // milestone pick (or dismissal → apply status only, stay in inbox).
   const [pendingTriage, setPendingTriage] = useState<{
@@ -465,16 +471,46 @@ function App() {
 
   const handleCreate = (title: string, body: string, type: "task" | "issue") => {
     if (!board) return;
+    // i0013: if an image was pasted into this draft, an id was already reserved
+    // for it — create the card under that same id so the asset link resolves.
+    const reserved = reservedCreate.current;
+    const id = reserved && reserved.type === type ? reserved.id : undefined;
+    reservedCreate.current = null;
     applyAction(
       () =>
         createCard(
           board.root,
           board.model,
-          { title, body, type: type === "task" ? undefined : type },
+          { title, body, type: type === "task" ? undefined : type, id },
           todayIsoDate(),
         ),
       withNewInboxCard,
     );
+  };
+
+  // i0013: persist an image pasted into a quick-create draft. The card has no
+  // id yet, so reserve the next one (once per draft) and save under it; new
+  // cards land in the inbox, hence the `../` link prefix.
+  const handleCaptureImage = async (
+    type: "task" | "issue",
+    file: File,
+  ): Promise<string> => {
+    if (!board) throw new Error("no board loaded");
+    const existing = reservedCreate.current;
+    const id =
+      existing && existing.type === type
+        ? existing.id
+        : type === "issue"
+          ? nextIssueId(board.model)
+          : nextCardId(board.model);
+    reservedCreate.current = { type, id };
+    return `../${await persistImage(id, file)}`;
+  };
+
+  const handleDiscardDraft = () => {
+    // a reserved id is only consumed on create; abandon it (its asset dir, if
+    // any, is a harmless orphan — same as cancelling a card-detail image edit)
+    reservedCreate.current = null;
   };
 
   /** Draft submitted (c037) — only now does the issue come into existence. */
@@ -535,15 +571,21 @@ function App() {
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
-  // c011: persist a pasted/dropped image under the card's asset dir; the Rust
-  // side dedupes the filename and returns the board-relative path to link.
-  const handleSaveImage = async (card: Card, file: File): Promise<string> => {
+  // c011: write image bytes into a card's asset dir; the Rust side dedupes the
+  // filename and returns the board-relative path (`assets/<id>/<file>`).
+  const persistImage = async (cardId: string, file: File): Promise<string> => {
     if (!board) throw new Error("no board loaded");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const now = nowIsoDateTime(); // 2026-07-17T12:03:01
     const stamp = `${now.slice(0, 10).replace(/-/g, "")}-${now.slice(11).replace(/:/g, "")}`;
     const name = suggestedAssetName(file.name || null, file.type, stamp);
-    return writeAsset(board.root, card.id, name, bytesToBase64(bytes));
+    return writeAsset(board.root, cardId, name, bytesToBase64(bytes));
+  };
+
+  // c011: persist an image pasted into an existing card, returning the caret-
+  // ready relative link (prefix depends on the card's folder depth).
+  const handleSaveImage = async (card: Card, file: File): Promise<string> => {
+    return `${assetLinkPrefix(card.path)}${await persistImage(card.id, file)}`;
   };
 
   // c011: resolve a body image's (card-relative) src to a data URL the webview
@@ -612,7 +654,11 @@ function App() {
             {error}
           </div>
         )}
-        <QuickCapture onCreate={handleCreate} />
+        <QuickCapture
+          onCreate={handleCreate}
+          onSaveImage={handleCaptureImage}
+          onDiscard={handleDiscardDraft}
+        />
         <Board
           background={effectiveBackground}
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}

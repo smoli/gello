@@ -11,8 +11,14 @@ type CaptureMode = "task" | "issue";
  */
 export function QuickCapture({
   onCreate,
+  onSaveImage,
+  onDiscard,
 }: {
   onCreate: (title: string, body: string, type: CaptureMode) => void;
+  /** i0013: persist an image pasted into the draft for a card of `type`. */
+  onSaveImage?: (type: CaptureMode, file: File) => Promise<string>;
+  /** i0013: the draft was abandoned — drop any reserved id for it. */
+  onDiscard?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>("task");
@@ -65,9 +71,11 @@ export function QuickCapture({
         setMode("task");
       }}
       onCancel={() => {
+        onDiscard?.();
         setOpen(false);
         setMode("task");
       }}
+      onSaveImage={onSaveImage ? (file) => onSaveImage(mode, file) : undefined}
     />
   );
 }

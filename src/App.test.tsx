@@ -12,6 +12,7 @@ import {
   loadBoardFromDisk,
   pickFolder,
   readFileRaw,
+  writeAsset,
   writeNewFiles,
   watchBoard,
   watchGitHead,
@@ -34,6 +35,7 @@ vi.mock("./lib/board-io", () => ({
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
+  writeAsset: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -353,6 +355,50 @@ describe("App", () => {
     );
     const inbox = screen.getByRole("region", { name: "inbox" });
     expect(within(inbox).getByText("Dark mode")).toBeInTheDocument();
+  });
+
+  it("i0013: an image pasted into quick-create is saved under the card's reserved id", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+    // the Rust side returns the board-relative asset path
+    vi.mocked(writeAsset).mockResolvedValueOnce("assets/c0007/shot.png");
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+
+    const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
+    const file = new File([new Uint8Array([1, 2, 3])], "shot.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(details, {
+      clipboardData: {
+        items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+        files: [file],
+      },
+    });
+
+    // the image is reserved under c0007 (the next id) and linked in the draft
+    await vi.waitFor(() => {
+      expect(vi.mocked(writeAsset)).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello",
+        "c0007",
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(details.value).toBe("![shot](../assets/c0007/shot.png)");
+    });
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "With screenshot" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    // the card is created under the SAME id, so the link resolves
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c0007-with-screenshot.md",
+      expect.stringContaining("![shot](../assets/c0007/shot.png)"),
+    );
   });
 
   it("triages an inbox card into a milestone", async () => {

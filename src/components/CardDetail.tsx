@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges, Priority } from "../lib/cards";
 import { splitLogSection } from "../lib/markdown";
-import { assetLinkPrefix, insertAt } from "../lib/assets";
+import { useImageInsert } from "./useImageInsert";
 import "./CardDetail.css";
 
 const PRIORITIES: Priority[] = ["low", "normal", "high"];
@@ -74,9 +74,8 @@ export function CardDetail({
   const [bodyDraft, setBodyDraft] = useState(startInEdit ? editableBody : "");
   const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
   const [conflict, setConflict] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // c011: caret to restore after an async image insert re-renders the textarea
-  const caretRef = useRef<number | null>(null);
+  // c011: image paste/drop on the editor textarea (shared with quick capture)
+  const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
   // c038: a click "on the backdrop" only counts if the press started there —
   // otherwise a text selection drifting outside the dialog would close it
   const pressStartedOnBackdrop = useRef(false);
@@ -130,54 +129,6 @@ export function CardDetail({
       event.preventDefault();
       void save(false);
     }
-  };
-
-  // c011: restore the caret after an async image insert updates bodyDraft
-  useEffect(() => {
-    if (caretRef.current !== null && textareaRef.current) {
-      const pos = caretRef.current;
-      caretRef.current = null;
-      textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(pos, pos);
-    }
-  });
-
-  /**
-   * c011: persist each image and splice a relative Markdown link at the caret.
-   * Sequential so multiple images land in order; the working text is threaded
-   * locally because setBodyDraft is async.
-   */
-  const insertImages = async (files: File[]) => {
-    if (!onSaveImage || files.length === 0) return;
-    const el = textareaRef.current;
-    let start = el?.selectionStart ?? bodyDraft.length;
-    let end = el?.selectionEnd ?? bodyDraft.length;
-    let working = bodyDraft;
-    const prefix = assetLinkPrefix(card.path);
-    for (const file of files) {
-      const relPath = await onSaveImage(file);
-      const alt = file.name.replace(/\.[^.]+$/, "") || "image";
-      const snippet = `![${alt}](${prefix}${relPath})`;
-      const result = insertAt(working, start, end, snippet);
-      working = result.text;
-      start = end = result.cursor;
-    }
-    caretRef.current = start;
-    setBodyDraft(working);
-  };
-
-  const onEditorPaste = (event: React.ClipboardEvent) => {
-    const files = imageFilesFrom(event.clipboardData);
-    if (files.length === 0) return; // let the browser handle text/other pastes
-    event.preventDefault();
-    void insertImages(files);
-  };
-
-  const onEditorDrop = (event: React.DragEvent) => {
-    const files = imageFilesFrom(event.dataTransfer);
-    if (files.length === 0) return;
-    event.preventDefault();
-    void insertImages(files);
   };
 
   // assigns document-order indices to task checkboxes during the single
@@ -343,15 +294,15 @@ export function CardDetail({
               </div>
             )}
             <textarea
-              ref={textareaRef}
+              ref={imageInsert.ref}
               aria-label="Card body"
               value={bodyDraft}
               autoFocus
               onChange={(event) => setBodyDraft(event.target.value)}
               onKeyDown={editorKeyDown}
-              onPaste={onSaveImage ? onEditorPaste : undefined}
-              onDrop={onSaveImage ? onEditorDrop : undefined}
-              onDragOver={onSaveImage ? (e) => e.preventDefault() : undefined}
+              onPaste={imageInsert.onPaste}
+              onDrop={imageInsert.onDrop}
+              onDragOver={imageInsert.onDragOver}
             />
             <div className="editor-actions">
               <button type="button" onClick={() => void save(false)}>
@@ -434,24 +385,6 @@ export function CardDetail({
       </div>
     </div>
   );
-}
-
-/** c011: gather image files from a paste/drop payload (items first, then the
- *  files list), skipping anything that isn't an image. */
-function imageFilesFrom(data: DataTransfer): File[] {
-  const files: File[] = [];
-  for (const item of Array.from(data.items ?? [])) {
-    if (item.kind === "file" && item.type.startsWith("image/")) {
-      const file = item.getAsFile();
-      if (file) files.push(file);
-    }
-  }
-  if (files.length === 0) {
-    for (const file of Array.from(data.files ?? [])) {
-      if (file.type.startsWith("image/")) files.push(file);
-    }
-  }
-  return files;
 }
 
 /** c011: a Markdown image whose src is resolved to a displayable URL. Local

@@ -341,6 +341,18 @@ describe("createCard", () => {
     await persisted;
     expect(writeMock.mock.calls[0][1]).toContain("Details here.");
   });
+
+  it("i0013: honors an explicit pre-reserved id (image paste before create)", async () => {
+    const { card } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      { title: "Has a screenshot", body: "![x](../assets/c0008/x.png)", id: "c0008" },
+      "2026-07-16",
+    );
+
+    expect(card.id).toBe("c0008");
+    expect(card.path).toBe("inbox/c0008-has-a-screenshot.md");
+  });
 });
 
 describe("issue creation (c024)", () => {
