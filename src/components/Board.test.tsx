@@ -145,7 +145,8 @@ describe("Board", () => {
 
     const board = container.querySelector(".board")!;
     expect(board).toHaveClass("board-with-bg");
-    expect((board as HTMLElement).style.background).toContain(
+    // longhand so .board-with-bg's cover/center/no-repeat survives (c0060)
+    expect((board as HTMLElement).style.backgroundImage).toContain(
       "data:image/png;base64,xyz",
     );
   });

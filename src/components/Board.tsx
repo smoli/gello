@@ -198,6 +198,15 @@ export function Board({
     }
   };
 
+  // c0060: use longhands so .board-with-bg's cover/center/no-repeat (c047)
+  // still apply — the `background` shorthand would reset them (image would
+  // render at full resolution). url()/gradients are background-images.
+  const backgroundStyle: React.CSSProperties | undefined = background
+    ? background.startsWith("url(") || background.startsWith("linear-gradient(")
+      ? { backgroundImage: background }
+      : { backgroundColor: background }
+    : undefined;
+
   const boardClasses = [
     "board",
     background ? "board-with-bg" : "",
@@ -211,9 +220,7 @@ export function Board({
       className={boardClasses}
       onMouseDown={backgroundDrag}
       onContextMenu={bgContext}
-      style={
-        background ? { background } : undefined
-      }
+      style={backgroundStyle}
     >
       <header className="board-toolbar" onMouseDown={backgroundDrag}>
         <div className="toolbar-filters">
