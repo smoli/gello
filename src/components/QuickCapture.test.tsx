@@ -87,6 +87,38 @@ describe("QuickCapture", () => {
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
   });
 
+  it("c0064: Cmd/Ctrl+Enter submits from the Details textarea", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Big idea" },
+    });
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "line one" } });
+
+    // plain Enter in the textarea must NOT submit (it's a newline)
+    fireEvent.keyDown(details, { key: "Enter" });
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(details, { key: "Enter", metaKey: true });
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Big idea", "line one", "task");
+  });
+
+  it("c0064: Ctrl+Enter also submits", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Ctrl idea" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Details"), {
+      key: "Enter",
+      ctrlKey: true,
+    });
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Ctrl idea", "", "task");
+  });
+
   it("closes on Escape without creating", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} />);

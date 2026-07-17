@@ -38,6 +38,12 @@ export function CaptureForm({
           event.stopPropagation();
           onCancel();
         }
+        // c0064: Cmd/Ctrl+Enter submits from anywhere in the form (plain Enter
+        // in the Details textarea stays a newline)
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          submit();
+        }
       }}
     >
       <p className="quick-capture-mode">{heading}</p>
