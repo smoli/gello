@@ -76,7 +76,17 @@ export type MilestoneParseResult =
 
 // --- frontmatter block handling ---------------------------------------------
 
-const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---(\n|$)/;
+// Line-ending agnostic: a card authored on macOS/Linux (LF) becomes CRLF under
+// git's core.autocrlf on Windows, and some editors prepend a UTF-8 BOM. The
+// bytes on disk are the source of truth, so we detect the block tolerantly and
+// preserve whatever endings the file already uses rather than rewriting them.
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/;
+const BOM = 0xfeff;
+
+/** The dominant end-of-line sequence in `raw` (CRLF if any CRLF is present). */
+function detectEol(raw: string): string {
+  return raw.includes("\r\n") ? "\r\n" : "\n";
+}
 
 interface FrontmatterSplit {
   /** YAML text between the delimiters, without them. */
@@ -88,12 +98,15 @@ interface FrontmatterSplit {
 }
 
 function splitFrontmatter(raw: string): FrontmatterSplit | null {
-  const match = FRONTMATTER_RE.exec(raw);
+  // A leading UTF-8 BOM (some Windows editors add one) sits before `---`; skip
+  // it for matching but keep it in the byte offsets so writes preserve it.
+  const bomLen = raw.charCodeAt(0) === BOM ? 1 : 0;
+  const match = FRONTMATTER_RE.exec(bomLen ? raw.slice(bomLen) : raw);
   if (!match) return null;
   return {
     block: match[1],
-    body: raw.slice(match[0].length),
-    prefixLength: match[0].length,
+    body: raw.slice(bomLen + match[0].length),
+    prefixLength: bomLen + match[0].length,
   };
 }
 
@@ -382,7 +395,7 @@ function setFrontmatterRawValue(
   const lineRe = new RegExp(`^${field}:.*$`, "m");
   const block = lineRe.test(split.block)
     ? split.block.replace(lineRe, line)
-    : `${split.block}\n${line}`;
+    : `${split.block}${detectEol(raw)}${line}`;
 
   return `${raw.slice(0, split.prefixLength).replace(split.block, block)}${split.body}`;
 }
@@ -392,7 +405,9 @@ function removeFrontmatterField(raw: string, field: string): string {
   const split = splitFrontmatter(raw);
   if (!split) throw new Error("no frontmatter block found");
 
-  const lineRe = new RegExp(`\\n?^${field}:.*$`, "m");
+  // Consume the line's leading newline (LF or CRLF) too, so removing a middle
+  // field leaves no blank line and no dangling CR.
+  const lineRe = new RegExp(`(\\r?\\n)?^${field}:.*$`, "m");
   const block = split.block.replace(lineRe, "");
   return `${raw.slice(0, split.prefixLength).replace(split.block, block)}${split.body}`;
 }

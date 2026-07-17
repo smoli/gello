@@ -377,6 +377,101 @@ describe("card types and refs (c024)", () => {
   });
 });
 
+// A card authored on macOS/Linux (LF) is turned into CRLF by git's
+// core.autocrlf=true on Windows checkout. The bytes on disk are the source of
+// truth and must not be rewritten, so parsing/editing has to be line-ending
+// agnostic.
+describe("line-ending tolerance (CRLF / BOM)", () => {
+  const crlf = (s: string) => s.replace(/\n/g, "\r\n");
+
+  it("parses a CRLF card the same as its LF twin", () => {
+    const result = parseCard("x.md", crlf(FULL_CARD));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.id).toBe("c003");
+    expect(result.card.title).toBe("Kanban view with drag & drop");
+    expect(result.card.status).toBe("ready");
+    expect(result.card.depends).toEqual(["c001"]);
+    expect(result.card.tags).toEqual(["ui", "core"]);
+    expect(result.card.body).toContain("## What");
+    expect(result.card.body).toContain("- [ ] Columns render");
+    // bytes preserved verbatim, CRLF and all
+    expect(result.card.raw).toBe(crlf(FULL_CARD));
+  });
+
+  it("parses a CRLF milestone", () => {
+    const raw = crlf(`---\nid: m02\ntitle: Board core\n---\nGoal.\n`);
+    const result = parseMilestone("milestones/m02/milestone.md", raw);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.milestone.id).toBe("m02");
+    expect(result.milestone.title).toBe("Board core");
+  });
+
+  it("tolerates a UTF-8 BOM before the frontmatter", () => {
+    const result = parseCard("x.md", `﻿${MINIMAL_CARD}`);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.id).toBe("c042");
+  });
+
+  it("edits a CRLF card without corrupting line endings or the body", () => {
+    const source = crlf(FULL_CARD);
+    const parsed = parseCard("x.md", source);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(
+      parsed.card,
+      { status: "in-progress" },
+      "2026-07-17",
+    );
+
+    expect(card.status).toBe("in-progress");
+    expect(raw).toBe(
+      source
+        .replace("status: ready", "status: in-progress")
+        .replace("updated: 2026-07-16", "updated: 2026-07-17"),
+    );
+    // no lone CR left dangling and no LF-only line sneaked in
+    expect(raw).not.toMatch(/\r\r/);
+    expect(raw).not.toMatch(/[^\r]\n/);
+  });
+
+  it("appends a new frontmatter field using the file's own CRLF ending", () => {
+    const source = crlf(MINIMAL_CARD);
+    const parsed = parseCard("inbox/c042.md", source);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { raw } = updateCardFields(parsed.card, { milestone: "m03" }, "2026-07-17");
+
+    expect(raw).toContain("milestone: m03\r\n");
+    expect(raw).toContain("updated: 2026-07-17\r\n");
+    expect(raw).not.toMatch(/[^\r]\n/);
+    const reparsed = parseCard("inbox/c042.md", raw);
+    expect(reparsed.ok).toBe(true);
+  });
+
+  it("removes a frontmatter field from a CRLF card cleanly", () => {
+    const source = crlf(FULL_CARD).replace(
+      "priority: high\r\n",
+      "priority: high\r\norder: 5\r\n",
+    );
+    const parsed = parseCard("x.md", source);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    expect(parsed.card.order).toBe(5);
+
+    const { card, raw } = updateCardFields(parsed.card, { order: null }, "2026-07-17");
+
+    expect(card.order).toBeNull();
+    expect(raw).not.toContain("order: 5");
+    expect(raw).not.toMatch(/\r\r/);
+    expect(raw).not.toMatch(/[^\r]\n/);
+  });
+});
+
 describe("newCardRaw", () => {
   it("produces a minimal card that parses with defaults", () => {
     const raw = newCardRaw("c022", "A fresh idea", "", "2026-07-16");

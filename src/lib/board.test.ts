@@ -59,7 +59,10 @@ describe("loadBoard on this repo's own .gello tree", () => {
     .filter((entry) => entry.isFile())
     .map((entry) => {
       const abs = join(entry.parentPath, entry.name);
-      return file(relative(root, abs), readFileSync(abs, "utf8"));
+      // The Rust read_board_files command always emits forward-slash board
+      // paths (fs_read.rs joins with "/"); mirror that so this test exercises
+      // loadBoard's real contract on Windows too, where relative() uses "\".
+      return file(relative(root, abs).replace(/\\/g, "/"), readFileSync(abs, "utf8"));
     });
 
   const model = loadBoard(files);
