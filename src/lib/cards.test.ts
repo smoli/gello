@@ -481,3 +481,98 @@ describe("parseBoardConfig", () => {
     expect(parseBoardConfig("columns: [a]\n").config.background).toBeNull();
   });
 });
+
+describe("sorting fields (c056)", () => {
+  const ORDERED_CARD = `---
+id: c010
+title: Ranked card
+status: backlog
+order: 12.5
+status-changed: 2026-07-17T08:12:33
+created: 2026-07-17T07:00:00
+updated: 2026-07-17
+---
+
+Body.
+`;
+
+  it("parses order, status-changed, and datetime created", () => {
+    const result = parseCard("milestones/m02/c010-ranked.md", ORDERED_CARD);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.order).toBe(12.5);
+    expect(result.card.statusChanged).toBe("2026-07-17T08:12:33");
+    expect(result.card.created).toBe("2026-07-17T07:00:00");
+  });
+
+  it("defaults order and statusChanged to null", () => {
+    const result = parseCard("inbox/c042-idea.md", MINIMAL_CARD);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.order).toBeNull();
+    expect(result.card.statusChanged).toBeNull();
+  });
+
+  it("rejects a non-numeric order", () => {
+    const raw = MINIMAL_CARD.replace("status: backlog", "status: backlog\norder: first");
+    const result = parseCard("inbox/c042-idea.md", raw);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.invalid.reason).toContain("order");
+  });
+
+  it("updateCardFields writes status-changed as a surgical line edit", () => {
+    const parsed = parseCard("inbox/c042-idea.md", MINIMAL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(
+      parsed.card,
+      { status: "ready", statusChanged: "2026-07-17T09:30:00" },
+      "2026-07-17",
+      { ...DEFAULT_BOARD_CONFIG, columns: ["backlog", "ready"] },
+    );
+
+    expect(raw).toContain("status: ready");
+    expect(raw).toContain("status-changed: 2026-07-17T09:30:00");
+    expect(card.statusChanged).toBe("2026-07-17T09:30:00");
+    // body untouched
+    expect(raw).toContain("A quick inbox note.");
+  });
+
+  it("updateCardFields sets a numeric order without quotes", () => {
+    const parsed = parseCard("inbox/c042-idea.md", MINIMAL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(parsed.card, { order: 7.25 }, "2026-07-17");
+
+    expect(raw).toContain("order: 7.25");
+    expect(card.order).toBe(7.25);
+  });
+
+  it("updateCardFields removes the order line when order is null", () => {
+    const parsed = parseCard("milestones/m02/c010-ranked.md", ORDERED_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(parsed.card, { order: null }, "2026-07-17");
+
+    expect(raw).not.toContain("order:");
+    expect(card.order).toBeNull();
+    // neighboring lines survive byte-for-byte
+    expect(raw).toContain("status-changed: 2026-07-17T08:12:33");
+    expect(raw).toContain("created: 2026-07-17T07:00:00");
+    expect(raw).toContain("Body.");
+  });
+
+  it("newCardRaw stamps a datetime created", () => {
+    const raw = newCardRaw("c060", "Timed card", "", "2026-07-17T10:15:00");
+
+    expect(raw).toContain("created: 2026-07-17T10:15:00");
+    const parsed = parseCard("inbox/c060-timed-card.md", raw);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.card.created).toBe("2026-07-17T10:15:00");
+  });
+});

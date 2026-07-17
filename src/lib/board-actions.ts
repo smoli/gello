@@ -27,17 +27,30 @@ export interface MoveResult {
  * Persist frontmatter field changes: computes the surgical edit synchronously
  * and starts the atomic write immediately (no debounce). Throws synchronously
  * on changes that would produce an invalid card, before anything is written.
+ *
+ * `now` may be a date or a full ISO datetime; `updated` and Log lines always
+ * use the date part, `status-changed` (c056) records the full value.
  */
 export function saveCardFields(
   root: string,
   card: Card,
   changes: CardFieldChanges,
   config: BoardConfig,
-  today: string,
+  now: string,
 ): MoveResult {
+  const today = now.slice(0, 10);
+  const statusChanges = changes.status !== undefined && changes.status !== card.status;
+  if (statusChanges) {
+    // c056: stamp when the status was assigned; a manual rank belongs to
+    // the column being left, so clear it unless the drop set a new one.
+    changes = { statusChanged: now, ...changes };
+    if (changes.order === undefined && card.order !== null) {
+      changes = { ...changes, order: null };
+    }
+  }
   let { card: updated, raw } = updateCardFields(card, changes, today, config);
   // c042: the app journals status changes into the card's Log, like agents do
-  if (changes.status !== undefined && changes.status !== card.status) {
+  if (statusChanges) {
     ({ card: updated, raw } = replaceCardBody(
       updated,
       appendLogLine(updated.body, `${today} status → ${changes.status} (app)`),
@@ -49,15 +62,41 @@ export function saveCardFields(
   return { card: updated, persisted };
 }
 
-/** Move a card to a new status (drag & drop / keyboard move). */
+/**
+ * Move a card to a new status (drag & drop / keyboard move). A positioned
+ * drop into a manual column passes `order` (c056); keyboard moves and plain
+ * column drops omit it and land in the column's unranked tail.
+ */
 export function moveCard(
   root: string,
   card: Card,
   status: string,
   config: BoardConfig,
-  today: string,
+  now: string,
+  order?: number,
 ): MoveResult {
-  return saveCardFields(root, card, { status }, config, today);
+  return saveCardFields(root, card, { status, order }, config, now);
+}
+
+/** Re-rank a card within its manual column (c056): order + updated only. */
+export function reorderCard(
+  root: string,
+  card: Card,
+  order: number,
+  config: BoardConfig,
+  now: string,
+): MoveResult {
+  return saveCardFields(root, card, { order }, config, now);
+}
+
+/** Apply a renumber plan (c056): one surgical rank write per card. */
+export function renumberCards(
+  root: string,
+  ranks: Array<{ card: Card; order: number }>,
+  config: BoardConfig,
+  now: string,
+): MoveResult[] {
+  return ranks.map(({ card, order }) => reorderCard(root, card, order, config, now));
 }
 
 /** Replace the card body (checkbox toggles). */
@@ -188,7 +227,18 @@ function basename(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-/** Today as an ISO date (YYYY-MM-DD) for `updated` bumps. */
+/** Now as a local-time ISO datetime (c056) — lexicographically sortable,
+ *  human-readable in the file, no timezone juggling for a local-first tool. */
+export function nowIsoDateTime(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
+/** Today as a local ISO date (YYYY-MM-DD) for `updated` bumps. */
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return nowIsoDateTime().slice(0, 10);
 }

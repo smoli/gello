@@ -16,6 +16,9 @@ import {
   createIssueFor,
   createCard,
   moveCard,
+  nowIsoDateTime,
+  renumberCards,
+  reorderCard,
   saveCardBody,
   saveCardEdit,
   saveCardFields,
@@ -158,17 +161,58 @@ function App() {
     }
   };
 
-  const handleMove = (card: Card, status: string) => {
+  const handleMove = (card: Card, status: string, order?: number) => {
     if (!board || card.status === status) return;
     applyAction(() =>
-      moveCard(board.root, card, status, board.model.config, todayIsoDate()),
+      moveCard(board.root, card, status, board.model.config, nowIsoDateTime(), order),
     );
+  };
+
+  /** Same-column reposition in a manual column (c056). */
+  const handleReorder = (card: Card, order: number) => {
+    if (!board) return;
+    applyAction(() =>
+      reorderCard(board.root, card, order, board.model.config, nowIsoDateTime()),
+    );
+  };
+
+  /** Bulk re-rank when one write can't express the drop position (c056). */
+  const handleRenumber = (ranks: Array<{ card: Card; order: number }>) => {
+    if (!board) return;
+    const before = board.model;
+    try {
+      const results = renumberCards(
+        board.root,
+        ranks,
+        board.model.config,
+        nowIsoDateTime(),
+      );
+      setBoard((current) =>
+        current
+          ? {
+              ...current,
+              model: results.reduce((m, r) => withUpdatedCard(m, r.card), current.model),
+            }
+          : current,
+      );
+      setError(null);
+      for (const result of results) {
+        result.persisted.catch((failure: unknown) => {
+          setBoard((current) => (current ? { ...current, model: before } : current));
+          setError(failure instanceof Error ? failure.message : String(failure));
+        });
+      }
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
   };
 
   const handleFieldChanges = (card: Card, changes: CardFieldChanges) => {
     if (!board) return;
+    // full datetime so a status change from the detail view stamps
+    // status-changed correctly (c056)
     applyAction(() =>
-      saveCardFields(board.root, card, changes, board.model.config, todayIsoDate()),
+      saveCardFields(board.root, card, changes, board.model.config, nowIsoDateTime()),
     );
   };
 
@@ -313,6 +357,8 @@ function App() {
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           onTriageCard={handleTriage}
+          onReorderCard={handleReorder}
+          onRenumber={handleRenumber}
         />
         {issueSource && (
           <div className="issue-draft-overlay">

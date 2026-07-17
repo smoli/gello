@@ -294,3 +294,21 @@
   overflow-x: auto;
   white-space: pre-wrap;
 }
+
+/* c056: positioned drop targets in manual columns (backlog/ready). The
+   zones only exist while a drag is in flight; the active one renders the
+   insertion indicator line. */
+.insert-zone {
+  height: 10px;
+  margin: -5px 0; /* overlap card gaps so the pointer never falls between targets */
+  border-radius: 3px;
+  position: relative;
+  z-index: 1;
+}
+
+.insert-zone-active {
+  background: color-mix(in srgb, #4c8bf5 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #4c8bf5 70%, transparent);
+  height: 6px;
+  margin: 2px 0;
+}

@@ -1,5 +1,10 @@
-import { useMemo, useState } from "react";
-import { byPriorityThenId, type BoardModel } from "../lib/board";
+import { Fragment, useMemo, useState } from "react";
+import {
+  columnComparator,
+  MANUAL_COLUMNS,
+  planManualInsert,
+  type BoardModel,
+} from "../lib/board";
 import type { Card, InvalidFile } from "../lib/cards";
 import "./Board.css";
 
@@ -14,11 +19,17 @@ interface BoardCard {
   filterKey: string;
 }
 
-export type MoveCardHandler = (card: Card, status: string) => void;
+export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
 export type TriageCardHandler = (
   card: Card,
   folder: string,
   milestoneId: string,
+) => void;
+/** Same-column reposition in a manual column (c056). */
+export type ReorderCardHandler = (card: Card, order: number) => void;
+/** Bulk re-rank when a single write can't express the position (c056). */
+export type RenumberHandler = (
+  ranks: Array<{ card: Card; order: number }>,
 ) => void;
 
 /** Milestone-zone strip trigger (c028): an untriaged idea being dragged. */
@@ -54,12 +65,16 @@ export function Board({
   onMoveCard,
   onSelectCard,
   onTriageCard,
+  onReorderCard,
+  onRenumber,
   backgroundImage,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
   onSelectCard?: (card: Card) => void;
   onTriageCard?: TriageCardHandler;
+  onReorderCard?: ReorderCardHandler;
+  onRenumber?: RenumberHandler;
   /** Data URL of the board background (c047). */
   backgroundImage?: string;
 }) {
@@ -104,6 +119,28 @@ export function Board({
     if (entry && entry.card.status !== column) {
       onMoveCard?.(entry.card, column);
     }
+  };
+
+  /** Positioned drop on an insert zone of a manual column (c056). */
+  const dropAtIndex = (
+    column: string,
+    columnEntries: BoardCard[],
+    cardPath: string,
+    zoneIndex: number,
+  ) => {
+    const entry = allCards.find((c) => c.card.path === cardPath);
+    if (!entry) return;
+    // plan against the column WITHOUT the dragged card; zones are rendered
+    // around the full list, so slots below the card's own shift down by one
+    const draggedAt = columnEntries.findIndex((c) => c.card.path === cardPath);
+    const index = draggedAt !== -1 && zoneIndex > draggedAt ? zoneIndex - 1 : zoneIndex;
+    const others = columnEntries
+      .filter((c) => c.card.path !== cardPath)
+      .map((c) => c.card);
+    const plan = planManualInsert(others, index);
+    if (plan.renumber && plan.renumber.length > 0) onRenumber?.(plan.renumber);
+    if (entry.card.status !== column) onMoveCard?.(entry.card, column, plan.order);
+    else onReorderCard?.(entry.card, plan.order);
   };
 
   const moveByKey = (card: Card, direction: -1 | 1) => {
@@ -208,21 +245,28 @@ export function Board({
           </section>
           </div>
         )}
-        {columns.map((column) => (
-          <Column
-            key={column}
-            name={column}
-            cards={visible
-              .filter((c) => c.card.status === column)
-              // c046: global column order — priority then id, never
-              // milestone-grouped
-              .sort((a, b) => byPriorityThenId(a.card, b.card))}
-            onDropCard={(path) => dropOnColumn(column, path)}
-            onMoveByKey={moveByKey}
-            onSelect={onSelectCard}
-            onDragState={setDragging}
-          />
-        ))}
+        {columns.map((column) => {
+          const entries = visible
+            .filter((c) => c.card.status === column)
+            // c056: per-column rules (global across milestones, c046) —
+            // capture order, manual ranks, or status-changed time
+            .sort((a, b) => columnComparator(column)(a.card, b.card));
+          return (
+            <Column
+              key={column}
+              name={column}
+              cards={entries}
+              showInsertZones={dragging !== null && MANUAL_COLUMNS.has(column)}
+              onDropCard={(path) => dropOnColumn(column, path)}
+              onDropAt={(path, zoneIndex) =>
+                dropAtIndex(column, entries, path, zoneIndex)
+              }
+              onMoveByKey={moveByKey}
+              onSelect={onSelectCard}
+              onDragState={setDragging}
+            />
+          );
+        })}
       </div>
       {model.invalid.length > 0 && <NeedsAttentionLane entries={model.invalid} />}
     </div>
@@ -266,18 +310,27 @@ function InvalidFileEntry({ entry }: { entry: InvalidFile }) {
 function Column({
   name,
   cards,
+  showInsertZones,
   onDropCard,
+  onDropAt,
   onMoveByKey,
   onSelect,
   onDragState,
 }: {
   name: string;
   cards: BoardCard[];
+  /** c056: render positioned drop targets (manual columns during a drag). */
+  showInsertZones: boolean;
   onDropCard: (cardPath: string) => void;
+  onDropAt: (cardPath: string, zoneIndex: number) => void;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
 }) {
+  const dropAt = (path: string, zoneIndex: number) => {
+    onDropAt(path, zoneIndex);
+    onDragState(null);
+  };
   return (
     // c052: the invisible full-height track is the drop target, so short
     // content-height columns (c049) still catch drops anywhere in the lane
@@ -297,18 +350,55 @@ function Column({
           <span className="column-count">{cards.length}</span>
         </div>
         <div className="column-cards">
-          {cards.map((entry) => (
-            <CardFront
-              key={entry.card.path}
-              entry={entry}
-              onMoveByKey={onMoveByKey}
-              onSelect={onSelect}
-              onDragState={onDragState}
-            />
+          {cards.map((entry, i) => (
+            <Fragment key={entry.card.path}>
+              {showInsertZones && <InsertZone index={i} onDropAt={dropAt} />}
+              <CardFront
+                entry={entry}
+                onMoveByKey={onMoveByKey}
+                onSelect={onSelect}
+                onDragState={onDragState}
+              />
+            </Fragment>
           ))}
+          {showInsertZones && <InsertZone index={cards.length} onDropAt={dropAt} />}
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * Positioned drop target between cards (c056). A plain element, not a
+ * geometry computation, so drops are exact on any layout — the active
+ * class renders the insertion indicator.
+ */
+function InsertZone({
+  index,
+  onDropAt,
+}: {
+  index: number;
+  onDropAt: (cardPath: string, zoneIndex: number) => void;
+}) {
+  const [active, setActive] = useState(false);
+  return (
+    <div
+      className={`insert-zone${active ? " insert-zone-active" : ""}`}
+      aria-label={`insert at ${index}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setActive(true);
+      }}
+      onDragLeave={() => setActive(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        // the column track behind would treat this as an unpositioned drop
+        event.stopPropagation();
+        setActive(false);
+        const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
+        if (path) onDropAt(path, index);
+      }}
+    />
   );
 }
 

@@ -9,7 +9,6 @@ import {
   type Card,
   type InvalidFile,
   type Milestone,
-  type Priority,
 } from "./cards";
 
 export interface BoardFile {
@@ -37,8 +36,6 @@ export interface BoardModel {
   invalid: InvalidFile[];
 }
 
-const PRIORITY_ORDER: Record<Priority, number> = { high: 0, normal: 1, low: 2 };
-
 /**
  * Compare ids numerically within a namespace (c044): mixed-width ids
  * (c055 vs c0056) must order by number, not by string.
@@ -51,11 +48,86 @@ function compareIds(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-/** Board-wide display order: priority (high first), then id. */
-export function byPriorityThenId(a: Card, b: Card): number {
-  const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-  if (priority !== 0) return priority;
+// --- per-column sorting (c056) ---------------------------------------------------
+//
+// Priority is display-only: no column sorts by it. ISO dates and datetimes
+// compare lexicographically, so day-only and timed values mix fine.
+
+/** Capture order: created ascending, sequential ids as the tiebreaker. */
+export function byCreatedThenId(a: Card, b: Card): number {
+  const created = (a.created ?? "").localeCompare(b.created ?? "");
+  if (created !== 0) return created;
   return compareIds(a.id, b.id);
+}
+
+/** Workflow order: when the status was assigned, earliest first. Cards
+ *  without `status-changed` fall back to updated → created → id. */
+function byStatusChanged(a: Card, b: Card): number {
+  const key = (c: Card) => c.statusChanged ?? c.updated ?? c.created ?? "";
+  const cmp = key(a).localeCompare(key(b));
+  if (cmp !== 0) return cmp;
+  return compareIds(a.id, b.id);
+}
+
+/** Manual order: rank ascending; unranked cards last, by created/id. */
+function byManualOrder(a: Card, b: Card): number {
+  if (a.order !== null && b.order !== null && a.order !== b.order) {
+    return a.order - b.order;
+  }
+  if (a.order !== null && b.order === null) return -1;
+  if (a.order === null && b.order !== null) return 1;
+  return byCreatedThenId(a, b);
+}
+
+/** Columns the user can rearrange by hand (c056). */
+export const MANUAL_COLUMNS: ReadonlySet<string> = new Set(["backlog", "ready"]);
+
+/** The c056 per-column sort rule. Unknown custom columns are treated as
+ *  workflow stages (status-changed rule). */
+export function columnComparator(column: string): (a: Card, b: Card) => number {
+  if (MANUAL_COLUMNS.has(column)) return byManualOrder;
+  if (column === "discuss") return byCreatedThenId;
+  return byStatusChanged;
+}
+
+const RANK_STEP = 10;
+
+export interface ManualInsertPlan {
+  /** Rank for the dragged card. */
+  order: number;
+  /** Present only when neighbors must be re-ranked to express the position
+   *  (unranked neighbors, exhausted midpoint gap). Rare by design. */
+  renumber?: Array<{ card: Card; order: number }>;
+}
+
+/**
+ * Plan a drop at `index` into a manual column (cards in display order,
+ * WITHOUT the dragged card). Prefers a single write to the dragged card;
+ * falls back to renumbering the whole column when ranks can't express the
+ * position.
+ */
+export function planManualInsert(cards: Card[], index: number): ManualInsertPlan {
+  const above = index > 0 ? cards[index - 1] : null;
+  const below = index < cards.length ? cards[index] : null;
+
+  // Ranked cards sort before unranked ones, so a single new rank works
+  // exactly when everything above the slot is ranked.
+  if (above === null || above.order !== null) {
+    const a = above?.order ?? null;
+    const b = below?.order ?? null;
+    if (a === null && b === null) return { order: RANK_STEP };
+    if (a === null) return { order: b! - RANK_STEP };
+    if (b === null) return { order: a + RANK_STEP };
+    const mid = (a + b) / 2;
+    if (mid > a && mid < b) return { order: mid };
+  }
+
+  // Renumber the display sequence with the dragged card in place.
+  const order = (index + 1) * RANK_STEP;
+  const renumber = cards
+    .map((card, i) => ({ card, order: (i < index ? i + 1 : i + 2) * RANK_STEP }))
+    .filter(({ card, order: rank }) => card.order !== rank);
+  return { order, renumber };
 }
 
 export function loadBoard(files: BoardFile[]): BoardModel {
@@ -123,13 +195,13 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     });
 
   const dedupedInbox = dedup(inbox);
-  dedupedInbox.sort(byPriorityThenId);
+  dedupedInbox.sort(byCreatedThenId);
   const milestones = [...groups.values()].sort((a, b) =>
     a.folder.localeCompare(b.folder),
   );
   for (const group of milestones) {
     group.cards = dedup(group.cards);
-    group.cards.sort(byPriorityThenId);
+    group.cards.sort(byCreatedThenId);
   }
   invalid.sort((a, b) => a.path.localeCompare(b.path));
 
@@ -210,7 +282,7 @@ export function openIssuesFor(model: BoardModel, id: string): Card[] {
 
 /** Immutably add a freshly captured card to the inbox, keeping sort order. */
 export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
-  return { ...model, inbox: [...model.inbox, card].sort(byPriorityThenId) };
+  return { ...model, inbox: [...model.inbox, card].sort(byCreatedThenId) };
 }
 
 /**
@@ -228,7 +300,7 @@ export function withCardTriaged(
     inbox: model.inbox.filter((c) => c.path !== oldPath),
     milestones: model.milestones.map((group) =>
       group.folder === targetFolder
-        ? { ...group, cards: [...group.cards, moved].sort(byPriorityThenId) }
+        ? { ...group, cards: [...group.cards, moved].sort(byCreatedThenId) }
         : group,
     ),
   };

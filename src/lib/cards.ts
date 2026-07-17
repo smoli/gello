@@ -39,6 +39,10 @@ export interface Card {
   priority: Priority;
   depends: string[];
   tags: string[];
+  /** Manual position in backlog/ready columns (c056); null = unranked. */
+  order: number | null;
+  /** When the current status was assigned, ISO datetime (c056). */
+  statusChanged: string | null;
   created: string | null;
   updated: string | null;
   body: string;
@@ -193,6 +197,15 @@ export function parseCard(
   const tags = asStringArray(data, "tags");
   if (!tags.ok) return invalid(tags.reason);
 
+  const orderRaw = data["order"];
+  let order: number | null = null;
+  if (orderRaw !== undefined && orderRaw !== null) {
+    if (typeof orderRaw !== "number" || !Number.isFinite(orderRaw)) {
+      return invalid(`field "order" must be a number`);
+    }
+    order = orderRaw;
+  }
+
   return {
     ok: true,
     card: {
@@ -205,6 +218,8 @@ export function parseCard(
       priority,
       depends: depends.value,
       tags: tags.value,
+      order,
+      statusChanged: asOptionalString(data, "status-changed"),
       created: asOptionalString(data, "created"),
       updated: asOptionalString(data, "updated"),
       body: split.body,
@@ -320,7 +335,7 @@ export function newCardRaw(
   id: string,
   title: string,
   body: string,
-  today: string,
+  now: string,
   options: NewCardOptions = {},
 ): string {
   const lines = [
@@ -332,16 +347,19 @@ export function newCardRaw(
   if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
   if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);
   if (options.milestone) lines.push(`milestone: ${formatScalar(options.milestone)}`);
-  lines.push(`created: ${today}`, `updated: ${today}`);
+  // c056: created keeps the full capture time; updated stays a plain date
+  lines.push(`created: ${now}`, `updated: ${now.slice(0, 10)}`);
   const trimmedBody = body.trim();
   return `---\n${lines.join("\n")}\n---\n${trimmedBody ? `\n${trimmedBody}\n` : ""}`;
 }
 
 // --- serialization (surgical edits) ------------------------------------------
 
-/** Quote a scalar only when YAML would misread it plain. */
+/** Quote a scalar only when YAML would misread it plain. A colon only
+ *  needs quoting when followed by whitespace/end — `12:30` and ISO
+ *  datetimes are valid plain scalars (c056). */
 function formatScalar(value: string): string {
-  return /[:#[\]{}"'\n&*|>%@`]|^[\s-]|\s$/.test(value) || value === ""
+  return /:(\s|$)|[#[\]{}"'\n&*|>%@`]|^[\s-]|\s$/.test(value) || value === ""
     ? JSON.stringify(value)
     : value;
 }
@@ -369,9 +387,27 @@ function setFrontmatterRawValue(
   return `${raw.slice(0, split.prefixLength).replace(split.block, block)}${split.body}`;
 }
 
+/** Remove one `field: …` line from the frontmatter block, if present. */
+function removeFrontmatterField(raw: string, field: string): string {
+  const split = splitFrontmatter(raw);
+  if (!split) throw new Error("no frontmatter block found");
+
+  const lineRe = new RegExp(`\\n?^${field}:.*$`, "m");
+  const block = split.block.replace(lineRe, "");
+  return `${raw.slice(0, split.prefixLength).replace(split.block, block)}${split.body}`;
+}
+
 export type CardFieldChanges = Partial<
-  Pick<Card, "status" | "priority" | "milestone" | "title" | "tags">
+  Pick<
+    Card,
+    "status" | "priority" | "milestone" | "title" | "tags" | "order" | "statusChanged"
+  >
 >;
+
+/** Card properties whose frontmatter key differs from the property name. */
+const FRONTMATTER_KEYS: Record<string, string> = {
+  statusChanged: "status-changed",
+};
 
 /** Format a string[] as a flow-style YAML list: `[a, b]`. */
 function formatFlowList(values: string[]): string {
@@ -397,10 +433,16 @@ export function updateCardFields(
 
   let raw = card.raw;
   for (const [field, value] of Object.entries(changes)) {
-    if (value === undefined || value === null) continue;
+    if (value === undefined) continue;
+    const key = FRONTMATTER_KEYS[field] ?? field;
+    // null = remove the line (c056: e.g. clearing a stale manual order)
+    if (value === null) {
+      raw = removeFrontmatterField(raw, key);
+      continue;
+    }
     raw = setFrontmatterRawValue(
       raw,
-      field,
+      key,
       Array.isArray(value) ? formatFlowList(value) : formatScalar(String(value)),
     );
   }

@@ -443,4 +443,49 @@ describe("App", () => {
     const backlog = screen.getByRole("region", { name: "backlog" });
     expect(within(backlog).getByText("Board card")).toBeInTheDocument();
   });
+
+  it("reorders a card within the backlog and persists its rank (c056)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      model: loadBoard([
+        {
+          path: "milestones/m01-a/milestone.md",
+          content: "---\nid: m01\ntitle: A\n---\ng\n",
+        },
+        {
+          path: "milestones/m01-a/c001-one.md",
+          content: "---\nid: c001\ntitle: Card one\nstatus: backlog\norder: 10\n---\nx\n",
+        },
+        {
+          path: "milestones/m01-a/c002-two.md",
+          content: "---\nid: c002\ntitle: Card two\nstatus: backlog\norder: 20\n---\nx\n",
+        },
+      ]),
+    });
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const dragged = (await screen.findByText("Card two")).closest("article")!;
+    const dataTransfer = {
+      data: {} as Record<string, string>,
+      setData(type: string, value: string) {
+        this.data[type] = value;
+      },
+      getData(type: string) {
+        return this.data[type] ?? "";
+      },
+      effectAllowed: "",
+    };
+    fireEvent.dragStart(dragged, { dataTransfer });
+    const backlog = screen.getByRole("region", { name: "backlog" });
+    // zone 0 = above Card one (10) → rank below 10, only the dragged file written
+    const zone = within(backlog).getByLabelText("insert at 0");
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m01-a/c002-two.md",
+      expect.stringContaining("order: 0"),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

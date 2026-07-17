@@ -156,7 +156,9 @@ describe("Board", () => {
     expect(container.querySelector(".board")).not.toHaveClass("board-with-bg");
   });
 
-  it("orders a column globally by priority then id, across milestones (c046)", () => {
+  // c046's point — global column order, never milestone-grouped — survives
+  // c056, which swapped the rule from priority/id to per-column sorting.
+  it("orders a column globally across milestones (c046/c056)", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [backlog, done]\n"),
       file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
@@ -172,8 +174,9 @@ describe("Board", () => {
       .getAllByRole("article")
       .map((el) => el.getAttribute("aria-label")!.split(":")[0]);
 
-    // NOT milestone-grouped (c001, c004, c002, c003) — globally sorted:
-    expect(ids).toEqual(["c002", "c001", "c003", "c004"]);
+    // NOT milestone-grouped (c001, c004, c002, c003) — globally sorted
+    // (c056 manual column, no ranks → created/id; priority is ignored):
+    expect(ids).toEqual(["c001", "c002", "c003", "c004"]);
   });
 });
 
@@ -533,5 +536,117 @@ describe("Board card moves", () => {
 
     expect(card).toHaveAttribute("draggable", "true");
     expect(card).toHaveAttribute("tabindex", "0");
+  });
+});
+
+describe("manual column insertion (c056)", () => {
+  function rankedCard(id: string, title: string, status: string, order?: number): string {
+    const orderLine = order === undefined ? "" : `order: ${order}\n`;
+    return `---\nid: ${id}\ntitle: ${title}\nstatus: ${status}\n${orderLine}---\nbody\n`;
+  }
+
+  const RANKED_MODEL = loadBoard([
+    file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
+    file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+    file("milestones/m01-a/c001-b1.md", rankedCard("c001", "Backlog one", "backlog", 10)),
+    file("milestones/m01-a/c002-b2.md", rankedCard("c002", "Backlog two", "backlog", 20)),
+    file("milestones/m01-a/c003-r1.md", rankedCard("c003", "Ready one", "ready", 10)),
+    file("milestones/m01-a/c004-r2.md", rankedCard("c004", "Ready two", "ready", 20)),
+    file("milestones/m01-a/c005-r3.md", rankedCard("c005", "Ready three", "ready", 30)),
+    file("milestones/m01-a/c006-ip.md", rankedCard("c006", "Working", "in-progress")),
+  ]);
+
+  it("shows insert zones in manual columns while dragging, none elsewhere", () => {
+    render(<Board model={RANKED_MODEL} />);
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(screen.getByText("Ready three").closest("article")!, {
+      dataTransfer,
+    });
+
+    // zones = card count + 1 per manual column
+    expect(within(column("ready")).getAllByLabelText(/insert at/)).toHaveLength(4);
+    expect(within(column("backlog")).getAllByLabelText(/insert at/)).toHaveLength(3);
+    expect(within(column("in-progress")).queryAllByLabelText(/insert at/)).toHaveLength(0);
+
+    fireEvent.dragEnd(screen.getByText("Ready three").closest("article")!);
+    expect(within(column("ready")).queryAllByLabelText(/insert at/)).toHaveLength(0);
+  });
+
+  it("reorders within a column: midpoint rank, single card write", () => {
+    const onReorder = vi.fn();
+    render(<Board model={RANKED_MODEL} onReorderCard={onReorder} />);
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(screen.getByText("Ready three").closest("article")!, {
+      dataTransfer,
+    });
+    // zone 1 = between Ready one (10) and Ready two (20)
+    const zone = within(column("ready")).getByLabelText("insert at 1");
+    fireEvent.dragOver(zone, { dataTransfer });
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(onReorder).toHaveBeenCalledTimes(1);
+    const [card, order] = onReorder.mock.calls[0];
+    expect(card.id).toBe("c005");
+    expect(order).toBe(15);
+  });
+
+  it("a positioned drop from another column moves with a rank", () => {
+    const onMove = vi.fn();
+    render(<Board model={RANKED_MODEL} onMoveCard={onMove} />);
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(screen.getByText("Working").closest("article")!, {
+      dataTransfer,
+    });
+    const zone = within(column("backlog")).getByLabelText("insert at 1");
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(onMove).toHaveBeenCalledTimes(1);
+    const [card, status, order] = onMove.mock.calls[0];
+    expect(card.id).toBe("c006");
+    expect(status).toBe("backlog");
+    expect(order).toBe(15);
+  });
+
+  it("renumbers unranked neighbors so the position sticks", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
+      file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+      file("milestones/m01-a/c001-u1.md", rankedCard("c001", "Unranked one", "backlog")),
+      file("milestones/m01-a/c002-u2.md", rankedCard("c002", "Unranked two", "backlog")),
+      file("milestones/m01-a/c003-r.md", rankedCard("c003", "Ready card", "ready", 10)),
+    ]);
+    const onMove = vi.fn();
+    const onRenumber = vi.fn();
+    render(<Board model={model} onMoveCard={onMove} onRenumber={onRenumber} />);
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(screen.getByText("Ready card").closest("article")!, {
+      dataTransfer,
+    });
+    const zone = within(column("backlog")).getByLabelText("insert at 1");
+    fireEvent.drop(zone, { dataTransfer });
+
+    expect(onRenumber).toHaveBeenCalledTimes(1);
+    const ranks = onRenumber.mock.calls[0][0] as Array<{ card: { id: string }; order: number }>;
+    expect(ranks.map((r) => r.card.id).sort()).toEqual(["c001", "c002"]);
+    const [, , order] = onMove.mock.calls[0];
+    const rankOf = (id: string) => ranks.find((r) => r.card.id === id)!.order;
+    expect(rankOf("c001")).toBeLessThan(order);
+    expect(order).toBeLessThan(rankOf("c002"));
+  });
+
+  it("accounts for the dragged card's own slot when reordering downward", () => {
+    const onReorder = vi.fn();
+    render(<Board model={RANKED_MODEL} onReorderCard={onReorder} />);
+    const dataTransfer = fakeDataTransfer();
+    // drag Ready one (10) to the zone between Ready two (20) and Ready three (30)
+    fireEvent.dragStart(screen.getByText("Ready one").closest("article")!, {
+      dataTransfer,
+    });
+    const zone = within(column("ready")).getByLabelText("insert at 2");
+    fireEvent.drop(zone, { dataTransfer });
+
+    const [card, order] = onReorder.mock.calls[0];
+    expect(card.id).toBe("c003");
+    expect(order).toBe(25); // midpoint of 20 and 30, dragged card's slot excluded
   });
 });

@@ -115,6 +115,11 @@ do not maintain parallel plan/TODO files.
   relative asset links.
 - **Frontmatter discipline**: valid YAML, only statuses from `board.yaml`.
   If you find a malformed card, fix the YAML, don't discard content.
+- **On every status change** (c056): set `status-changed` to the current
+  local ISO datetime (`YYYY-MM-DDTHH:MM:SS`) alongside the new `status`.
+  The board orders the in-progress/review/done columns by it; without it a
+  card falls back to `updated`/`created` and sorts imprecisely. (The app
+  does this automatically; agents editing files must do it too.)
 
 ## Commits
 

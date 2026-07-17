@@ -10,6 +10,8 @@ import {
   createIssueFor,
   createCard,
   moveCard,
+  renumberCards,
+  reorderCard,
   saveCardBody,
   saveCardEdit,
   saveCardFields,
@@ -51,18 +53,20 @@ describe("moveCard", () => {
       fixtureCard(),
       "in-progress",
       DEFAULT_BOARD_CONFIG,
-      "2026-07-16",
+      "2026-07-16T09:00:00",
     );
 
     expect(card.status).toBe("in-progress");
     expect(card.updated).toBe("2026-07-16");
+    expect(card.statusChanged).toBe("2026-07-16T09:00:00");
     await persisted;
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/milestones/m01-x/c001-first.md",
       RAW.replace("status: ready", "status: in-progress").replace(
         "updated: 2026-07-10",
-        "updated: 2026-07-16",
+        // c056: a status move stamps when the status was assigned
+        "updated: 2026-07-16\nstatus-changed: 2026-07-16T09:00:00",
       ) + "\n## Log\n\n- 2026-07-16 status → in-progress (app)\n",
     );
   });
@@ -496,5 +500,112 @@ updated: 2026-07-10
 
     await expect(persisted).rejects.toThrow("disk full");
     expect(removeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("manual order and status-changed (c056)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  const RANKED_RAW = `---
+id: c002
+title: Ranked
+status: ready
+order: 30
+created: 2026-07-10
+updated: 2026-07-10
+---
+
+body
+`;
+
+  function rankedCard() {
+    const parsed = parseCard("milestones/m01-x/c002-ranked.md", RANKED_RAW);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  it("moveCard clears a stale manual order when the status changes", async () => {
+    const { card, persisted } = moveCard(
+      "/repo/.gello",
+      rankedCard(),
+      "in-progress",
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:00:00",
+    );
+
+    expect(card.order).toBeNull();
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).not.toContain("order:");
+    expect(written).toContain("status-changed: 2026-07-16T09:00:00");
+  });
+
+  it("moveCard with an explicit order keeps it (positioned drop)", async () => {
+    const { card, persisted } = moveCard(
+      "/repo/.gello",
+      fixtureCard(),
+      "backlog",
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:00:00",
+      15,
+    );
+
+    expect(card.order).toBe(15);
+    expect(card.status).toBe("backlog");
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("order: 15");
+  });
+
+  it("reorderCard writes the rank only — no journal, no status-changed", async () => {
+    const { card, persisted } = reorderCard(
+      "/repo/.gello",
+      rankedCard(),
+      12.5,
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:00:00",
+    );
+
+    expect(card.order).toBe(12.5);
+    expect(card.status).toBe("ready");
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("order: 12.5");
+    expect(written).not.toContain("## Log");
+    expect(written).not.toContain("status-changed:");
+    expect(written).toContain("updated: 2026-07-16");
+  });
+
+  it("renumberCards writes one rank per card", async () => {
+    const results = renumberCards(
+      "/repo/.gello",
+      [
+        { card: rankedCard(), order: 10 },
+        { card: fixtureCard(), order: 20 },
+      ],
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:00:00",
+    );
+
+    expect(results.map((r) => r.card.order)).toEqual([10, 20]);
+    await Promise.all(results.map((r) => r.persisted));
+    expect(writeMock).toHaveBeenCalledTimes(2);
+    expect(writeMock.mock.calls[0][1]).toContain("order: 10");
+    expect(writeMock.mock.calls[1][1]).toContain("order: 20");
+  });
+
+  it("createCard stamps a datetime created and a date updated", async () => {
+    const { card: created, persisted } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      { title: "Timed", body: "" },
+      "2026-07-16T09:00:00",
+    );
+
+    expect(created.created).toBe("2026-07-16T09:00:00");
+    expect(created.updated).toBe("2026-07-16");
+    await persisted;
   });
 });

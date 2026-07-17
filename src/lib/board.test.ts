@@ -12,9 +12,11 @@ import {
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
+  columnComparator,
+  planManualInsert,
   type BoardFile,
 } from "./board";
-import { parseCard } from "./cards";
+import { DEFAULT_BOARD_CONFIG, parseCard, type Card } from "./cards";
 
 // --- helpers -----------------------------------------------------------------
 
@@ -99,7 +101,8 @@ describe("loadBoard on a synthetic tree", () => {
       "m02-beta",
     ]);
     expect(model.milestones[0].milestone?.title).toBe("Alpha");
-    expect(model.milestones[0].cards.map((c) => c.id)).toEqual(["c102", "c101"]);
+    // c056: created/id order (no created in fixtures → id decides)
+    expect(model.milestones[0].cards.map((c) => c.id)).toEqual(["c101", "c102"]);
     expect(model.invalid.map((entry) => entry.path)).toEqual([
       "milestones/m02-beta/c104-broken.md",
       "milestones/m02-beta/c105-no-id.md",
@@ -115,7 +118,9 @@ describe("loadBoard on a synthetic tree", () => {
     expect(model.invalid.map((e) => e.path)).not.toContain("concept.md");
   });
 
-  it("orders cards by priority (high first), then id", () => {
+  // c056 superseded the old priority-first order: priority is display-only,
+  // capture order (created, then id) is what the inbox shows.
+  it("orders inbox cards by created/id regardless of priority", () => {
     const files = [
       file("inbox/c202-normal.md", card("c202", "backlog", "normal")),
       file("inbox/c204-low.md", card("c204", "backlog", "low")),
@@ -123,7 +128,7 @@ describe("loadBoard on a synthetic tree", () => {
       file("inbox/c201-normal.md", card("c201", "backlog", "normal")),
     ];
     const ordered = loadBoard(files).inbox.map((c) => c.id);
-    expect(ordered).toEqual(["c203", "c201", "c202", "c204"]);
+    expect(ordered).toEqual(["c201", "c202", "c203", "c204"]);
   });
 
   it("derives next IDs, counting invalid files by filename", () => {
@@ -174,8 +179,8 @@ describe("withNewInboxCard", () => {
 
     const next = withNewInboxCard(model, parsed.card);
 
-    // high priority sorts before the existing normal-priority c103
-    expect(next.inbox.map((c) => c.id)).toEqual(["c106", "c103"]);
+    // c056: capture order — priority does not jump the queue
+    expect(next.inbox.map((c) => c.id)).toEqual(["c103", "c106"]);
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
   });
 });
@@ -193,9 +198,9 @@ describe("withCardTriaged", () => {
 
     expect(next.inbox).toEqual([]);
     expect(next.milestones[0].cards.map((c) => c.id)).toEqual([
+      "c101",
       "c102",
       "c103",
-      "c101",
     ]);
     // original untouched
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
@@ -465,5 +470,166 @@ describe("loadBoard edge cases", () => {
     expect(model.invalid).toEqual([]);
     expect(nextCardId(model)).toBe("c0001");
     expect(nextMilestoneId(model)).toBe("m01");
+  });
+});
+
+// --- per-column sorting (c056) -------------------------------------------------
+
+function sortCard(
+  id: string,
+  fields: {
+    status?: string;
+    priority?: string;
+    order?: number;
+    statusChanged?: string;
+    created?: string;
+    updated?: string;
+  } = {},
+): Card {
+  const lines = [
+    `id: ${id}`,
+    `title: Card ${id}`,
+    `status: ${fields.status ?? "backlog"}`,
+    `priority: ${fields.priority ?? "normal"}`,
+  ];
+  if (fields.order !== undefined) lines.push(`order: ${fields.order}`);
+  if (fields.statusChanged) lines.push(`status-changed: ${fields.statusChanged}`);
+  if (fields.created) lines.push(`created: ${fields.created}`);
+  if (fields.updated) lines.push(`updated: ${fields.updated}`);
+  const raw = `---\n${lines.join("\n")}\n---\nbody\n`;
+  const config = {
+    ...DEFAULT_BOARD_CONFIG,
+    columns: ["discuss", "backlog", "ready", "in-progress", "review", "done", "custom"],
+  };
+  const result = parseCard(`inbox/${id}-x.md`, raw, config);
+  if (!result.ok) throw new Error(`fixture must parse: ${result.invalid.reason}`);
+  return result.card;
+}
+
+describe("columnComparator (c056)", () => {
+  it("discuss sorts by created ascending, id as tiebreaker", () => {
+    const a = sortCard("c002", { created: "2026-07-16" });
+    const b = sortCard("c001", { created: "2026-07-17" });
+    const c = sortCard("c003", { created: "2026-07-16" });
+    const sorted = [b, c, a].sort(columnComparator("discuss"));
+    expect(sorted.map((x) => x.id)).toEqual(["c002", "c003", "c001"]);
+  });
+
+  it("mixes day-only and datetime created values sensibly", () => {
+    const old = sortCard("c001", { created: "2026-07-16" });
+    const timed = sortCard("c002", { created: "2026-07-17T08:30:00" });
+    expect([timed, old].sort(columnComparator("discuss")).map((x) => x.id)).toEqual([
+      "c001",
+      "c002",
+    ]);
+  });
+
+  it("priority does not influence any column's order", () => {
+    const low = sortCard("c001", { priority: "low", created: "2026-07-15" });
+    const high = sortCard("c002", { priority: "high", created: "2026-07-16" });
+    for (const column of ["discuss", "backlog", "in-progress"]) {
+      expect([high, low].sort(columnComparator(column))[0].id).toBe("c001");
+    }
+  });
+
+  it("backlog/ready sort by order ascending, unranked last by created/id", () => {
+    const first = sortCard("c003", { order: 1 });
+    const second = sortCard("c001", { order: 2.5 });
+    const unrankedOld = sortCard("c004", { created: "2026-07-15" });
+    const unrankedNew = sortCard("c002", { created: "2026-07-16" });
+    const sorted = [unrankedNew, second, unrankedOld, first].sort(
+      columnComparator("ready"),
+    );
+    expect(sorted.map((x) => x.id)).toEqual(["c003", "c001", "c004", "c002"]);
+  });
+
+  it("in-progress/review/done sort by status-changed, earliest first", () => {
+    const later = sortCard("c001", { statusChanged: "2026-07-17T10:00:00" });
+    const earlier = sortCard("c002", { statusChanged: "2026-07-17T08:00:00" });
+    expect(
+      [later, earlier].sort(columnComparator("done")).map((x) => x.id),
+    ).toEqual(["c002", "c001"]);
+  });
+
+  it("falls back updated → created → id when status-changed is missing", () => {
+    const stamped = sortCard("c001", { statusChanged: "2026-07-17T10:00:00" });
+    const byUpdated = sortCard("c002", { updated: "2026-07-16", created: "2026-07-10" });
+    const byCreated = sortCard("c003", { created: "2026-07-15" });
+    const bare = sortCard("c004", {});
+    const sorted = [stamped, bare, byUpdated, byCreated].sort(
+      columnComparator("review"),
+    );
+    // bare (no dates at all) first, then created 07-15, updated 07-16, stamped 07-17
+    expect(sorted.map((x) => x.id)).toEqual(["c004", "c003", "c002", "c001"]);
+  });
+
+  it("unknown custom columns use the status-changed rule", () => {
+    const later = sortCard("c001", { statusChanged: "2026-07-17T10:00:00" });
+    const earlier = sortCard("c002", { statusChanged: "2026-07-17T08:00:00" });
+    expect(
+      [later, earlier].sort(columnComparator("custom")).map((x) => x.id),
+    ).toEqual(["c002", "c001"]);
+  });
+});
+
+describe("planManualInsert (c056)", () => {
+  it("between two ranked cards: midpoint, single write", () => {
+    const cards = [sortCard("c001", { order: 10 }), sortCard("c002", { order: 20 })];
+    const plan = planManualInsert(cards, 1);
+    expect(plan.order).toBe(15);
+    expect(plan.renumber).toBeUndefined();
+  });
+
+  it("at the top: below the first rank", () => {
+    const cards = [sortCard("c001", { order: 10 }), sortCard("c002", { order: 20 })];
+    const plan = planManualInsert(cards, 0);
+    expect(plan.order).toBeLessThan(10);
+    expect(plan.renumber).toBeUndefined();
+  });
+
+  it("after the last ranked card: above its rank", () => {
+    const cards = [sortCard("c001", { order: 10 }), sortCard("c002", { order: 20 })];
+    const plan = planManualInsert(cards, 2);
+    expect(plan.order).toBeGreaterThan(20);
+    expect(plan.renumber).toBeUndefined();
+  });
+
+  it("into an empty column: any rank, single write", () => {
+    const plan = planManualInsert([], 0);
+    expect(typeof plan.order).toBe("number");
+    expect(plan.renumber).toBeUndefined();
+  });
+
+  it("between unranked cards: renumbers the column to make the position stick", () => {
+    const a = sortCard("c001", { created: "2026-07-14" });
+    const b = sortCard("c002", { created: "2026-07-15" });
+    const plan = planManualInsert([a, b], 1);
+    expect(plan.renumber).toBeDefined();
+    const ranks = new Map(plan.renumber!.map((r) => [r.card.id, r.order]));
+    // resulting sequence: c001, dragged, c002 — strictly increasing ranks
+    expect(ranks.get("c001")!).toBeLessThan(plan.order);
+    expect(plan.order).toBeLessThan(ranks.get("c002")!);
+  });
+
+  it("renumbers when the midpoint gap is exhausted", () => {
+    const cards = [sortCard("c001", { order: 1 }), sortCard("c002", { order: 1 })];
+    const plan = planManualInsert(cards, 1);
+    expect(plan.renumber).toBeDefined();
+  });
+});
+
+describe("loadBoard ordering (c056)", () => {
+  it("sorts the inbox by created, not priority", () => {
+    const model = loadBoard([
+      file(
+        "inbox/c201-late.md",
+        "---\nid: c201\ntitle: Late\nstatus: backlog\npriority: high\ncreated: 2026-07-17\n---\n",
+      ),
+      file(
+        "inbox/c202-early.md",
+        "---\nid: c202\ntitle: Early\nstatus: backlog\npriority: low\ncreated: 2026-07-15\n---\n",
+      ),
+    ]);
+    expect(model.inbox.map((c) => c.id)).toEqual(["c202", "c201"]);
   });
 });

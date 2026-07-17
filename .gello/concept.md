@@ -85,10 +85,12 @@ status: ready            # discuss | backlog | ready | in-progress | review | do
 type: issue              # optional; default task; allowed values from board.yaml types
 ref: c001                # optional; card this issue was found in (provenance, not dependency)
 milestone: m02-board-ui
-priority: high           # low | normal | high
+priority: high           # low | normal | high (display only — never affects column order)
 depends: [c001]
 tags: [ui]
-created: 2026-07-16
+order: 15                # optional; manual rank in backlog/ready (fractional; unranked cards sort last)
+status-changed: 2026-07-16T14:32:07  # optional; when the current status was assigned (in-progress/review/done order by it)
+created: 2026-07-16T09:00:00          # date or ISO datetime; new cards stamp the time
 updated: 2026-07-16
 ---
 
@@ -155,6 +157,21 @@ wip_limits:
 The `discuss` column is a triage stage: the human flags a card (typically a
 raw inbox idea) for a structured conversation with an agent; the discussion's
 outcomes are written back into the card, which then graduates to a milestone.
+
+**Card order within a column** (c056) is per-column, never by priority:
+
+- **inbox** and **discuss** — by `created`, oldest on top (a capture queue;
+  the inbox column is not manually rearrangeable).
+- **backlog** and **ready** — manual: the user drags to insert, persisted as
+  a fractional `order` rank on the moved card. Unranked cards (e.g. just
+  created by an agent) sort after ranked ones, by `created`/id.
+- **in-progress**, **review**, **done** — by `status-changed`, earliest on
+  top (the order work entered the stage). Missing `status-changed` falls back
+  to `updated` → `created` → id.
+
+Priority never reorders a column — it is a display badge and an input for
+agents picking work. Timestamps are local-time ISO (`YYYY-MM-DDTHH:MM:SS`),
+sortable as plain strings.
 
 ## 5. The agent workflow (convention)
 
