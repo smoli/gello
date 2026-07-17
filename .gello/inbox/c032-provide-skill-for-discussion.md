@@ -1,12 +1,11 @@
 ---
 id: c032
 title: Provide skill for discussion
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-17
-status-changed: 2026-07-17T09:28:08
-order: 0
+status-changed: 2026-07-17T09:41:42
 ---
 
 When initiaing a project with gallo look if there’s a place for skills, e.g. .claude or .pi folder and put a skill in there that the user can use to discuss a card in status discussion
@@ -79,6 +78,7 @@ say-so.
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 
