@@ -166,8 +166,19 @@ The board doubles as the agent's task list — no parallel TODO files. An agent:
 - **Finishes** by setting `status: review` — a human confirms `done`.
 - **Captures new ideas** as inbox cards rather than bloating existing ones.
 
-The convention lives in [CLAUDE.md](CLAUDE.md) and can be installed into a
-project as an agent skill from the app.
+The convention lives in [CLAUDE.md](CLAUDE.md). The app can also install two
+gello-managed agent skills into a project (under `.claude/skills/`, `.pi/`, or
+`.agents/`); it prompts to add or update them when they're missing or
+out-of-date, and never clobbers your edits:
+
+- **`gello-discuss`** — interview the human about a card flagged
+  `status: discuss` and write the refined outcome (a sharpened **What**,
+  drafted **Acceptance criteria**, and a **Discussion** section) back into the
+  card. Kicks in when you ask to discuss a card, or when the only `ready`-ish
+  work left is discuss-flagged.
+- **`gello-onboard`** — migrate an existing project's task organisation
+  (`TODO.md`, plan files, docs, issue lists) onto a gello board, preserving
+  history. Used to bring a legacy project onto gello.
 
 ## Development
 
