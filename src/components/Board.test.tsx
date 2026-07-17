@@ -603,6 +603,29 @@ describe("manual column insertion (c056)", () => {
     expect(order).toBe(15);
   });
 
+  it("mutes the zones flanking the dragged card — dropping there is a no-op (i0006)", () => {
+    const onReorder = vi.fn();
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
+      file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+      file("milestones/m01-a/c003-r1.md", rankedCard("c003", "Ready one", "ready", 10)),
+      file("milestones/m01-a/c004-r2.md", rankedCard("c004", "Ready two", "ready", 20)),
+      file("milestones/m01-a/c005-r3.md", rankedCard("c005", "Ready three", "ready", 30)),
+    ]);
+    render(<Board model={model} onReorderCard={onReorder} />);
+    // Ready two is at index 1; zones 1 (above) and 2 (below) flank it
+    fireEvent.dragStart(screen.getByText("Ready two").closest("article")!, {
+      dataTransfer: fakeDataTransfer(),
+    });
+
+    // one synchronous read of every zone's class after dragstart
+    const muted = within(column("ready"))
+      .getAllByLabelText(/insert at/)
+      .map((z) => z.className.includes("insert-zone-muted"));
+    // zones 1 and 2 flank the dragged card → muted; 0 and 3 → not
+    expect(muted).toEqual([false, true, true, false]);
+  });
+
   it("a positioned drop from another column moves with a rank", () => {
     const onMove = vi.fn();
     render(<Board model={RANKED_MODEL} onMoveCard={onMove} />);

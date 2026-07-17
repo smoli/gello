@@ -1,14 +1,14 @@
 ---
 id: i0004
 title: Resorting is now visually to low key
-status: review
+status: done
 priority: normal
 type: issue
 ref: i0002
 milestone: m02
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:06:23
+status-changed: 2026-07-17T08:18:57
 ---
 
 The inbetween drop area should be higher and I want to see where I dragged the card from, by leaving a dahes outline.
@@ -18,6 +18,7 @@ I know moving carda apart for the drop zone was the cuase for the jitter, but ma
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

@@ -1,16 +1,18 @@
 ---
 id: c044
 title: 3 digit card ids is too short, make it 4 to be save
-status: review
+status: done
 priority: normal
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
 milestone: m01
+status-changed: 2026-07-17T08:19:04
 ---
 
 ## Log
 
 - 2026-07-16 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

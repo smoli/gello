@@ -1,19 +1,19 @@
 ---
 id: c019
-title: macOS build & packaging
-status: backlog
+title: github build pipeline for mac, windows, linux
+status: discuss
 milestone: m05
 priority: low
 depends: [c014]
 tags: [infra]
 created: 2026-07-16
 updated: 2026-07-17
-order: 80
+status-changed: 2026-07-17T08:22:40
 ---
 
 ## What
 
-App icon, `tauri build` producing a distributable .dmg/.app, version wired to
+App icon, `tauri build` producing a distributable version wired to
 package.json. Signing/notarization decision documented (personal use may skip
 it initially).
 
@@ -28,3 +28,4 @@ it initially).
 ## Log
 
 - 2026-07-16 created from concept breakdown
+- 2026-07-17 status → discuss (app)

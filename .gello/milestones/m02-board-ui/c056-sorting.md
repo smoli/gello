@@ -1,11 +1,11 @@
 ---
 id: c056
 title: Sorting
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T07:35:00
+status-changed: 2026-07-17T08:18:50
 milestone: m02
 ---
 So proper sorting definitions
@@ -150,3 +150,4 @@ not a ranking surface; prioritizing happens by triaging out of it.
 - 2026-07-17 implemented TDD across cards/board/board-actions/Board/App
   (25 new tests, 240 green), docs updated, verified in the running app,
   status → review
+- 2026-07-17 status → done (app)

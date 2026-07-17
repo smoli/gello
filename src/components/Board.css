@@ -319,14 +319,15 @@
 
 /* i0005: the indicator fills the landing slot (tall), not a thin line. It's
    absolutely positioned, so growing it never reflows anything. */
+/* Indicator grows DOWN from the zone line into the gap that opens below
+   (i0006: was centered, so it reached up into the card above). */
 .insert-zone::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
+  height: 0;
   border-radius: 6px;
   background: color-mix(in srgb, #4c8bf5 22%, transparent);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #4c8bf5 70%, transparent);
@@ -337,6 +338,14 @@
 .insert-zone-active::before {
   opacity: 1;
   height: 40px;
+}
+
+/* i0006: muted zones (flanking the dragged card) never light up or catch */
+.insert-zone-muted {
+  pointer-events: none;
+}
+.insert-zone-muted::before {
+  display: none;
 }
 
 /* i0004: open a real landing gap by pushing the card BELOW the active zone

@@ -1,14 +1,14 @@
 ---
 id: i0002
 title: Manual resorting jitters
-status: review
+status: done
 priority: normal
 type: issue
 ref: c056
 milestone: m02
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T07:51:26
+status-changed: 2026-07-17T08:18:55
 ---
 
 When I drag the card just on the edge of the „in between“ dropzone, it „blinks“
@@ -18,6 +18,7 @@ Also „in between" drop zone could be a bit taller
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

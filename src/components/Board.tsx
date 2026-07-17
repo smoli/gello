@@ -339,6 +339,11 @@ function Column({
     onDropAt(path, zoneIndex);
     onDragState(null);
   };
+  // zones flanking the dragged card (index and index+1) don't change its
+  // position — mute them (i0006)
+  const originIdx = cards.findIndex((e) => e.card.path === draggingPath);
+  const isOriginAdjacent = (zoneIndex: number) =>
+    originIdx !== -1 && (zoneIndex === originIdx || zoneIndex === originIdx + 1);
   return (
     // c052: the invisible full-height track is the drop target, so short
     // content-height columns (c049) still catch drops anywhere in the lane
@@ -360,7 +365,12 @@ function Column({
         <div className="column-cards">
           {cards.map((entry, i) => (
             <Fragment key={entry.card.path}>
-              {showInsertZones && <InsertZone index={i} onDropAt={dropAt} />}
+              {showInsertZones && (
+                // i0006: the zones just above and below the dragged card are
+                // no-op positions — mute them (kept mounted so dragstart never
+                // unmounts a node next to the source, which aborts WebKit drags)
+                <InsertZone index={i} muted={isOriginAdjacent(i)} onDropAt={dropAt} />
+              )}
               <CardFront
                 entry={entry}
                 isOrigin={draggingPath === entry.card.path}
@@ -370,7 +380,13 @@ function Column({
               />
             </Fragment>
           ))}
-          {showInsertZones && <InsertZone index={cards.length} onDropAt={dropAt} />}
+          {showInsertZones && (
+            <InsertZone
+              index={cards.length}
+              muted={isOriginAdjacent(cards.length)}
+              onDropAt={dropAt}
+            />
+          )}
         </div>
       </section>
     </div>
@@ -384,22 +400,34 @@ function Column({
  */
 function InsertZone({
   index,
+  muted,
   onDropAt,
 }: {
   index: number;
+  /** i0006: no-op position (flanks the dragged card) — inert, no indicator. */
+  muted?: boolean;
   onDropAt: (cardPath: string, zoneIndex: number) => void;
 }) {
   const [active, setActive] = useState(false);
+  const className = [
+    "insert-zone",
+    active && !muted ? "insert-zone-active" : "",
+    muted ? "insert-zone-muted" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div
-      className={`insert-zone${active ? " insert-zone-active" : ""}`}
+      className={className}
       aria-label={`insert at ${index}`}
       onDragOver={(event) => {
+        if (muted) return;
         event.preventDefault();
         setActive(true);
       }}
       onDragLeave={() => setActive(false)}
       onDrop={(event) => {
+        if (muted) return;
         event.preventDefault();
         // the column track behind would treat this as an unpositioned drop
         event.stopPropagation();
