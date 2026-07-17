@@ -4,6 +4,7 @@ pub mod fs_read;
 pub mod fs_watch;
 pub mod fs_write;
 pub mod git;
+pub mod skills;
 
 /// Typed error shape shared with the frontend (src/lib/fs.ts).
 #[derive(serde::Serialize)]
@@ -91,6 +92,58 @@ fn git_branch(root: String) -> Option<String> {
     git::git_branch(std::path::Path::new(&root))
 }
 
+/// c032: existing agent-skill directories under the project root.
+#[tauri::command]
+fn detect_skill_dirs(project_root: String) -> Vec<String> {
+    skills::detect_skill_dirs(std::path::Path::new(&project_root))
+        .into_iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect()
+}
+
+fn flags_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, FsError> {
+    use tauri::Manager;
+    let dir = app.path().app_config_dir().map_err(|error| FsError {
+        kind: "Config".into(),
+        message: error.to_string(),
+        path: String::new(),
+    })?;
+    Ok(dir.join("flags.json"))
+}
+
+/// Read one app-local flag (c032: e.g. the "don't ask about skills" choice).
+#[tauri::command]
+fn app_flag_get(key: String, app: tauri::AppHandle) -> Option<String> {
+    let path = flags_path(&app).ok()?;
+    let content = std::fs::read_to_string(path).ok()?;
+    let map: std::collections::HashMap<String, String> = serde_json::from_str(&content).ok()?;
+    map.get(&key).cloned()
+}
+
+/// Persist one app-local flag (created under the OS app-config dir).
+#[tauri::command]
+fn app_flag_set(key: String, value: String, app: tauri::AppHandle) -> Result<(), FsError> {
+    let path = flags_path(&app)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| FsError {
+            kind: format!("{:?}", error.kind()),
+            message: error.to_string(),
+            path: parent.to_string_lossy().into_owned(),
+        })?;
+    }
+    let mut map: std::collections::HashMap<String, String> = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|c| serde_json::from_str(&c).ok())
+        .unwrap_or_default();
+    map.insert(key, value);
+    let json = serde_json::to_string_pretty(&map).unwrap_or_else(|_| "{}".into());
+    fs_write::atomic_write(&path, &json).map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path: path.to_string_lossy().into_owned(),
+    })
+}
+
 /// Watch the repo's `.git/HEAD`, emitting `git-head-changed` on checkout.
 /// Kept in the same managed slot lifetime as the board watcher.
 #[tauri::command]
@@ -167,7 +220,10 @@ pub fn run() {
             read_board_files,
             watch_board,
             git_branch,
-            watch_git_head
+            watch_git_head,
+            detect_skill_dirs,
+            app_flag_get,
+            app_flag_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

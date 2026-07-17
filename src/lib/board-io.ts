@@ -30,6 +30,33 @@ export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });
 }
 
+/** c032: existing agent-skill directories under the project root. */
+export async function detectSkillDirs(projectRoot: string): Promise<string[]> {
+  try {
+    return await invoke<string[]>("detect_skill_dirs", { projectRoot });
+  } catch {
+    return [];
+  }
+}
+
+/** Read one app-local flag (null when unset or outside Tauri). */
+export async function appFlagGet(key: string): Promise<string | null> {
+  try {
+    return (await invoke<string | null>("app_flag_get", { key })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist one app-local flag. */
+export async function appFlagSet(key: string, value: string): Promise<void> {
+  try {
+    await invoke("app_flag_set", { key, value });
+  } catch {
+    // outside Tauri — no-op
+  }
+}
+
 /** Current git branch of the project (null = not a git repo). */
 export async function gitBranch(root: string): Promise<string | null> {
   try {

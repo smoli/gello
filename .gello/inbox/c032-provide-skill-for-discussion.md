@@ -1,10 +1,12 @@
 ---
 id: c032
 title: Provide skill for discussion
-status: backlog
+status: review
 priority: normal
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
+status-changed: 2026-07-17T09:28:08
+order: 0
 ---
 
 When initiaing a project with gallo look if there’s a place for skills, e.g. .claude or .pi folder and put a skill in there that the user can use to discuss a card in status discussion
@@ -25,27 +27,27 @@ say-so.
 
 ## Acceptance criteria
 
-- [ ] On board create/open, the app detects `.claude/skills/`,
+- [x] On board create/open, the app detects `.claude/skills/`,
       `.pi/skills/`, and `.agents/skills/`; folders that don't exist are
       never created
 - [ ] When both `.pi/skills/` and `.agents/skills/` exist, the skill is
       installed only into `.agents/skills/` (pi discovers both — one copy,
       no duplicate skill)
-- [ ] First install asks the user once; a decline is remembered and not
+- [x] First install asks the user once; a decline is remembered and not
       re-prompted on every open
-- [ ] The installed skill file carries a gello-managed marker + version;
+- [x] The installed skill file carries a gello-managed marker + version;
       newer gello versions update it silently unless the user has edited
       the file, in which case it is left untouched
-- [ ] Skill content is self-contained: includes the board query recipes it
+- [x] Skill content is self-contained: includes the board query recipes it
       needs, so it works in projects whose CLAUDE.md says nothing about
       gello
-- [ ] Skill flow: optional card ID arg (else list discuss cards) →
+- [x] Skill flow: optional card ID arg (else list discuss cards) →
       interview → write back What / Acceptance criteria / Discussion →
       offer triage; any triage move (folder move + status change, with
       relative asset-link rewriting) happens only on explicit human
       confirmation
-- [ ] Installs/updates are atomic writes
-- [ ] Template content is covered by a test (marker present, copies
+- [x] Installs/updates are atomic writes
+- [x] Template content is covered by a test (marker present, copies
       byte-for-byte)
 
 ## Discussion
@@ -73,3 +75,34 @@ say-so.
 - **Open**: where the "user declined" flag lives (app config vs.
   `board.yaml`); how user-edit detection works (content hash vs. version
   line).
+
+## Log
+
+- 2026-07-17 status → ready (app)
+
+## Notes
+
+- Generic installer (reused by c029): pure `src/lib/skills.ts` — managed
+  marker (version + djb2 body hash), `installDecision` (install/update/skip:
+  user-edited or unmanaged files are never clobbered), `resolveInstallTargets`
+  (dedup `.pi/skills` when `.agents/skills` exists), `skillFilePath`,
+  `DISCUSS_SKILL` template. 15 TS tests.
+- Rust `skills.rs::detect_skill_dirs` (existing dirs only, never created) +
+  commands; app-local flag persistence (`app_flag_get/set` → JSON in the OS
+  app-config dir, atomic write) for the "don't ask" choice. 3 Rust tests.
+- App: on board open, if not dismissed and skill dirs exist, a one-time
+  SkillPrompt (Install / Not now / Don't ask again); Install writes the
+  discuss SKILL.md into each target via the atomic write path, honoring
+  installDecision so user edits survive. 3 App integration tests.
+- The discuss skill is self-contained (embeds the board-query recipes and
+  triage rules), so it works in projects whose CLAUDE.md never mentions
+  gello — codifying the [[c027]] discuss convention as an installable skill.
+- Deferred nuance: the SKILL.md's own discuss *flow* is instructional text
+  for the agent, not executed/tested here; verified structurally (marker,
+  byte-for-byte copy).
+
+## Log
+
+- 2026-07-17 status → ready (app)
+- 2026-07-17 implemented (generic installer + discuss skill + one-time prompt),
+  15 TS + 3 Rust tests, status → review

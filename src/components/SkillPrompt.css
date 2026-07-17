@@ -1,0 +1,47 @@
+.skill-prompt {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 30;
+  width: min(360px, 92vw);
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 25%, transparent);
+  font-size: 0.85rem;
+}
+
+.skill-prompt-text {
+  margin: 0 0 0.5rem;
+}
+
+.skill-prompt-dirs {
+  margin: 0 0 0.75rem;
+  padding-left: 1.1rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.skill-prompt-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.skill-prompt-actions button {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.skill-prompt-actions button:first-child {
+  background: color-mix(in srgb, #4c8bf5 18%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
+}

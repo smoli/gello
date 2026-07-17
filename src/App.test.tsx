@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
 import {
+  appFlagGet,
+  appFlagSet,
+  detectSkillDirs,
   gitBranch,
   imageDataUrl,
   loadBoardFromDisk,
@@ -20,6 +23,9 @@ vi.mock("./lib/board-io", () => ({
   imageDataUrl: vi.fn(),
   gitBranch: vi.fn(),
   watchGitHead: vi.fn(),
+  detectSkillDirs: vi.fn(),
+  appFlagGet: vi.fn(),
+  appFlagSet: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -65,6 +71,9 @@ describe("App", () => {
     imageMock.mockReset();
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
+    vi.mocked(detectSkillDirs).mockResolvedValue([]);
+    vi.mocked(appFlagGet).mockResolvedValue(null);
+    vi.mocked(appFlagSet).mockResolvedValue(undefined);
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -434,6 +443,65 @@ describe("App", () => {
         (container.querySelector(".board") as HTMLElement).style.backgroundImage,
       ).toContain("data:image/jpeg;base64,QUJD");
     });
+  });
+
+  it("offers and installs the discuss skill into detected dirs (c032)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+    readMock.mockRejectedValue(new Error("no such file")); // skill not installed yet
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    const install = await screen.findByRole("button", { name: "Install" });
+    expect(vi.mocked(detectSkillDirs)).toHaveBeenCalledWith("/repo/proj");
+
+    fireEvent.click(install);
+
+    await vi.waitFor(() => {
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/proj/.claude/skills/gello-discuss/SKILL.md",
+        expect.stringContaining("gello-managed"),
+      );
+    });
+    expect(
+      screen.queryByRole("button", { name: "Install" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("remembers 'don't ask' and does not install (c032)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /don't ask/i }));
+
+    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("skills-prompt-dismissed", "1");
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("does not prompt when the user previously dismissed (c032)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    vi.mocked(appFlagGet).mockResolvedValue("1");
+    vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+
+    render(<App />);
+    await screen.findByText("t");
+    expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

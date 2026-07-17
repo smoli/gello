@@ -28,6 +28,9 @@ import {
 } from "./lib/board-actions";
 import type { CardEdit } from "./components/CardDetail";
 import {
+  appFlagGet,
+  appFlagSet,
+  detectSkillDirs,
   gitBranch,
   imageDataUrl,
   loadBoardFromDisk,
@@ -36,7 +39,19 @@ import {
   watchGitHead,
   type LoadedBoard,
 } from "./lib/board-io";
+import { writeFileAtomic } from "./lib/fs";
+import { projectFolder } from "./lib/status";
+import {
+  DISCUSS_SKILL,
+  installDecision,
+  managedSkillFile,
+  resolveInstallTargets,
+  skillFilePath,
+} from "./lib/skills";
 import { TitleBar } from "./components/TitleBar";
+import { SkillPrompt } from "./components/SkillPrompt";
+
+const SKILLS_DISMISSED_FLAG = "skills-prompt-dismissed";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -69,6 +84,8 @@ function App() {
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
   // git branch for the status bar (c0057); null = not a git repo
   const [branch, setBranch] = useState<string | null>(null);
+  // c032: skill dirs to offer installation into (empty = no prompt)
+  const [skillDirs, setSkillDirs] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +123,33 @@ function App() {
       void stopPromise.then((stop) => stop());
     };
   }, [root]);
+
+  // c032: on board open, offer to install the discuss skill into detected
+  // agent-skill dirs — once, unless the user has said "don't ask".
+  useEffect(() => {
+    if (!root) return;
+    let cancelled = false;
+    void (async () => {
+      if ((await appFlagGet(SKILLS_DISMISSED_FLAG)) !== null) return;
+      const projectRoot = projectFolder(root).path;
+      const targets = resolveInstallTargets(await detectSkillDirs(projectRoot));
+      if (!cancelled && targets.length > 0) setSkillDirs(targets);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [root]);
+
+  const handleInstallSkills = async () => {
+    for (const dir of skillDirs) {
+      const path = skillFilePath(dir, DISCUSS_SKILL);
+      const existing = await readFileRaw(path).catch(() => null);
+      if (installDecision(existing, DISCUSS_SKILL) !== "skip") {
+        await writeFileAtomic(path, managedSkillFile(DISCUSS_SKILL));
+      }
+    }
+    setSkillDirs([]);
+  };
 
   // c047: load (or clear) the configured background image
   const backgroundPath = board?.model.config.background ?? null;
@@ -369,6 +413,17 @@ function App() {
     return (
       <div className="app-shell app-shell-frameless">
         <TitleBar root={board.root} branch={branch} />
+        {skillDirs.length > 0 && (
+          <SkillPrompt
+            dirs={skillDirs}
+            onInstall={() => void handleInstallSkills()}
+            onNotNow={() => setSkillDirs([])}
+            onDontAsk={() => {
+              void appFlagSet(SKILLS_DISMISSED_FLAG, "1");
+              setSkillDirs([]);
+            }}
+          />
+        )}
         {error && (
           <div role="alert" className="board-error">
             {error}
