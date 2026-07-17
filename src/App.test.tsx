@@ -504,12 +504,34 @@ describe("App", () => {
       ]),
     });
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+    readMock.mockRejectedValue(new Error("no such file")); // skills not installed
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: /don't ask/i }));
 
     expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("skills-prompt-dismissed", "1");
     expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("does not prompt when all skills are already present and current (i0009)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+    // every skill file already exists and is current → installDecision "skip"
+    const { managedSkillFile, ALL_SKILLS, skillFilePath } = await import("./lib/skills");
+    readMock.mockImplementation(async (path: string) => {
+      const skill = ALL_SKILLS.find((s) => path === skillFilePath("/repo/proj/.claude/skills", s));
+      if (skill) return managedSkillFile(skill);
+      throw new Error("no such file");
+    });
+
+    render(<App />);
+    await screen.findByText("t");
+    expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
   });
 
   it("does not prompt when the user previously dismissed (c032)", async () => {

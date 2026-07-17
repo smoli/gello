@@ -4,11 +4,40 @@ import {
   DISCUSS_SKILL,
   ONBOARD_SKILL,
   SKILL_VERSION,
+  dirsNeedingInstall,
   installDecision,
   managedSkillFile,
   resolveInstallTargets,
   skillFilePath,
 } from "./skills";
+
+describe("dirsNeedingInstall (i0009)", () => {
+  it("returns dirs with at least one missing/outdated skill", () => {
+    const entries = [
+      { dir: "/a", existing: null, skill: DISCUSS_SKILL }, // missing → needs install
+      { dir: "/a", existing: managedSkillFile(ONBOARD_SKILL), skill: ONBOARD_SKILL },
+    ];
+    expect(dirsNeedingInstall(entries)).toEqual(["/a"]);
+  });
+
+  it("returns nothing when every skill is already present and current", () => {
+    const entries = ALL_SKILLS.map((skill) => ({
+      dir: "/a",
+      existing: managedSkillFile(skill),
+      skill,
+    }));
+    expect(dirsNeedingInstall(entries)).toEqual([]);
+  });
+
+  it("dedupes dirs and skips those fully satisfied", () => {
+    const entries = [
+      { dir: "/a", existing: managedSkillFile(DISCUSS_SKILL), skill: DISCUSS_SKILL },
+      { dir: "/b", existing: null, skill: DISCUSS_SKILL },
+      { dir: "/b", existing: null, skill: ONBOARD_SKILL },
+    ];
+    expect(dirsNeedingInstall(entries)).toEqual(["/b"]);
+  });
+});
 
 describe("ALL_SKILLS (c029)", () => {
   it("ships the discuss and onboard skills, each with a distinct folder", () => {

@@ -47,6 +47,7 @@ import { writeFileAtomic } from "./lib/fs";
 import { projectFolder } from "./lib/status";
 import {
   ALL_SKILLS,
+  dirsNeedingInstall,
   installDecision,
   managedSkillFile,
   resolveInstallTargets,
@@ -165,7 +166,19 @@ function App() {
       if ((await appFlagGet(SKILLS_DISMISSED_FLAG)) !== null) return;
       const projectRoot = projectFolder(root).path;
       const targets = resolveInstallTargets(await detectSkillDirs(projectRoot));
-      if (!cancelled && targets.length > 0) setSkillDirs(targets);
+      // i0009: only prompt when a skill is actually missing/outdated —
+      // otherwise the prompt reappeared on every reload with skills present
+      const entries = await Promise.all(
+        targets.flatMap((dir) =>
+          ALL_SKILLS.map(async (skill) => ({
+            dir,
+            skill,
+            existing: await readFileRaw(skillFilePath(dir, skill)).catch(() => null),
+          })),
+        ),
+      );
+      const need = dirsNeedingInstall(entries);
+      if (!cancelled && need.length > 0) setSkillDirs(need);
     })();
     return () => {
       cancelled = true;

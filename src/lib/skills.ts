@@ -54,6 +54,23 @@ export function installDecision(
 }
 
 /**
+ * i0009: given (dir, existing content, skill) entries, the dirs that have at
+ * least one skill needing install or update — so the prompt only appears when
+ * there is actually something to do, not on every board open.
+ */
+export function dirsNeedingInstall(
+  entries: Array<{ dir: string; existing: string | null; skill: SkillTemplate }>,
+): string[] {
+  const dirs: string[] = [];
+  for (const { dir, existing, skill } of entries) {
+    if (installDecision(existing, skill) !== "skip" && !dirs.includes(dir)) {
+      dirs.push(dir);
+    }
+  }
+  return dirs;
+}
+
+/**
  * From the detected skill directories, the ones to install into. pi discovers
  * both `.pi/skills` and `.agents/skills`, so when both exist install only into
  * `.agents/skills` to avoid a duplicate skill; `.claude/skills` is independent.

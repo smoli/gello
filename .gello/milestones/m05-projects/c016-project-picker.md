@@ -1,15 +1,14 @@
 ---
 id: c016
 title: Folder picker + recent projects
-status: review
+status: done
 milestone: m05
 priority: normal
 depends: [c005]
 tags: [ui]
 created: 2026-07-16
 updated: 2026-07-17
-order: 20
-status-changed: 2026-07-17T09:47:52
+status-changed: 2026-07-17T10:01:52
 ---
 
 ## What
@@ -30,6 +29,7 @@ projects swaps the board.
 
 - 2026-07-16 created from concept breakdown
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 
