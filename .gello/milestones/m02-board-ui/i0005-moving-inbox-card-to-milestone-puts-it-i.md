@@ -1,13 +1,12 @@
 ---
 id: i0005
 title: Moving inbox card to milestone puts it in backlog
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T11:46:40
-order: 30
+status-changed: 2026-07-17T11:54:37
 milestone: m02
 ---
 
@@ -98,3 +97,4 @@ Two paths:
   status-drop picker replaces it). Picker dismiss is origin-aware — a
   discuss-origin card returns to discuss ("Move back to discuss"); only a
   raw backlog idea keeps the c030 flag-it-forward dismiss ("Stay in inbox").
+- 2026-07-17 status → done (app)

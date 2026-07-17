@@ -1,11 +1,11 @@
 ---
 id: c0058
 title: Milestone concept is weird
-status: discuss
+status: backlog
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:28:44
+status-changed: 2026-07-17T11:37:45
 ---
 
 Right now it is less a milestone, which would suggest a sequence on how to work on things but more a domain thing, foundation, UI, etc.
@@ -96,3 +96,4 @@ The change, end to end:
 - 2026-07-17 discussed (agent): milestones fully replaced by tags — flat
   cards/ + inbox/ capture, optional per-tag charter files, no sequencing,
   self-migration. Flagged as an epic to break down; intersects i0005/c028.
+- 2026-07-17 status → backlog (app)

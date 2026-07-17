@@ -1,20 +1,20 @@
 ---
 id: i0012
 title: Clicking outside the popup should close it
-status: review
+status: done
 priority: normal
 type: issue
 ref: c0060
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T11:58:23
+status-changed: 2026-07-17T11:59:29
 milestone: m02
-order: 10
 ---
 
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## What
 

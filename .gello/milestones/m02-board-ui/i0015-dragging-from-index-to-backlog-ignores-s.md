@@ -1,14 +1,13 @@
 ---
 id: i0015
 title: Dragging from index to backlog ignores selected pos
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T14:14:25
+status-changed: 2026-07-17T14:15:23
 milestone: m02
-order: 10
 ---
 
 Although I specifically select a position in backlog on where to drop from another column it card is added at the bottom
@@ -36,3 +35,4 @@ the picker flow gained an optional `order`. Loose column-track drops
   order THROUGH the milestone picker — pick triages to that slot, dismiss
   places there. (Superseded a first cut that wrongly dropped the picker.)
   Tests: Board routing, triageCard order, App pick-at-slot integration.
+- 2026-07-17 status → done (app)

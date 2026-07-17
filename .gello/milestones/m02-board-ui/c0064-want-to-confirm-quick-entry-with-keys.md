@@ -1,12 +1,12 @@
 ---
 id: c0064
 title: Want to confirm quick entry with keys
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02
-status-changed: 2026-07-17T14:32:54
+status-changed: 2026-07-17T14:33:13
 ---
 
 ESC - Cancel
@@ -29,3 +29,4 @@ STRG/CMD+Enter submits
 - 2026-07-17 status → ready (app)
 - 2026-07-17 implemented (agent): Cmd/Ctrl+Enter submits the quick-entry form
   (form-level handler in CaptureForm); Esc-cancel already present. Tests added.
+- 2026-07-17 status → done (app)

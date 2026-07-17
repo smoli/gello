@@ -1,15 +1,14 @@
 ---
 id: c012
 title: Image thumbnails on board cards
-status: review
+status: done
 milestone: m03
 priority: low
 depends: [c011]
 tags: [ui]
 created: 2026-07-16
 updated: 2026-07-17
-order: 30
-status-changed: 2026-07-17T13:33:23
+status-changed: 2026-07-17T13:34:47
 ---
 
 ## What
@@ -33,3 +32,4 @@ thumbnail on the board front.
   (extracted from CardDetail, added onError/className graceful degradation) +
   card-front thumbnail wired through Board→Column→CardFront with the App's
   loadImage resolver. Tests: assets helper, Board thumbnail present/absent.
+- 2026-07-17 status → done (app)

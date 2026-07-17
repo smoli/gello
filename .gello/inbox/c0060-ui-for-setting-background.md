@@ -1,12 +1,11 @@
 ---
 id: c0060
 title: UI for setting background
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T10:44:21
-order: 10
+status-changed: 2026-07-17T11:20:40
 ---
 
 ## What
@@ -134,6 +133,7 @@ the board automatically — no separate refresh path.
   two-color gradient with angle, stored as one CSS-value string; inline
   picker panel with Image/Color/Gradient toggle + live preview.
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

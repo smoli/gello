@@ -1,13 +1,12 @@
 ---
 id: c0062
 title: Need to be able to delete a card
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-order: 20
 milestone: m01
-status-changed: 2026-07-17T13:24:28
+status-changed: 2026-07-17T13:27:11
 ---
 
 ## What
@@ -43,3 +42,4 @@ confirm since a hard delete isn't undoable. This is delete, not archive
 - 2026-07-17 implemented (agent): Rust remove_dir + deleteCard/withoutCard +
   card-detail Delete with a two-step confirm. Tests: cargo (dir removal),
   vitest (action, model, confirm flow, App integration).
+- 2026-07-17 status → done (app)

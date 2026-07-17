@@ -1,15 +1,14 @@
 ---
 id: i0013
 title: Pasting does only work in Edit card
-status: review
+status: done
 priority: normal
 type: issue
 ref: c011
 milestone: m03
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T13:10:33
-order: 20
+status-changed: 2026-07-17T13:13:35
 ---
 
 Should work in quick create as well, for issue and regular cards
@@ -17,6 +16,7 @@ Should work in quick create as well, for issue and regular cards
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

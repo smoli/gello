@@ -1,13 +1,12 @@
 ---
 id: c055
 title: Sticky column header
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m02
-status-changed: 2026-07-17T13:39:27
-order: 20
+status-changed: 2026-07-17T13:56:46
 ---
 
 ## What
@@ -45,3 +44,4 @@ tall column.
   (CSS only). Iterated in-browser away from a sticky/opaque header (read
   darker than the frosted column / ghosted cards) to moving the scroll into
   the cards area — header now matches the column tone with no ghost.
+- 2026-07-17 status → done (app)

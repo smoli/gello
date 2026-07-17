@@ -1,15 +1,14 @@
 ---
 id: c011
 title: Paste/drag screenshots into a card
-status: review
+status: done
 milestone: m03
 priority: high
 depends: [c009]
 tags: [ui, rust]
 created: 2026-07-16
 updated: 2026-07-17
-order: 20
-status-changed: 2026-07-17T12:11:13
+status-changed: 2026-07-17T13:13:37
 ---
 
 ## What
@@ -49,3 +48,4 @@ image link at the cursor. Images render inline.
 - 2026-07-17 implemented (agent): Rust write_asset + assets.ts helpers +
   CardDetail paste/drop/inline-render + App wiring. All 5 criteria have tests
   (cargo + vitest); WKWebView clipboard behavior flagged for manual verify.
+- 2026-07-17 status → done (app)

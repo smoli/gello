@@ -1,20 +1,20 @@
 ---
 id: i0014
 title: Inbox to Backlog does not show the milestone picker
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T13:16:31
+status-changed: 2026-07-17T13:22:40
 milestone: m02
-order: 25
 ---
 
 ## Log
 
 - 2026-07-17 status → discuss (app)
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## What
 

@@ -1,13 +1,12 @@
 ---
 id: c0066
 title: Move the searchbar into the topbar
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T16:04:48
+status-changed: 2026-07-17T16:05:13
 milestone: m02
-order: 10
 ---
 
 ## What
@@ -43,3 +42,4 @@ toolbar is now just the milestone/type filters.
 - 2026-07-17 refined (agent): true-centred the search — full-width grid with
   the traffic-light inset moved into the title column so it no longer offsets
   the centre (verified against a window-centre reference).
+- 2026-07-17 status → done (app)
