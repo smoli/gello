@@ -489,6 +489,27 @@ describe("Board card moves", () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
+  it("i0014: prompts for a milestone when a backlog inbox card is dropped on backlog", () => {
+    // the inbox card is already `backlog` (it lives in the inbox column); the
+    // meaningful gesture is still to triage it, so the picker must appear
+    const onMove = vi.fn();
+    const onInboxStatusDrop = vi.fn();
+    render(
+      <Board model={MODEL} onMoveCard={onMove} onInboxStatusDrop={onInboxStatusDrop} />,
+    );
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    fireEvent.drop(column("backlog"), { dataTransfer });
+
+    expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010", milestone: null }),
+      "backlog",
+    );
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
   it("i0005: does not prompt for milestone when an inbox card is dropped on in-progress", () => {
     const onMove = vi.fn();
     const onInboxStatusDrop = vi.fn();

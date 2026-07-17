@@ -162,12 +162,15 @@ export function Board({
 
   const dropOnColumn = (column: string, cardPath: string) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
-    if (!entry || entry.card.status === column) return;
+    if (!entry) return;
+    // i0014: a milestone-less inbox card triages even when its status already
+    // equals the column (a backlog inbox card dropped on backlog) — the point
+    // is to assign a milestone, so the picker must win over the no-op guard.
     if (promptsForMilestone(entry.card, column)) {
       onInboxStatusDrop?.(entry.card, column);
       return;
     }
-    onMoveCard?.(entry.card, column);
+    if (entry.card.status !== column) onMoveCard?.(entry.card, column);
   };
 
   /** Positioned drop on an insert zone of a manual column (c056). */
@@ -179,9 +182,10 @@ export function Board({
   ) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
     if (!entry) return;
-    // i0005: a milestone-less inbox card lands via the picker, not a ranked
-    // insert — the milestone move relocates it anyway
-    if (entry.card.status !== column && promptsForMilestone(entry.card, column)) {
+    // i0005/i0014: a milestone-less inbox card lands via the picker, not a
+    // ranked insert — the milestone move relocates it anyway. Checked even for
+    // a same-status drop (backlog inbox card onto backlog).
+    if (promptsForMilestone(entry.card, column)) {
       onInboxStatusDrop?.(entry.card, column);
       return;
     }
