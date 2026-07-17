@@ -132,6 +132,19 @@ export async function setBoardImage(root: string, source: string): Promise<strin
   return invoke<string>("set_board_image", { root, source });
 }
 
+/**
+ * c011: write a base64 image payload into `<root>/assets/<cardId>/`, choosing a
+ * collision-free filename from `filename`. Returns the board-relative path.
+ */
+export async function writeAsset(
+  root: string,
+  cardId: string,
+  filename: string,
+  dataBase64: string,
+): Promise<string> {
+  return invoke<string>("write_asset", { root, cardId, filename, dataBase64 });
+}
+
 /** Write files atomically, creating parent dirs (c017 scaffold, c032 skills). */
 export async function writeNewFiles(
   files: Array<{ path: string; content: string }>,

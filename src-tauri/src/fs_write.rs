@@ -13,6 +13,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 static WRITE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
+    atomic_write_bytes(path, contents.as_bytes())
+}
+
+/// Atomic write for arbitrary bytes (c011: pasted/dragged image assets).
+pub fn atomic_write_bytes(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     let dir = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -30,7 +35,7 @@ pub fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
 
     let result = (|| {
         let mut file = std::fs::File::create(&temp_path)?;
-        file.write_all(contents.as_bytes())?;
+        file.write_all(contents)?;
         // flush to disk before the rename makes it visible
         file.sync_all()?;
         std::fs::rename(&temp_path, path)
@@ -40,6 +45,58 @@ pub fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
         let _ = std::fs::remove_file(&temp_path);
     }
     result
+}
+
+/// c011: write an image asset into `<board_root>/assets/<card_id>/`, choosing
+/// a collision-free filename derived from `requested_name` (a readable base
+/// like `pasted-20260717-120301.png` or a dragged file's own name). If the
+/// name is taken, insert `-2`, `-3`, … before the extension. Path separators
+/// in the request are stripped so it can never escape the asset dir. Returns
+/// the path relative to the board root, for the Markdown link.
+pub fn write_asset(
+    board_root: &Path,
+    card_id: &str,
+    requested_name: &str,
+    bytes: &[u8],
+) -> std::io::Result<String> {
+    let safe = sanitize_filename(requested_name);
+    let dir = board_root.join("assets").join(card_id);
+    std::fs::create_dir_all(&dir)?;
+    let name = unique_filename(&dir, &safe);
+    atomic_write_bytes(&dir.join(&name), bytes)?;
+    Ok(format!("assets/{card_id}/{name}"))
+}
+
+/// Strip directory separators and leading dots so a requested asset name is a
+/// plain filename that stays inside the asset directory.
+fn sanitize_filename(name: &str) -> String {
+    let base = name.rsplit(['/', '\\']).next().unwrap_or(name);
+    let trimmed = base.trim_start_matches('.').trim();
+    if trimmed.is_empty() {
+        "pasted.png".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// First free name in `dir` starting from `name`, inserting `-2`, `-3`, …
+/// before the extension on collision.
+fn unique_filename(dir: &Path, name: &str) -> String {
+    if !dir.join(name).exists() {
+        return name.to_string();
+    }
+    let (stem, ext) = match name.rsplit_once('.') {
+        Some((s, e)) => (s.to_string(), format!(".{e}")),
+        None => (name.to_string(), String::new()),
+    };
+    let mut n = 2;
+    loop {
+        let candidate = format!("{stem}-{n}{ext}");
+        if !dir.join(&candidate).exists() {
+            return candidate;
+        }
+        n += 1;
+    }
 }
 
 /// Delete one file — used by triage after its content has been rewritten to
@@ -144,6 +201,49 @@ mod tests {
         assert_eq!(rel, "assets/board/background.jpg");
         assert!(board_assets.join("background.jpg").exists());
         assert!(!board_assets.join("background.png").exists()); // orphan removed
+    }
+
+    #[test]
+    fn write_asset_creates_dir_and_returns_relative_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".gello");
+
+        let rel = write_asset(&root, "c011", "pasted-1.png", b"pngbytes").unwrap();
+
+        assert_eq!(rel, "assets/c011/pasted-1.png");
+        assert_eq!(
+            fs::read(root.join("assets/c011/pasted-1.png")).unwrap(),
+            b"pngbytes",
+        );
+    }
+
+    #[test]
+    fn write_asset_dedupes_a_taken_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".gello");
+
+        let first = write_asset(&root, "c011", "shot.png", b"one").unwrap();
+        let second = write_asset(&root, "c011", "shot.png", b"two").unwrap();
+        let third = write_asset(&root, "c011", "shot.png", b"three").unwrap();
+
+        assert_eq!(first, "assets/c011/shot.png");
+        assert_eq!(second, "assets/c011/shot-2.png");
+        assert_eq!(third, "assets/c011/shot-3.png");
+        // the original is untouched — no clobber
+        assert_eq!(fs::read(root.join("assets/c011/shot.png")).unwrap(), b"one");
+    }
+
+    #[test]
+    fn write_asset_strips_path_separators_from_the_request() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".gello");
+
+        let rel = write_asset(&root, "c011", "../../evil/x.png", b"z").unwrap();
+
+        // no escape: the file lands inside the card's asset dir
+        assert_eq!(rel, "assets/c011/x.png");
+        assert!(root.join("assets/c011/x.png").exists());
+        assert!(!dir.path().join("evil").exists());
     }
 
     #[test]

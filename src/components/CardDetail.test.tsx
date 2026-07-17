@@ -418,4 +418,80 @@ describe("CardDetail", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
+
+  // --- c011: paste/drag image assets ------------------------------------------
+
+  function imageFile(name = "shot.png") {
+    return new File([new Uint8Array([1, 2, 3])], name, { type: "image/png" });
+  }
+
+  it("c011: pasting an image saves it and inserts a relative link at the cursor", async () => {
+    const onSaveImage = vi.fn().mockResolvedValue("assets/c009/pasted-x.png");
+    renderDetail({ onSaveImage });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const textarea = screen.getByRole("textbox", {
+      name: "Card body",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "before after" } });
+    textarea.setSelectionRange(6, 6); // caret between "before " and "after"
+
+    const file = imageFile();
+    const prevented = !fireEvent.paste(textarea, {
+      clipboardData: { items: [{ kind: "file", type: "image/png", getAsFile: () => file }], files: [file] },
+    });
+    expect(prevented).toBe(true); // image paste is handled, not pasted as text
+
+    await vi.waitFor(() => {
+      expect(onSaveImage).toHaveBeenCalledExactlyOnceWith(file);
+      // milestone card → ../../ prefix onto the board-relative asset path
+      expect(textarea.value).toContain("![shot](../../assets/c009/pasted-x.png)");
+      expect(textarea.value).toBe("before![shot](../../assets/c009/pasted-x.png) after");
+    });
+  });
+
+  it("c011: a text-only paste is left to the browser", () => {
+    const onSaveImage = vi.fn();
+    renderDetail({ onSaveImage });
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const textarea = screen.getByRole("textbox", { name: "Card body" });
+
+    const notPrevented = fireEvent.paste(textarea, {
+      clipboardData: { items: [{ kind: "string", type: "text/plain" }], files: [] },
+    });
+
+    expect(notPrevented).toBe(true); // default text paste proceeds
+    expect(onSaveImage).not.toHaveBeenCalled();
+  });
+
+  it("c011: dropping an image file inserts a link too", async () => {
+    const onSaveImage = vi.fn().mockResolvedValue("assets/c009/dropped.png");
+    renderDetail({ onSaveImage });
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const textarea = screen.getByRole("textbox", {
+      name: "Card body",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "" } });
+
+    const file = imageFile("diagram.png");
+    fireEvent.drop(textarea, { dataTransfer: { files: [file], items: [] } });
+
+    await vi.waitFor(() => {
+      expect(onSaveImage).toHaveBeenCalledExactlyOnceWith(file);
+      expect(textarea.value).toBe("![diagram](../../assets/c009/dropped.png)");
+    });
+  });
+
+  it("c011: renders a body image through loadImage as a data URL", async () => {
+    const loadImage = vi
+      .fn()
+      .mockResolvedValue("data:image/png;base64,QUJD");
+    renderDetail({ loadImage });
+
+    await vi.waitFor(() => {
+      const img = screen.getByAltText("screenshot") as HTMLImageElement;
+      expect(img.src).toBe("data:image/png;base64,QUJD");
+    });
+    expect(loadImage).toHaveBeenCalledWith("assets/c009/shot.png");
+  });
 });

@@ -118,6 +118,32 @@ fn set_board_image(root: String, source: String) -> Result<String, FsError> {
     })
 }
 
+/// c011: decode a base64 image payload and write it into the card's asset
+/// dir, returning the board-relative path for the Markdown link.
+#[tauri::command]
+fn write_asset(
+    root: String,
+    card_id: String,
+    filename: String,
+    data_base64: String,
+) -> Result<String, FsError> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64.as_bytes())
+        .map_err(|error| FsError {
+            kind: "Decode".into(),
+            message: error.to_string(),
+            path: filename.clone(),
+        })?;
+    fs_write::write_asset(std::path::Path::new(&root), &card_id, &filename, &bytes).map_err(
+        |error| FsError {
+            kind: format!("{:?}", error.kind()),
+            message: error.to_string(),
+            path: filename,
+        },
+    )
+}
+
 #[tauri::command]
 fn remove_file(path: String) -> Result<(), FsError> {
     fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
@@ -278,7 +304,8 @@ pub fn run() {
             app_flag_set,
             find_board_root_at,
             write_new_files,
-            set_board_image
+            set_board_image,
+            write_asset
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -43,9 +43,15 @@ import {
   setBoardImage,
   watchBoard,
   watchGitHead,
+  writeAsset,
   writeNewFiles,
   type LoadedBoard,
 } from "./lib/board-io";
+import {
+  bytesToBase64,
+  resolveFromCard,
+  suggestedAssetName,
+} from "./lib/assets";
 import { addRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { backgroundCss, classifyBackground } from "./lib/background";
 import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
@@ -529,6 +535,33 @@ function App() {
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
+  // c011: persist a pasted/dropped image under the card's asset dir; the Rust
+  // side dedupes the filename and returns the board-relative path to link.
+  const handleSaveImage = async (card: Card, file: File): Promise<string> => {
+    if (!board) throw new Error("no board loaded");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const now = nowIsoDateTime(); // 2026-07-17T12:03:01
+    const stamp = `${now.slice(0, 10).replace(/-/g, "")}-${now.slice(11).replace(/:/g, "")}`;
+    const name = suggestedAssetName(file.name || null, file.type, stamp);
+    return writeAsset(board.root, card.id, name, bytesToBase64(bytes));
+  };
+
+  // c011: resolve a body image's (card-relative) src to a data URL the webview
+  // can display; remote/data URLs pass through, unreadable paths render nothing.
+  const handleLoadImage = async (
+    card: Card,
+    src: string,
+  ): Promise<string | null> => {
+    if (!board) return null;
+    const rel = resolveFromCard(card.path, src);
+    if (/^(https?:|data:)/i.test(rel)) return rel;
+    try {
+      return await imageDataUrl(`${board.root}/${rel}`);
+    } catch {
+      return null;
+    }
+  };
+
   if (loading) return null;
 
   const initPrompt = initCandidate && (
@@ -671,6 +704,8 @@ function App() {
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
             }
+            onSaveImage={(file) => handleSaveImage(selected.card, file)}
+            loadImage={(src) => handleLoadImage(selected.card, src)}
             onReportIssue={() => setIssueSource(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
