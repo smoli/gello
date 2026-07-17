@@ -30,6 +30,28 @@ export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });
 }
 
+/** Current git branch of the project (null = not a git repo). */
+export async function gitBranch(root: string): Promise<string | null> {
+  try {
+    return (await invoke<string | null>("git_branch", { root })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Watch the repo's `.git/HEAD`; `onChange` fires on checkout. Subscribes to
+ * the event before starting the Rust watcher. Returns a stop function.
+ */
+export async function watchGitHead(
+  root: string,
+  onChange: () => void,
+): Promise<() => void> {
+  const unlisten = await listen("git-head-changed", () => onChange());
+  await invoke("watch_git_head", { root });
+  return unlisten;
+}
+
 /**
  * Watch the board directory. `onChange` receives root-relative paths of
  * changed board files. Subscribes to the event stream *before* starting the

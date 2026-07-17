@@ -1,13 +1,12 @@
 ---
 id: c022
 title: Fulltext search in cards
-status: review
+status: done
 priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m01
-status-changed: 2026-07-17T08:37:40
-order: 10
+status-changed: 2026-07-17T08:46:21
 ---
 
 ## What
@@ -61,6 +60,7 @@ involvement.
 - 2026-07-16 status → ready (app)
 - 2026-07-16 status → backlog (app)
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

@@ -1,12 +1,17 @@
 ---
 id: c048
 title: App should remember last window size
-status: backlog
+status: ready
 priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m02
-order: 100
+status-changed: 2026-07-17T08:49:21
+order: 20
 ---
 
 on some OSes there’s services for that
+
+## Log
+
+- 2026-07-17 status → ready (app)

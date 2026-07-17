@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
 import {
+  gitBranch,
   imageDataUrl,
   loadBoardFromDisk,
   readFileRaw,
   watchBoard,
+  watchGitHead,
 } from "./lib/board-io";
 import { writeFileAtomic } from "./lib/fs";
 import App from "./App";
@@ -16,6 +18,8 @@ vi.mock("./lib/board-io", () => ({
   removeFile: vi.fn(),
   watchBoard: vi.fn(),
   imageDataUrl: vi.fn(),
+  gitBranch: vi.fn(),
+  watchGitHead: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -59,6 +63,8 @@ describe("App", () => {
     watchMock.mockReset();
     watchMock.mockResolvedValue(() => {});
     imageMock.mockReset();
+    vi.mocked(gitBranch).mockResolvedValue(null);
+    vi.mocked(watchGitHead).mockResolvedValue(() => {});
   });
 
   it("shows the placeholder when no board is found", async () => {

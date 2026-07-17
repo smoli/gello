@@ -1,7 +1,7 @@
 ---
 id: c0057
 title: Status bar
-status: ready
+status: review
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
@@ -34,17 +34,17 @@ plain read proves insufficient. Detached HEAD shows the short SHA.
 
 ## Acceptance criteria
 
-- [ ] Bottom status bar renders the project folder name; hovering shows the
+- [x] Bottom status bar renders the project folder name; hovering shows the
       full path
-- [ ] Current git branch shows and updates when `.git/HEAD` changes
+- [x] Current git branch shows and updates when `.git/HEAD` changes
       externally (watcher-driven, no reload)
-- [ ] Non-git project shows "not a git repo" in the branch segment
-- [ ] Detached HEAD shows the short commit SHA (not an empty/undefined
+- [x] Non-git project shows "not a git repo" in the branch segment
+- [x] Detached HEAD shows the short commit SHA (not an empty/undefined
       branch)
-- [ ] Card counts reflect the live model and update as cards move
-- [ ] `git_branch` is a covered Rust command (branch, detached, non-repo);
+- [x] Card counts reflect the live model and update as cards move
+- [x] `git_branch` is a covered Rust command (branch, detached, non-repo);
       the branch-derivation logic is unit-tested
-- [ ] Counts/branch derivation from the model is a pure, tested function
+- [x] Counts/branch derivation from the model is a pure, tested function
 
 ## Discussion
 
@@ -74,3 +74,25 @@ plain read proves insufficient. Detached HEAD shows the short SHA.
   live via watcher on .git/HEAD, bottom bar with explicit non-repo label
 - 2026-07-17 status → backlog (app)
 - 2026-07-17 status → ready (app)
+
+## Notes
+
+- Rust `git.rs`: `branch_from_head` (ref → branch, else short SHA),
+  `find_git_dir` (walks up; resolves a `.git` *file* pointer for
+  worktrees/submodules), `git_branch` (None outside a repo). 5 Rust tests.
+- Commands: `git_branch(root)` and `watch_git_head(root)` — the latter
+  watches the git dir and emits `git-head-changed`, kept alive in a managed
+  slot. App re-fetches the branch on that event → live checkout updates, no
+  reload.
+- Pure TS `status.ts`: `projectFolder(root)` (name + full path) and
+  `cardCounts(model)` (per configured column). StatusBar renders folder
+  (path on hover), branch (or "not a git repo"), and counts.
+- Open items from discussion deferred: counts always show the whole board
+  (not filtered); worktree `.git`-file handled, submodule edge cases not
+  specially tested.
+
+## Log
+
+- 2026-07-17 status → discuss (app)
+- 2026-07-17 status → ready (app)
+- 2026-07-17 implemented (git.rs + status bar), 5 Rust + 8 TS tests, status → review

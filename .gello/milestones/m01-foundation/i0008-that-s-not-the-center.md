@@ -1,20 +1,20 @@
 ---
 id: i0008
 title: That’s not the center
-status: review
+status: done
 priority: normal
 type: issue
 ref: c022
 milestone: m01
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:42:44
-order: 10
+status-changed: 2026-07-17T08:46:18
 ---
 
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

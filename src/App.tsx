@@ -28,12 +28,15 @@ import {
 } from "./lib/board-actions";
 import type { CardEdit } from "./components/CardDetail";
 import {
+  gitBranch,
   imageDataUrl,
   loadBoardFromDisk,
   readFileRaw,
   watchBoard,
+  watchGitHead,
   type LoadedBoard,
 } from "./lib/board-io";
+import { StatusBar } from "./components/StatusBar";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -64,6 +67,8 @@ function App() {
   const [issueSource, setIssueSource] = useState<Card | null>(null);
   // board background (c047): data URL loaded from config.background
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
+  // git branch for the status bar (c0057); null = not a git repo
+  const [branch, setBranch] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +88,23 @@ function App() {
   // only the changed files, and reconcile through applyFileChanges — which
   // returns the same model reference for self-write echoes (no re-render).
   const root = board?.root ?? null;
+
+  // c0057: load the git branch, and refresh it live when .git/HEAD changes
+  useEffect(() => {
+    if (!root) return;
+    let stopped = false;
+    const refresh = () => {
+      void gitBranch(root).then((b) => {
+        if (!stopped) setBranch(b);
+      });
+    };
+    refresh();
+    const stopPromise = watchGitHead(root, refresh).catch(() => () => {});
+    return () => {
+      stopped = true;
+      void stopPromise.then((stop) => stop());
+    };
+  }, [root]);
 
   // c047: load (or clear) the configured background image
   const backgroundPath = board?.model.config.background ?? null;
@@ -400,6 +422,7 @@ function App() {
             onClose={() => setSelectedPath(null)}
           />
         )}
+        <StatusBar root={board.root} model={board.model} branch={branch} />
       </div>
     );
   }
