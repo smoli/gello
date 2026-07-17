@@ -167,7 +167,8 @@ The board doubles as the agent's task list — no parallel TODO files. An agent:
 - **Finishes** by setting `status: review` — a human confirms `done`.
 - **Captures new ideas** as inbox cards rather than bloating existing ones.
 
-The convention lives in [CLAUDE.md](CLAUDE.md). The app can also install two
+The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
+`AGENTS.md` when that file exists) at board init. The app can also install two
 gello-managed agent skills into a project (under `.claude/skills/`, `.pi/`, or
 `.agents/`); it prompts to add or update them when they're missing or
 out-of-date, and never clobbers your edits:
