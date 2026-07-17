@@ -259,6 +259,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // c048: persist and restore the window size/position across restarts
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(WatcherState(std::sync::Mutex::new(None)))
         .manage(GitWatcherState(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
