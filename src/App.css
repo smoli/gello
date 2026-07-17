@@ -1,6 +1,10 @@
 :root {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light dark;
+  /* i0023: single source of truth for the top-bar height — the titlebar, the
+     board/quick-capture offsets, and the window controls all key off it, so a
+     taller search box (and bar) is one change here. */
+  --titlebar-height: 34px;
 }
 
 body {
@@ -28,13 +32,13 @@ body,
 }
 
 .app-shell-frameless .board {
-  padding-top: calc(0.75rem + 30px);
+  padding-top: calc(0.75rem + var(--titlebar-height));
 }
 
 /* quick-capture buttons clear the titlebar */
 .app-shell-frameless .quick-capture-buttons,
 .app-shell-frameless .quick-capture {
-  top: calc(0.7rem + 30px);
+  top: calc(0.7rem + var(--titlebar-height));
 }
 
 

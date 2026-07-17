@@ -3,7 +3,7 @@
 .window-controls {
   display: flex;
   align-items: stretch;
-  height: 30px;
+  height: var(--titlebar-height, 34px);
 }
 
 .window-control {
