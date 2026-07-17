@@ -1,4 +1,4 @@
 columns: [discuss, backlog, ready, in-progress, review, done]
 wip_limits:
   in-progress: 2
-background: "linear-gradient(45deg, #3355aa, #aa33aa)"
+background: assets/board/background.png
