@@ -1,14 +1,13 @@
 ---
 id: i0019
 title: Project picker on Win shows full path
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T20:49:54
+status-changed: 2026-07-17T23:21:41
 milestone: m02
-order: 10
 ---
 
 ![image](../../assets/i0019/image.png)
@@ -38,3 +37,4 @@ separator-agnostic; the picker component was not updated to match.
   splitting on `/` only (separator bug, cf. i0018)
 - 2026-07-17 status → review: made `baseName` separator-agnostic; added
   Windows-path component tests (fail before, pass after). Suite 421/421 green.
+- 2026-07-17 status → done (app)

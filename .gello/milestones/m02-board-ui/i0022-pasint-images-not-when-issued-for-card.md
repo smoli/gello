@@ -1,14 +1,13 @@
 ---
 id: i0022
 title: Pasting images not when issued for card
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T21:50:00
+status-changed: 2026-07-17T23:09:49
 milestone: m02
-order: 20
 ---
 
 If I report an issue for a card, the popup does not accept pasting an image
@@ -87,3 +86,4 @@ levels deep) — not always `inbox/` like quick-capture.
 - 2026-07-17 fixed TDD (reproducing test → onSaveImage + reserved id +
   assetLinkPrefix + createIssueFor id; fixed a writeAsset test-isolation
   leak); 427 green, gates clean, status → review
+- 2026-07-17 status → done (app)

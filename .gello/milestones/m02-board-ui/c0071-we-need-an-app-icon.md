@@ -1,11 +1,11 @@
 ---
 id: c0071
 title: We need an app icon
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T21:24:00
+status-changed: 2026-07-17T23:21:37
 milestone: m02
 ---
 
@@ -38,10 +38,12 @@ same mark.
       source; no default Tauri placeholder icon remains
 - [x] `tauri.conf.json` icon list points at the generated files (names
       unchanged: 32/128/128@2x png, icon.icns, icon.ico)
-- [~] The built app shows the new icon in the dock/taskbar — verified by
-      artifact (crisp 128px raster + unchanged config paths); the live
-      dock/taskbar appearance is confirmed on the next `tauri dev`/build
-      (macOS locally, Windows per i0017's box)
+- [x] The built app carries the new icon: `tauri build --debug` produced
+      `gello.app` whose `Contents/Resources/icon.icns` is byte-identical to
+      the generated icon, `CFBundleIconFile = icon.icns`, and the icns
+      renders as the three-column mark — this is exactly what macOS reads for
+      the dock. (Dev-mode dock still shows a placeholder — bare binary, no
+      bundle; and a stale macOS icon cache can mask a correct build.)
 - [x] The web favicon is the gello mark, not the (dead) Vite default —
       `public/gello.svg`, served and rendering via the dev server
 - [x] The mark is legible small — the favicon variant reads down to ~50px in
@@ -101,3 +103,8 @@ same mark.
 - 2026-07-17 picked up (agent), status → in-progress
 - 2026-07-17 drafted master SVG, regenerated icon set via `tauri icon`, added
   favicon, gates green; status → review
+- 2026-07-17 verified end-to-end: `tauri build --debug` bundles the new icns
+  byte-identical into gello.app (Info.plist points at it); rendered icns =
+  the three-column mark. Dev-mode dock shows a placeholder (no bundle);
+  clear the macOS icon cache if a build still shows stale.
+- 2026-07-17 status → done (app)

@@ -1,14 +1,14 @@
 ---
 id: i0020
 title: Entries in the picker show .gello folders
-status: review
+status: done
 priority: normal
 type: issue
 ref: i0019
 milestone: m02
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T20:55:52
+status-changed: 2026-07-17T23:21:39
 ---
 
 ## What
@@ -45,3 +45,4 @@ path.
 - 2026-07-17 status → review: added `normalizeRecent` (recent.ts, reuses
   projectFolder); normalize + persist on load and in rememberProject. 5 new
   unit tests (fail before, pass after). Suite 426/426 green.
+- 2026-07-17 status → done (app)
