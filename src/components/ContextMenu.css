@@ -30,8 +30,40 @@
   background: transparent;
   color: CanvasText;
   cursor: pointer;
+  /* c0063: align optional check / caret with the label */
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .context-menu-item:hover {
   background: color-mix(in srgb, #4c8bf5 20%, Canvas);
+}
+
+/* c0063: a submenu parent and its flyout */
+.context-menu-sub {
+  position: relative;
+}
+
+.context-menu-sub > .context-menu-item {
+  justify-content: space-between;
+}
+
+.context-menu-caret {
+  opacity: 0.6;
+}
+
+.context-menu-submenu {
+  position: absolute;
+  top: -0.25rem;
+  /* flush against the parent — no gap to fall through; hover-intent (a short
+     close delay in the component) covers the seam if the pointer wanders */
+  left: 100%;
+  margin-left: 0;
+}
+
+.context-menu-check {
+  width: 1em;
+  flex: 0 0 auto;
+  text-align: center;
 }

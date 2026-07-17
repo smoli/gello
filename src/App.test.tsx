@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { loadBoard } from "./lib/board";
 import {
   appFlagGet,
@@ -196,6 +196,40 @@ describe("App", () => {
     // menu closed, picker opened
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "board background" })).toBeInTheDocument();
+  });
+
+  it("c0063: Settings › Show thumbnails toggles board thumbnails and persists it", async () => {
+    vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,QQ==");
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        { path: "milestones/m01/milestone.md", content: "---\nid: m01\ntitle: A\n---\ng\n" },
+        {
+          path: "milestones/m01/c001-x.md",
+          content:
+            "---\nid: c001\ntitle: Shot card\nstatus: backlog\nmilestone: m01\n---\n\n![p](../../assets/c001/p.png)\n",
+        },
+      ]),
+    });
+
+    const { container } = render(<App />);
+    // thumbnails on by default → the card shows one
+    await waitFor(() =>
+      expect(container.querySelector("img.card-thumb")).not.toBeNull(),
+    );
+
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.mouseEnter(screen.getByRole("menuitem", { name: /Settings/ }));
+    const toggle = screen.getByRole("menuitemcheckbox", { name: "Show thumbnails" });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+
+    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("show-thumbnails", "0");
+    // thumbnail is gone
+    await waitFor(() =>
+      expect(container.querySelector("img.card-thumb")).toBeNull(),
+    );
   });
 
   it("renders the board once loaded", async () => {

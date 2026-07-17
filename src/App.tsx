@@ -81,6 +81,7 @@ import { SkillPrompt } from "./components/SkillPrompt";
 const skillsDismissedKey = (projectPath: string) =>
   `skills-prompt-dismissed:${projectPath}`;
 const RECENT_FLAG = "recent-projects";
+const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -132,6 +133,8 @@ function App() {
   const [skillDirs, setSkillDirs] = useState<string[]>([]);
   // c016: recent project folders (app-local, most-recent first)
   const [recent, setRecent] = useState<string[]>([]);
+  // c0063: show first-image thumbnails on board cards (default on, off = "0")
+  const [showThumbnails, setShowThumbnails] = useState(true);
   // c017: a picked folder with no .gello — offer to initialize one
   const [initCandidate, setInitCandidate] = useState<string | null>(null);
 
@@ -146,6 +149,9 @@ function App() {
     let cancelled = false;
     void appFlagGet(RECENT_FLAG).then((r) => {
       if (!cancelled) setRecent(parseRecent(r));
+    });
+    void appFlagGet(THUMBNAILS_FLAG).then((v) => {
+      if (!cancelled) setShowThumbnails(v !== "0");
     });
     void loadBoardFromDisk()
       .then((loaded) => {
@@ -510,6 +516,15 @@ function App() {
     return `../${await persistImage(id, file)}`;
   };
 
+  // c0063: flip the board thumbnail preference and persist it app-locally
+  const toggleThumbnails = () => {
+    setShowThumbnails((current) => {
+      const next = !current;
+      void appFlagSet(THUMBNAILS_FLAG, next ? "1" : "0");
+      return next;
+    });
+  };
+
   const handleDiscardDraft = () => {
     // a reserved id is only consumed on create; abandon it (its asset dir, if
     // any, is a harmless orphan — same as cancelling a card-detail image edit)
@@ -695,7 +710,7 @@ function App() {
           }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
-          loadImage={handleLoadImage}
+          loadImage={showThumbnails ? handleLoadImage : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })
           }
@@ -749,6 +764,16 @@ function App() {
                 label: "Background…",
                 // hand the menu's anchor point to the picker
                 onSelect: () => setBgMenu(ctxMenu),
+              },
+              {
+                label: "Settings",
+                items: [
+                  {
+                    label: "Show thumbnails",
+                    checked: showThumbnails,
+                    onSelect: toggleThumbnails,
+                  },
+                ],
               },
             ]}
           />
