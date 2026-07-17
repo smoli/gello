@@ -7,6 +7,7 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  initBoard,
   loadBoardAt,
   loadBoardFromDisk,
   pickFolder,
@@ -30,6 +31,7 @@ vi.mock("./lib/board-io", () => ({
   appFlagSet: vi.fn(),
   loadBoardAt: vi.fn(),
   pickFolder: vi.fn(),
+  initBoard: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -80,6 +82,7 @@ describe("App", () => {
     vi.mocked(appFlagSet).mockResolvedValue(undefined);
     vi.mocked(loadBoardAt).mockResolvedValue(null);
     vi.mocked(pickFolder).mockResolvedValue(null);
+    vi.mocked(initBoard).mockResolvedValue("/x/.gello");
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -106,6 +109,29 @@ describe("App", () => {
 
     expect(await screen.findByText("Opened board")).toBeInTheDocument();
     expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/x");
+  });
+
+  it("offers to initialize a board when the picked folder has none, then opens it (c017)", async () => {
+    loadMock.mockResolvedValueOnce(null);
+    vi.mocked(pickFolder).mockResolvedValue("/x");
+    // first open → no board; after init → board loads
+    vi.mocked(loadBoardAt)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        root: "/x/.gello",
+        model: loadBoard([
+          { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Fresh board\nstatus: backlog\n---\nx\n" },
+        ]),
+      });
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /open folder/i }));
+
+    // init prompt appears
+    fireEvent.click(await screen.findByRole("button", { name: /initialize board/i }));
+
+    expect(vi.mocked(initBoard)).toHaveBeenCalledWith("/x");
+    expect(await screen.findByText("Fresh board")).toBeInTheDocument();
   });
 
   it("renders the board once loaded", async () => {

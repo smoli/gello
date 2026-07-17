@@ -1,0 +1,68 @@
+// Board initialization (c017): scaffold a fresh `.gello/` tree and the
+// CLAUDE.md convention snippet. Pure — the caller does the writes.
+
+export interface ScaffoldFile {
+  path: string;
+  content: string;
+}
+
+const BOARD_YAML = `columns: [discuss, backlog, ready, in-progress, review, done]
+types: [task, issue]
+wip_limits:
+  in-progress: 2
+`;
+
+const CONCEPT_MD = `# Concept
+
+The product concept lives here — the authoritative spec that milestones and
+cards are broken down from. Replace this with yours (or fold in an existing
+vision doc).
+`;
+
+/** Files to create for a fresh board under `projectRoot`. */
+export function scaffoldFiles(projectRoot: string): ScaffoldFile[] {
+  const gello = `${projectRoot}/.gello`;
+  return [
+    { path: `${gello}/board.yaml`, content: BOARD_YAML },
+    { path: `${gello}/concept.md`, content: CONCEPT_MD },
+    { path: `${gello}/inbox/.gitkeep`, content: "" },
+    { path: `${gello}/assets/.gitkeep`, content: "" },
+    { path: `${gello}/milestones/.gitkeep`, content: "" },
+  ];
+}
+
+/** Marker identifying the gello convention block in a CLAUDE.md. */
+export const CONVENTION_MARKER = "<!-- gello-convention -->";
+
+const CONVENTION_SNIPPET = `${CONVENTION_MARKER}
+## Working the gello board
+
+This project uses **gello** — a Markdown-native Kanban board in \`.gello/\`.
+The files are the single source of truth; cards are \`.md\` files with YAML
+frontmatter. Read \`.gello/concept.md\` for the product spec.
+
+- **Query the board** (never read all cards to find one):
+  \`\`\`bash
+  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"
+  grep -rh "^status:" .gello/inbox .gello/milestones --include="[ci][0-9]*.md" | sort | uniq -c
+  \`\`\`
+- **Pick up work**: re-query the board from disk first, then take the
+  highest-priority \`ready\` card whose \`depends\` are all \`done\`; set
+  \`status: in-progress\` before starting.
+- **Finish**: set \`status: review\` (only a human moves cards to \`done\`).
+- **New ideas**: drop a card in \`.gello/inbox/\` — a heading and a sentence.
+- Valid statuses come from \`board.yaml\`; frontmatter must be valid YAML.
+`;
+
+/**
+ * The CLAUDE.md content after adding the convention: create from scratch when
+ * absent, append when present, and never add the block twice (idempotent).
+ */
+export function claudeMdContent(existing: string | null): string {
+  if (existing === null) {
+    return `# CLAUDE.md\n\n${CONVENTION_SNIPPET}`;
+  }
+  if (existing.includes(CONVENTION_MARKER)) return existing;
+  const base = existing.replace(/\s*$/, "\n");
+  return `${base}\n${CONVENTION_SNIPPET}`;
+}

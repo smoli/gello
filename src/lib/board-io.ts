@@ -112,6 +112,19 @@ export async function pickFolder(): Promise<string | null> {
   }
 }
 
+/** c017: scaffold a fresh `.gello/` board (+ CLAUDE.md convention) under a
+ *  folder that has none. Returns the new `.gello` root. */
+export async function initBoard(projectRoot: string): Promise<string> {
+  const { scaffoldFiles, claudeMdContent } = await import("./scaffold");
+  const files = scaffoldFiles(projectRoot);
+  const claudePath = `${projectRoot}/CLAUDE.md`;
+  const existing = await readFileRaw(claudePath).catch(() => null);
+  const claude = claudeMdContent(existing);
+  if (claude !== existing) files.push({ path: claudePath, content: claude });
+  await invoke("write_new_files", { files });
+  return `${projectRoot}/.gello`;
+}
+
 /** c016: load the board rooted at (or above) a chosen folder; null if none. */
 export async function loadBoardAt(folder: string): Promise<LoadedBoard | null> {
   try {

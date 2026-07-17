@@ -36,6 +36,34 @@ fn find_board_root_at(folder: String) -> Option<String> {
         .map(|path| path.to_string_lossy().into_owned())
 }
 
+#[derive(serde::Deserialize)]
+struct NewFile {
+    path: String,
+    content: String,
+}
+
+/// c017: create each file (making parent dirs), atomically. Used to scaffold
+/// a fresh `.gello/` board and its CLAUDE.md.
+#[tauri::command]
+fn write_new_files(files: Vec<NewFile>) -> Result<(), FsError> {
+    for file in files {
+        let path = std::path::Path::new(&file.path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| FsError {
+                kind: format!("{:?}", error.kind()),
+                message: error.to_string(),
+                path: parent.to_string_lossy().into_owned(),
+            })?;
+        }
+        fs_write::atomic_write(path, &file.content).map_err(|error| FsError {
+            kind: format!("{:?}", error.kind()),
+            message: error.to_string(),
+            path: file.path,
+        })?;
+    }
+    Ok(())
+}
+
 /// Keeps the active watcher alive; replaced when a new board is watched.
 struct WatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
 /// Keeps the git-HEAD watcher alive (c0057).
@@ -232,7 +260,8 @@ pub fn run() {
             detect_skill_dirs,
             app_flag_get,
             app_flag_set,
-            find_board_root_at
+            find_board_root_at,
+            write_new_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

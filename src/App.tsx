@@ -33,6 +33,7 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  initBoard,
   loadBoardAt,
   loadBoardFromDisk,
   pickFolder,
@@ -94,6 +95,8 @@ function App() {
   const [skillDirs, setSkillDirs] = useState<string[]>([]);
   // c016: recent project folders (app-local, most-recent first)
   const [recent, setRecent] = useState<string[]>([]);
+  // c017: a picked folder with no .gello — offer to initialize one
+  const [initCandidate, setInitCandidate] = useState<string | null>(null);
 
   const rememberProject = async (boardRoot: string) => {
     const path = projectFolder(boardRoot).path;
@@ -126,12 +129,23 @@ function App() {
   const openProject = async (folder: string) => {
     setSelectedPath(null);
     const loaded = await loadBoardAt(folder);
-    setBoard(loaded);
-    if (loaded) await rememberProject(loaded.root);
+    if (loaded) {
+      setBoard(loaded);
+      setInitCandidate(null);
+      await rememberProject(loaded.root);
+    } else {
+      // c017: no .gello here — offer to initialize one
+      setInitCandidate(folder);
+    }
   };
   const pickAndOpen = async () => {
     const folder = await pickFolder();
     if (folder) await openProject(folder);
+  };
+  const initAndOpen = async (folder: string) => {
+    await initBoard(folder);
+    setInitCandidate(null);
+    await openProject(folder);
   };
 
   // Live sync: watch the board directory, coalesce event bursts, re-read
@@ -448,6 +462,22 @@ function App() {
 
   if (loading) return null;
 
+  const initPrompt = initCandidate && (
+    <div className="init-prompt" role="dialog" aria-label="initialize board">
+      <p className="init-prompt-text">
+        No gello board in <code>{initCandidate}</code>. Create one?
+      </p>
+      <div className="init-prompt-actions">
+        <button type="button" onClick={() => void initAndOpen(initCandidate)}>
+          Initialize board
+        </button>
+        <button type="button" onClick={() => setInitCandidate(null)}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;
     const milestoneOptions: MilestoneOption[] = board.model.milestones
@@ -460,6 +490,7 @@ function App() {
     return (
       <div className="app-shell app-shell-frameless">
         <TitleBar root={board.root} branch={branch} />
+        {initPrompt}
         {skillDirs.length > 0 && (
           <SkillPrompt
             dirs={skillDirs}
@@ -540,6 +571,7 @@ function App() {
 
   return (
     <main className="app">
+      {initPrompt}
       <h1>gello</h1>
       <p className="empty-state">No board loaded.</p>
       <button type="button" className="empty-open" onClick={() => void pickAndOpen()}>

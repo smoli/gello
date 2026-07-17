@@ -83,6 +83,57 @@ body,
   cursor: pointer;
 }
 
+/* c017: initialize-board prompt */
+.init-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: color-mix(in srgb, CanvasText 30%, transparent);
+  text-align: center;
+}
+
+.init-prompt-text {
+  max-width: 32rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, CanvasText 25%, transparent);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.init-prompt-text code {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.init-prompt-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.init-prompt-actions button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.init-prompt-actions button:first-child {
+  background: color-mix(in srgb, #4c8bf5 18%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
+}
+
 .board-error {
   background: color-mix(in srgb, #e5484d 15%, Canvas);
   color: #e5484d;
