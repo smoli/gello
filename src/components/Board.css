@@ -298,17 +298,41 @@
 /* c056: positioned drop targets in manual columns (backlog/ready). The
    zones only exist while a drag is in flight; the active one renders the
    insertion indicator line. */
+/* i0003: always mounted, but inert and zero-footprint until a drag —
+   nothing is inserted next to the drag source at dragstart. */
 .insert-zone {
-  height: 10px;
-  margin: -5px 0; /* overlap card gaps so the pointer never falls between targets */
-  border-radius: 3px;
+  height: 0;
+  margin: 0;
   position: relative;
+  pointer-events: none;
+}
+
+/* i0002: during a drag the zone becomes a tall hit area whose box NEVER
+   changes on activation — the indicator is a child bar toggled by opacity,
+   so hovering the edge can't reflow the layout and jitter. Net flow height
+   stays 0 (18 − 9 − 9) so cards don't shift when the drag begins. */
+.board-dragging .insert-zone {
+  height: 18px;
+  margin: -9px 0;
+  pointer-events: auto;
   z-index: 1;
 }
 
-.insert-zone-active {
-  background: color-mix(in srgb, #4c8bf5 55%, transparent);
+.insert-zone::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #4c8bf5 60%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, #4c8bf5 70%, transparent);
-  height: 6px;
-  margin: 2px 0;
+  opacity: 0;
+  transition: opacity 0.08s;
+}
+
+.insert-zone-active::before {
+  opacity: 1;
 }

@@ -256,7 +256,7 @@ export function Board({
               key={column}
               name={column}
               cards={entries}
-              showInsertZones={dragging !== null && MANUAL_COLUMNS.has(column)}
+              showInsertZones={MANUAL_COLUMNS.has(column)}
               onDropCard={(path) => dropOnColumn(column, path)}
               onDropAt={(path, zoneIndex) =>
                 dropAtIndex(column, entries, path, zoneIndex)
@@ -320,6 +320,9 @@ function Column({
   name: string;
   cards: BoardCard[];
   /** c056: render positioned drop targets (manual columns during a drag). */
+  /** c056: render positioned drop targets for manual columns. Always mounted
+   *  (i0003) — inert until a drag; appearance driven by the board-dragging
+   *  class, never by mounting/unmounting (which aborts WKWebView drags). */
   showInsertZones: boolean;
   onDropCard: (cardPath: string) => void;
   onDropAt: (cardPath: string, zoneIndex: number) => void;

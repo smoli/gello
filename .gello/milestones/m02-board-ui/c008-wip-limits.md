@@ -7,7 +7,8 @@ priority: low
 depends: [c005]
 tags: [ui]
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
+order: 10
 ---
 
 ## What

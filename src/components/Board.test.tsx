@@ -556,20 +556,22 @@ describe("manual column insertion (c056)", () => {
     file("milestones/m01-a/c006-ip.md", rankedCard("c006", "Working", "in-progress")),
   ]);
 
-  it("shows insert zones in manual columns while dragging, none elsewhere", () => {
+  it("mounts insert zones in manual columns always, none elsewhere (i0003)", () => {
+    // i0003: zones are always in the DOM so dragstart never mutates the tree
+    // next to the drag source (which aborts the native drag in WKWebView).
+    // Their appearance/interactivity is driven by the board-dragging class.
     render(<Board model={RANKED_MODEL} />);
-    const dataTransfer = fakeDataTransfer();
-    fireEvent.dragStart(screen.getByText("Ready three").closest("article")!, {
-      dataTransfer,
-    });
 
-    // zones = card count + 1 per manual column
+    // present before any drag — zones = card count + 1 per manual column
     expect(within(column("ready")).getAllByLabelText(/insert at/)).toHaveLength(4);
     expect(within(column("backlog")).getAllByLabelText(/insert at/)).toHaveLength(3);
     expect(within(column("in-progress")).queryAllByLabelText(/insert at/)).toHaveLength(0);
 
-    fireEvent.dragEnd(screen.getByText("Ready three").closest("article")!);
-    expect(within(column("ready")).queryAllByLabelText(/insert at/)).toHaveLength(0);
+    // still present after a drag ends — never mounted/unmounted by the drag
+    const cardEl = screen.getByText("Ready three").closest("article")!;
+    fireEvent.dragStart(cardEl, { dataTransfer: fakeDataTransfer() });
+    fireEvent.dragEnd(cardEl);
+    expect(within(column("ready")).getAllByLabelText(/insert at/)).toHaveLength(4);
   });
 
   it("reorders within a column: midpoint rank, single card write", () => {
