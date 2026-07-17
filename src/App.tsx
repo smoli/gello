@@ -57,7 +57,7 @@ import {
   resolveFromCard,
   suggestedAssetName,
 } from "./lib/assets";
-import { addRecent, parseRecent, serializeRecent } from "./lib/recent";
+import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { backgroundCss, classifyBackground } from "./lib/background";
 import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
 import { ProjectMenu } from "./components/ProjectMenu";
@@ -142,7 +142,9 @@ function App() {
 
   const rememberProject = async (boardRoot: string) => {
     const path = projectFolder(boardRoot).path;
-    const next = addRecent(parseRecent(await appFlagGet(RECENT_FLAG)), path);
+    // i0020: normalize so any legacy `.gello` entries in the store collapse
+    // onto their project path rather than lingering in the picker.
+    const next = normalizeRecent(addRecent(parseRecent(await appFlagGet(RECENT_FLAG)), path));
     setRecent(next);
     await appFlagSet(RECENT_FLAG, serializeRecent(next));
   };
@@ -150,7 +152,12 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     void appFlagGet(RECENT_FLAG).then((r) => {
-      if (!cancelled) setRecent(parseRecent(r));
+      if (cancelled) return;
+      // i0020: heal legacy `.gello` entries in the store on load, and persist
+      // the cleaned list back so the picker shows project folders, not ".gello".
+      const normalized = normalizeRecent(parseRecent(r));
+      setRecent(normalized);
+      void appFlagSet(RECENT_FLAG, serializeRecent(normalized));
     });
     void appFlagGet(THUMBNAILS_FLAG).then((v) => {
       if (!cancelled) setShowThumbnails(v !== "0");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addRecent, parseRecent, serializeRecent } from "./recent";
+import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./recent";
 
 describe("addRecent", () => {
   it("puts the newest project first", () => {
@@ -34,5 +34,33 @@ describe("parseRecent / serializeRecent", () => {
 
   it("keeps only string entries", () => {
     expect(parseRecent('["/a", 5, null, "/b"]')).toEqual(["/a", "/b"]);
+  });
+});
+
+describe("normalizeRecent (i0020)", () => {
+  it("strips a trailing .gello board dir (POSIX)", () => {
+    expect(normalizeRecent(["/Users/x/proj/.gello"])).toEqual(["/Users/x/proj"]);
+  });
+
+  it("strips a trailing .gello board dir (Windows backslashes)", () => {
+    expect(normalizeRecent(["C:\\ILC\\gello\\.gello"])).toEqual(["C:\\ILC\\gello"]);
+  });
+
+  it("tolerates a trailing separator", () => {
+    expect(normalizeRecent(["/a/b/.gello/"])).toEqual(["/a/b"]);
+    expect(normalizeRecent(["C:\\a\\b\\.gello\\"])).toEqual(["C:\\a\\b"]);
+  });
+
+  it("de-dups entries that collapse to the same project, preserving order", () => {
+    expect(
+      normalizeRecent(["/x/gello/.gello", "/x/gello", "/x/other"]),
+    ).toEqual(["/x/gello", "/x/other"]);
+  });
+
+  it("passes through already-clean paths and paths without a .gello segment", () => {
+    expect(normalizeRecent(["/x/proj", "C:\\x\\proj"])).toEqual([
+      "/x/proj",
+      "C:\\x\\proj",
+    ]);
   });
 });
