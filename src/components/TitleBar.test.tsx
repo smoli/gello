@@ -1,6 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TitleBar } from "./TitleBar";
+import { isMacOS } from "../lib/platform";
+
+vi.mock("../lib/platform", () => ({ isMacOS: vi.fn().mockReturnValue(false) }));
+// window controls call the Tauri window API — stub it out for these tests
+vi.mock("../lib/window", () => ({
+  minimizeWindow: vi.fn(),
+  toggleMaximizeWindow: vi.fn(),
+  closeWindow: vi.fn(),
+  isWindowMaximized: vi.fn().mockResolvedValue(false),
+  onWindowResized: vi.fn().mockResolvedValue(() => {}),
+}));
+
+beforeEach(() => vi.mocked(isMacOS).mockReturnValue(false));
 
 describe("TitleBar", () => {
   it("renders the gello title with folder and branch", () => {
@@ -60,5 +73,22 @@ describe("TitleBar", () => {
     expect(
       screen.getByRole("searchbox").hasAttribute("data-tauri-drag-region"),
     ).toBe(false);
+  });
+
+  // i0017: custom window controls on Windows/Linux, native chrome on macOS
+
+  it("renders custom window controls off macOS", () => {
+    vi.mocked(isMacOS).mockReturnValue(false);
+    const { container } = render(<TitleBar root="/x/.gello" branch={null} />);
+    expect(container.querySelector(".titlebar")).toHaveClass("titlebar-win");
+    expect(screen.getByRole("button", { name: "Minimize" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
+  it("renders NO window controls on macOS (native traffic lights)", () => {
+    vi.mocked(isMacOS).mockReturnValue(true);
+    const { container } = render(<TitleBar root="/x/.gello" branch={null} />);
+    expect(container.querySelector(".titlebar")).toHaveClass("titlebar-mac");
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
   });
 });

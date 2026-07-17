@@ -33,9 +33,16 @@
   align-items: center;
   min-width: 0;
   overflow: hidden;
-  /* clear the macOS traffic-light zone here (not on the bar) so it doesn't
-     shift the centred search */
+}
+
+/* i0017: the traffic-light inset is macOS-only; Windows/Linux have no native
+   controls on the left, so the title starts near the edge */
+.titlebar-mac .titlebar-left {
   padding-left: 78px;
+}
+
+.titlebar-win .titlebar-left {
+  padding-left: 0.6rem;
 }
 
 .titlebar-caption {
@@ -49,10 +56,19 @@
   min-width: 0;
 }
 
-/* c0066: right column — draggable filler balancing the title column */
-.titlebar-drag {
+/* c0066/i0017: right column — a draggable filler (balances the title column
+   and keeps the search centred) plus the window controls on Windows/Linux */
+.titlebar-right {
   justify-self: stretch;
   align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.titlebar-drag {
+  flex: 1;
+  min-width: 0;
 }
 
 /* c0066: compact search box in the top bar (moved out of the board toolbar) */

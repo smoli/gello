@@ -1,0 +1,30 @@
+/* i0017: frameless Windows/Linux caption buttons. Sit flush to the top-right
+   corner; legible over an arbitrary board background (c047). */
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+}
+
+.window-control {
+  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: CanvasText;
+  opacity: 0.85;
+  cursor: pointer;
+  padding: 0;
+}
+
+.window-control:hover {
+  background: color-mix(in srgb, CanvasText 14%, transparent);
+  opacity: 1;
+}
+
+.window-control-close:hover {
+  background: #e5484d;
+  color: #fff;
+}
