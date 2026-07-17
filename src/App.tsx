@@ -135,6 +135,8 @@ function App() {
   const [recent, setRecent] = useState<string[]>([]);
   // c0063: show first-image thumbnails on board cards (default on, off = "0")
   const [showThumbnails, setShowThumbnails] = useState(true);
+  // c0066: fulltext search now lives in the top bar; the board filters by it
+  const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
   const [initCandidate, setInitCandidate] = useState<string | null>(null);
 
@@ -670,7 +672,12 @@ function App() {
       }));
     return (
       <div className="app-shell app-shell-frameless">
-        <TitleBar root={board.root} branch={branch} />
+        <TitleBar
+          root={board.root}
+          branch={branch}
+          search={query}
+          onSearch={setQuery}
+        />
         {initPrompt}
         {skillDirs.length > 0 && (
           <SkillPrompt
@@ -710,6 +717,7 @@ function App() {
           }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
+          query={query}
           loadImage={showThumbnails ? handleLoadImage : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })

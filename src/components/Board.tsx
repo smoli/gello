@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   columnComparator,
   MANUAL_COLUMNS,
@@ -79,9 +79,12 @@ export function Board({
   toolbarLeading,
   onBackgroundContextMenu,
   loadImage,
+  query = "",
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
+  /** c0066: fulltext filter, now owned by the top bar's search box. */
+  query?: string;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c016: a control rendered at the start of the toolbar (project menu). */
@@ -104,21 +107,8 @@ export function Board({
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [query, setQuery] = useState("");
   const [dragging, setDragging] = useState<Card | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  // c022: Cmd/Ctrl+F focuses search, suppressing the webview's native find
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "f") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const inboxUnprocessed = useMemo(
     () =>
@@ -273,20 +263,6 @@ export function Board({
             ))}
           </select>
         </div>
-        <input
-          ref={searchRef}
-          type="search"
-          className="board-search"
-          aria-label="Search cards"
-          placeholder="Search…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setQuery("");
-          }}
-        />
-        {/* symmetry cell so the search sits at the true center */}
-        <div className="toolbar-spacer" aria-hidden="true" />
       </header>
       <div
         className="board-columns"

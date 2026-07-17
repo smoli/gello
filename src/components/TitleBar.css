@@ -7,10 +7,15 @@
   right: 0;
   height: 30px;
   z-index: 8;
-  display: flex;
+  /* c0066: [title | search | filler] — full-width grid with equal side columns
+     so the search sits at the true window centre (the traffic-light inset lives
+     inside the title column, not on the bar, so it doesn't offset the centre).
+     minmax(0,…) lets the sides shrink so a long title clips instead of pushing
+     into the search. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  /* clear the macOS traffic-light zone on the left */
-  padding-left: 78px;
+  gap: 0.5rem;
   background: linear-gradient(
     color-mix(in srgb, Canvas 55%, transparent),
     transparent
@@ -18,9 +23,51 @@
   user-select: none;
 }
 
+/* c0066: left column holds the caption; draggable, and clips a long title
+   (with the ellipsis below) so it never crowds the centered search */
+.titlebar-left {
+  /* fill the column (not content-sized) so overflow clips the caption */
+  justify-self: stretch;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  /* clear the macOS traffic-light zone here (not on the bar) so it doesn't
+     shift the centred search */
+  padding-left: 78px;
+}
+
 .titlebar-caption {
   font-size: 0.72rem;
   font-weight: 600;
   opacity: 0.75;
-  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* flex child must be allowed to shrink for the ellipsis to kick in */
+  min-width: 0;
+}
+
+/* c0066: right column — draggable filler balancing the title column */
+.titlebar-drag {
+  justify-self: stretch;
+  align-self: stretch;
+}
+
+/* c0066: compact search box in the top bar (moved out of the board toolbar) */
+.titlebar-search {
+  width: 12rem;
+  height: 22px;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: color-mix(in srgb, Canvas 85%, transparent);
+  color: CanvasText;
+}
+
+.titlebar-search::placeholder {
+  color: color-mix(in srgb, CanvasText 45%, transparent);
 }

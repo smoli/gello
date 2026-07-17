@@ -245,71 +245,42 @@ describe("fulltext search (c022)", () => {
     file("milestones/m01-a/c002-done.md", card("c002", "Archived thing", "done")),
   ]);
 
-  it("filters cards in place by query, across columns and done", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    const search = screen.getByRole("searchbox");
+  // c0066: the search box moved to the top bar; the board filters by a `query`
+  // prop. Input behaviors (Escape-clear, Cmd+F focus) live in TitleBar.test.
 
-    fireEvent.change(search, { target: { value: "kanban" } });
+  it("filters cards in place by query, across columns and done", () => {
+    render(<Board model={SEARCH_MODEL} query="kanban" />);
     expect(screen.getByText("Drag and drop")).toBeInTheDocument();
     expect(screen.queryByText("Dark mode toggle")).not.toBeInTheDocument();
     expect(screen.queryByText("Archived thing")).not.toBeInTheDocument();
   });
 
   it("searches done cards too", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    fireEvent.change(screen.getByRole("searchbox"), {
-      target: { value: "archived" },
-    });
+    render(<Board model={SEARCH_MODEL} query="archived" />);
     expect(screen.getByText("Archived thing")).toBeInTheDocument();
     expect(screen.queryByText("Drag and drop")).not.toBeInTheDocument();
   });
 
   it("reflects the filtered set in column counts", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    fireEvent.change(screen.getByRole("searchbox"), {
-      target: { value: "kanban" },
-    });
+    render(<Board model={SEARCH_MODEL} query="kanban" />);
     // backlog now shows only 1 of its cards
     expect(within(column("backlog")).getByText("1")).toBeInTheDocument();
   });
 
-  it("clearing the query restores the full board", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    const search = screen.getByRole("searchbox");
-    fireEvent.change(search, { target: { value: "kanban" } });
-    fireEvent.change(search, { target: { value: "" } });
+  it("an empty query shows the full board", () => {
+    const { rerender } = render(<Board model={SEARCH_MODEL} query="kanban" />);
+    expect(screen.queryByText("Dark mode toggle")).not.toBeInTheDocument();
 
+    rerender(<Board model={SEARCH_MODEL} query="" />);
     expect(screen.getByText("Dark mode toggle")).toBeInTheDocument();
     expect(screen.getByText("Archived thing")).toBeInTheDocument();
   });
 
-  it("Escape in the search field clears it", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    const search = screen.getByRole("searchbox") as HTMLInputElement;
-    fireEvent.change(search, { target: { value: "kanban" } });
-    fireEvent.keyDown(search, { key: "Escape" });
-
-    expect(search.value).toBe("");
-    expect(screen.getByText("Dark mode toggle")).toBeInTheDocument();
-  });
-
-  it("focuses the search field on Cmd/Ctrl+F", () => {
-    render(<Board model={SEARCH_MODEL} />);
-    const search = screen.getByRole("searchbox");
-    expect(search).not.toHaveFocus();
-
-    fireEvent.keyDown(window, { key: "f", metaKey: true });
-    expect(search).toHaveFocus();
-  });
-
   it("composes with the milestone filter (AND)", () => {
-    render(<Board model={SEARCH_MODEL} />);
     // "board" matches c001 (body) which is in m01-a
+    render(<Board model={SEARCH_MODEL} query="board" />);
     fireEvent.change(screen.getByLabelText("Milestone filter"), {
       target: { value: "inbox" },
-    });
-    fireEvent.change(screen.getByRole("searchbox"), {
-      target: { value: "board" },
     });
     // c001 matches the query but is filtered out by the inbox milestone filter
     expect(screen.queryByText("Drag and drop")).not.toBeInTheDocument();
