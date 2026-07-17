@@ -1,8 +1,12 @@
 import { useState } from "react";
 import "./ProjectMenu.css";
 
+/** Last path segment, separator-agnostic (Windows `\` and POSIX `/`), cf.
+ *  i0018/projectFolder — Windows project paths are backslash-separated. */
 function baseName(path: string): string {
-  return path.replace(/\/+$/, "").split("/").pop() ?? path;
+  const trimmed = path.replace(/[/\\]+$/, "");
+  const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return trimmed.slice(cut + 1) || path;
 }
 
 /** Flat wireframe folder glyph (stroke = currentColor, no fill). */
