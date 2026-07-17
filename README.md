@@ -13,9 +13,7 @@ repo, readable in any editor, and editable by hand or by a coding agent.
 ## Why
 
 Agentic development (Claude Code & co.) works best from a written plan broken
-into milestones and steps. Left in free-form Markdown, that plan rots: one file
-grows into a junk drawer, new ideas get appended wherever, and "what's done /
-what's next" is buried in prose. gello keeps everything as Markdown but gives
+into milestones and steps. gello keeps everything as Markdown but gives
 each unit of work its own file with structured frontmatter, and renders it as a
 board:
 
@@ -23,8 +21,7 @@ board:
 - A card's column *is* its `status` frontmatter field. Moving a card is a
   one-line edit.
 - The board lives in the repo, travels with branches, and shows up in PRs.
-- Agents interact with it by doing what they already do best — reading and
-  editing Markdown, following a documented convention. No integration required.
+- Agents interact with it by reading and editing Markdown, following a documented convention
 
 ## How the board works
 
