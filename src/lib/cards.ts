@@ -440,11 +440,14 @@ export function updateCardFields(
       raw = removeFrontmatterField(raw, key);
       continue;
     }
-    raw = setFrontmatterRawValue(
-      raw,
-      key,
-      Array.isArray(value) ? formatFlowList(value) : formatScalar(String(value)),
-    );
+    // numbers are written verbatim — formatScalar would quote a leading "-"
+    // (negative order), which then re-parses as a string (i0007)
+    const formatted = Array.isArray(value)
+      ? formatFlowList(value)
+      : typeof value === "number"
+        ? String(value)
+        : formatScalar(String(value));
+    raw = setFrontmatterRawValue(raw, key, formatted);
   }
   raw = setFrontmatterField(raw, "updated", today);
 

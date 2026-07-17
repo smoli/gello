@@ -253,6 +253,20 @@ Body
     expect(raw).toContain("tags: []\n");
   });
 
+  it("serializes numeric order as an unquoted number, including zero and negatives (i0007)", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    for (const value of [0, -10, 5, 12.5]) {
+      const { card, raw } = updateCardFields(parsed.card, { order: value }, "2026-07-17");
+      expect(card.order).toBe(value);
+      expect(raw).toContain(`order: ${value}\n`);
+      // and it re-parses as a number, not a quoted string
+      const reparsed = parseCard("x.md", raw);
+      expect(reparsed.ok).toBe(true);
+    }
+  });
+
   it("rejects a field update whose result would not parse", () => {
     const parsed = parseCard("x.md", FULL_CARD);
     if (!parsed.ok) throw new Error("fixture must parse");
