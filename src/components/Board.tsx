@@ -297,7 +297,10 @@ export function Board({
         onContextMenu={bgContext}
       >
         {inboxUnprocessed.length > 0 && (
-          <div className="column-track column-track-inbox">
+          <div
+            className="column-track column-track-inbox"
+            onContextMenu={bgContext}
+          >
             <section className="column column-inbox" aria-label="inbox">
             <div className="column-header">
               <h2>inbox</h2>
@@ -338,6 +341,7 @@ export function Board({
               onMoveByKey={moveByKey}
               onSelect={onSelectCard}
               onDragState={setDragging}
+              onBgContextMenu={bgContext}
             />
           );
         })}
@@ -391,6 +395,7 @@ function Column({
   onMoveByKey,
   onSelect,
   onDragState,
+  onBgContextMenu,
 }: {
   name: string;
   cards: BoardCard[];
@@ -406,6 +411,8 @@ function Column({
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
+  /** c0060: right-click on the track's own (background) area. */
+  onBgContextMenu?: (event: React.MouseEvent) => void;
 }) {
   const dropAt = (path: string, zoneIndex: number) => {
     onDropAt(path, zoneIndex);
@@ -422,6 +429,7 @@ function Column({
     <div
       className="column-track"
       onMouseDown={backgroundDrag}
+      onContextMenu={onBgContextMenu}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();

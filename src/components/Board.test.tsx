@@ -151,6 +151,20 @@ describe("Board", () => {
     );
   });
 
+  it("fires the background context menu from a column track, not from a card (c0060)", () => {
+    const onBg = vi.fn();
+    const { container } = render(
+      <Board model={MODEL} onBackgroundContextMenu={onBg} />,
+    );
+
+    // right-click the empty track area → menu; a card → no menu
+    fireEvent.contextMenu(container.querySelector(".column-track")!);
+    expect(onBg).toHaveBeenCalledTimes(1);
+
+    fireEvent.contextMenu(screen.getByText("First card").closest("article")!);
+    expect(onBg).toHaveBeenCalledTimes(1); // unchanged — card falls through
+  });
+
   it("turns on the translucent-column treatment for a color/gradient too (c0060)", () => {
     // (jsdom CSSOM drops gradient shorthands; the image case above covers the
     // style path — here we assert the readable-columns class triggers.)
