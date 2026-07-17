@@ -7,7 +7,17 @@ import {
 } from "../lib/board";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
+import { startWindowDrag } from "../lib/window";
 import "./Board.css";
+
+// c0059: drag the window from a pure-background surface — only when the
+// element's own area is clicked (target === currentTarget), so cards,
+// columns, and controls (children) are never turned into a drag handle.
+function backgroundDrag(event: React.MouseEvent) {
+  if (event.button === 0 && event.target === event.currentTarget) {
+    void startWindowDrag();
+  }
+}
 
 const CARD_DRAG_TYPE = "application/x-gello-card-path";
 
@@ -184,11 +194,12 @@ export function Board({
   return (
     <div
       className={boardClasses}
+      onMouseDown={backgroundDrag}
       style={
         backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined
       }
     >
-      <header className="board-toolbar">
+      <header className="board-toolbar" onMouseDown={backgroundDrag}>
         <div className="toolbar-filters">
           <select
             aria-label="Milestone filter"
@@ -256,7 +267,7 @@ export function Board({
           ))}
         </section>
       )}
-      <div className="board-columns">
+      <div className="board-columns" onMouseDown={backgroundDrag}>
         {inboxUnprocessed.length > 0 && (
           <div className="column-track column-track-inbox">
             <section className="column column-inbox" aria-label="inbox">
@@ -382,6 +393,7 @@ function Column({
     // content-height columns (c049) still catch drops anywhere in the lane
     <div
       className="column-track"
+      onMouseDown={backgroundDrag}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();

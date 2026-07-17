@@ -136,3 +136,21 @@ Per platform:
 - 2026-07-17 status → ready (app)
 - 2026-07-17 macOS frameless overlay + TitleBar; status bar removed;
   Win/Linux chrome deferred to c019; 5 tests, status → review
+
+## Follow-up (Stephan): window drag
+
+- Root cause of "cannot drag the window": Tauri v2 gates window dragging
+  behind `core:window:allow-start-dragging`, which `core:default` does not
+  include — so `data-tauri-drag-region` silently did nothing. Added the
+  permission to capabilities/default.json.
+- Broadened per request: drag the window from any **pure-background** surface
+  (board padding, toolbar empty area, column gaps, empty track below a
+  column) via a programmatic `startWindowDrag()` (getCurrentWindow().
+  startDragging(), no-op outside Tauri) fired on mousedown only when the
+  element's own area is clicked (`target === currentTarget`) — so cards,
+  columns, and controls are never turned into a drag handle. Titlebar keeps
+  `data-tauri-drag-region` (works now with the permission).
+
+## Log
+
+- 2026-07-17 window-drag permission + background drag surfaces

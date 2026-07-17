@@ -1,11 +1,13 @@
 ---
 id: c029
 title: Provide skill to onboard legacy projects
-status: backlog
+status: ready
 priority: normal
 depends: [c032]
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
+status-changed: 2026-07-17T09:10:15
+order: 10
 ---
 
 I have project already using other means fo task organisation. The tool could provide a skill/prompt that the user can use on an existing agentic project to move the project to gello, preserving the history as good as possible.
@@ -100,3 +102,7 @@ working tree — if dirty, it warns and stops without writing.
 - **Delivery via c032 installer** (hence `depends: [c032]`): the user
   creates an empty board in the app first, which installs the skills; the
   onboarding skill fills the board. No pre-board bootstrap mode needed.
+
+## Log
+
+- 2026-07-17 status → ready (app)
