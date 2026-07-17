@@ -15,6 +15,8 @@ Need a setting to
 * light mode
 * follow OS setting
 
+Reachable via the context menu
+
 ## Log
 
 - 2026-07-17 status → ready (app)
