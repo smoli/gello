@@ -499,6 +499,40 @@ describe("Board card moves", () => {
     );
   });
 
+  it("i0015: a positioned insert-zone drop of an inbox card opens the picker WITH the slot order", () => {
+    const onMove = vi.fn();
+    const onInboxStatusDrop = vi.fn();
+    render(
+      <Board
+        model={MODEL}
+        onMoveCard={onMove}
+        onReorderCard={vi.fn()}
+        onRenumber={vi.fn()}
+        onInboxStatusDrop={onInboxStatusDrop}
+      />,
+    );
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+
+    // drop on a specific insert zone in the ready column (not the track)
+    const ready = column("ready");
+    const zone = within(ready)
+      .getAllByLabelText(/insert at/)
+      .find((z) => !z.className.includes("muted"))!;
+    fireEvent.drop(zone, { dataTransfer });
+
+    // still prompts for a milestone, but carries the chosen slot so pick/dismiss
+    // can place the card there instead of at the bottom
+    expect(onMove).not.toHaveBeenCalled();
+    expect(onInboxStatusDrop).toHaveBeenCalledTimes(1);
+    expect(onInboxStatusDrop.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ id: "c010" }),
+    );
+    expect(onInboxStatusDrop.mock.calls[0][1]).toBe("ready");
+    expect(typeof onInboxStatusDrop.mock.calls[0][2]).toBe("number");
+  });
+
   it("i0005: routes a milestone-less inbox card dropped on ready to the milestone picker", () => {
     const onMove = vi.fn();
     const onInboxStatusDrop = vi.fn();

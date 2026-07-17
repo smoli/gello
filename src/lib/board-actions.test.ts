@@ -537,6 +537,25 @@ updated: 2026-07-10
     expect(written).toContain("2026-07-16 status → ready (app)");
   });
 
+  it("i0015: a positioned triage keeps the dropped slot (order), status unchanged", async () => {
+    const { card, persisted } = triageCard(
+      "/repo/.gello",
+      inboxCard(), // status backlog
+      { folder: "m02-board-ui", milestoneId: "m02" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:15:00",
+      "backlog", // same status → no status change
+      25, // the chosen slot
+    );
+
+    expect(card.milestone).toBe("m02");
+    expect(card.order).toBe(25);
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("order: 25");
+    expect(written).not.toContain("status-changed:"); // status didn't change
+  });
+
   it("i0005: leaves status untouched when the dropped-on status equals the current one", async () => {
     const { card, persisted } = triageCard(
       "/repo/.gello",

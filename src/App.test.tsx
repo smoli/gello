@@ -483,6 +483,40 @@ describe("App", () => {
     expect(writeMock.mock.calls[0][1]).toContain("milestone: m02");
   });
 
+  it("i0015: a positioned drop triages into the picked milestone at the chosen slot (with order)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    // drop on a specific insert zone in the ready column (positioned)
+    const ready = screen.getByRole("region", { name: "ready" });
+    const zone = within(ready)
+      .getAllByLabelText(/insert at/)
+      .find((z) => !z.className.includes("insert-zone-muted"))!;
+    fireEvent.drop(zone, { dataTransfer });
+
+    // still prompts, then triages to the chosen slot — the write carries an order
+    const picker = screen.getByRole("dialog", { name: "assign milestone" });
+    fireEvent.click(within(picker).getByText("Board UI"));
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      expect.stringContaining("status: ready"),
+    );
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("milestone: m02");
+    expect(written).toMatch(/^order: \d/m); // placed at the dropped slot, not the bottom
+  });
+
   it("i0005: dismissing the milestone picker applies the status but keeps the card in inbox", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

@@ -215,15 +215,21 @@ export function triageCard(
   config: BoardConfig,
   now: string,
   status?: string,
+  order?: number,
 ): MoveResult {
   const today = now.slice(0, 10);
   const statusChanges = status !== undefined && status !== card.status;
   let changes: CardFieldChanges = { milestone: target.milestoneId };
   if (statusChanges) {
-    // mirror saveCardFields' c056 bookkeeping: stamp when the status was
-    // assigned and drop a manual rank that belonged to the old column
+    // mirror saveCardFields' c056 bookkeeping: stamp when the status was assigned
     changes = { statusChanged: now, status, ...changes };
-    if (card.order !== null) changes = { ...changes, order: null };
+  }
+  // i0015: a positioned triage keeps the dropped slot; otherwise a status
+  // change drops a manual rank that belonged to the old column
+  if (order !== undefined) {
+    changes = { ...changes, order };
+  } else if (statusChanges && card.order !== null) {
+    changes = { ...changes, order: null };
   }
   let { card: updated, raw } = updateCardFields(card, changes, today, config);
   if (statusChanges) {

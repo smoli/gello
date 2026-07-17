@@ -91,10 +91,11 @@ export function Board({
   onSelectCard?: (card: Card) => void;
   /**
    * i0005: a milestone-less inbox card was dropped on a triage column. The
-   * host opens an inline milestone picker; the status is the dropped-on
-   * column.
+   * host opens an inline milestone picker; `status` is the dropped-on column.
+   * `order` is the chosen slot when it was a positioned insert-zone drop
+   * (i0015), so the pick/dismiss can place the card there.
    */
-  onInboxStatusDrop?: (card: Card, status: string) => void;
+  onInboxStatusDrop?: (card: Card, status: string, order?: number) => void;
   onReorderCard?: ReorderCardHandler;
   onRenumber?: RenumberHandler;
   /** Data URL of the board background (c047). */
@@ -187,13 +188,6 @@ export function Board({
   ) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
     if (!entry) return;
-    // i0005/i0014: a milestone-less inbox card lands via the picker, not a
-    // ranked insert — the milestone move relocates it anyway. Checked even for
-    // a same-status drop (backlog inbox card onto backlog).
-    if (promptsForMilestone(entry.card, column)) {
-      onInboxStatusDrop?.(entry.card, column);
-      return;
-    }
     // plan against the column WITHOUT the dragged card; zones are rendered
     // around the full list, so slots below the card's own shift down by one
     const draggedAt = columnEntries.findIndex((c) => c.card.path === cardPath);
@@ -203,6 +197,13 @@ export function Board({
       .map((c) => c.card);
     const plan = planManualInsert(others, index);
     if (plan.renumber && plan.renumber.length > 0) onRenumber?.(plan.renumber);
+    // i0005/i0015: a milestone-less inbox card still needs a milestone — open
+    // the picker, but carry the chosen slot (order) so the pick/dismiss lands
+    // the card exactly where it was dropped, not at the bottom.
+    if (promptsForMilestone(entry.card, column)) {
+      onInboxStatusDrop?.(entry.card, column, plan.order);
+      return;
+    }
     if (entry.card.status !== column) onMoveCard?.(entry.card, column, plan.order);
     else onReorderCard?.(entry.card, plan.order);
   };

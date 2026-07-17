@@ -124,6 +124,7 @@ function App() {
   const [pendingTriage, setPendingTriage] = useState<{
     card: Card;
     status: string;
+    order?: number;
   } | null>(null);
   // git branch for the status bar (c0057); null = not a git repo
   const [branch, setBranch] = useState<string | null>(null);
@@ -552,6 +553,7 @@ function App() {
     folder: string,
     milestoneId: string,
     status?: string,
+    order?: number,
   ) => {
     if (!board) return;
     const oldPath = card.path;
@@ -564,6 +566,7 @@ function App() {
           board.model.config,
           nowIsoDateTime(),
           status,
+          order,
         ),
       (model, moved) => withCardTriaged(model, oldPath, moved, folder),
     );
@@ -693,7 +696,9 @@ function App() {
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           loadImage={handleLoadImage}
-          onInboxStatusDrop={(card, status) => setPendingTriage({ card, status })}
+          onInboxStatusDrop={(card, status, order) =>
+            setPendingTriage({ card, status, order })
+          }
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
         />
@@ -712,21 +717,24 @@ function App() {
             status={pendingTriage.status}
             fromStatus={pendingTriage.card.status}
             onPick={(folder, milestoneId) => {
+              // i0015: triage into the chosen milestone at the dropped slot
               handleTriage(
                 pendingTriage.card,
                 folder,
                 milestoneId,
                 pendingTriage.status,
+                pendingTriage.order,
               );
               setPendingTriage(null);
             }}
             onDismiss={() => {
               // Escape hatch, stay in the inbox. A raw backlog idea takes the
               // dropped-on status (c030 flag-it-forward); a card that already
-              // carries a flag (e.g. discuss) returns to that status.
+              // carries a flag (e.g. discuss) returns to that status. Keep the
+              // dropped slot (i0015) when the status actually changes.
               const from = pendingTriage.card.status;
               const target = from === "backlog" ? pendingTriage.status : from;
-              handleMove(pendingTriage.card, target);
+              handleMove(pendingTriage.card, target, pendingTriage.order);
               setPendingTriage(null);
             }}
           />
