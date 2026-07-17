@@ -31,25 +31,12 @@ interface BoardCard {
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
-export type TriageCardHandler = (
-  card: Card,
-  folder: string,
-  milestoneId: string,
-) => void;
 /** Same-column reposition in a manual column (c056). */
 export type ReorderCardHandler = (card: Card, order: number) => void;
 /** Bulk re-rank when a single write can't express the position (c056). */
 export type RenumberHandler = (
   ranks: Array<{ card: Card; order: number }>,
 ) => void;
-
-/** Milestone-zone strip trigger (c028): an untriaged idea being dragged. */
-function showsMilestoneZones(card: Card): boolean {
-  return (
-    card.path.startsWith("inbox/") &&
-    (card.status === "backlog" || card.status === "discuss")
-  );
-}
 
 /**
  * Cards that live in the status columns: all milestone cards, plus inbox
@@ -83,7 +70,6 @@ export function Board({
   model,
   onMoveCard,
   onSelectCard,
-  onTriageCard,
   onInboxStatusDrop,
   onReorderCard,
   onRenumber,
@@ -98,7 +84,6 @@ export function Board({
   /** c0060: right-click on empty board background (not a card). */
   onBackgroundContextMenu?: (x: number, y: number) => void;
   onSelectCard?: (card: Card) => void;
-  onTriageCard?: TriageCardHandler;
   /**
    * i0005: a milestone-less inbox card was dropped on a triage column. The
    * host opens an inline milestone picker; the status is the dropped-on
@@ -218,14 +203,6 @@ export function Board({
     if (target) onMoveCard?.(card, target);
   };
 
-  const dropOnMilestone = (folder: string, milestoneId: string, cardPath: string) => {
-    const card = model.inbox.find((c) => c.path === cardPath);
-    if (card) onTriageCard?.(card, folder, milestoneId);
-  };
-
-  const stripVisible =
-    dragging !== null && showsMilestoneZones(dragging) && model.milestones.length > 0;
-
   // c0060: right-click on a pure-background surface (its own area, not a card)
   const bgContext = (event: React.MouseEvent) => {
     if (event.target === event.currentTarget && onBackgroundContextMenu) {
@@ -301,32 +278,6 @@ export function Board({
         {/* symmetry cell so the search sits at the true center */}
         <div className="toolbar-spacer" aria-hidden="true" />
       </header>
-      {stripVisible && (
-        <section className="milestone-strip" aria-label="assign to milestone">
-          <span className="milestone-strip-hint">assign to milestone:</span>
-          {model.milestones.map((group) => (
-            <div
-              key={group.folder}
-              className="milestone-zone"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
-                if (path) {
-                  dropOnMilestone(
-                    group.folder,
-                    group.milestone?.id ?? group.folder.match(/^m\d+/)?.[0] ?? group.folder,
-                    path,
-                  );
-                }
-                setDragging(null);
-              }}
-            >
-              {group.milestone?.title ?? group.folder}
-            </div>
-          ))}
-        </section>
-      )}
       <div
         className="board-columns"
         onMouseDown={backgroundDrag}

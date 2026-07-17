@@ -6,7 +6,7 @@ priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T11:36:11
+status-changed: 2026-07-17T11:46:40
 order: 30
 milestone: m02
 ---
@@ -94,3 +94,7 @@ Two paths:
   (discuss/backlog/ready; dismiss = status-only, stay in inbox) via
   triageCard's new status param + Board routing + MilestonePicker overlay;
   detail milestone select now reassigns already-triaged cards too.
+- 2026-07-17 refined (agent): retired the c028 milestone strip (the
+  status-drop picker replaces it). Picker dismiss is origin-aware — a
+  discuss-origin card returns to discuss ("Move back to discuss"); only a
+  raw backlog idea keeps the c030 flag-it-forward dismiss ("Stay in inbox").

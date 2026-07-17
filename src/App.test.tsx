@@ -406,6 +406,44 @@ describe("App", () => {
     expect(writeMock.mock.calls[0][1]).not.toContain("milestone:");
   });
 
+  it("i0005: dismissing returns a discuss-origin card to discuss, not the dropped status", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [discuss, backlog, ready, done]\n" },
+        {
+          path: "inbox/c001-hello.md",
+          content: "---\nid: c001\ntitle: Hello board\nstatus: discuss\n---\nx\n",
+        },
+        {
+          path: "milestones/m02-board-ui/milestone.md",
+          content: "---\nid: m02\ntitle: Board UI\n---\ngoal\n",
+        },
+      ]),
+    });
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    // a discuss inbox card lives in the discuss column; drag it onto ready
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
+
+    fireEvent.click(screen.getByRole("button", { name: /move back to discuss/i }));
+
+    // no status write at all — it's already discuss, so it stays put in inbox
+    expect(writeMock).not.toHaveBeenCalled();
+    expect(within(screen.getByRole("region", { name: "discuss" })).getByText("Hello board"))
+      .toBeInTheDocument();
+  });
+
   it("applies external file changes to the board live (debounced)", async () => {
     vi.useFakeTimers();
     try {
@@ -471,39 +509,6 @@ describe("App", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it("drag-triages an inbox card onto a milestone zone without opening the detail", async () => {
-    loadMock.mockResolvedValueOnce(loadedFixture());
-    writeMock.mockResolvedValueOnce(undefined);
-
-    render(<App />);
-    const inboxCard = (await screen.findByText("Hello board")).closest("article")!;
-    const dataTransfer = {
-      data: {} as Record<string, string>,
-      setData(type: string, value: string) {
-        this.data[type] = value;
-      },
-      getData(type: string) {
-        return this.data[type] ?? "";
-      },
-      effectAllowed: "",
-    };
-
-    fireEvent.dragStart(inboxCard, { dataTransfer });
-    const strip = screen.getByRole("region", { name: "assign to milestone" });
-    const zone = within(strip).getByText("Board UI").closest("div")!;
-    fireEvent.drop(zone, { dataTransfer });
-
-    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
-      expect.stringContaining("status: backlog"),
-    );
-    // no dialog popped open by the drag
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    // card now renders under the milestone in its status column
-    const backlog = screen.getByRole("region", { name: "backlog" });
-    expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
   });
 
   it("report-issue drafts first, creates on submit, and opens the issue (c024/c035/c037)", async () => {

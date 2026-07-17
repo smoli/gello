@@ -7,16 +7,24 @@ const OPTIONS = [
   { folder: "m02-beta", milestoneId: "m02", label: "Beta" },
 ];
 
+function renderPicker(
+  overrides: Partial<Parameters<typeof MilestonePicker>[0]> = {},
+) {
+  const props = {
+    options: OPTIONS,
+    status: "ready",
+    fromStatus: "backlog",
+    onPick: vi.fn(),
+    onDismiss: vi.fn(),
+    ...overrides,
+  };
+  render(<MilestonePicker {...props} />);
+  return props;
+}
+
 describe("MilestonePicker (i0005)", () => {
   it("lists the board's milestones and the target status", () => {
-    render(
-      <MilestonePicker
-        options={OPTIONS}
-        status="discuss"
-        onPick={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
+    renderPicker({ status: "discuss" });
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
@@ -25,60 +33,38 @@ describe("MilestonePicker (i0005)", () => {
   });
 
   it("picks a milestone with its folder + id", () => {
-    const onPick = vi.fn();
-    render(
-      <MilestonePicker
-        options={OPTIONS}
-        status="ready"
-        onPick={onPick}
-        onDismiss={vi.fn()}
-      />,
-    );
+    const { onPick } = renderPicker();
 
     fireEvent.click(screen.getByText("Beta"));
     expect(onPick).toHaveBeenCalledExactlyOnceWith("m02-beta", "m02");
   });
 
-  it("dismisses via the stay-in-inbox action", () => {
-    const onDismiss = vi.fn();
-    render(
-      <MilestonePicker
-        options={OPTIONS}
-        status="ready"
-        onPick={vi.fn()}
-        onDismiss={onDismiss}
-      />,
-    );
+  it("labels the dismiss 'Stay in inbox' for a raw backlog card", () => {
+    const { onDismiss } = renderPicker({ fromStatus: "backlog" });
 
     fireEvent.click(screen.getByRole("button", { name: /stay in inbox/i }));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
+  it("labels the dismiss 'Move back to discuss' when the card came from discuss", () => {
+    const { onDismiss } = renderPicker({ fromStatus: "discuss", status: "ready" });
+
+    expect(
+      screen.queryByRole("button", { name: /stay in inbox/i }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /move back to discuss/i }));
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
   it("dismisses on Escape", () => {
-    const onDismiss = vi.fn();
-    render(
-      <MilestonePicker
-        options={OPTIONS}
-        status="ready"
-        onPick={vi.fn()}
-        onDismiss={onDismiss}
-      />,
-    );
+    const { onDismiss } = renderPicker();
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
   it("dismisses on a backdrop click", () => {
-    const onDismiss = vi.fn();
-    render(
-      <MilestonePicker
-        options={OPTIONS}
-        status="ready"
-        onPick={vi.fn()}
-        onDismiss={onDismiss}
-      />,
-    );
+    const { onDismiss } = renderPicker();
 
     fireEvent.click(screen.getByTestId("milestone-picker-backdrop"));
     expect(onDismiss).toHaveBeenCalledOnce();

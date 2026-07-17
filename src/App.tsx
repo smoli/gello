@@ -591,7 +591,6 @@ function App() {
           }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
-          onTriageCard={handleTriage}
           onInboxStatusDrop={(card, status) => setPendingTriage({ card, status })}
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
@@ -609,6 +608,7 @@ function App() {
           <MilestonePicker
             options={milestoneOptions}
             status={pendingTriage.status}
+            fromStatus={pendingTriage.card.status}
             onPick={(folder, milestoneId) => {
               handleTriage(
                 pendingTriage.card,
@@ -619,8 +619,12 @@ function App() {
               setPendingTriage(null);
             }}
             onDismiss={() => {
-              // c030 escape hatch: apply the status only, stay in the inbox
-              handleMove(pendingTriage.card, pendingTriage.status);
+              // Escape hatch, stay in the inbox. A raw backlog idea takes the
+              // dropped-on status (c030 flag-it-forward); a card that already
+              // carries a flag (e.g. discuss) returns to that status.
+              const from = pendingTriage.card.status;
+              const target = from === "backlog" ? pendingTriage.status : from;
+              handleMove(pendingTriage.card, target);
               setPendingTriage(null);
             }}
           />

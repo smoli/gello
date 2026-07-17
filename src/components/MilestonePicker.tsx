@@ -12,11 +12,15 @@ import "./MilestonePicker.css";
 export function MilestonePicker({
   options,
   status,
+  fromStatus,
   onPick,
   onDismiss,
 }: {
   options: MilestoneOption[];
+  /** The dropped-on column — the status a milestone pick will apply. */
   status: string;
+  /** The card's current status, so dismiss can return it to its origin. */
+  fromStatus: string;
   onPick: (folder: string, milestoneId: string) => void;
   onDismiss: () => void;
 }) {
@@ -27,6 +31,12 @@ export function MilestonePicker({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onDismiss]);
+
+  // Dismiss returns a card that already carries a meaningful flag (e.g.
+  // discuss) to that status; a raw backlog idea keeps the c030 "flag it
+  // forward" behavior — dismiss applies the dropped-on status instead.
+  const dismissLabel =
+    fromStatus === "backlog" ? "Stay in inbox" : `Move back to ${fromStatus}`;
 
   return (
     <div
@@ -60,7 +70,7 @@ export function MilestonePicker({
           className="milestone-picker-dismiss"
           onClick={onDismiss}
         >
-          Stay in inbox
+          {dismissLabel}
         </button>
       </div>
     </div>
