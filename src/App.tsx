@@ -40,11 +40,11 @@ import {
   readFileRaw,
   watchBoard,
   watchGitHead,
+  writeNewFiles,
   type LoadedBoard,
 } from "./lib/board-io";
 import { addRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { ProjectMenu } from "./components/ProjectMenu";
-import { writeFileAtomic } from "./lib/fs";
 import { projectFolder } from "./lib/status";
 import {
   ALL_SKILLS,
@@ -203,15 +203,17 @@ function App() {
   }, [root]);
 
   const handleInstallSkills = async () => {
+    const files: Array<{ path: string; content: string }> = [];
     for (const dir of skillDirs) {
       for (const skill of ALL_SKILLS) {
         const path = skillFilePath(dir, skill);
         const existing = await readFileRaw(path).catch(() => null);
         if (installDecision(existing, skill) !== "skip") {
-          await writeFileAtomic(path, managedSkillFile(skill));
+          files.push({ path, content: managedSkillFile(skill) });
         }
       }
     }
+    if (files.length > 0) await writeNewFiles(files); // creates skills/ if new
     setSkillDirs([]);
   };
 

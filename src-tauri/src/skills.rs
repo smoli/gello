@@ -1,18 +1,22 @@
-//! Detect agent-skill locations under a project (c032). gello only installs
-//! into skill directories that already exist — it never introduces an agent
-//! ecosystem into a project that isn't using one.
+//! Detect agent-skill locations under a project (c032/i0010). gello asks when
+//! the project already uses an agent ecosystem — i.e. a `.claude`, `.pi`, or
+//! `.agents` directory exists — and installs into that root's `skills/`
+//! subdirectory (created on install if absent). It never creates the agent
+//! root itself, so it won't introduce an ecosystem into a project without one.
 
 use std::path::{Path, PathBuf};
 
-/// Skill directories gello knows about, in priority order.
-const SKILL_DIRS: [&str; 3] = [".claude/skills", ".pi/skills", ".agents/skills"];
+/// Agent ecosystem roots gello knows about, in priority order.
+const AGENT_ROOTS: [&str; 3] = [".claude", ".pi", ".agents"];
 
-/// The subset of known skill directories that exist under `project_root`.
+/// For each agent root that exists under `project_root`, the `skills/`
+/// directory to install into (whether or not it exists yet).
 pub fn detect_skill_dirs(project_root: &Path) -> Vec<PathBuf> {
-    SKILL_DIRS
+    AGENT_ROOTS
         .iter()
         .map(|rel| project_root.join(rel))
-        .filter(|path| path.is_dir())
+        .filter(|root| root.is_dir())
+        .map(|root| root.join("skills"))
         .collect()
 }
 
@@ -22,12 +26,13 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn detects_only_existing_skill_dirs() {
+    fn detects_the_skills_dir_when_the_agent_root_exists() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        fs::create_dir_all(root.join(".claude/skills")).unwrap();
+        // .claude exists but has no skills/ subdir yet
+        fs::create_dir_all(root.join(".claude")).unwrap();
         fs::create_dir_all(root.join(".agents/skills")).unwrap();
-        // .pi/skills intentionally absent
+        // .pi absent
 
         let found = detect_skill_dirs(root);
 
@@ -38,16 +43,15 @@ mod tests {
     }
 
     #[test]
-    fn a_file_named_like_a_skill_dir_does_not_count() {
+    fn ignores_a_file_named_like_an_agent_root() {
         let dir = tempfile::tempdir().unwrap();
-        fs::create_dir_all(dir.path().join(".claude")).unwrap();
-        fs::write(dir.path().join(".claude/skills"), "not a dir").unwrap();
+        fs::write(dir.path().join(".claude"), "not a dir").unwrap();
 
         assert!(detect_skill_dirs(dir.path()).is_empty());
     }
 
     #[test]
-    fn empty_when_no_skill_dirs() {
+    fn empty_when_no_agent_root() {
         let dir = tempfile::tempdir().unwrap();
         assert!(detect_skill_dirs(dir.path()).is_empty());
     }

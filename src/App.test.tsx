@@ -12,6 +12,7 @@ import {
   loadBoardFromDisk,
   pickFolder,
   readFileRaw,
+  writeNewFiles,
   watchBoard,
   watchGitHead,
 } from "./lib/board-io";
@@ -32,6 +33,7 @@ vi.mock("./lib/board-io", () => ({
   loadBoardAt: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
+  writeNewFiles: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -503,7 +505,7 @@ describe("App", () => {
     });
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
     readMock.mockRejectedValue(new Error("no such file")); // skill not installed yet
-    writeMock.mockResolvedValue(undefined);
+    vi.mocked(writeNewFiles).mockResolvedValue(undefined);
 
     render(<App />);
     const install = await screen.findByRole("button", { name: "Install" });
@@ -512,10 +514,11 @@ describe("App", () => {
     fireEvent.click(install);
 
     await vi.waitFor(() => {
-      expect(writeMock).toHaveBeenCalledWith(
-        "/repo/proj/.claude/skills/gello-discuss/SKILL.md",
-        expect.stringContaining("gello-managed"),
-      );
+      const files = vi.mocked(writeNewFiles).mock.calls[0][0];
+      expect(files).toContainEqual({
+        path: "/repo/proj/.claude/skills/gello-discuss/SKILL.md",
+        content: expect.stringContaining("gello-managed"),
+      });
     });
     expect(
       screen.queryByRole("button", { name: "Install" }),

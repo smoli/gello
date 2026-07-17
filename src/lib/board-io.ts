@@ -112,6 +112,13 @@ export async function pickFolder(): Promise<string | null> {
   }
 }
 
+/** Write files atomically, creating parent dirs (c017 scaffold, c032 skills). */
+export async function writeNewFiles(
+  files: Array<{ path: string; content: string }>,
+): Promise<void> {
+  await invoke("write_new_files", { files });
+}
+
 /** c017: scaffold a fresh `.gello/` board (+ CLAUDE.md convention) under a
  *  folder that has none. Returns the new `.gello` root. */
 export async function initBoard(projectRoot: string): Promise<string> {
@@ -121,7 +128,7 @@ export async function initBoard(projectRoot: string): Promise<string> {
   const existing = await readFileRaw(claudePath).catch(() => null);
   const claude = claudeMdContent(existing);
   if (claude !== existing) files.push({ path: claudePath, content: claude });
-  await invoke("write_new_files", { files });
+  await writeNewFiles(files);
   return `${projectRoot}/.gello`;
 }
 
