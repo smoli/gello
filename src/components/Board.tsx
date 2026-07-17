@@ -78,19 +78,23 @@ export function Board({
   onTriageCard,
   onReorderCard,
   onRenumber,
-  backgroundImage,
+  background,
   toolbarLeading,
+  onBackgroundContextMenu,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
   /** c016: a control rendered at the start of the toolbar (project menu). */
   toolbarLeading?: React.ReactNode;
+  /** c0060: right-click on empty board background (not a card). */
+  onBackgroundContextMenu?: (x: number, y: number) => void;
   onSelectCard?: (card: Card) => void;
   onTriageCard?: TriageCardHandler;
   onReorderCard?: ReorderCardHandler;
   onRenumber?: RenumberHandler;
   /** Data URL of the board background (c047). */
-  backgroundImage?: string;
+  /** c0060: full CSS background value (url(...), #hex, or gradient). */
+  background?: string;
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -186,9 +190,17 @@ export function Board({
   const stripVisible =
     dragging !== null && showsMilestoneZones(dragging) && model.milestones.length > 0;
 
+  // c0060: right-click on a pure-background surface (its own area, not a card)
+  const bgContext = (event: React.MouseEvent) => {
+    if (event.target === event.currentTarget && onBackgroundContextMenu) {
+      event.preventDefault();
+      onBackgroundContextMenu(event.clientX, event.clientY);
+    }
+  };
+
   const boardClasses = [
     "board",
-    backgroundImage ? "board-with-bg" : "",
+    background ? "board-with-bg" : "",
     dragging ? "board-dragging" : "", // c054: drop lanes render feedback
   ]
     .filter(Boolean)
@@ -198,8 +210,9 @@ export function Board({
     <div
       className={boardClasses}
       onMouseDown={backgroundDrag}
+      onContextMenu={bgContext}
       style={
-        backgroundImage ? { backgroundImage: `url(${backgroundImage})` } : undefined
+        background ? { background } : undefined
       }
     >
       <header className="board-toolbar" onMouseDown={backgroundDrag}>
@@ -271,7 +284,11 @@ export function Board({
           ))}
         </section>
       )}
-      <div className="board-columns" onMouseDown={backgroundDrag}>
+      <div
+        className="board-columns"
+        onMouseDown={backgroundDrag}
+        onContextMenu={bgContext}
+      >
         {inboxUnprocessed.length > 0 && (
           <div className="column-track column-track-inbox">
             <section className="column column-inbox" aria-label="inbox">

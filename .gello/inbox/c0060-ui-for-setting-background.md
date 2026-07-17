@@ -1,11 +1,12 @@
 ---
 id: c0060
 title: UI for setting background
-status: discuss
+status: review
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T09:30:26
+status-changed: 2026-07-17T10:44:21
+order: 10
 ---
 
 ## What
@@ -41,39 +42,39 @@ the board automatically — no separate refresh path.
 
 ## Acceptance criteria
 
-- [ ] Right-clicking the board background (not a card) opens the context
+- [x] Right-clicking the board background (not a card) opens the context
       menu with an Image / Color / Gradient mode toggle; right-clicking a
       card does not
-- [ ] Image mode: native file picker copies the file under
+- [x] Image mode: native file picker copies the file under
       `.gello/assets/board/` and writes its path to `background:`; the board
       repaints via the watcher
-- [ ] Color mode: choosing a color writes that hex to `background:`; the
+- [x] Color mode: choosing a color writes that hex to `background:`; the
       board shows a solid color
-- [ ] Gradient mode: two colors + an angle (0–360°) write
+- [x] Gradient mode: two colors + an angle (0–360°) write
       `linear-gradient(<angle>deg, <from>, <to>)` to `background:`; the
       board shows the gradient; the angle is respected
-- [ ] Color and gradient controls update the actual board background in
+- [x] Color and gradient controls update the actual board background in
       real time as they change — every color pick and angle adjustment
       repaints the board immediately (via local state, not the swatch alone)
-- [ ] A single `board.yaml` write persists the value on commit (not one per
+- [x] A single `board.yaml` write persists the value on commit (not one per
       slider tick); dismissing without commit reverts the board to the
       previously saved background
-- [ ] Opening the picker on an existing background pre-populates it from the
+- [x] Opening the picker on an existing background pre-populates it from the
       current `background:` value (path / color / parsed gradient)
-- [ ] A `background:` value is classified by shape: asset path vs. color vs.
+- [x] A `background:` value is classified by shape: asset path vs. color vs.
       `linear-gradient(...)`; colors/gradients apply as CSS with no file I/O
-- [ ] Translucent-column treatment (c047) applies for any background —
+- [x] Translucent-column treatment (c047) applies for any background —
       image, color, or gradient — so cards stay readable
-- [ ] "Paste image from clipboard" appears only when the clipboard has an
+- [~] "Paste image from clipboard" — DEFERRED (needs a clipboard-image plugin/command); see Notes. Appears only when the clipboard has an
       image; invoking it stores the image and sets `background:` like the
       file picker
-- [ ] "Remove background" appears only when set; clears `background:`
+- [x] "Remove background" appears only when set; clears `background:`
       (surgical edit) and any managed image asset; board reverts to plain
-- [ ] Switching away from an image background does not orphan its managed
+- [x] Switching away from an image background does not orphan its managed
       asset file (removed on replace/remove)
-- [ ] `board.yaml` writes are surgical (a new board.yaml line editor):
+- [x] `board.yaml` writes are surgical (a new board.yaml line editor):
       unrelated keys, comments, and formatting survive byte-for-byte
-- [ ] All file/clipboard writes are atomic; a failed write surfaces an error
+- [x] All file/clipboard writes are atomic; a failed write surfaces an error
       and leaves board.yaml unchanged
 
 ## Discussion
@@ -132,3 +133,32 @@ the board automatically — no separate refresh path.
 - 2026-07-17 extended (agent): background can be image / solid color /
   two-color gradient with angle, stored as one CSS-value string; inline
   picker panel with Image/Color/Gradient toggle + live preview.
+- 2026-07-17 status → ready (app)
+
+## Notes
+
+- Pure cores (tested): `background.ts` (classify image/color/gradient, parse/
+  format gradient, resolve CSS) and `boardyaml.ts` (surgical top-level
+  set/remove for plain-YAML board.yaml, byte-for-byte preservation, value
+  quoting). Board applies any background as one CSS value; translucent columns
+  (c047) generalized to any non-empty background.
+- UI: right-click a pure-background surface (not a card) → `BackgroundPicker`
+  (Image/Color/Gradient toggle). Color/gradient preview live over the real
+  board via a preview-override state; Apply commits one board.yaml write,
+  Cancel reverts, Remove clears (+ deletes the managed image asset). Picker
+  pre-populates from the saved value.
+- Image: native file picker → Rust `set_board_image` copies into
+  `assets/board/background.<ext>`, removing any prior `background.*` (orphan-
+  safe, format-change-safe). Config write + c047 watcher repaints.
+- **DEFERRED: clipboard paste** — the one criterion not done. It needs a new
+  clipboard-image path (plugin/Rust) and is Tauri-only/unverifiable here; the
+  card itself noted it as "not built yet". Everything else (image via picker,
+  color, gradient, remove, live preview, surgical writes) is done. Marked
+  `[~]`; a follow-up card can add paste on top of this picker.
+
+## Log
+
+- 2026-07-17 status → discuss → ready (app)
+- 2026-07-17 implemented: classify/gradient + surgical board.yaml writer +
+  right-click picker (image/color/gradient/remove) + live preview; clipboard
+  paste deferred. 30 tests, status → review

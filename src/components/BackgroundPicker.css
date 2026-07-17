@@ -1,0 +1,85 @@
+.bg-picker {
+  position: fixed;
+  z-index: 50;
+  width: 240px;
+  padding: 0.6rem;
+  border-radius: 10px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 25%, transparent);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bg-picker-modes {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.bg-picker-modes button {
+  flex: 1;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.3rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.bg-picker-modes button.active {
+  background: color-mix(in srgb, #4c8bf5 20%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
+}
+
+.bg-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.bg-picker-body label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bg-picker-body input[type="color"] {
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 6px;
+  background: Canvas;
+}
+
+.bg-picker-angle {
+  min-width: 2.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bg-picker-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.bg-picker-actions button {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.bg-picker-apply {
+  background: color-mix(in srgb, #4c8bf5 18%, Canvas) !important;
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent) !important;
+}

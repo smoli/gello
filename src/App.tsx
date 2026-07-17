@@ -37,14 +37,20 @@ import {
   loadBoardAt,
   loadBoardFromDisk,
   pickFolder,
+  pickImageFile,
   readFileRaw,
+  removeFile,
+  setBoardImage,
   watchBoard,
   watchGitHead,
   writeNewFiles,
   type LoadedBoard,
 } from "./lib/board-io";
 import { addRecent, parseRecent, serializeRecent } from "./lib/recent";
+import { backgroundCss, classifyBackground } from "./lib/background";
+import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
 import { ProjectMenu } from "./components/ProjectMenu";
+import { BackgroundPicker } from "./components/BackgroundPicker";
 import { projectFolder } from "./lib/status";
 import {
   ALL_SKILLS,
@@ -90,8 +96,11 @@ function App() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // report-issue draft target (c037): the form is open, nothing on disk yet
   const [issueSource, setIssueSource] = useState<Card | null>(null);
-  // board background (c047): data URL loaded from config.background
+  // board background (c047): data URL for an image config.background
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
+  // c0060: live preview override (color/gradient) + picker position
+  const [bgPreview, setBgPreview] = useState<string | null>(null);
+  const [bgMenu, setBgMenu] = useState<{ x: number; y: number } | null>(null);
   // git branch for the status bar (c0057); null = not a git repo
   const [branch, setBranch] = useState<string | null>(null);
   // c032: skill dirs to offer installation into (empty = no prompt)
@@ -217,15 +226,20 @@ function App() {
     setSkillDirs([]);
   };
 
-  // c047: load (or clear) the configured background image
-  const backgroundPath = board?.model.config.background ?? null;
+  // c047/c0060: load the image data URL only when the saved background is an
+  // image (colors/gradients need no file); previews are color/gradient.
+  const savedBackground = board?.model.config.background ?? null;
+  const backgroundImagePath =
+    savedBackground && classifyBackground(savedBackground) === "image"
+      ? savedBackground
+      : null;
   useEffect(() => {
-    if (!root || !backgroundPath) {
+    if (!root || !backgroundImagePath) {
       setBackgroundUrl(undefined);
       return;
     }
     let cancelled = false;
-    void imageDataUrl(`${root}/${backgroundPath}`)
+    void imageDataUrl(`${root}/${backgroundImagePath}`)
       .then((url) => {
         if (!cancelled) setBackgroundUrl(url);
       })
@@ -235,7 +249,41 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [root, backgroundPath]);
+  }, [root, backgroundImagePath]);
+
+  // the CSS background to render: live preview override, else the saved value
+  const effectiveBackground =
+    backgroundCss(bgPreview ?? savedBackground, backgroundUrl) ?? undefined;
+
+  // c0060: persist a background value via a surgical board.yaml edit
+  const writeBoardYaml = async (newRaw: string) => {
+    if (!board) return;
+    try {
+      await writeNewFiles([{ path: `${board.root}/board.yaml`, content: newRaw }]);
+      setBgPreview(null);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+  const commitBackground = (value: string) => {
+    if (!board) return;
+    void writeBoardYaml(setBoardKey(board.model.configRaw, "background", value));
+  };
+  const removeBackground = () => {
+    if (!board) return;
+    if (savedBackground && classifyBackground(savedBackground) === "image") {
+      void removeFile(`${board.root}/${savedBackground}`).catch(() => {});
+    }
+    void writeBoardYaml(removeBoardKey(board.model.configRaw, "background"));
+  };
+  const pickBackgroundImage = async () => {
+    if (!board) return;
+    const source = await pickImageFile();
+    if (!source) return;
+    const rel = await setBoardImage(board.root, source);
+    commitBackground(rel);
+    setBgMenu(null);
+  };
   useEffect(() => {
     if (!root) return;
     let stopped = false;
@@ -517,7 +565,8 @@ function App() {
         )}
         <QuickCapture onCreate={handleCreate} />
         <Board
-          backgroundImage={backgroundUrl}
+          background={effectiveBackground}
+          onBackgroundContextMenu={(x, y) => setBgMenu({ x, y })}
           model={board.model}
           toolbarLeading={
             <ProjectMenu
@@ -541,6 +590,17 @@ function App() {
               onCancel={() => setIssueSource(null)}
             />
           </div>
+        )}
+        {bgMenu && (
+          <BackgroundPicker
+            current={savedBackground}
+            position={bgMenu}
+            onPreview={setBgPreview}
+            onCommit={commitBackground}
+            onRemove={removeBackground}
+            onPickImage={() => void pickBackgroundImage()}
+            onClose={() => setBgMenu(null)}
+          />
         )}
         {selected && (
           <CardDetail

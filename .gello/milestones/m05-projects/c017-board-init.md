@@ -1,15 +1,14 @@
 ---
 id: c017
 title: Initialize a board in a fresh repo
-status: review
+status: done
 milestone: m05
 priority: normal
 depends: [c016]
 tags: [core]
 created: 2026-07-16
 updated: 2026-07-17
-order: 0
-status-changed: 2026-07-17T10:02:10
+status-changed: 2026-07-17T10:44:10
 ---
 
 ## What
@@ -31,6 +30,7 @@ convention snippet to the repo's CLAUDE.md (create if absent).
 
 - 2026-07-16 created from concept breakdown
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

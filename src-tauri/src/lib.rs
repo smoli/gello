@@ -104,6 +104,20 @@ fn watch_board(
     Ok(())
 }
 
+/// c0060: copy a chosen image into the board's assets/board/, return rel path.
+#[tauri::command]
+fn set_board_image(root: String, source: String) -> Result<String, FsError> {
+    fs_write::set_board_image(
+        std::path::Path::new(&root),
+        std::path::Path::new(&source),
+    )
+    .map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path: source,
+    })
+}
+
 #[tauri::command]
 fn remove_file(path: String) -> Result<(), FsError> {
     fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
@@ -261,7 +275,8 @@ pub fn run() {
             app_flag_get,
             app_flag_set,
             find_board_root_at,
-            write_new_files
+            write_new_files,
+            set_board_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -112,6 +112,26 @@ export async function pickFolder(): Promise<string | null> {
   }
 }
 
+/** c0060: native image-file picker — the chosen file path, or null. */
+export async function pickImageFile(): Promise<string | null> {
+  try {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const chosen = await open({
+      directory: false,
+      multiple: false,
+      filters: [{ name: "Image", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+    });
+    return typeof chosen === "string" ? chosen : null;
+  } catch {
+    return null;
+  }
+}
+
+/** c0060: copy an image into the board's assets/board/; returns the rel path. */
+export async function setBoardImage(root: string, source: string): Promise<string> {
+  return invoke<string>("set_board_image", { root, source });
+}
+
 /** Write files atomically, creating parent dirs (c017 scaffold, c032 skills). */
 export async function writeNewFiles(
   files: Array<{ path: string; content: string }>,

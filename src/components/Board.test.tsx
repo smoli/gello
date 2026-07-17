@@ -138,16 +138,25 @@ describe("Board", () => {
     expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
   });
 
-  it("applies a background image with readable translucent columns (c047)", () => {
+  it("applies a background with readable translucent columns (c047/c0060)", () => {
     const { container } = render(
-      <Board model={MODEL} backgroundImage="data:image/png;base64,xyz" />,
+      <Board model={MODEL} background="url(data:image/png;base64,xyz)" />,
     );
 
     const board = container.querySelector(".board")!;
     expect(board).toHaveClass("board-with-bg");
-    expect((board as HTMLElement).style.backgroundImage).toContain(
+    expect((board as HTMLElement).style.background).toContain(
       "data:image/png;base64,xyz",
     );
+  });
+
+  it("turns on the translucent-column treatment for a color/gradient too (c0060)", () => {
+    // (jsdom CSSOM drops gradient shorthands; the image case above covers the
+    // style path — here we assert the readable-columns class triggers.)
+    const { container } = render(
+      <Board model={MODEL} background="linear-gradient(90deg, #aa0000, #0000bb)" />,
+    );
+    expect(container.querySelector(".board")).toHaveClass("board-with-bg");
   });
 
   it("renders without background styling when none is set", () => {

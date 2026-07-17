@@ -85,6 +85,8 @@ describe("App", () => {
     vi.mocked(loadBoardAt).mockResolvedValue(null);
     vi.mocked(pickFolder).mockResolvedValue(null);
     vi.mocked(initBoard).mockResolvedValue("/x/.gello");
+    vi.mocked(writeNewFiles).mockReset();
+    vi.mocked(writeNewFiles).mockResolvedValue(undefined);
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -134,6 +136,34 @@ describe("App", () => {
 
     expect(vi.mocked(initBoard)).toHaveBeenCalledWith("/x");
     expect(await screen.findByText("Fresh board")).toBeInTheDocument();
+  });
+
+  it("sets a color background via the right-click picker in one board.yaml write (c0060)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+
+    const { container } = render(<App />);
+    await screen.findByText("t");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.click(screen.getByRole("button", { name: "Color" }));
+    fireEvent.change(screen.getByLabelText("Background color"), {
+      target: { value: "#123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    await vi.waitFor(() => {
+      const boardYamlWrites = vi
+        .mocked(writeNewFiles)
+        .mock.calls.filter((c) => c[0][0].path.endsWith("/board.yaml"));
+      expect(boardYamlWrites).toHaveLength(1); // one write, not per slider tick
+      expect(boardYamlWrites[0][0][0].content).toContain('background: "#123456"');
+    });
   });
 
   it("renders the board once loaded", async () => {

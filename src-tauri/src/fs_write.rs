@@ -48,6 +48,29 @@ pub fn remove_file(path: &Path) -> std::io::Result<()> {
     std::fs::remove_file(path)
 }
 
+/// Copy `source` into `<board_root>/assets/board/` as `background.<ext>`,
+/// removing any prior `background.*` first (orphan cleanup — the extension may
+/// change). Returns the new path relative to the board root (c0060).
+pub fn set_board_image(board_root: &Path, source: &Path) -> std::io::Result<String> {
+    let dir = board_root.join("assets").join("board");
+    std::fs::create_dir_all(&dir)?;
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            if entry.file_name().to_string_lossy().starts_with("background.") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+    let ext = source
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+    let file_name = format!("background.{ext}");
+    std::fs::copy(source, dir.join(&file_name))?;
+    Ok(format!("assets/board/{file_name}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -102,6 +125,25 @@ mod tests {
         // parent dir of tempdir unchanged: no stray temp files anywhere
         let entries: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
         assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn set_board_image_copies_and_cleans_prior_background() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join(".gello");
+        // a stale background of a different format
+        let board_assets = root.join("assets/board");
+        fs::create_dir_all(&board_assets).unwrap();
+        fs::write(board_assets.join("background.png"), "old").unwrap();
+        // the new source image
+        let src = dir.path().join("pic.jpg");
+        fs::write(&src, "jpegbytes").unwrap();
+
+        let rel = set_board_image(&root, &src).unwrap();
+
+        assert_eq!(rel, "assets/board/background.jpg");
+        assert!(board_assets.join("background.jpg").exists());
+        assert!(!board_assets.join("background.png").exists()); // orphan removed
     }
 
     #[test]

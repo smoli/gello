@@ -1,14 +1,13 @@
 ---
 id: i0010
 title: initializing a new window does not ask for adding skills
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m01
-status-changed: 2026-07-17T10:16:42
-order: 10
+status-changed: 2026-07-17T10:44:14
 ---
 
 even after reload I am not asked. I set do not ask again for the gello project. maybe that bleeds
@@ -16,6 +15,7 @@ even after reload I am not asked. I set do not ask again for the gello project. 
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 
