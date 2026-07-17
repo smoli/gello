@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Windows SDK link workaround (incomplete um\x64 lib set on this machine).
+# Machine-specific absolute path — not for commit/CI. See .cargo/config.toml header.
+.sdklib/
+.cargo/config.toml
