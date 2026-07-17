@@ -11,12 +11,14 @@ import {
   openIssuesFor,
   withCardTriaged,
   withNewInboxCard,
+  withoutCard,
   withUpdatedCard,
   type BoardModel,
 } from "./lib/board";
 import {
   createIssueFor,
   createCard,
+  deleteCard,
   moveCard,
   nowIsoDateTime,
   renumberCards,
@@ -571,6 +573,23 @@ function App() {
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
+  // c0062: permanently delete a card (file + asset folder). Optimistically
+  // drops it from the board and closes the detail; reverts on write failure.
+  const handleDelete = (card: Card) => {
+    if (!board) return;
+    const before = board.model;
+    const { persisted } = deleteCard(board.root, card);
+    setBoard((current) =>
+      current ? { ...current, model: withoutCard(current.model, card.path) } : current,
+    );
+    setSelectedPath((current) => (current === card.path ? null : current));
+    setError(null);
+    persisted.catch((failure: unknown) => {
+      setBoard((current) => (current ? { ...current, model: before } : current));
+      setError(failure instanceof Error ? failure.message : String(failure));
+    });
+  };
+
   // c011: write image bytes into a card's asset dir; the Rust side dedupes the
   // filename and returns the board-relative path (`assets/<id>/<file>`).
   const persistImage = async (cardId: string, file: File): Promise<string> => {
@@ -752,6 +771,7 @@ function App() {
             }
             onSaveImage={(file) => handleSaveImage(selected.card, file)}
             loadImage={(src) => handleLoadImage(selected.card, src)}
+            onDelete={() => handleDelete(selected.card)}
             onReportIssue={() => setIssueSource(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);

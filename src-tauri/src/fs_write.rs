@@ -105,6 +105,16 @@ pub fn remove_file(path: &Path) -> std::io::Result<()> {
     std::fs::remove_file(path)
 }
 
+/// Recursively remove a directory (c0062: a deleted card's asset folder).
+/// Tolerant of a missing path — a card with no attachments has no dir, and
+/// deleting it should still succeed.
+pub fn remove_dir_all(path: &Path) -> std::io::Result<()> {
+    match std::fs::remove_dir_all(path) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
+}
+
 /// Copy `source` into `<board_root>/assets/board/` as `background.<ext>`,
 /// removing any prior `background.*` first (orphan cleanup — the extension may
 /// change). Returns the new path relative to the board root (c0060).
@@ -262,6 +272,25 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
 
         assert!(remove_file(&dir.path().join("nope.md")).is_err());
+    }
+
+    #[test]
+    fn remove_dir_all_removes_a_populated_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let assets = dir.path().join("assets/c0062");
+        fs::create_dir_all(&assets).unwrap();
+        fs::write(assets.join("shot.png"), "png").unwrap();
+
+        remove_dir_all(&assets).unwrap();
+
+        assert!(!assets.exists());
+    }
+
+    #[test]
+    fn remove_dir_all_tolerates_a_missing_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        // a card with no attachments — its asset dir never existed
+        assert!(remove_dir_all(&dir.path().join("assets/nope")).is_ok());
     }
 
     #[test]

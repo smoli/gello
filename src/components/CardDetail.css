@@ -111,6 +111,19 @@
   cursor: pointer;
 }
 
+/* c0062: destructive action reads red, its two-step confirm sits inline */
+.card-detail-actions .card-detail-delete {
+  color: #c0392b;
+  border-color: color-mix(in srgb, #c0392b 40%, transparent) !important;
+}
+
+.card-detail-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
 .card-detail-editor {
   display: flex;
   flex-direction: column;

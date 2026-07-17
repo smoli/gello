@@ -3,12 +3,13 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./fs";
-import { removeFile } from "./board-io";
+import { removeDir, removeFile } from "./board-io";
 import { loadBoard } from "./board";
 import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
   createIssueFor,
   createCard,
+  deleteCard,
   moveCard,
   renumberCards,
   reorderCard,
@@ -19,9 +20,10 @@ import {
 } from "./board-actions";
 
 vi.mock("./fs", () => ({ writeFileAtomic: vi.fn() }));
-vi.mock("./board-io", () => ({ removeFile: vi.fn() }));
+vi.mock("./board-io", () => ({ removeFile: vi.fn(), removeDir: vi.fn() }));
 const writeMock = vi.mocked(writeFileAtomic);
 const removeMock = vi.mocked(removeFile);
+const removeDirMock = vi.mocked(removeDir);
 
 const RAW = `---
 id: c001
@@ -550,6 +552,38 @@ updated: 2026-07-10
     const written = writeMock.mock.calls[0][1];
     expect(written).not.toContain("status-changed:");
     expect(written).not.toContain("status → backlog");
+  });
+});
+
+describe("deleteCard (c0062)", () => {
+  beforeEach(() => {
+    removeMock.mockReset();
+    removeMock.mockResolvedValue(undefined);
+    removeDirMock.mockReset();
+    removeDirMock.mockResolvedValue(undefined);
+  });
+
+  it("removes the card file, then its asset folder (keyed by id)", async () => {
+    const { persisted } = deleteCard("/repo/.gello", fixtureCard());
+    await persisted;
+
+    expect(removeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m01-x/c001-first.md",
+    );
+    expect(removeDirMock).toHaveBeenCalledExactlyOnceWith("/repo/.gello/assets/c001");
+    // file removed strictly before the asset folder
+    expect(removeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      removeDirMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not touch the asset folder if the card file removal fails", async () => {
+    removeMock.mockRejectedValueOnce(new Error("locked"));
+
+    const { persisted } = deleteCard("/repo/.gello", fixtureCard());
+
+    await expect(persisted).rejects.toThrow("locked");
+    expect(removeDirMock).not.toHaveBeenCalled();
   });
 });
 

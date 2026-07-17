@@ -1,7 +1,7 @@
 // Board mutations: pure planning via cards.ts, persistence via fs.ts.
 
 import { nextCardId, nextIssueId, type BoardModel } from "./board";
-import { removeFile } from "./board-io";
+import { removeDir, removeFile } from "./board-io";
 import {
   newCardRaw,
   parseCard,
@@ -249,6 +249,20 @@ export function triageCard(
 
 function basename(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/**
+ * c0062: permanently delete a card — its Markdown file, then its asset folder
+ * (`assets/<card-id>/`, keyed by id per concept §; a no-op if the card has no
+ * attachments). The card file goes first so a failure never leaves a card
+ * pointing at deleted assets; if the file is gone but the asset cleanup fails,
+ * the card is still deleted (the folder is a harmless orphan).
+ */
+export function deleteCard(root: string, card: Card): { persisted: Promise<void> } {
+  const persisted = removeFile(`${root}/${card.path}`).then(() =>
+    removeDir(`${root}/assets/${card.id}`),
+  );
+  return { persisted };
 }
 
 /** Now as a local-time ISO datetime (c056) — lexicographically sortable,

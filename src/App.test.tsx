@@ -12,6 +12,8 @@ import {
   loadBoardFromDisk,
   pickFolder,
   readFileRaw,
+  removeDir,
+  removeFile,
   writeAsset,
   writeNewFiles,
   watchBoard,
@@ -24,6 +26,7 @@ vi.mock("./lib/board-io", () => ({
   loadBoardFromDisk: vi.fn(),
   readFileRaw: vi.fn(),
   removeFile: vi.fn(),
+  removeDir: vi.fn(),
   watchBoard: vi.fn(),
   imageDataUrl: vi.fn(),
   gitBranch: vi.fn(),
@@ -399,6 +402,33 @@ describe("App", () => {
       "/repo/.gello/inbox/c0007-with-screenshot.md",
       expect.stringContaining("![shot](../assets/c0007/shot.png)"),
     );
+  });
+
+  it("c0062: deletes a card from the detail — file + asset folder — and closes it", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(removeFile).mockResolvedValue(undefined);
+    vi.mocked(removeDir).mockResolvedValue(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    const dialog = screen.getByRole("dialog", { name: "c001" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "confirm delete" })).getByRole(
+        "button",
+        { name: "Delete" },
+      ),
+    );
+
+    expect(vi.mocked(removeFile)).toHaveBeenCalledWith(
+      "/repo/.gello/inbox/c001-hello.md",
+    );
+    await vi.waitFor(() => {
+      expect(vi.mocked(removeDir)).toHaveBeenCalledWith("/repo/.gello/assets/c001");
+    });
+    // detail closed, card gone from the board
+    expect(screen.queryByRole("dialog", { name: "c001" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Hello board")).not.toBeInTheDocument();
   });
 
   it("triages an inbox card into a milestone", async () => {

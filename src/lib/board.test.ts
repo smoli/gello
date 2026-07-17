@@ -12,6 +12,7 @@ import {
   withCardTriaged,
   withNewInboxCard,
   withUpdatedCard,
+  withoutCard,
   columnComparator,
   planManualInsert,
   type BoardFile,
@@ -225,6 +226,27 @@ describe("withCardTriaged", () => {
     // gone from the source milestone, present exactly once in the target
     expect(next.milestones[0].cards.map((c) => c.id)).toEqual(["c101"]);
     expect(next.milestones[1].cards.filter((c) => c.id === "c102")).toHaveLength(1);
+  });
+});
+
+describe("withoutCard (c0062)", () => {
+  it("drops a card from its milestone group, leaving the rest", () => {
+    const model = loadBoard(SYNTHETIC);
+
+    const next = withoutCard(model, "milestones/m01-alpha/c101-first.md");
+
+    expect(next.milestones[0].cards.map((c) => c.id)).toEqual(["c102"]);
+    // original untouched (immutability)
+    expect(model.milestones[0].cards).toHaveLength(2);
+  });
+
+  it("drops an inbox card", () => {
+    const model = loadBoard(SYNTHETIC);
+    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+
+    const next = withoutCard(model, "inbox/c103-an-idea.md");
+
+    expect(next.inbox).toEqual([]);
   });
 });
 

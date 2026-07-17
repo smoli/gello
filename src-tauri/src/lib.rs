@@ -153,6 +153,17 @@ fn remove_file(path: String) -> Result<(), FsError> {
     })
 }
 
+/// c0062: recursively delete a directory (a deleted card's asset folder),
+/// tolerating a missing path.
+#[tauri::command]
+fn remove_dir(path: String) -> Result<(), FsError> {
+    fs_write::remove_dir_all(std::path::Path::new(&path)).map_err(|error| FsError {
+        kind: format!("{:?}", error.kind()),
+        message: error.to_string(),
+        path,
+    })
+}
+
 #[tauri::command]
 fn read_file(path: String) -> Result<String, FsError> {
     fs_read::read_file(std::path::Path::new(&path)).map_err(|error| FsError {
@@ -305,7 +316,8 @@ pub fn run() {
             find_board_root_at,
             write_new_files,
             set_board_image,
-            write_asset
+            write_asset,
+            remove_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

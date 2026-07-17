@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { parseCard } from "../lib/cards";
 import { CardDetail } from "./CardDetail";
 
@@ -417,6 +417,42 @@ describe("CardDetail", () => {
       screen.queryByRole("textbox", { name: "Card body" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  // --- c0062: delete ----------------------------------------------------------
+
+  it("c0062: deleting takes a confirm step before calling onDelete", () => {
+    const onDelete = vi.fn();
+    renderDetail({ onDelete });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    // not deleted yet — a confirm appeared
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByText(/delete card and its images/i)).toBeInTheDocument();
+
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "confirm delete" })).getByRole(
+        "button",
+        { name: "Delete" },
+      ),
+    );
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it("c0062: 'Keep' backs out of the delete confirm without deleting", () => {
+    const onDelete = vi.fn();
+    renderDetail({ onDelete });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByText(/delete card and its images/i)).not.toBeInTheDocument();
+  });
+
+  it("c0062: no Delete control when onDelete is not provided", () => {
+    renderDetail();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 
   // --- c011: paste/drag image assets ------------------------------------------

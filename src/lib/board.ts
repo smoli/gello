@@ -309,6 +309,18 @@ export function withCardTriaged(
   };
 }
 
+/** Immutably drop a card (matched by path) from the board — c0062 delete. */
+export function withoutCard(model: BoardModel, path: string): BoardModel {
+  return {
+    ...model,
+    inbox: model.inbox.filter((c) => c.path !== path),
+    milestones: model.milestones.map((group) => ({
+      ...group,
+      cards: group.cards.filter((c) => c.path !== path),
+    })),
+  };
+}
+
 /**
  * Immutably replace one card (matched by path) with an updated version —
  * used for optimistic UI updates after a status change.

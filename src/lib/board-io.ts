@@ -30,6 +30,11 @@ export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });
 }
 
+/** c0062: recursively delete a directory (a deleted card's asset folder). */
+export async function removeDir(path: string): Promise<void> {
+  await invoke("remove_dir", { path });
+}
+
 /** c032: existing agent-skill directories under the project root. */
 export async function detectSkillDirs(projectRoot: string): Promise<string[]> {
   try {

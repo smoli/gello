@@ -43,6 +43,7 @@ export function CardDetail({
   startInEdit,
   onSaveImage,
   loadImage,
+  onDelete,
   onClose,
 }: {
   card: Card;
@@ -63,6 +64,8 @@ export function CardDetail({
   onSaveImage?: (file: File) => Promise<string>;
   /** c011: resolve a body image's src to a displayable URL (data URL). */
   loadImage?: (src: string) => Promise<string | null>;
+  /** c0062: permanently delete this card (file + assets). */
+  onDelete?: () => void;
   onClose: () => void;
 }) {
   // c041: the Log section is machine-managed — only the part before it is
@@ -74,6 +77,8 @@ export function CardDetail({
   const [bodyDraft, setBodyDraft] = useState(startInEdit ? editableBody : "");
   const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
   const [conflict, setConflict] = useState(false);
+  // c0062: two-step guard for the destructive delete
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   // c011: image paste/drop on the editor textarea (shared with quick capture)
   const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
   // c038: a click "on the backdrop" only counts if the press started there —
@@ -191,6 +196,30 @@ export function CardDetail({
               <button type="button" onClick={startEdit}>
                 Edit
               </button>
+            )}
+            {onDelete && !editing && !confirmingDelete && (
+              <button
+                type="button"
+                className="card-detail-delete"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                Delete
+              </button>
+            )}
+            {onDelete && confirmingDelete && (
+              <span className="card-detail-delete-confirm" role="group" aria-label="confirm delete">
+                <span>Delete card and its images?</span>
+                <button
+                  type="button"
+                  className="card-detail-delete"
+                  onClick={onDelete}
+                >
+                  Delete
+                </button>
+                <button type="button" onClick={() => setConfirmingDelete(false)}>
+                  Keep
+                </button>
+              </span>
             )}
             <button type="button" aria-label="close" onClick={onClose}>
               ✕
