@@ -1,0 +1,8 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- gello favicon (c0071): fuller-bleed variant of the app icon so the
+       three columns stay legible at 16px. -->
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="#1b2430"/>
+  <rect x="15" y="28" width="18" height="44" rx="6" fill="#4c8bf5"/>
+  <rect x="41" y="28" width="18" height="44" rx="6" fill="#7aa9f8"/>
+  <rect x="67" y="28" width="18" height="44" rx="6" fill="#31415a"/>
+</svg>
