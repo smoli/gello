@@ -1,12 +1,12 @@
 ---
 id: i0018
 title: On windows foldername in the title shows the full path
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T20:11:37
+status-changed: 2026-07-17T20:43:22
 milestone: m02
 ---
 
@@ -52,3 +52,4 @@ the basename.
 - 2026-07-17 triaged (human): status → ready
 - 2026-07-17 fixed (agent): projectFolder is now separator-agnostic ([/\\]) for
   trailing-sep trim, .gello strip, and basename. Windows-path tests added.
+- 2026-07-17 status → done (app)
