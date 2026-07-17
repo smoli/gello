@@ -692,6 +692,7 @@ function App() {
           }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
+          loadImage={handleLoadImage}
           onInboxStatusDrop={(card, status) => setPendingTriage({ card, status })}
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { loadBoard, type BoardFile } from "../lib/board";
 import { Board } from "./Board";
 
@@ -40,6 +40,35 @@ describe("Board", () => {
       .getAllByRole("heading", { level: 2 })
       .map((h) => h.textContent);
     expect(headings).toEqual(["todo", "doing", "shipped"]);
+  });
+
+  it("c012: shows a thumbnail of the first body image on the card front", async () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
+      file(
+        "milestones/m01-a/c001-shot.md",
+        "---\nid: c001\ntitle: Has image\nstatus: backlog\nmilestone: m01\n---\n\n![p](../../assets/c001/p.png)\n",
+      ),
+    ]);
+    const loadImage = vi.fn().mockResolvedValue("data:image/png;base64,QUJD");
+    render(<Board model={model} loadImage={loadImage} />);
+
+    await waitFor(() => {
+      const card = screen.getByText("Has image").closest("article")!;
+      const img = card.querySelector("img.card-thumb") as HTMLImageElement | null;
+      expect(img?.src).toBe("data:image/png;base64,QUJD");
+    });
+    expect(loadImage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "c001" }),
+      "../../assets/c001/p.png",
+    );
+  });
+
+  it("c012: no thumbnail for a card without images", () => {
+    render(<Board model={MODEL} loadImage={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+    expect(card.querySelector("img.card-thumb")).toBeNull();
   });
 
   it("places milestone cards in the column matching their status", () => {

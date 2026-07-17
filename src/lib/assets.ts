@@ -72,6 +72,16 @@ export function resolveFromCard(cardPath: string, src: string): string {
   return segments.join("/");
 }
 
+/**
+ * c012: the src of the first Markdown image in a body, or null. Used for the
+ * board-card thumbnail. Captures up to the first whitespace or `)` so an
+ * optional title (`![a](src "t")`) is dropped.
+ */
+export function firstImageSrc(body: string): string | null {
+  const match = /!\[[^\]]*\]\(\s*([^)\s]+)/.exec(body);
+  return match ? match[1] : null;
+}
+
 /** Base64-encode bytes in the browser (chunked to avoid arg-spread limits). */
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";

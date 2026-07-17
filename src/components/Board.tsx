@@ -7,6 +7,8 @@ import {
 } from "../lib/board";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
+import { firstImageSrc } from "../lib/assets";
+import { AssetImage } from "./AssetImage";
 import { startWindowDrag } from "../lib/window";
 import "./Board.css";
 
@@ -76,9 +78,12 @@ export function Board({
   background,
   toolbarLeading,
   onBackgroundContextMenu,
+  loadImage,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
+  /** c012: resolve a card's first image to a data URL for its thumbnail. */
+  loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c016: a control rendered at the start of the toolbar (project menu). */
   toolbarLeading?: React.ReactNode;
   /** c0060: right-click on empty board background (not a card). */
@@ -306,6 +311,7 @@ export function Board({
                   onMoveByKey={moveByKey}
                   onSelect={onSelectCard}
                   onDragState={setDragging}
+                  loadImage={loadImage}
                 />
               ))}
             </div>
@@ -333,6 +339,7 @@ export function Board({
               onSelect={onSelectCard}
               onDragState={setDragging}
               onBgContextMenu={bgContext}
+              loadImage={loadImage}
             />
           );
         })}
@@ -387,9 +394,12 @@ function Column({
   onSelect,
   onDragState,
   onBgContextMenu,
+  loadImage,
 }: {
   name: string;
   cards: BoardCard[];
+  /** c012: passed through to each card front for its thumbnail. */
+  loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** Path of the card currently being dragged, for origin marking (i0004). */
   draggingPath: string | null;
   /** c056: render positioned drop targets (manual columns during a drag). */
@@ -449,6 +459,7 @@ function Column({
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
                 onDragState={onDragState}
+                loadImage={loadImage}
               />
             </Fragment>
           ))}
@@ -517,6 +528,7 @@ function CardFront({
   onMoveByKey,
   onSelect,
   onDragState,
+  loadImage,
 }: {
   entry: BoardCard;
   /** True while this card is the one being dragged (i0004 origin marker). */
@@ -524,8 +536,12 @@ function CardFront({
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
+  /** c012: resolve this card's first image to a data URL for the thumbnail. */
+  loadImage?: (card: Card, src: string) => Promise<string | null>;
 }) {
   const { card, milestoneLabel } = entry;
+  // c012: thumbnail from the first body image (if any)
+  const thumbSrc = firstImageSrc(card.body);
   return (
     <article
       className={isOrigin ? "card-front card-origin" : "card-front"}
@@ -557,6 +573,14 @@ function CardFront({
         </span>
       </div>
       <p className="card-title">{card.title}</p>
+      {thumbSrc && loadImage && (
+        <AssetImage
+          src={thumbSrc}
+          alt=""
+          loadImage={(src) => loadImage(card, src)}
+          className="card-thumb"
+        />
+      )}
       <div className="card-meta">
         <span className="card-milestone">{milestoneLabel ?? "inbox"}</span>
       </div>

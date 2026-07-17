@@ -3,6 +3,7 @@ import {
   assetLinkPrefix,
   bytesToBase64,
   extensionForMime,
+  firstImageSrc,
   insertAt,
   resolveFromCard,
   suggestedAssetName,
@@ -82,6 +83,21 @@ describe("resolveFromCard", () => {
     expect(resolveFromCard("inbox/c1.md", "data:image/png;base64,AA")).toBe(
       "data:image/png;base64,AA",
     );
+  });
+});
+
+describe("firstImageSrc", () => {
+  it("returns the src of the first image", () => {
+    const body = "intro\n\n![shot](../../assets/c012/a.png)\n\n![two](b.png)";
+    expect(firstImageSrc(body)).toBe("../../assets/c012/a.png");
+  });
+
+  it("drops an optional title", () => {
+    expect(firstImageSrc('![a](x.png "a title")')).toBe("x.png");
+  });
+
+  it("returns null when there is no image", () => {
+    expect(firstImageSrc("just **text** and a [link](page.md)")).toBeNull();
   });
 });
 

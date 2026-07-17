@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges, Priority } from "../lib/cards";
 import { splitLogSection } from "../lib/markdown";
 import { useImageInsert } from "./useImageInsert";
+import { AssetImage } from "./AssetImage";
 import "./CardDetail.css";
 
 const PRIORITIES: Priority[] = ["low", "normal", "high"];
@@ -414,42 +415,4 @@ export function CardDetail({
       </div>
     </div>
   );
-}
-
-/** c011: a Markdown image whose src is resolved to a displayable URL. Local
- *  asset paths can't load from the webview origin, so loadImage turns them
- *  into data URLs; remote/data URLs pass straight through. */
-function AssetImage({
-  src,
-  alt,
-  loadImage,
-}: {
-  src: string;
-  alt: string;
-  loadImage?: (src: string) => Promise<string | null>;
-}) {
-  const [resolved, setResolved] = useState<string | null>(
-    loadImage ? null : src,
-  );
-  // resolve only when the src changes, not when the (inline) loadImage prop
-  // gets a new identity each parent render
-  const loadImageRef = useRef(loadImage);
-  loadImageRef.current = loadImage;
-  useEffect(() => {
-    const resolve = loadImageRef.current;
-    if (!resolve || src === "") {
-      setResolved(src || null);
-      return;
-    }
-    let alive = true;
-    void resolve(src).then((url) => {
-      if (alive) setResolved(url);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [src]);
-
-  if (!resolved) return null;
-  return <img src={resolved} alt={alt} />;
 }
