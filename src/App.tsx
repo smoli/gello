@@ -529,6 +529,20 @@ function App() {
     <main className="app">
       <h1>gello</h1>
       <p className="empty-state">No board loaded.</p>
+      <button type="button" className="empty-open" onClick={() => void pickAndOpen()}>
+        Open folder…
+      </button>
+      {recent.length > 0 && (
+        <ul className="empty-recent">
+          {recent.map((path) => (
+            <li key={path}>
+              <button type="button" title={path} onClick={() => void openProject(path)}>
+                {path.replace(/\/+$/, "").split("/").pop()}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

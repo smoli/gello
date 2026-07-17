@@ -91,6 +91,23 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "gello" })).toBeInTheDocument();
   });
 
+  it("can open a folder from the no-board screen (c016)", async () => {
+    loadMock.mockResolvedValueOnce(null);
+    vi.mocked(pickFolder).mockResolvedValue("/x");
+    vi.mocked(loadBoardAt).mockResolvedValue({
+      root: "/x/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Opened board\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /open folder/i }));
+
+    expect(await screen.findByText("Opened board")).toBeInTheDocument();
+    expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/x");
+  });
+
   it("renders the board once loaded", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
