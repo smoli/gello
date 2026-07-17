@@ -307,13 +307,12 @@
   pointer-events: none;
 }
 
-/* i0002: during a drag the zone becomes a tall hit area whose box NEVER
-   changes on activation — the indicator is a child bar toggled by opacity,
-   so hovering the edge can't reflow the layout and jitter. Net flow height
-   stays 0 (18 − 9 − 9) so cards don't shift when the drag begins. */
+/* i0002/i0004: during a drag the zone becomes a tall hit area (28px) whose
+   box NEVER changes on activation, so hovering the edge can't reflow-jitter.
+   Net flow height stays 0 (28 − 14 − 14) so cards don't shift at dragstart. */
 .board-dragging .insert-zone {
-  height: 18px;
-  margin: -9px 0;
+  height: 28px;
+  margin: -14px 0;
   pointer-events: auto;
   z-index: 1;
 }
@@ -327,12 +326,26 @@
   transform: translateY(-50%);
   height: 4px;
   border-radius: 3px;
-  background: color-mix(in srgb, #4c8bf5 60%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, #4c8bf5 70%, transparent);
+  background: color-mix(in srgb, #4c8bf5 65%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #4c8bf5 75%, transparent);
   opacity: 0;
   transition: opacity 0.08s;
 }
 
 .insert-zone-active::before {
   opacity: 1;
+}
+
+/* i0004: open a real landing gap by pushing the card BELOW the active zone
+   down. The pointer sits on the zone (constant box) so this never jitters. */
+.insert-zone-active + .card-front {
+  margin-top: 34px;
+}
+
+/* i0004: leave a dashed placeholder where the dragged card came from. Same
+   box size as the card, so nothing reflows. */
+.card-front.card-origin {
+  opacity: 0.4;
+  outline: 2px dashed color-mix(in srgb, #4c8bf5 60%, transparent);
+  outline-offset: -2px;
 }

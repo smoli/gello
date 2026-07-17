@@ -1,13 +1,13 @@
 ---
 id: i0003
 title: Cannot drag issues out of backlog
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02
-status-changed: 2026-07-17T07:52:21
+status-changed: 2026-07-17T08:04:40
 ---
 
 Key board move works
@@ -15,6 +15,7 @@ Key board move works
 ## Log
 
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

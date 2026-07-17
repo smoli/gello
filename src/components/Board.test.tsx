@@ -459,6 +459,17 @@ describe("Board card moves", () => {
     );
   });
 
+  it("marks the dragged card's origin while dragging (i0004)", () => {
+    render(<Board model={MODEL} onMoveCard={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+
+    expect(card).not.toHaveClass("card-origin");
+    fireEvent.dragStart(card, { dataTransfer: fakeDataTransfer() });
+    expect(card).toHaveClass("card-origin");
+    fireEvent.dragEnd(card);
+    expect(card).not.toHaveClass("card-origin");
+  });
+
   it("marks the board while dragging so drop lanes can render feedback (c054)", () => {
     const { container } = render(<Board model={MODEL} onMoveCard={vi.fn()} />);
     const card = screen.getByText("First card").closest("article")!;

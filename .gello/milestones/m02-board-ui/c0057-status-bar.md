@@ -1,12 +1,13 @@
 ---
 id: c0057
 title: Status bar
-status: discuss
+status: backlog
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02
-status-changed: 2026-07-17T07:57:38
+status-changed: 2026-07-17T08:08:24
+order: 0
 ---
 
 Shows, project folder we’re working,
@@ -71,3 +72,4 @@ plain read proves insufficient. Detached HEAD shows the short SHA.
 - 2026-07-17 status → discuss (app)
 - 2026-07-17 discussed (agent): scope = folder + branch + card counts,
   live via watcher on .git/HEAD, bottom bar with explicit non-repo label
+- 2026-07-17 status → backlog (app)

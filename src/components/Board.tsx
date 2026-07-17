@@ -236,6 +236,7 @@ export function Board({
                 <CardFront
                   key={card.path}
                   entry={{ card, milestoneLabel: null, filterKey: "inbox" }}
+                  isOrigin={dragging?.path === card.path}
                   onMoveByKey={moveByKey}
                   onSelect={onSelectCard}
                   onDragState={setDragging}
@@ -256,6 +257,7 @@ export function Board({
               key={column}
               name={column}
               cards={entries}
+              draggingPath={dragging?.path ?? null}
               showInsertZones={MANUAL_COLUMNS.has(column)}
               onDropCard={(path) => dropOnColumn(column, path)}
               onDropAt={(path, zoneIndex) =>
@@ -310,6 +312,7 @@ function InvalidFileEntry({ entry }: { entry: InvalidFile }) {
 function Column({
   name,
   cards,
+  draggingPath,
   showInsertZones,
   onDropCard,
   onDropAt,
@@ -319,6 +322,8 @@ function Column({
 }: {
   name: string;
   cards: BoardCard[];
+  /** Path of the card currently being dragged, for origin marking (i0004). */
+  draggingPath: string | null;
   /** c056: render positioned drop targets (manual columns during a drag). */
   /** c056: render positioned drop targets for manual columns. Always mounted
    *  (i0003) — inert until a drag; appearance driven by the board-dragging
@@ -358,6 +363,7 @@ function Column({
               {showInsertZones && <InsertZone index={i} onDropAt={dropAt} />}
               <CardFront
                 entry={entry}
+                isOrigin={draggingPath === entry.card.path}
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
                 onDragState={onDragState}
@@ -407,11 +413,14 @@ function InsertZone({
 
 function CardFront({
   entry,
+  isOrigin,
   onMoveByKey,
   onSelect,
   onDragState,
 }: {
   entry: BoardCard;
+  /** True while this card is the one being dragged (i0004 origin marker). */
+  isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
@@ -419,7 +428,7 @@ function CardFront({
   const { card, milestoneLabel } = entry;
   return (
     <article
-      className="card-front"
+      className={isOrigin ? "card-front card-origin" : "card-front"}
       draggable
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
