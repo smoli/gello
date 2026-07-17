@@ -105,6 +105,50 @@ describe("QuickCapture", () => {
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("Big idea", "line one", "task");
   });
 
+  it("i0016: Cmd/Ctrl+Enter in the Title field submits exactly once", () => {
+    // regression: both the title-input and form-level Enter handlers used to
+    // fire for one keypress, creating the card twice
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Only once" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith("Only once", "", "task");
+  });
+
+  it("i0016: submit is idempotent — a second Add click can't create a twin", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Guarded" },
+    });
+    const add = screen.getByRole("button", { name: "Add" });
+    fireEvent.click(add);
+    fireEvent.click(add); // double-click / fast second invocation
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("i0016: IME-composition Enter does not submit", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "日本語" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), {
+      key: "Enter",
+      isComposing: true,
+    });
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
   it("c0064: Ctrl+Enter also submits", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} />);

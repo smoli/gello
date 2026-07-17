@@ -298,6 +298,18 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         // c048: persist and restore the window size/position across restarts
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // i0017: macOS keeps its native traffic lights (titleBarStyle Overlay);
+        // Windows/Linux go fully frameless with our own controls (WindowControls)
+        .setup(|_app| {
+            #[cfg(not(target_os = "macos"))]
+            {
+                use tauri::Manager;
+                if let Some(window) = _app.get_webview_window("main") {
+                    let _ = window.set_decorations(false);
+                }
+            }
+            Ok(())
+        })
         .manage(WatcherState(std::sync::Mutex::new(None)))
         .manage(GitWatcherState(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![

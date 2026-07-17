@@ -15,6 +15,20 @@ describe("projectFolder", () => {
       path: "/a/b/gello-app",
     });
   });
+
+  it("i0018: parses a Windows path (backslashes) to just the folder name", () => {
+    expect(projectFolder("C:\\Users\\me\\project\\.gello")).toEqual({
+      name: "project",
+      path: "C:\\Users\\me\\project",
+    });
+  });
+
+  it("i0018: handles a trailing backslash on a Windows path", () => {
+    expect(projectFolder("C:\\dev\\gello-app\\.gello\\")).toEqual({
+      name: "gello-app",
+      path: "C:\\dev\\gello-app",
+    });
+  });
 });
 
 describe("windowTitle (c0059)", () => {

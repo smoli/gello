@@ -3,9 +3,11 @@
 
 /** The folder that contains `.gello` — its basename and full path. */
 export function projectFolder(root: string): { name: string; path: string } {
-  const trimmed = root.replace(/\/+$/, ""); // drop trailing slash
-  const path = trimmed.replace(/\/\.gello$/, "");
-  const name = path.slice(path.lastIndexOf("/") + 1);
+  // i0018: separator-agnostic — Windows roots use `\`, POSIX use `/`
+  const trimmed = root.replace(/[/\\]+$/, ""); // drop trailing separator(s)
+  const path = trimmed.replace(/[/\\]\.gello$/, ""); // strip the .gello segment
+  const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  const name = path.slice(cut + 1);
   return { name, path };
 }
 

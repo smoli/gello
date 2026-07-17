@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useImageInsert } from "./useImageInsert";
 import "./QuickCapture.css";
 
@@ -22,10 +22,15 @@ export function CaptureForm({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const imageInsert = useImageInsert(body, setBody, onSaveImage);
+  // i0016: latch so a single form instance can only submit once — no
+  // duplicate card from a double handler, double-click, or fast key repeat
+  const submitted = useRef(false);
 
   const submit = () => {
+    if (submitted.current) return;
     const trimmed = title.trim();
     if (!trimmed) return;
+    submitted.current = true;
     onSubmit(trimmed, body);
   };
 
@@ -37,10 +42,17 @@ export function CaptureForm({
           // don't let Escape fall through to a card detail behind us
           event.stopPropagation();
           onCancel();
+          return;
         }
         // c0064: Cmd/Ctrl+Enter submits from anywhere in the form (plain Enter
-        // in the Details textarea stays a newline)
-        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        // in the Details textarea stays a newline). This is the ONLY handler
+        // for mod+Enter — the title input handles only plain Enter (i0016), so
+        // one keypress can't submit twice. Ignore IME-composition Enter.
+        if (
+          event.key === "Enter" &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.nativeEvent.isComposing
+        ) {
           event.preventDefault();
           submit();
         }
@@ -55,7 +67,16 @@ export function CaptureForm({
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") submit();
+            // i0016: plain Enter only — Cmd/Ctrl+Enter is handled once at the
+            // form level, so a mod+Enter here doesn't double-submit
+            if (
+              event.key === "Enter" &&
+              !event.metaKey &&
+              !event.ctrlKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              submit();
+            }
           }}
           placeholder="One line is enough"
         />

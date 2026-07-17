@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { windowTitle } from "../lib/status";
+import { isMacOS } from "../lib/platform";
+import { WindowControls } from "./WindowControls";
 import "./TitleBar.css";
 
 /**
@@ -36,10 +38,14 @@ export function TitleBar({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onSearch]);
 
+  // i0017: macOS keeps native traffic lights (left inset, no custom controls);
+  // Windows/Linux run frameless with our own controls on the right.
+  const mac = isMacOS();
+
   return (
     // grid: [title | search | filler] — search sits in the bar's true centre;
     // the title keeps its own column and truncates rather than crowding it
-    <div className="titlebar">
+    <div className={mac ? "titlebar titlebar-mac" : "titlebar titlebar-win"}>
       <div className="titlebar-left" data-tauri-drag-region>
         <span className="titlebar-caption">{windowTitle(root, branch)}</span>
       </div>
@@ -57,7 +63,10 @@ export function TitleBar({
           }}
         />
       )}
-      <div className="titlebar-drag" data-tauri-drag-region />
+      <div className="titlebar-right">
+        <div className="titlebar-drag" data-tauri-drag-region />
+        {!mac && <WindowControls />}
+      </div>
     </div>
   );
 }

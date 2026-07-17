@@ -10,3 +10,55 @@ export async function startWindowDrag(): Promise<void> {
     // not running inside a Tauri window
   }
 }
+
+// i0017: custom window controls for the frameless Windows/Linux chrome. All
+// no-op / safe defaults outside a Tauri window (plain browser / tests).
+
+export async function minimizeWindow(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().minimize();
+  } catch {
+    /* not in Tauri */
+  }
+}
+
+export async function toggleMaximizeWindow(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().toggleMaximize();
+  } catch {
+    /* not in Tauri */
+  }
+}
+
+export async function closeWindow(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().close();
+  } catch {
+    /* not in Tauri */
+  }
+}
+
+export async function isWindowMaximized(): Promise<boolean> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    return await getCurrentWindow().isMaximized();
+  } catch {
+    return false;
+  }
+}
+
+/** Subscribe to window resize (to keep the maximize/restore icon in sync).
+ *  Returns an unsubscribe function; a no-op outside Tauri. */
+export async function onWindowResized(
+  handler: () => void,
+): Promise<() => void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    return await getCurrentWindow().onResized(() => handler());
+  } catch {
+    return () => {};
+  }
+}
