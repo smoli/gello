@@ -3,6 +3,9 @@
 }
 
 .project-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font: inherit;
   font-size: 0.8rem;
   padding: 0.35rem 0.7rem;
@@ -13,6 +16,12 @@
   cursor: pointer;
   box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
   white-space: nowrap;
+}
+
+.project-menu-icon,
+.project-menu-chevron {
+  flex-shrink: 0;
+  opacity: 0.75;
 }
 
 .project-menu-backdrop {

@@ -5,6 +5,46 @@ function baseName(path: string): string {
   return path.replace(/\/+$/, "").split("/").pop() ?? path;
 }
 
+/** Flat wireframe folder glyph (stroke = currentColor, no fill). */
+function FolderIcon() {
+  return (
+    <svg
+      className="project-menu-icon"
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2h7A1.5 1.5 0 0 1 19 8.5v9A1.5 1.5 0 0 1 17.5 19h-13A1.5 1.5 0 0 1 3 17.5z" />
+    </svg>
+  );
+}
+
+/** Flat wireframe chevron. */
+function ChevronIcon() {
+  return (
+    <svg
+      className="project-menu-chevron"
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 /** Project switcher (c016): current project + recent list + Open folder. */
 export function ProjectMenu({
   currentPath,
@@ -27,7 +67,9 @@ export function ProjectMenu({
         className="project-menu-button"
         onClick={() => setOpen((v) => !v)}
       >
-        📁 {baseName(currentPath)} ▾
+        <FolderIcon />
+        <span className="project-menu-name">{baseName(currentPath)}</span>
+        <ChevronIcon />
       </button>
       {open && (
         <>
