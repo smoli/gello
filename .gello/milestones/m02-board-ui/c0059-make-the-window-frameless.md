@@ -1,13 +1,12 @@
 ---
 id: c0059
 title: Make the Window frameless
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:56:36
+status-changed: 2026-07-17T09:22:17
 milestone: m02
-order: 10
 ---
 
 With custom header, so the background can bleed up to the top.
@@ -109,6 +108,7 @@ Per platform:
   `gello: <folder> (<branch>)`; Windows/Linux get custom-drawn chrome;
   removes the c0057 status bar (folder+branch in title, counts dropped).
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 
