@@ -82,6 +82,7 @@ describe("App", () => {
     watchMock.mockReset();
     watchMock.mockResolvedValue(() => {});
     imageMock.mockReset();
+    vi.mocked(writeAsset).mockReset();
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
@@ -713,6 +714,51 @@ describe("App", () => {
     // ref link navigates to the source
     fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+  });
+
+  it("i0022: an image pasted into the report-issue draft is saved under the reserved issue id, milestone-depth link", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+    // Rust returns the board-relative asset path for the reserved issue id
+    vi.mocked(writeAsset).mockResolvedValueOnce("assets/i0001/shot.png");
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
+
+    const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
+    const file = new File([new Uint8Array([1, 2, 3])], "shot.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(details, {
+      clipboardData: {
+        items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+        files: [file],
+      },
+    });
+
+    // saved under the next issue id (i0001); the source card lives two levels
+    // deep (milestones/…), so the link prefix must be ../../ not ../
+    await vi.waitFor(() => {
+      expect(vi.mocked(writeAsset)).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello",
+        "i0001",
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(details.value).toBe("![shot](../../assets/i0001/shot.png)");
+    });
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Flicker with shot" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    // the issue is created under the SAME reserved id, so the link resolves
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/i0001-flicker-with-shot.md",
+      expect.stringContaining("![shot](../../assets/i0001/shot.png)"),
+    );
   });
 
   it("escaping the issue draft creates nothing (c037)", async () => {

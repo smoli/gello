@@ -175,10 +175,12 @@ export function createIssueFor(
   root: string,
   model: BoardModel,
   source: Card,
-  input: { title: string; body: string },
+  input: { title: string; body: string; id?: string },
   today: string,
 ): MoveResult {
-  const id = nextIssueId(model); // c043: i-namespace
+  // i0022: reuse the id reserved when an image was pasted into the draft, so
+  // the issue file and that image's asset folder match; else allocate fresh.
+  const id = input.id ?? nextIssueId(model); // c043: i-namespace
   const folder = source.path.slice(0, source.path.lastIndexOf("/"));
   const path = `${folder}/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, {

@@ -120,6 +120,8 @@ function App() {
   // i0013: an id reserved when an image is pasted into a quick-create draft
   // before the card exists, so the asset folder and the eventual card agree.
   const reservedCreate = useRef<{ type: "task" | "issue"; id: string } | null>(null);
+  // i0022: id reserved when an image is pasted into a report-issue draft
+  const reservedIssue = useRef<string | null>(null);
   // i0005: a milestone-less inbox card dropped on a triage column, awaiting a
   // milestone pick (or dismissal → apply status only, stay in inbox).
   const [pendingTriage, setPendingTriage] = useState<{
@@ -540,9 +542,25 @@ function App() {
     reservedCreate.current = null;
   };
 
+  // i0022: pasting an image into a report-issue draft. The issue has no file
+  // yet (c037), so reserve its id once and save under it; the issue is born in
+  // the source card's folder, so the link depth follows the source's path.
+  const handleIssueImage = async (source: Card, file: File): Promise<string> => {
+    if (!board) throw new Error("no board loaded");
+    const id = reservedIssue.current ?? nextIssueId(board.model);
+    reservedIssue.current = id;
+    return `${assetLinkPrefix(source.path)}${await persistImage(id, file)}`;
+  };
+  const handleDiscardIssueDraft = () => {
+    reservedIssue.current = null;
+  };
+
   /** Draft submitted (c037) — only now does the issue come into existence. */
   const submitIssueDraft = (title: string, body: string) => {
     if (!board || !issueSource) return;
+    // i0022: create under the id reserved for any pasted image, so its link resolves
+    const id = reservedIssue.current ?? undefined;
+    reservedIssue.current = null;
     let created: Card | null = null;
     applyAction(
       () => {
@@ -550,7 +568,7 @@ function App() {
           board.root,
           board.model,
           issueSource,
-          { title, body },
+          { title, body, id },
           todayIsoDate(),
         );
         created = result.card;
@@ -737,7 +755,11 @@ function App() {
             <CaptureForm
               heading={`New issue for ${issueSource.id}`}
               onSubmit={submitIssueDraft}
-              onCancel={() => setIssueSource(null)}
+              onCancel={() => {
+                handleDiscardIssueDraft();
+                setIssueSource(null);
+              }}
+              onSaveImage={(file) => handleIssueImage(issueSource, file)}
             />
           </div>
         )}
