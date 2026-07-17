@@ -42,7 +42,7 @@ import {
 import { writeFileAtomic } from "./lib/fs";
 import { projectFolder } from "./lib/status";
 import {
-  DISCUSS_SKILL,
+  ALL_SKILLS,
   installDecision,
   managedSkillFile,
   resolveInstallTargets,
@@ -142,10 +142,12 @@ function App() {
 
   const handleInstallSkills = async () => {
     for (const dir of skillDirs) {
-      const path = skillFilePath(dir, DISCUSS_SKILL);
-      const existing = await readFileRaw(path).catch(() => null);
-      if (installDecision(existing, DISCUSS_SKILL) !== "skip") {
-        await writeFileAtomic(path, managedSkillFile(DISCUSS_SKILL));
+      for (const skill of ALL_SKILLS) {
+        const path = skillFilePath(dir, skill);
+        const existing = await readFileRaw(path).catch(() => null);
+        if (installDecision(existing, skill) !== "skip") {
+          await writeFileAtomic(path, managedSkillFile(skill));
+        }
       }
     }
     setSkillDirs([]);

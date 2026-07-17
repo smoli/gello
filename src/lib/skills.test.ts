@@ -1,12 +1,37 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_SKILLS,
   DISCUSS_SKILL,
+  ONBOARD_SKILL,
   SKILL_VERSION,
   installDecision,
   managedSkillFile,
   resolveInstallTargets,
   skillFilePath,
 } from "./skills";
+
+describe("ALL_SKILLS (c029)", () => {
+  it("ships the discuss and onboard skills, each with a distinct folder", () => {
+    expect(ALL_SKILLS).toContain(DISCUSS_SKILL);
+    expect(ALL_SKILLS).toContain(ONBOARD_SKILL);
+    const folders = ALL_SKILLS.map((s) => s.folder);
+    expect(new Set(folders).size).toBe(folders.length);
+  });
+
+  it("onboard skill round-trips through the managed-file machinery", () => {
+    const file = managedSkillFile(ONBOARD_SKILL);
+    expect(file).toContain("name: gello-onboard");
+    expect(installDecision(file, ONBOARD_SKILL)).toBe("skip");
+  });
+
+  it("onboard skill embeds the migration invariants (propose→confirm, clean tree, migration.md)", () => {
+    const body = ONBOARD_SKILL.body.toLowerCase();
+    expect(body).toContain("propose");
+    expect(body).toContain("clean");
+    expect(body).toContain("migration.md");
+    expect(body).toContain("done"); // completed items → done cards
+  });
+});
 
 describe("skillFilePath", () => {
   it("nests the skill folder + SKILL.md under the skills dir", () => {

@@ -1,7 +1,7 @@
 ---
 id: c029
 title: Provide skill to onboard legacy projects
-status: ready
+status: review
 priority: normal
 depends: [c032]
 created: 2026-07-16
@@ -38,37 +38,37 @@ working tree — if dirty, it warns and stops without writing.
 
 ## Acceptance criteria
 
-- [ ] Skill template ships alongside the discuss skill and is registered in
+- [x] Skill template ships alongside the discuss skill and is registered in
       the c032 installer (covered by the same template/marker tests)
-- [ ] Template is self-contained: embeds the card + milestone frontmatter
+- [x] Template is self-contained: embeds the card + milestone frontmatter
       schema, folder layout, ID allocation rules (sequential, no
       duplicates), and valid statuses — usable in a project whose CLAUDE.md
       says nothing about gello
-- [ ] Template instructs format-agnostic source discovery (planning
+- [x] Template instructs format-agnostic source discovery (planning
       markdown, task lists, docs folders, exported issues) rather than
       hardcoding specific formats
-- [ ] Template mandates the propose→confirm checkpoint: no board writes
+- [x] Template mandates the propose→confirm checkpoint: no board writes
       before the human approves the mapping; the proposal lists every
       item to be migrated (no sampling or truncation, however large the
       backlog)
-- [ ] Mapping principles in the template: source structure/phases →
+- [x] Mapping principles in the template: source structure/phases →
       milestones; completed items → `done` cards; active/next work →
       `ready` at most (nothing lands `in-progress`); ambiguous items →
       inbox `backlog`
-- [ ] History rules in the template: created/updated recovered from git
+- [x] History rules in the template: created/updated recovered from git
       history of source files where possible (else today); each migrated
       card gets a provenance line in `## Log` citing file/item or issue;
       source files are left untouched — never edited, moved, or deleted
-- [ ] Template instructs a pre-flight check: git working tree must be
+- [x] Template instructs a pre-flight check: git working tree must be
       clean; if dirty, warn the user and stop — no board writes, no files
       created
-- [ ] Concept folding: if a legacy vision/spec doc exists, the template
+- [x] Concept folding: if a legacy vision/spec doc exists, the template
       offers to synthesize `.gello/concept.md` from it, leaving the
       original in place
-- [ ] The final step writes `.gello/migration.md` listing every legacy
+- [x] The final step writes `.gello/migration.md` listing every legacy
       file made obsolete by the migration, stating explicitly that removal
       is the user's decision
-- [ ] Migrated board passes validation: parseable frontmatter, no duplicate
+- [x] Migrated board passes validation: parseable frontmatter, no duplicate
       IDs, only board.yaml statuses
 
 ## Discussion
@@ -106,3 +106,27 @@ working tree — if dirty, it warns and stops without writing.
 ## Log
 
 - 2026-07-17 status → ready (app)
+
+## Notes
+
+- Delivered as `ONBOARD_SKILL` in src/lib/skills.ts, registered in
+  `ALL_SKILLS` so the c032 installer ships it alongside discuss (same
+  managed-marker / install-decision machinery, same one-time SkillPrompt).
+  App install loop now iterates all skills.
+- The template is the deliverable — it encodes every acceptance criterion as
+  instructions to the agent: clean-tree pre-flight gate, format-agnostic
+  inventory, complete propose→confirm-before-write checkpoint, mapping rules
+  (structure→milestones, done→done, active→ready, ambiguous→inbox backlog,
+  never in-progress), git-derived dates + provenance Log lines, sources
+  read-only, concept folding, and a final `.gello/migration.md` obsolete-file
+  report whose cleanup is the human's call. Embeds the board/frontmatter
+  schema so it works with no gello mention in CLAUDE.md.
+- Tests: onboard skill has its marker, byte-for-byte round-trip, embeds the
+  key invariants; ALL_SKILLS distinct folders. (5 new; 283 total.)
+- Flagged: the migration *flow* is instructional text for the agent, verified
+  structurally (marker + invariant presence), not executed here.
+
+## Log
+
+- 2026-07-17 status → ready (app)
+- 2026-07-17 onboard skill template + registered in installer, 5 tests, status → review
