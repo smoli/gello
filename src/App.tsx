@@ -37,6 +37,9 @@ import {
   type LoadedBoard,
 } from "./lib/board-io";
 import { StatusBar } from "./components/StatusBar";
+
+// c0057 hidden for now (Stephan's call) — flip to re-enable the status bar
+const SHOW_STATUS_BAR = false;
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -91,7 +94,7 @@ function App() {
 
   // c0057: load the git branch, and refresh it live when .git/HEAD changes
   useEffect(() => {
-    if (!root) return;
+    if (!root || !SHOW_STATUS_BAR) return;
     let stopped = false;
     const refresh = () => {
       void gitBranch(root).then((b) => {
@@ -422,7 +425,9 @@ function App() {
             onClose={() => setSelectedPath(null)}
           />
         )}
-        <StatusBar root={board.root} model={board.model} branch={branch} />
+        {SHOW_STATUS_BAR && (
+          <StatusBar root={board.root} model={board.model} branch={branch} />
+        )}
       </div>
     );
   }
