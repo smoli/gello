@@ -160,12 +160,25 @@ export async function writeNewFiles(
 /** c017: scaffold a fresh `.gello/` board (+ CLAUDE.md convention) under a
  *  folder that has none. Returns the new `.gello` root. */
 export async function initBoard(projectRoot: string): Promise<string> {
-  const { scaffoldFiles, claudeMdContent } = await import("./scaffold");
+  const { scaffoldFiles, claudeMdContent, agentsMdContent } = await import(
+    "./scaffold"
+  );
   const files = scaffoldFiles(projectRoot);
+
+  // CLAUDE.md: create it if absent, else append the convention (idempotent)
   const claudePath = `${projectRoot}/CLAUDE.md`;
-  const existing = await readFileRaw(claudePath).catch(() => null);
-  const claude = claudeMdContent(existing);
-  if (claude !== existing) files.push({ path: claudePath, content: claude });
+  const claudeExisting = await readFileRaw(claudePath).catch(() => null);
+  const claude = claudeMdContent(claudeExisting);
+  if (claude !== claudeExisting) files.push({ path: claudePath, content: claude });
+
+  // AGENTS.md: only update it when it already exists (don't create one)
+  const agentsPath = `${projectRoot}/AGENTS.md`;
+  const agentsExisting = await readFileRaw(agentsPath).catch(() => null);
+  if (agentsExisting !== null) {
+    const agents = agentsMdContent(agentsExisting);
+    if (agents !== agentsExisting) files.push({ path: agentsPath, content: agents });
+  }
+
   await writeNewFiles(files);
   return `${projectRoot}/.gello`;
 }

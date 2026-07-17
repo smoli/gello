@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { loadBoard } from "./board";
-import { claudeMdContent, scaffoldFiles, CONVENTION_MARKER } from "./scaffold";
+import {
+  agentsMdContent,
+  claudeMdContent,
+  scaffoldFiles,
+  CONVENTION_MARKER,
+} from "./scaffold";
 
 describe("scaffoldFiles", () => {
   const files = scaffoldFiles("/p/proj");
@@ -40,5 +45,24 @@ describe("claudeMdContent", () => {
   it("is idempotent — never appends the snippet twice", () => {
     const once = claudeMdContent("# proj\n");
     expect(claudeMdContent(once)).toBe(once);
+  });
+});
+
+describe("agentsMdContent", () => {
+  it("appends the convention to an existing AGENTS.md, preserving it", () => {
+    const existing = "# Agents\n\nHouse rules.\n";
+    const out = agentsMdContent(existing);
+    expect(out.startsWith(existing)).toBe(true);
+    expect(out).toContain(CONVENTION_MARKER);
+  });
+
+  it("is idempotent — never appends the snippet twice", () => {
+    const once = agentsMdContent("# Agents\n");
+    expect(agentsMdContent(once)).toBe(once);
+  });
+
+  it("handles an empty AGENTS.md without leading blank lines", () => {
+    const out = agentsMdContent("");
+    expect(out.startsWith(CONVENTION_MARKER)).toBe(true);
   });
 });

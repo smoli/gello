@@ -54,6 +54,15 @@ frontmatter. Read \`.gello/concept.md\` for the product spec.
 - Valid statuses come from \`board.yaml\`; frontmatter must be valid YAML.
 `;
 
+/** Append the convention block to existing agent-instructions text, unless it
+ *  is already present (idempotent). */
+function appendConvention(existing: string): string {
+  if (existing.includes(CONVENTION_MARKER)) return existing;
+  const base = existing.replace(/\s*$/, "\n");
+  // no leading blank line when the file was empty
+  return base.trim() === "" ? CONVENTION_SNIPPET : `${base}\n${CONVENTION_SNIPPET}`;
+}
+
 /**
  * The CLAUDE.md content after adding the convention: create from scratch when
  * absent, append when present, and never add the block twice (idempotent).
@@ -62,7 +71,15 @@ export function claudeMdContent(existing: string | null): string {
   if (existing === null) {
     return `# CLAUDE.md\n\n${CONVENTION_SNIPPET}`;
   }
-  if (existing.includes(CONVENTION_MARKER)) return existing;
-  const base = existing.replace(/\s*$/, "\n");
-  return `${base}\n${CONVENTION_SNIPPET}`;
+  return appendConvention(existing);
+}
+
+/**
+ * The AGENTS.md content after adding the convention. Unlike CLAUDE.md this only
+ * updates an existing file — `initBoard` skips it when AGENTS.md is absent
+ * (it's the cross-agent convention file; we don't presume to create one).
+ * Idempotent.
+ */
+export function agentsMdContent(existing: string): string {
+  return appendConvention(existing);
 }

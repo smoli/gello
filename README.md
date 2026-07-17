@@ -137,8 +137,9 @@ See [.gello/concept.md](.gello/concept.md) for the full spec.
 - Frameless window showing the project folder and current git branch; remembers
   its size across restarts.
 - Open any folder as a board, with a recent-projects list; initialize a fresh
-  `.gello/` board in an empty repo; optional prompt to install the agent
-  convention as a skill.
+  `.gello/` board in an empty repo — the gello convention is written into
+  `CLAUDE.md` (created if absent) and appended to `AGENTS.md` when it exists,
+  idempotently. Optional prompt to install the agent skills.
 
 ## Keyboard shortcuts
 
