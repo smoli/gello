@@ -274,9 +274,9 @@ export function nextCardId(model: BoardModel): string {
   return nextIdInNamespace(model, "c");
 }
 
-/** Next free issue ID — issues live in their own b-namespace (c043). */
+/** Next free issue ID — issues live in their own i-namespace (c043). */
 export function nextIssueId(model: BoardModel): string {
-  return nextIdInNamespace(model, "b");
+  return nextIdInNamespace(model, "i");
 }
 
 export function nextMilestoneId(model: BoardModel): string {

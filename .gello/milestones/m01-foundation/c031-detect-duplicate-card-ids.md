@@ -1,11 +1,11 @@
 ---
 id: c031
 title: Detect duplicate card IDs on the board
-status: review
+status: done
 priority: normal
 tags: [core]
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-17
 milestone: m01
 ---
 
@@ -37,6 +37,7 @@ file edits.
 - 2026-07-16 status → ready (app)
 - 2026-07-16 status → in-progress (app)
 - 2026-07-16 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

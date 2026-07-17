@@ -345,7 +345,7 @@ describe("issue creation (c024)", () => {
     writeMock.mockResolvedValue(undefined);
   });
 
-  it("creates a standalone issue in the inbox via createCard, in the b-namespace (c043)", async () => {
+  it("creates a standalone issue in the inbox via createCard, in the i-namespace (c043)", async () => {
     const { card, persisted } = createCard(
       "/repo/.gello",
       CAPTURE_MODEL,
@@ -355,8 +355,8 @@ describe("issue creation (c024)", () => {
 
     expect(card.type).toBe("issue");
     expect(card.ref).toBeNull();
-    expect(card.id).toBe("b001");
-    expect(card.path).toBe("inbox/b001-something-broke.md");
+    expect(card.id).toBe("i001");
+    expect(card.path).toBe("inbox/i001-something-broke.md");
     await persisted;
     expect(writeMock.mock.calls[0][1]).toContain("type: issue\n");
   });
@@ -381,7 +381,7 @@ describe("issue creation (c024)", () => {
     expect(card.status).toBe("backlog");
     expect(card.milestone).toBe("m02");
     expect(card.title).toBe("It broke badly");
-    expect(card.path).toBe("milestones/m02-board-ui/b001-it-broke-badly.md");
+    expect(card.path).toBe("milestones/m02-board-ui/i001-it-broke-badly.md");
     await persisted;
     const written = writeMock.mock.calls[0][1];
     expect(written).toContain("ref: c005\n");
@@ -404,7 +404,7 @@ describe("issue creation (c024)", () => {
       "2026-07-16",
     );
 
-    expect(card.path).toBe("inbox/b001-inbox-trouble.md");
+    expect(card.path).toBe("inbox/i001-inbox-trouble.md");
     expect(card.milestone).toBeNull();
   });
 });

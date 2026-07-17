@@ -111,7 +111,7 @@ export function createCard(
   input: { title: string; body: string; type?: string },
   today: string,
 ): MoveResult {
-  // c043: issues get their own b-namespace; everything else allocates c-ids
+  // c043: issues get their own i-namespace; everything else allocates c-ids
   const id = input.type === "issue" ? nextIssueId(model) : nextCardId(model);
   const path = `inbox/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, { type: input.type });
@@ -136,7 +136,7 @@ export function createIssueFor(
   input: { title: string; body: string },
   today: string,
 ): MoveResult {
-  const id = nextIssueId(model); // c043: b-namespace
+  const id = nextIssueId(model); // c043: i-namespace
   const folder = source.path.slice(0, source.path.lastIndexOf("/"));
   const path = `${folder}/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, {

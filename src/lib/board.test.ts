@@ -320,26 +320,26 @@ describe("issue id namespace (c043)", () => {
     return `---\nid: ${id}\ntitle: Issue ${id}\nstatus: backlog\ntype: issue\n---\nx\n`;
   }
 
-  it("allocates issue ids in the b-namespace, independent of tasks", () => {
+  it("allocates issue ids in the i-namespace, independent of tasks", () => {
     const model = loadBoard([
       file("inbox/c010-task.md", card("c010")),
-      file("inbox/b002-issue.md", issue("b002")),
+      file("inbox/i002-issue.md", issue("i002")),
     ]);
 
-    expect(nextIssueId(model)).toBe("b003");
+    expect(nextIssueId(model)).toBe("i003");
     expect(nextCardId(model)).toBe("c011");
   });
 
-  it("starts at b001 on a board without issues", () => {
-    expect(nextIssueId(loadBoard([]))).toBe("b001");
+  it("starts at i001 on a board without issues", () => {
+    expect(nextIssueId(loadBoard([]))).toBe("i001");
   });
 
-  it("counts invalid b-files by filename so broken issues reserve their id", () => {
+  it("counts invalid i-files by filename so broken issues reserve their id", () => {
     const model = loadBoard([
-      file("inbox/b009-broken.md", "---\nid: [unclosed\n---\nx\n"),
+      file("inbox/i009-broken.md", "---\nid: [unclosed\n---\nx\n"),
     ]);
 
-    expect(nextIssueId(model)).toBe("b010");
+    expect(nextIssueId(model)).toBe("i010");
   });
 });
 
