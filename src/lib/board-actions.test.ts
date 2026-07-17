@@ -501,6 +501,44 @@ updated: 2026-07-10
     await expect(persisted).rejects.toThrow("disk full");
     expect(removeMock).not.toHaveBeenCalled();
   });
+
+  it("i0005: sets the dropped-on status, stamps status-changed, and logs it (ready)", async () => {
+    const { card, persisted } = triageCard(
+      "/repo/.gello",
+      inboxCard(),
+      { folder: "m02-board-ui", milestoneId: "m02" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:15:00",
+      "ready",
+    );
+
+    expect(card.milestone).toBe("m02");
+    expect(card.status).toBe("ready");
+    expect(card.statusChanged).toBe("2026-07-16T09:15:00");
+    await persisted;
+
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("status: ready");
+    expect(written).toContain("status-changed: 2026-07-16T09:15:00");
+    expect(written).toContain("2026-07-16 status → ready (app)");
+  });
+
+  it("i0005: leaves status untouched when the dropped-on status equals the current one", async () => {
+    const { card, persisted } = triageCard(
+      "/repo/.gello",
+      inboxCard(),
+      { folder: "m02-board-ui", milestoneId: "m02" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16T09:15:00",
+      "backlog",
+    );
+
+    expect(card.status).toBe("backlog");
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).not.toContain("status-changed:");
+    expect(written).not.toContain("status → backlog");
+  });
 });
 
 describe("manual order and status-changed (c056)", () => {

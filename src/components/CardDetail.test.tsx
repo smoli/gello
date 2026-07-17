@@ -120,11 +120,16 @@ describe("CardDetail", () => {
     });
   });
 
-  it("shows the milestone read-only for milestone cards", () => {
-    renderDetail();
+  it("i0005: preselects the current milestone and reassigns a triaged card", () => {
+    const props = renderDetail();
 
-    expect(screen.getByText("Card detail & capture")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Milestone")).not.toBeInTheDocument();
+    const select = screen.getByLabelText("Milestone");
+    // fixture card has milestone m03 → the m03 folder is selected
+    expect(select).toHaveValue("m03-card-detail");
+
+    fireEvent.change(select, { target: { value: "m01-alpha" } });
+
+    expect(props.onTriage).toHaveBeenCalledExactlyOnceWith("m01-alpha", "m01");
   });
 
   it("offers a triage select for inbox cards", () => {

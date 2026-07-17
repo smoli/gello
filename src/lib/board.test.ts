@@ -206,6 +206,26 @@ describe("withCardTriaged", () => {
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
     expect(model.milestones[0].cards).toHaveLength(2);
   });
+
+  it("i0005: re-triages a card between milestone groups without duplicating it", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard(
+      "milestones/m02-beta/c102-second.md",
+      card("c102", "ready", "high"),
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withCardTriaged(
+      model,
+      "milestones/m01-alpha/c102-second.md",
+      parsed.card,
+      "m02-beta",
+    );
+
+    // gone from the source milestone, present exactly once in the target
+    expect(next.milestones[0].cards.map((c) => c.id)).toEqual(["c101"]);
+    expect(next.milestones[1].cards.filter((c) => c.id === "c102")).toHaveLength(1);
+  });
 });
 
 describe("applyFileChanges", () => {

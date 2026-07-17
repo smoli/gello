@@ -346,10 +346,64 @@ describe("App", () => {
     expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
     const backlog = screen.getByRole("region", { name: "backlog" });
     expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
-    // detail stays open on the moved card, now with a read-only milestone
+    // detail stays open on the moved card; the milestone select now reflects
+    // its new home and stays editable for reassignment (i0005)
     const dialog = screen.getByRole("dialog", { name: "c001" });
-    expect(within(dialog).getByText("Board UI")).toBeInTheDocument();
-    expect(within(dialog).queryByLabelText("Milestone")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Milestone")).toHaveValue("m02-board-ui");
+  });
+
+  it("i0005: dropping an inbox card on ready prompts for a milestone, then triages", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
+
+    // no write yet — the picker is waiting for a milestone choice
+    expect(writeMock).not.toHaveBeenCalled();
+    const picker = screen.getByRole("dialog", { name: "assign milestone" });
+    fireEvent.click(within(picker).getByText("Board UI"));
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      expect.stringContaining("status: ready"),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("milestone: m02");
+  });
+
+  it("i0005: dismissing the milestone picker applies the status but keeps the card in inbox", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
+
+    fireEvent.click(screen.getByRole("button", { name: /stay in inbox/i }));
+
+    // status applied in place, still in the inbox folder (no milestone, no move)
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c001-hello.md",
+      expect.stringContaining("status: ready"),
+    );
+    expect(writeMock.mock.calls[0][1]).not.toContain("milestone:");
   });
 
   it("applies external file changes to the board live (debounced)", async () => {

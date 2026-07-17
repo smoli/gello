@@ -1,12 +1,12 @@
 ---
 id: i0005
 title: Moving inbox card to milestone puts it in backlog
-status: ready
+status: review
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:38:01
+status-changed: 2026-07-17T11:36:11
 order: 30
 milestone: m02
 ---
@@ -40,22 +40,22 @@ Two paths:
 
 ## Acceptance criteria
 
-- [ ] Dropping a milestone-less inbox card on `discuss`/`backlog`/`ready`
+- [x] Dropping a milestone-less inbox card on `discuss`/`backlog`/`ready`
       shows an inline milestone picker listing the board's milestones
-- [ ] Choosing a milestone commits atomically: file moves to that
+- [x] Choosing a milestone commits atomically: file moves to that
       milestone folder, `milestone` + the dropped-on `status` set, relative
       asset links rewritten, `status-changed` stamped (c056)
-- [ ] Dismissing the picker (Escape / click-away) still applies the new
+- [x] Dismissing the picker (Escape / click-away) still applies the new
       status but leaves the card in the inbox folder — no milestone, no
       move (preserves c030)
-- [ ] Dropping on `in-progress`/`review`/`done` applies the status with no
+- [x] Dropping on `in-progress`/`review`/`done` applies the status with no
       milestone prompt (unchanged)
-- [ ] An inbox card that already has a milestone, or a milestone card, does
+- [x] An inbox card that already has a milestone, or a milestone card, does
       not trigger the picker on a status drop
-- [ ] Card detail offers a milestone selector (+ status); assigning a
+- [x] Card detail offers a milestone selector (+ status); assigning a
       milestone to an inbox card triages it (same move + link rewrite),
       settable in the same edit
-- [ ] Reassigning milestone/status from the detail on an already-triaged
+- [x] Reassigning milestone/status from the detail on an already-triaged
       card works without duplicating or losing the file
 
 ## Discussion
@@ -90,3 +90,7 @@ Two paths:
   in card detail. Corrected from an earlier milestone-first framing.
 - 2026-07-17 status → backlog (app)
 - 2026-07-17 status → ready (app)
+- 2026-07-17 implemented (agent): status-drop inline milestone picker
+  (discuss/backlog/ready; dismiss = status-only, stay in inbox) via
+  triageCard's new status param + Board routing + MilestonePicker overlay;
+  detail milestone select now reassigns already-triaged cards too.

@@ -1,0 +1,67 @@
+.milestone-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 22%, transparent);
+}
+
+.milestone-picker {
+  width: 260px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.8rem;
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 12px 34px color-mix(in srgb, CanvasText 30%, transparent);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.milestone-picker-hint {
+  margin: 0;
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+}
+
+.milestone-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.milestone-picker-list button {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.milestone-picker-list button:hover {
+  background: color-mix(in srgb, #4c8bf5 18%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
+}
+
+.milestone-picker-dismiss {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, CanvasText 30%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+  cursor: pointer;
+}

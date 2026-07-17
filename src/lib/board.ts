@@ -286,8 +286,10 @@ export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
 }
 
 /**
- * Immutably move a triaged card out of the inbox (matched by its old path)
- * into a milestone group, keeping sort order.
+ * Immutably move a triaged card (matched by its old path) into a milestone
+ * group, keeping sort order. The card is stripped from the inbox and from
+ * every milestone group first, so this also handles re-triage between
+ * milestones (i0005) without leaving a duplicate behind.
  */
 export function withCardTriaged(
   model: BoardModel,
@@ -298,11 +300,12 @@ export function withCardTriaged(
   return {
     ...model,
     inbox: model.inbox.filter((c) => c.path !== oldPath),
-    milestones: model.milestones.map((group) =>
-      group.folder === targetFolder
-        ? { ...group, cards: [...group.cards, moved].sort(byCreatedThenId) }
-        : group,
-    ),
+    milestones: model.milestones.map((group) => {
+      const without = group.cards.filter((c) => c.path !== oldPath);
+      return group.folder === targetFolder
+        ? { ...group, cards: [...without, moved].sort(byCreatedThenId) }
+        : { ...group, cards: without };
+    }),
   };
 }
 

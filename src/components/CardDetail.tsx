@@ -232,33 +232,38 @@ export function CardDetail({
               }}
             />
           </label>
-          {milestoneLabel === null ? (
-            <label>
-              Milestone
-              <select
-                aria-label="Milestone"
-                value="inbox"
-                onChange={(event) => {
-                  const option = milestoneOptions.find(
-                    (o) => o.folder === event.target.value,
-                  );
-                  if (option) onTriage(option.folder, option.milestoneId);
-                }}
-              >
-                <option value="inbox">inbox</option>
-                {milestoneOptions.map((option) => (
-                  <option key={option.folder} value={option.folder}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <div className="card-detail-milestone">
-              <span className="field-label">Milestone</span>
-              <span className="card-milestone">{milestoneLabel}</span>
-            </div>
-          )}
+          {/* i0005: assign (inbox) or reassign (triaged) a milestone from the
+              detail — onTriage moves the file either way (inbox→milestone or
+              milestone→milestone), without duplicating or losing it. */}
+          <label>
+            Milestone
+            <select
+              aria-label="Milestone"
+              value={
+                milestoneLabel === null
+                  ? "inbox"
+                  : (milestoneOptions.find((o) => o.milestoneId === card.milestone)
+                      ?.folder ?? "")
+              }
+              onChange={(event) => {
+                const option = milestoneOptions.find(
+                  (o) => o.folder === event.target.value,
+                );
+                if (option) onTriage(option.folder, option.milestoneId);
+              }}
+            >
+              {milestoneLabel === null && <option value="inbox">inbox</option>}
+              {milestoneLabel !== null &&
+                !milestoneOptions.some((o) => o.milestoneId === card.milestone) && (
+                  <option value="">{milestoneLabel}</option>
+                )}
+              {milestoneOptions.map((option) => (
+                <option key={option.folder} value={option.folder}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {editing && (

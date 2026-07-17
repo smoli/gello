@@ -470,6 +470,64 @@ describe("Board card moves", () => {
     );
   });
 
+  it("i0005: routes a milestone-less inbox card dropped on ready to the milestone picker", () => {
+    const onMove = vi.fn();
+    const onInboxStatusDrop = vi.fn();
+    render(
+      <Board model={MODEL} onMoveCard={onMove} onInboxStatusDrop={onInboxStatusDrop} />,
+    );
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    fireEvent.drop(column("ready"), { dataTransfer });
+
+    expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010", milestone: null }),
+      "ready",
+    );
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it("i0005: does not prompt for milestone when an inbox card is dropped on in-progress", () => {
+    const onMove = vi.fn();
+    const onInboxStatusDrop = vi.fn();
+    render(
+      <Board model={MODEL} onMoveCard={onMove} onInboxStatusDrop={onInboxStatusDrop} />,
+    );
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(inboxCard, { dataTransfer });
+    fireEvent.drop(column("in-progress"), { dataTransfer });
+
+    expect(onInboxStatusDrop).not.toHaveBeenCalled();
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010" }),
+      "in-progress",
+    );
+  });
+
+  it("i0005: does not prompt for a milestone card dropped on ready", () => {
+    const onMove = vi.fn();
+    const onInboxStatusDrop = vi.fn();
+    render(
+      <Board model={MODEL} onMoveCard={onMove} onInboxStatusDrop={onInboxStatusDrop} />,
+    );
+    // c004 "Fourth card" is a milestone card at backlog; drop it on ready
+    const milestoneCard = screen.getByText("Fourth card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+
+    fireEvent.dragStart(milestoneCard, { dataTransfer });
+    fireEvent.drop(column("ready"), { dataTransfer });
+
+    expect(onInboxStatusDrop).not.toHaveBeenCalled();
+    expect(onMove).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c004" }),
+      "ready",
+    );
+  });
+
   it("moves an inbox card by keyboard from its status position", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} />);

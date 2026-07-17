@@ -51,6 +51,7 @@ import { backgroundCss, classifyBackground } from "./lib/background";
 import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
 import { ProjectMenu } from "./components/ProjectMenu";
 import { BackgroundPicker } from "./components/BackgroundPicker";
+import { MilestonePicker } from "./components/MilestonePicker";
 import { projectFolder } from "./lib/status";
 import {
   ALL_SKILLS,
@@ -101,6 +102,12 @@ function App() {
   // c0060: live preview override (color/gradient) + picker position
   const [bgPreview, setBgPreview] = useState<string | null>(null);
   const [bgMenu, setBgMenu] = useState<{ x: number; y: number } | null>(null);
+  // i0005: a milestone-less inbox card dropped on a triage column, awaiting a
+  // milestone pick (or dismissal → apply status only, stay in inbox).
+  const [pendingTriage, setPendingTriage] = useState<{
+    card: Card;
+    status: string;
+  } | null>(null);
   // git branch for the status bar (c0057); null = not a git repo
   const [branch, setBranch] = useState<string | null>(null);
   // c032: skill dirs to offer installation into (empty = no prompt)
@@ -493,7 +500,12 @@ function App() {
     if (created !== null) setSelectedPath((created as Card).path);
   };
 
-  const handleTriage = (card: Card, folder: string, milestoneId: string) => {
+  const handleTriage = (
+    card: Card,
+    folder: string,
+    milestoneId: string,
+    status?: string,
+  ) => {
     if (!board) return;
     const oldPath = card.path;
     applyAction(
@@ -503,7 +515,8 @@ function App() {
           card,
           { folder, milestoneId },
           board.model.config,
-          todayIsoDate(),
+          nowIsoDateTime(),
+          status,
         ),
       (model, moved) => withCardTriaged(model, oldPath, moved, folder),
     );
@@ -579,6 +592,7 @@ function App() {
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           onTriageCard={handleTriage}
+          onInboxStatusDrop={(card, status) => setPendingTriage({ card, status })}
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
         />
@@ -590,6 +604,26 @@ function App() {
               onCancel={() => setIssueSource(null)}
             />
           </div>
+        )}
+        {pendingTriage && (
+          <MilestonePicker
+            options={milestoneOptions}
+            status={pendingTriage.status}
+            onPick={(folder, milestoneId) => {
+              handleTriage(
+                pendingTriage.card,
+                folder,
+                milestoneId,
+                pendingTriage.status,
+              );
+              setPendingTriage(null);
+            }}
+            onDismiss={() => {
+              // c030 escape hatch: apply the status only, stay in the inbox
+              handleMove(pendingTriage.card, pendingTriage.status);
+              setPendingTriage(null);
+            }}
+          />
         )}
         {bgMenu && (
           <BackgroundPicker

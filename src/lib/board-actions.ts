@@ -192,25 +192,46 @@ export function createIssueFor(
 }
 
 /**
- * Triage: move an inbox card into a milestone folder. Sets the `milestone`
- * field, rewrites relative asset links for the new folder depth, writes the
- * new file, and only then deletes the old one — a failure in between leaves
- * a visible duplicate, never a lost card.
+ * Triage: move a card into a milestone folder. Sets the `milestone` field,
+ * rewrites relative asset links for the new folder depth (a no-op when the
+ * source already sits at milestone depth — re-triage between milestones),
+ * writes the new file, and only then deletes the old one — a failure in
+ * between leaves a visible duplicate, never a lost card.
+ *
+ * When `status` is given and differs from the card's current status (i0005:
+ * status-drop with an inline milestone pick), it is set in the same write and
+ * stamped/logged exactly like a plain move (c056/c042).
+ *
+ * `now` may be a date or a full ISO datetime; `status-changed` records the
+ * full value, `updated` and Log lines the date part.
  */
 export function triageCard(
   root: string,
   card: Card,
   target: { folder: string; milestoneId: string },
   config: BoardConfig,
-  today: string,
+  now: string,
+  status?: string,
 ): MoveResult {
-  const withMilestone = updateCardFields(
-    card,
-    { milestone: target.milestoneId },
-    today,
-    config,
-  );
-  const newRaw = retargetAssetLinks(withMilestone.raw, "../assets/", "../../assets/");
+  const today = now.slice(0, 10);
+  const statusChanges = status !== undefined && status !== card.status;
+  let changes: CardFieldChanges = { milestone: target.milestoneId };
+  if (statusChanges) {
+    // mirror saveCardFields' c056 bookkeeping: stamp when the status was
+    // assigned and drop a manual rank that belonged to the old column
+    changes = { statusChanged: now, status, ...changes };
+    if (card.order !== null) changes = { ...changes, order: null };
+  }
+  let { card: updated, raw } = updateCardFields(card, changes, today, config);
+  if (statusChanges) {
+    ({ card: updated, raw } = replaceCardBody(
+      updated,
+      appendLogLine(updated.body, `${today} status → ${status} (app)`),
+      today,
+      config,
+    ));
+  }
+  const newRaw = retargetAssetLinks(raw, "../assets/", "../../assets/");
   const newPath = `milestones/${target.folder}/${basename(card.path)}`;
   const parsed = parseCard(newPath, newRaw, config);
   if (!parsed.ok) {

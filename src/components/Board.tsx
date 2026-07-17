@@ -71,11 +71,20 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
   return [...flaggedInbox, ...milestoneCards];
 }
 
+/**
+ * i0005: columns that are real inbox-triage destinations. Dropping a
+ * milestone-less inbox card here prompts for a milestone (status comes from
+ * the column); in-progress/review/done aren't where raw ideas land, so they
+ * move without prompting.
+ */
+const TRIAGE_DROP_COLUMNS = new Set(["discuss", "backlog", "ready"]);
+
 export function Board({
   model,
   onMoveCard,
   onSelectCard,
   onTriageCard,
+  onInboxStatusDrop,
   onReorderCard,
   onRenumber,
   background,
@@ -90,6 +99,12 @@ export function Board({
   onBackgroundContextMenu?: (x: number, y: number) => void;
   onSelectCard?: (card: Card) => void;
   onTriageCard?: TriageCardHandler;
+  /**
+   * i0005: a milestone-less inbox card was dropped on a triage column. The
+   * host opens an inline milestone picker; the status is the dropped-on
+   * column.
+   */
+  onInboxStatusDrop?: (card: Card, status: string) => void;
   onReorderCard?: ReorderCardHandler;
   onRenumber?: RenumberHandler;
   /** Data URL of the board background (c047). */
@@ -148,11 +163,26 @@ export function Board({
     [statusCards, inboxUnprocessed],
   );
 
+  /**
+   * i0005: a milestone-less inbox card dropped on a triage column should
+   * prompt for a milestone rather than move silently. Only when a picker
+   * host is wired and the board actually has milestones to offer.
+   */
+  const promptsForMilestone = (card: Card, column: string): boolean =>
+    onInboxStatusDrop != null &&
+    card.path.startsWith("inbox/") &&
+    card.milestone === null &&
+    TRIAGE_DROP_COLUMNS.has(column) &&
+    model.milestones.some((g) => g.milestone !== null);
+
   const dropOnColumn = (column: string, cardPath: string) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
-    if (entry && entry.card.status !== column) {
-      onMoveCard?.(entry.card, column);
+    if (!entry || entry.card.status === column) return;
+    if (promptsForMilestone(entry.card, column)) {
+      onInboxStatusDrop?.(entry.card, column);
+      return;
     }
+    onMoveCard?.(entry.card, column);
   };
 
   /** Positioned drop on an insert zone of a manual column (c056). */
@@ -164,6 +194,12 @@ export function Board({
   ) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
     if (!entry) return;
+    // i0005: a milestone-less inbox card lands via the picker, not a ranked
+    // insert — the milestone move relocates it anyway
+    if (entry.card.status !== column && promptsForMilestone(entry.card, column)) {
+      onInboxStatusDrop?.(entry.card, column);
+      return;
+    }
     // plan against the column WITHOUT the dragged card; zones are rendered
     // around the full list, so slots below the card's own shift down by one
     const draggedAt = columnEntries.findIndex((c) => c.card.path === cardPath);
