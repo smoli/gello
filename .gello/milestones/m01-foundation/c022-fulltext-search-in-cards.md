@@ -1,12 +1,13 @@
 ---
 id: c022
 title: Fulltext search in cards
-status: backlog
+status: review
 priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m01
-order: 6.25
+status-changed: 2026-07-17T08:37:40
+order: 10
 ---
 
 ## What
@@ -22,18 +23,18 @@ involvement.
 
 ## Acceptance criteria
 
-- [ ] Search field renders centered in the toolbar
-- [ ] Cmd/Ctrl+F focuses the search field (webview native find is
+- [x] Search field renders centered in the toolbar
+- [x] Cmd/Ctrl+F focuses the search field (webview native find is
       suppressed)
-- [ ] A card matches when every space-separated term occurs
+- [x] A card matches when every space-separated term occurs
       (case-insensitive) in its title, body, tags, or ID
-- [ ] Query filters all columns including inbox; done cards are searched
+- [x] Query filters all columns including inbox; done cards are searched
       like any others
-- [ ] Search and milestone filter compose (AND)
-- [ ] Live filtering as you type; clearing the field (or Escape while the
+- [x] Search and milestone filter compose (AND)
+- [x] Live filtering as you type; clearing the field (or Escape while the
       field is focused) restores the full board
-- [ ] Column counts reflect the filtered card set
-- [ ] Empty/whitespace-only query = no filtering
+- [x] Column counts reflect the filtered card set
+- [x] Empty/whitespace-only query = no filtering
 
 ## Discussion
 
@@ -59,3 +60,4 @@ involvement.
 - 2026-07-16 status → backlog (app)
 - 2026-07-16 status → ready (app)
 - 2026-07-16 status → backlog (app)
+- 2026-07-17 status → ready (app)

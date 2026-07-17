@@ -211,6 +211,21 @@
 .board-toolbar {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+}
+
+/* c022: search field centered in the toolbar */
+.board-search {
+  margin: 0 auto;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  width: min(360px, 40vw);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
 }
 
 .priority-high {

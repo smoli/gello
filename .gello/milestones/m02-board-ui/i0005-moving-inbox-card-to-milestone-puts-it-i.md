@@ -1,13 +1,13 @@
 ---
 id: i0005
 title: Moving inbox card to milestone puts it in backlog
-status: backlog
+status: ready
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:33:51
-order: 8.75
+status-changed: 2026-07-17T08:38:01
+order: 30
 milestone: m02
 ---
 
@@ -89,3 +89,4 @@ Two paths:
   picker (optional; discuss/backlog/ready only) + milestone/status picker
   in card detail. Corrected from an earlier milestone-first framing.
 - 2026-07-17 status → backlog (app)
+- 2026-07-17 status → ready (app)

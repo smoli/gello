@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   columnComparator,
   MANUAL_COLUMNS,
@@ -6,6 +6,7 @@ import {
   type BoardModel,
 } from "../lib/board";
 import type { Card, InvalidFile } from "../lib/cards";
+import { cardMatchesQuery } from "../lib/search";
 import "./Board.css";
 
 const CARD_DRAG_TYPE = "application/x-gello-card-path";
@@ -80,25 +81,41 @@ export function Board({
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [query, setQuery] = useState("");
   const [dragging, setDragging] = useState<Card | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // c022: Cmd/Ctrl+F focuses search, suppressing the webview's native find
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "f") {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const inboxUnprocessed = useMemo(
     () =>
       model.inbox.filter(
         (card) =>
           card.status === "backlog" &&
-          (typeFilter === "all" || card.type === typeFilter),
+          (typeFilter === "all" || card.type === typeFilter) &&
+          cardMatchesQuery(card, query),
       ),
-    [model, typeFilter],
+    [model, typeFilter, query],
   );
   const byMilestone =
     filter === "all"
       ? statusCards
       : statusCards.filter((c) => c.filterKey === filter || c.filterKey === "inbox");
-  const visible =
-    typeFilter === "all"
-      ? byMilestone
-      : byMilestone.filter((c) => c.card.type === typeFilter);
+  const visible = byMilestone.filter(
+    (c) =>
+      (typeFilter === "all" || c.card.type === typeFilter) &&
+      cardMatchesQuery(c.card, query),
+  );
 
   const columns = model.config.columns;
 
@@ -196,6 +213,18 @@ export function Board({
             </option>
           ))}
         </select>
+        <input
+          ref={searchRef}
+          type="search"
+          className="board-search"
+          aria-label="Search cards"
+          placeholder="Search…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setQuery("");
+          }}
+        />
       </header>
       {stripVisible && (
         <section className="milestone-strip" aria-label="assign to milestone">
