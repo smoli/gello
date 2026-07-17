@@ -33,12 +33,16 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  loadBoardAt,
   loadBoardFromDisk,
+  pickFolder,
   readFileRaw,
   watchBoard,
   watchGitHead,
   type LoadedBoard,
 } from "./lib/board-io";
+import { addRecent, parseRecent, serializeRecent } from "./lib/recent";
+import { ProjectMenu } from "./components/ProjectMenu";
 import { writeFileAtomic } from "./lib/fs";
 import { projectFolder } from "./lib/status";
 import {
@@ -52,6 +56,7 @@ import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 
 const SKILLS_DISMISSED_FLAG = "skills-prompt-dismissed";
+const RECENT_FLAG = "recent-projects";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -86,12 +91,26 @@ function App() {
   const [branch, setBranch] = useState<string | null>(null);
   // c032: skill dirs to offer installation into (empty = no prompt)
   const [skillDirs, setSkillDirs] = useState<string[]>([]);
+  // c016: recent project folders (app-local, most-recent first)
+  const [recent, setRecent] = useState<string[]>([]);
+
+  const rememberProject = async (boardRoot: string) => {
+    const path = projectFolder(boardRoot).path;
+    const next = addRecent(parseRecent(await appFlagGet(RECENT_FLAG)), path);
+    setRecent(next);
+    await appFlagSet(RECENT_FLAG, serializeRecent(next));
+  };
 
   useEffect(() => {
     let cancelled = false;
+    void appFlagGet(RECENT_FLAG).then((r) => {
+      if (!cancelled) setRecent(parseRecent(r));
+    });
     void loadBoardFromDisk()
       .then((loaded) => {
-        if (!cancelled) setBoard(loaded);
+        if (cancelled) return;
+        setBoard(loaded);
+        if (loaded) void rememberProject(loaded.root);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -100,6 +119,19 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  // c016: open a different project (folder picker or a recent entry). A folder
+  // without .gello yields null → the "no board" placeholder (init = c017).
+  const openProject = async (folder: string) => {
+    setSelectedPath(null);
+    const loaded = await loadBoardAt(folder);
+    setBoard(loaded);
+    if (loaded) await rememberProject(loaded.root);
+  };
+  const pickAndOpen = async () => {
+    const folder = await pickFolder();
+    if (folder) await openProject(folder);
+  };
 
   // Live sync: watch the board directory, coalesce event bursts, re-read
   // only the changed files, and reconcile through applyFileChanges — which
@@ -435,6 +467,14 @@ function App() {
         <Board
           backgroundImage={backgroundUrl}
           model={board.model}
+          toolbarLeading={
+            <ProjectMenu
+              currentPath={projectFolder(board.root).path}
+              recent={recent}
+              onOpenRecent={(path) => void openProject(path)}
+              onPickFolder={() => void pickAndOpen()}
+            />
+          }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           onTriageCard={handleTriage}

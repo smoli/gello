@@ -29,6 +29,13 @@ fn find_board_root() -> Option<String> {
     fs_read::find_board_root(&cwd).map(|path| path.to_string_lossy().into_owned())
 }
 
+/// c016: locate a `.gello` root at or above a chosen folder.
+#[tauri::command]
+fn find_board_root_at(folder: String) -> Option<String> {
+    fs_read::find_board_root(std::path::Path::new(&folder))
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
 /// Keeps the active watcher alive; replaced when a new board is watched.
 struct WatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
 /// Keeps the git-HEAD watcher alive (c0057).
@@ -209,6 +216,7 @@ fn read_board_files(root: String) -> Result<Vec<fs_read::BoardFileEntry>, FsErro
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(WatcherState(std::sync::Mutex::new(None)))
         .manage(GitWatcherState(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
@@ -223,7 +231,8 @@ pub fn run() {
             watch_git_head,
             detect_skill_dirs,
             app_flag_get,
-            app_flag_set
+            app_flag_set,
+            find_board_root_at
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -37,6 +37,7 @@ body,
   top: calc(0.7rem + 30px);
 }
 
+
 .app {
   display: flex;
   flex-direction: column;

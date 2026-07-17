@@ -1,0 +1,61 @@
+.project-menu {
+  position: relative;
+}
+
+.project-menu-button {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
+  white-space: nowrap;
+}
+
+.project-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.project-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  min-width: 200px;
+  border-radius: 8px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+.project-menu-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.project-menu-list button:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.project-menu-divider {
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: color-mix(in srgb, CanvasText 12%, transparent);
+}

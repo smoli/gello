@@ -79,9 +79,12 @@ export function Board({
   onReorderCard,
   onRenumber,
   backgroundImage,
+  toolbarLeading,
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
+  /** c016: a control rendered at the start of the toolbar (project menu). */
+  toolbarLeading?: React.ReactNode;
   onSelectCard?: (card: Card) => void;
   onTriageCard?: TriageCardHandler;
   onReorderCard?: ReorderCardHandler;
@@ -201,6 +204,7 @@ export function Board({
     >
       <header className="board-toolbar" onMouseDown={backgroundDrag}>
         <div className="toolbar-filters">
+          {toolbarLeading}
           <select
             aria-label="Milestone filter"
             value={filter}

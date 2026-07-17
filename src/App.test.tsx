@@ -7,7 +7,9 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  loadBoardAt,
   loadBoardFromDisk,
+  pickFolder,
   readFileRaw,
   watchBoard,
   watchGitHead,
@@ -26,6 +28,8 @@ vi.mock("./lib/board-io", () => ({
   detectSkillDirs: vi.fn(),
   appFlagGet: vi.fn(),
   appFlagSet: vi.fn(),
+  loadBoardAt: vi.fn(),
+  pickFolder: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -74,6 +78,8 @@ describe("App", () => {
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
     vi.mocked(appFlagGet).mockResolvedValue(null);
     vi.mocked(appFlagSet).mockResolvedValue(undefined);
+    vi.mocked(loadBoardAt).mockResolvedValue(null);
+    vi.mocked(pickFolder).mockResolvedValue(null);
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -502,6 +508,32 @@ describe("App", () => {
     render(<App />);
     await screen.findByText("t");
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
+  });
+
+  it("opens a picked folder and swaps the board (c016)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Old board\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    vi.mocked(pickFolder).mockResolvedValue("/other");
+    vi.mocked(loadBoardAt).mockResolvedValue({
+      root: "/other/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: New board\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+
+    render(<App />);
+    await screen.findByText("Old board");
+    // open the project menu (button shows current folder "proj")
+    fireEvent.click(screen.getByRole("button", { name: /proj/ }));
+    fireEvent.click(screen.getByText(/open folder/i));
+
+    expect(await screen.findByText("New board")).toBeInTheDocument();
+    expect(screen.queryByText("Old board")).not.toBeInTheDocument();
+    expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/other");
   });
 
   it("rolls the card back and shows an alert when the write fails", async () => {

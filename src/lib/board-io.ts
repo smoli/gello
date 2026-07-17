@@ -101,6 +101,29 @@ export interface LoadedBoard {
   model: BoardModel;
 }
 
+/** c016: native folder picker — the chosen directory, or null if cancelled. */
+export async function pickFolder(): Promise<string | null> {
+  try {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const chosen = await open({ directory: true, multiple: false });
+    return typeof chosen === "string" ? chosen : null;
+  } catch {
+    return null;
+  }
+}
+
+/** c016: load the board rooted at (or above) a chosen folder; null if none. */
+export async function loadBoardAt(folder: string): Promise<LoadedBoard | null> {
+  try {
+    const root = await invoke<string | null>("find_board_root_at", { folder });
+    if (!root) return null;
+    const files = await invoke<BoardFile[]>("read_board_files", { root });
+    return { root, model: loadBoard(files) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Locate and load the board of the current project. Returns null when there
  * is no `.gello/` directory — or when running outside Tauri (plain browser),
