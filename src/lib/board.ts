@@ -39,11 +39,23 @@ export interface BoardModel {
 
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, normal: 1, low: 2 };
 
+/**
+ * Compare ids numerically within a namespace (c044): mixed-width ids
+ * (c055 vs c0056) must order by number, not by string.
+ */
+function compareIds(a: string, b: string): number {
+  const idRe = /^([a-z]+)(\d+)$/i;
+  const ma = idRe.exec(a);
+  const mb = idRe.exec(b);
+  if (ma && mb && ma[1] === mb[1]) return Number(ma[2]) - Number(mb[2]);
+  return a.localeCompare(b);
+}
+
 /** Board-wide display order: priority (high first), then id. */
 export function byPriorityThenId(a: Card, b: Card): number {
   const priority = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
   if (priority !== 0) return priority;
-  return a.id.localeCompare(b.id);
+  return compareIds(a.id, b.id);
 }
 
 export function loadBoard(files: BoardFile[]): BoardModel {
@@ -262,7 +274,8 @@ function nextIdInNamespace(model: BoardModel, prefix: string): string {
     ...model.invalid.map((entry) => basename(entry.path)),
   ];
   const next = maxIdNumber(candidates, prefix) + 1;
-  return `${prefix}${String(next).padStart(3, "0")}`;
+  // c044: new ids pad to 4 digits; existing shorter ids are never renumbered
+  return `${prefix}${String(next).padStart(4, "0")}`;
 }
 
 /**

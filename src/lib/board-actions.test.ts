@@ -305,12 +305,12 @@ describe("createCard", () => {
       "2026-07-16",
     );
 
-    expect(card.id).toBe("c008");
-    expect(card.path).toBe("inbox/c008-fix-the-flaky-sync.md");
+    expect(card.id).toBe("c0008");
+    expect(card.path).toBe("inbox/c0008-fix-the-flaky-sync.md");
     expect(card.status).toBe("backlog");
     await persisted;
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c008-fix-the-flaky-sync.md",
+      "/repo/.gello/inbox/c0008-fix-the-flaky-sync.md",
       expect.stringContaining("title: Fix the Flaky Sync!!"),
     );
   });
@@ -323,7 +323,7 @@ describe("createCard", () => {
       "2026-07-16",
     );
 
-    expect(card.path).toBe("inbox/c008-idea.md");
+    expect(card.path).toBe("inbox/c0008-idea.md");
   });
 
   it("includes the optional body", async () => {
@@ -355,8 +355,8 @@ describe("issue creation (c024)", () => {
 
     expect(card.type).toBe("issue");
     expect(card.ref).toBeNull();
-    expect(card.id).toBe("i001");
-    expect(card.path).toBe("inbox/i001-something-broke.md");
+    expect(card.id).toBe("i0001");
+    expect(card.path).toBe("inbox/i0001-something-broke.md");
     await persisted;
     expect(writeMock.mock.calls[0][1]).toContain("type: issue\n");
   });
@@ -381,7 +381,7 @@ describe("issue creation (c024)", () => {
     expect(card.status).toBe("backlog");
     expect(card.milestone).toBe("m02");
     expect(card.title).toBe("It broke badly");
-    expect(card.path).toBe("milestones/m02-board-ui/i001-it-broke-badly.md");
+    expect(card.path).toBe("milestones/m02-board-ui/i0001-it-broke-badly.md");
     await persisted;
     const written = writeMock.mock.calls[0][1];
     expect(written).toContain("ref: c005\n");
@@ -404,7 +404,7 @@ describe("issue creation (c024)", () => {
       "2026-07-16",
     );
 
-    expect(card.path).toBe("inbox/i001-inbox-trouble.md");
+    expect(card.path).toBe("inbox/i0001-inbox-trouble.md");
     expect(card.milestone).toBeNull();
   });
 });

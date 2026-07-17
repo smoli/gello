@@ -128,7 +128,7 @@ describe("loadBoard on a synthetic tree", () => {
 
   it("derives next IDs, counting invalid files by filename", () => {
     // c104/c105 are invalid but their filenames still reserve the IDs
-    expect(nextCardId(model)).toBe("c106");
+    expect(nextCardId(model)).toBe("c0106");
     expect(nextMilestoneId(model)).toBe("m03");
   });
 });
@@ -315,6 +315,29 @@ describe("issue refs (c024)", () => {
   });
 });
 
+describe("4-digit id allocation (c044)", () => {
+  it("pads new task and issue ids to 4 digits", () => {
+    expect(nextCardId(loadBoard([]))).toBe("c0001");
+    expect(nextIssueId(loadBoard([]))).toBe("i0001");
+  });
+
+  it("continues numerically after existing 3-digit ids without renumbering", () => {
+    const model = loadBoard([file("inbox/c055-old.md", card("c055"))]);
+
+    expect(nextCardId(model)).toBe("c0056");
+  });
+
+  it("sorts mixed-width ids numerically, not lexicographically", () => {
+    const model = loadBoard([
+      file("inbox/c0056-new.md", card("c0056")),
+      file("inbox/c055-old.md", card("c055")),
+    ]);
+
+    // lexicographic would put c0056 first; numeric order is c055, c0056
+    expect(model.inbox.map((c) => c.id)).toEqual(["c055", "c0056"]);
+  });
+});
+
 describe("issue id namespace (c043)", () => {
   function issue(id: string): string {
     return `---\nid: ${id}\ntitle: Issue ${id}\nstatus: backlog\ntype: issue\n---\nx\n`;
@@ -326,12 +349,12 @@ describe("issue id namespace (c043)", () => {
       file("inbox/i002-issue.md", issue("i002")),
     ]);
 
-    expect(nextIssueId(model)).toBe("i003");
-    expect(nextCardId(model)).toBe("c011");
+    expect(nextIssueId(model)).toBe("i0003");
+    expect(nextCardId(model)).toBe("c0011");
   });
 
-  it("starts at i001 on a board without issues", () => {
-    expect(nextIssueId(loadBoard([]))).toBe("i001");
+  it("starts at i0001 on a board without issues", () => {
+    expect(nextIssueId(loadBoard([]))).toBe("i0001");
   });
 
   it("counts invalid i-files by filename so broken issues reserve their id", () => {
@@ -339,7 +362,7 @@ describe("issue id namespace (c043)", () => {
       file("inbox/i009-broken.md", "---\nid: [unclosed\n---\nx\n"),
     ]);
 
-    expect(nextIssueId(model)).toBe("i010");
+    expect(nextIssueId(model)).toBe("i0010");
   });
 });
 
@@ -378,7 +401,7 @@ describe("duplicate card IDs (c031)", () => {
       file("inbox/c010-b.md", card("c010")),
     ]);
 
-    expect(nextCardId(model)).toBe("c011");
+    expect(nextCardId(model)).toBe("c0011");
   });
 
   it("propagates through applyFileChanges (watcher path)", () => {
@@ -440,7 +463,7 @@ describe("loadBoard edge cases", () => {
     expect(model.inbox).toEqual([]);
     expect(model.milestones).toEqual([]);
     expect(model.invalid).toEqual([]);
-    expect(nextCardId(model)).toBe("c001");
+    expect(nextCardId(model)).toBe("c0001");
     expect(nextMilestoneId(model)).toBe("m01");
   });
 });

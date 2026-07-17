@@ -225,7 +225,7 @@ describe("App", () => {
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c007-dark-mode.md",
+      "/repo/.gello/inbox/c0007-dark-mode.md",
       expect.stringContaining("title: Dark mode"),
     );
     const inbox = screen.getByRole("region", { name: "inbox" });
@@ -378,10 +378,10 @@ describe("App", () => {
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/i001-the-filter-flickers.md",
+      "/repo/.gello/milestones/m02-board-ui/i0001-the-filter-flickers.md",
       expect.stringContaining("ref: c006"),
     );
-    const dialog = screen.getByRole("dialog", { name: "i001" });
+    const dialog = screen.getByRole("dialog", { name: "i0001" });
     expect(within(dialog).getByText("The filter flickers")).toBeInTheDocument();
 
     // ref link navigates to the source

@@ -72,7 +72,7 @@ Notes:
   triage (assign to milestone, refine) happens later on the board.
 - IDs are per-board sequential and part of the filename → stable references
   in commits, card bodies (`depends on c002`), and conversation. Tasks live
-  in the `c` namespace (`c001`), issues in the `i` namespace (`i001`);
+  in the `c` namespace (`c001`), issues in the `i` namespace (`i0001`);
   existing IDs never change — only new cards allocate from their namespace.
 
 ### Card format
