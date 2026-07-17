@@ -317,29 +317,37 @@
   z-index: 1;
 }
 
+/* i0005: the indicator fills the landing slot (tall), not a thin line. It's
+   absolutely positioned, so growing it never reflows anything. */
 .insert-zone::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 50%;
-  transform: translateY(-50%);
   height: 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, #4c8bf5 65%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, #4c8bf5 75%, transparent);
+  transform: translateY(-50%);
+  border-radius: 6px;
+  background: color-mix(in srgb, #4c8bf5 22%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #4c8bf5 70%, transparent);
   opacity: 0;
-  transition: opacity 0.08s;
+  transition: opacity 0.12s ease, height 0.12s ease;
 }
 
 .insert-zone-active::before {
   opacity: 1;
+  height: 40px;
 }
 
 /* i0004: open a real landing gap by pushing the card BELOW the active zone
-   down. The pointer sits on the zone (constant box) so this never jitters. */
+   down. The pointer sits on the zone (constant box) so this never jitters.
+   i0005: animate the gap opening/closing. */
+.card-front {
+  transition: margin-top 0.12s ease;
+}
+
 .insert-zone-active + .card-front {
-  margin-top: 34px;
+  margin-top: 44px;
 }
 
 /* i0004: leave a dashed placeholder where the dragged card came from. Same
