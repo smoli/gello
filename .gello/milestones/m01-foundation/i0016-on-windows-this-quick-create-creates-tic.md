@@ -1,12 +1,12 @@
 ---
 id: i0016
 title: On Windows this quick create creates ticekt twice
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T19:59:12
+status-changed: 2026-07-17T20:43:21
 milestone: m01
 ---
 
@@ -72,3 +72,4 @@ normal use, but the double-handler is platform-independent.
 - 2026-07-17 fixed (agent): title input submits on plain Enter only (mod+Enter
   handled once at form level) + idempotent per-instance submit latch + IME
   guard. Reproducing test + idempotency/IME tests added.
+- 2026-07-17 status → done (app)

@@ -1,12 +1,12 @@
 ---
 id: i0017
 title: On Windows, custom header is not working
-status: review
+status: done
 priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T20:21:06
+status-changed: 2026-07-17T20:43:23
 milestone: m02
 ---
 
@@ -90,6 +90,7 @@ otherwise close the window from the UI.
 - 2026-07-17 refined (human): macOS stays as-is; frameless + custom controls
   are Windows/Linux only
 - 2026-07-17 triaged (human): status → ready
+- 2026-07-17 status → done (app)
 
 ## Notes
 
