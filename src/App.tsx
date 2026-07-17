@@ -57,7 +57,10 @@ import {
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 
-const SKILLS_DISMISSED_FLAG = "skills-prompt-dismissed";
+// i0010: the "don't ask about skills" choice is per-project, not global —
+// a global flag bled the decision across every project.
+const skillsDismissedKey = (projectPath: string) =>
+  `skills-prompt-dismissed:${projectPath}`;
 const RECENT_FLAG = "recent-projects";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
@@ -177,8 +180,8 @@ function App() {
     if (!root) return;
     let cancelled = false;
     void (async () => {
-      if ((await appFlagGet(SKILLS_DISMISSED_FLAG)) !== null) return;
       const projectRoot = projectFolder(root).path;
+      if ((await appFlagGet(skillsDismissedKey(projectRoot))) !== null) return;
       const targets = resolveInstallTargets(await detectSkillDirs(projectRoot));
       // i0009: only prompt when a skill is actually missing/outdated —
       // otherwise the prompt reappeared on every reload with skills present
@@ -497,7 +500,10 @@ function App() {
             onInstall={() => void handleInstallSkills()}
             onNotNow={() => setSkillDirs([])}
             onDontAsk={() => {
-              void appFlagSet(SKILLS_DISMISSED_FLAG, "1");
+              void appFlagSet(
+                skillsDismissedKey(projectFolder(board.root).path),
+                "1",
+              );
               setSkillDirs([]);
             }}
           />

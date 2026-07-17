@@ -535,7 +535,10 @@ describe("App", () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: /don't ask/i }));
 
-    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("skills-prompt-dismissed", "1");
+    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+      "skills-prompt-dismissed:/repo/proj",
+      "1",
+    );
     expect(writeMock).not.toHaveBeenCalled();
   });
 
@@ -560,19 +563,41 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
   });
 
-  it("does not prompt when the user previously dismissed (c032)", async () => {
+  it("does not prompt when this project was previously dismissed (c032)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
-    vi.mocked(appFlagGet).mockResolvedValue("1");
+    // dismissed flag set for THIS project's key only
+    vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+      key === "skills-prompt-dismissed:/repo/proj" ? "1" : null,
+    );
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+    readMock.mockRejectedValue(new Error("no such file"));
 
     render(<App />);
     await screen.findByText("t");
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
+  });
+
+  it("a dismissal for another project does not bleed into this one (i0010)", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      model: loadBoard([
+        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+      ]),
+    });
+    // a DIFFERENT project was dismissed — must not suppress this one
+    vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+      key === "skills-prompt-dismissed:/some/other" ? "1" : null,
+    );
+    vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
+    readMock.mockRejectedValue(new Error("no such file"));
+
+    render(<App />);
+    expect(await screen.findByRole("button", { name: "Install" })).toBeInTheDocument();
   });
 
   it("opens a picked folder and swaps the board (c016)", async () => {
