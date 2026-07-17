@@ -1,0 +1,26 @@
+/* c0059: frameless draggable top bar. Transparent so the board background
+   (c047) bleeds through; a soft scrim keeps the caption legible. */
+.titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  /* clear the macOS traffic-light zone on the left */
+  padding-left: 78px;
+  background: linear-gradient(
+    color-mix(in srgb, Canvas 55%, transparent),
+    transparent
+  );
+  user-select: none;
+}
+
+.titlebar-caption {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.75;
+  pointer-events: none;
+}

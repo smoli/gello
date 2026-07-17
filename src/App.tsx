@@ -36,10 +36,7 @@ import {
   watchGitHead,
   type LoadedBoard,
 } from "./lib/board-io";
-import { StatusBar } from "./components/StatusBar";
-
-// c0057 hidden for now (Stephan's call) — flip to re-enable the status bar
-const SHOW_STATUS_BAR = false;
+import { TitleBar } from "./components/TitleBar";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -92,9 +89,10 @@ function App() {
   // returns the same model reference for self-write echoes (no re-render).
   const root = board?.root ?? null;
 
-  // c0057: load the git branch, and refresh it live when .git/HEAD changes
+  // c0057/c0059: load the git branch for the title bar, and refresh it live
+  // when .git/HEAD changes
   useEffect(() => {
-    if (!root || !SHOW_STATUS_BAR) return;
+    if (!root) return;
     let stopped = false;
     const refresh = () => {
       void gitBranch(root).then((b) => {
@@ -369,7 +367,8 @@ function App() {
         label: group.milestone!.title,
       }));
     return (
-      <div className="app-shell">
+      <div className="app-shell app-shell-frameless">
+        <TitleBar root={board.root} branch={branch} />
         {error && (
           <div role="alert" className="board-error">
             {error}
@@ -424,9 +423,6 @@ function App() {
             openIssues={openIssuesFor(board.model, selected.card.id)}
             onClose={() => setSelectedPath(null)}
           />
-        )}
-        {SHOW_STATUS_BAR && (
-          <StatusBar root={board.root} model={board.model} branch={branch} />
         )}
       </div>
     );

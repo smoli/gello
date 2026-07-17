@@ -1,13 +1,12 @@
 ---
 id: c0057
 title: Status bar
-status: review
+status: done
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02
-status-changed: 2026-07-17T08:37:47
-order: 20
+status-changed: 2026-07-17T08:56:28
 ---
 
 Shows, project folder we’re working,
@@ -74,6 +73,7 @@ plain read proves insufficient. Detached HEAD shows the short SHA.
   live via watcher on .git/HEAD, bottom bar with explicit non-repo label
 - 2026-07-17 status → backlog (app)
 - 2026-07-17 status → ready (app)
+- 2026-07-17 status → done (app)
 
 ## Notes
 

@@ -1,7 +1,5 @@
-// Pure derivations for the status bar (c0057): project folder and per-column
-// card tallies from the loaded board model.
-
-import type { BoardModel } from "./board";
+// Pure derivations for the window title (c0057/c0059): project folder name
+// and the title-bar caption.
 
 /** The folder that contains `.gello` — its basename and full path. */
 export function projectFolder(root: string): { name: string; path: string } {
@@ -11,16 +9,10 @@ export function projectFolder(root: string): { name: string; path: string } {
   return { name, path };
 }
 
-export interface ColumnCount {
-  column: string;
-  count: number;
+/** Window/title-bar caption (c0059): `gello: <folder> (<branch>)`, with the
+ *  branch and its parens omitted when the project is not a git repo. */
+export function windowTitle(root: string, branch: string | null): string {
+  const { name } = projectFolder(root);
+  return branch ? `gello: ${name} (${branch})` : `gello: ${name}`;
 }
 
-/** Card tally per configured column, over inbox + milestone cards. */
-export function cardCounts(model: BoardModel): ColumnCount[] {
-  const all = [...model.inbox, ...model.milestones.flatMap((g) => g.cards)];
-  return model.config.columns.map((column) => ({
-    column,
-    count: all.filter((c) => c.status === column).length,
-  }));
-}

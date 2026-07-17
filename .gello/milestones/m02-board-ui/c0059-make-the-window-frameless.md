@@ -1,11 +1,13 @@
 ---
 id: c0059
 title: Make the Window frameless
-status: discuss
+status: review
 priority: normal
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T08:40:06
+status-changed: 2026-07-17T08:56:36
+milestone: m02
+order: 10
 ---
 
 With custom header, so the background can bleed up to the top.
@@ -30,27 +32,27 @@ Per platform:
 
 - **macOS**: `titleBarStyle: "Overlay"` + `hiddenTitle` — native traffic
   lights stay top-left, board background renders behind them. The top bar is
-  a `data-tauri-drag-region` with the `gello: <folder>` title; content is
-  inset from the left so it clears the traffic-light zone.
+  a `data-tauri-drag-region` with the `gello: <folder> (<branch>)` title;
+  content is inset from the left so it clears the traffic-light zone.
 - **Windows/Linux**: `decorations: false` with a **custom-drawn** window
   chrome — our own minimize/maximize/close cluster in the OS-conventional
   position (right), plus the title, over the bled-through background.
 
 ## Acceptance criteria
 
-- [ ] The board background reaches the top window edge — no OS title bar
+- [x] The board background reaches the top window edge — no OS title bar
       band above it
 - [ ] A draggable top bar moves the window; the window controls (where
       custom-drawn) remain clickable, not swallowed by the drag region
-- [ ] The top bar shows the title `gello: <foldername> (<branch>)`, where
+- [x] The top bar shows the title `gello: <foldername> (<branch>)`, where
       `<foldername>` is the basename of the directory containing `.gello/`
       and `<branch>` is the live git branch (omitted, with no empty parens,
       when not a git repo); the search field stays in the toolbar below
-- [ ] The branch in the title updates live when `.git/HEAD` changes
+- [x] The branch in the title updates live when `.git/HEAD` changes
       (reuses c0057's git-branch watcher before the status bar is removed)
-- [ ] The bottom status bar is removed (`StatusBar` component + wiring);
+- [x] The bottom status bar is removed (`StatusBar` component + wiring);
       no card-count tally remains
-- [ ] macOS: native traffic lights are visible, correctly positioned, and
+- [x] macOS: native traffic lights are visible, correctly positioned, and
       not overlapped by the title (left inset respected)
 - [ ] Windows/Linux: custom-drawn minimize/maximize/close in the
       OS-conventional (right) position work correctly (incl. maximize
@@ -68,17 +70,16 @@ Per platform:
   (hover, right-click menus, snap) for free. (Rejected: fully custom
   per-OS controls — reimplements native behavior and drifts from OS
   conventions.)
-- **Search field moves into the top bar**: reclaims the vertical space the
-  old title bar took; the top bar isn't just dead chrome. Filters stay
-  below so window-drag and board-controls don't fight for the same clicks.
-- **Cross-platform tension (the key risk)**: "native controls" + "content
-  bleeds to top" is natively supported on macOS (Overlay title bar) but
-  **not** on Windows/Linux, where bleed-to-top means `decorations: false`
-  and therefore custom-drawn min/max/close. So the honest resolution is
-  hybrid: macOS keeps native traffic lights; Windows/Linux get a minimal
-  custom control cluster positioned per-OS. Worth confirming this is
-  acceptable, or scoping Windows/Linux to a later pass (they'd keep a
-  normal frame until then).
+- **Search field stays in the toolbar**: the top bar is pure window chrome
+  (title + drag region + controls), not a home for board controls — keeps
+  window-drag and board-controls from fighting for the same clicks, and the
+  title bar stays uncluttered.
+- **Cross-platform tension, resolved as hybrid**: "native controls" +
+  "bleed to top" is natively supported on macOS (Overlay title bar) but
+  **not** on Windows/Linux, where bleed-to-top forces `decorations: false`.
+  Decision: macOS keeps native traffic lights; Windows/Linux get
+  **custom-drawn** min/max/close in the OS-conventional (right) position.
+  Not native there, but the honest cost of bleeding content to the top.
 - **Drag-region correctness is the subtle part**: `data-tauri-drag-region`
   makes children draggable too, so inputs/buttons must explicitly opt out,
   and the traffic-light corner must be reserved so a drag there doesn't
@@ -94,8 +95,9 @@ Per platform:
   reaching the top — and **[[c019]]** (packaging) which owns per-OS build
   concerns; the Windows/Linux control work may belong there.
 - **Open**: exact macOS traffic-light inset (default vs. custom position);
-  whether Windows/Linux land in this card or defer to c019; does the app
-  title/board name appear anywhere once the OS title bar is gone.
+  whether the Windows/Linux custom-chrome work lands in this card or defers
+  to [[c019]] (packaging) while those platforms keep a normal frame in the
+  interim.
 
 ## Log
 
@@ -106,3 +108,31 @@ Per platform:
 - 2026-07-17 revised (agent): search field stays in toolbar; title is
   `gello: <folder> (<branch>)`; Windows/Linux get custom-drawn chrome;
   removes the c0057 status bar (folder+branch in title, counts dropped).
+- 2026-07-17 status → ready (app)
+
+## Notes
+
+- **Scope landed: macOS.** `titleBarStyle: "Overlay"` + `hiddenTitle` in
+  tauri.conf drops the title band and keeps native traffic lights floating
+  over the bled-through background. Custom `TitleBar` (absolute, 30px,
+  `data-tauri-drag-region`, 78px left inset for the lights, scrim for
+  legibility) shows `gello: <folder> (<branch>)` via pure `windowTitle`.
+  Board content padded down 30px; background reaches the top edge.
+- Branch is live: reuses c0057's git-branch command + `.git/HEAD` watcher
+  (ungated now that it feeds the title).
+- **c0057 status bar removed**: StatusBar component/CSS/test deleted, App
+  wiring dropped, `cardCounts` removed (counts intentionally not relocated).
+- **Windows/Linux custom chrome DEFERRED to [[c019]]** (packaging), per the
+  card's open question — those platforms keep a normal frame until then.
+  The three Win/Linux/double-click-zoom criteria are intentionally left
+  unchecked and belong to c019; flagged here rather than faked.
+- macOS visual criteria (traffic-light inset, readability scrim) verified in
+  `tauri dev`; drag-region/resize behavior needs a human eyeball on the
+  running window.
+
+## Log
+
+- 2026-07-17 status → discuss (app)
+- 2026-07-17 status → ready (app)
+- 2026-07-17 macOS frameless overlay + TitleBar; status bar removed;
+  Win/Linux chrome deferred to c019; 5 tests, status → review

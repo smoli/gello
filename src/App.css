@@ -21,6 +21,22 @@ body,
   height: 100vh;
 }
 
+/* c0059: frameless — the 30px titlebar overlays the top; the board bleeds
+   its background up behind it, so board content is padded down to clear it */
+.app-shell-frameless {
+  position: relative;
+}
+
+.app-shell-frameless .board {
+  padding-top: calc(0.75rem + 30px);
+}
+
+/* quick-capture buttons clear the titlebar */
+.app-shell-frameless .quick-capture-buttons,
+.app-shell-frameless .quick-capture {
+  top: calc(0.7rem + 30px);
+}
+
 .app {
   display: flex;
   flex-direction: column;
