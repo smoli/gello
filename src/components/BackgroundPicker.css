@@ -1,6 +1,14 @@
+.bg-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  /* invisible click-catcher so an outside click dismisses the picker (i0012) */
+  background: transparent;
+}
+
 .bg-picker {
   position: fixed;
-  z-index: 50;
+  z-index: 51;
   width: 240px;
   padding: 0.6rem;
   border-radius: 10px;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   classifyBackground,
   formatGradient,
@@ -49,6 +49,16 @@ export function BackgroundPicker({
     onClose();
   };
 
+  // i0012: Escape dismisses like Cancel (revert the live preview, then close)
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancel();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // cancel closes over stable callbacks; re-binding each render is harmless
+  });
+
   const pickColor = (value: string) => {
     setColor(value);
     onPreview(value);
@@ -67,12 +77,22 @@ export function BackgroundPicker({
 
   return (
     <div
-      className="bg-picker"
-      role="dialog"
-      aria-label="board background"
-      style={{ left: position.x, top: position.y }}
-      onClick={(e) => e.stopPropagation()}
+      className="bg-picker-backdrop"
+      data-testid="bg-picker-backdrop"
+      onClick={cancel}
+      onContextMenu={(e) => {
+        // i0012: a right-click outside dismisses too (no native menu leak)
+        e.preventDefault();
+        cancel();
+      }}
     >
+      <div
+        className="bg-picker"
+        role="dialog"
+        aria-label="board background"
+        style={{ left: position.x, top: position.y }}
+        onClick={(e) => e.stopPropagation()}
+      >
       <div className="bg-picker-modes">
         {(["image", "color", "gradient"] as Mode[]).map((m) => (
           <button
@@ -159,6 +179,7 @@ export function BackgroundPicker({
         <button type="button" onClick={cancel}>
           Cancel
         </button>
+      </div>
       </div>
     </div>
   );

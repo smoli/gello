@@ -89,4 +89,34 @@ describe("BackgroundPicker", () => {
     expect(p.onPreview).toHaveBeenLastCalledWith(null);
     expect(p.onClose).toHaveBeenCalled();
   });
+
+  it("i0012: an outside click reverts the preview and closes", () => {
+    const p = props();
+    render(<BackgroundPicker {...p} />);
+    fireEvent.click(screen.getByRole("button", { name: "Color" }));
+    fireEvent.change(screen.getByLabelText("Background color"), {
+      target: { value: "#abcdef" },
+    });
+
+    fireEvent.click(screen.getByTestId("bg-picker-backdrop"));
+
+    expect(p.onPreview).toHaveBeenLastCalledWith(null);
+    expect(p.onClose).toHaveBeenCalled();
+  });
+
+  it("i0012: a click inside the picker does not close it", () => {
+    const p = props();
+    render(<BackgroundPicker {...p} />);
+    fireEvent.click(screen.getByRole("dialog", { name: "board background" }));
+    expect(p.onClose).not.toHaveBeenCalled();
+  });
+
+  it("i0012: Escape reverts the preview and closes", () => {
+    const p = props();
+    render(<BackgroundPicker {...p} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(p.onPreview).toHaveBeenLastCalledWith(null);
+    expect(p.onClose).toHaveBeenCalled();
+  });
 });
