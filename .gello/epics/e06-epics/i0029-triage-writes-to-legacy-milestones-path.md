@@ -58,9 +58,28 @@ folder and group correctly.
   ([[i0028]]).
 - **Open**: none — cause and fix identified.
 
+## Notes
+
+- Fix: `destFolder` in `triageCard` and `newPath` in App `handleTriage`
+  switched `milestones/<folder>` → `epics/<folder>` (standalone `cards/`
+  path unchanged). Asset-link depth is unchanged (both are depth 2).
+- Tests that encoded the buggy destination were corrected to `epics/`
+  (board-actions triage test + three App triage tests) — a deliberate test
+  fix, not a weakening.
+- Cleanup: `git mv` of the misplaced i0028 into `epics/e06-epics/`; stray
+  `milestones/e06-epics/` removed.
+- Verified: board-actions unit test (destination path) + App integration
+  tests drive the real triage flow (detail Epic select and drag-to-ready →
+  picker) and assert the write lands under `epics/`. Frontend-only path fix,
+  no Rust. 480 tests green, typecheck + lint clean.
+
 ## Log
 
 - 2026-07-18 recorded (agent): triage-to-epic writes to legacy
   `milestones/<folder>/`; fix = switch both write paths to `epics/<folder>/`
   + relocate the misplaced i0028
+- 2026-07-18 status → ready (app)
+- 2026-07-18 fixed TDD (agent): both write paths → `epics/<folder>/`, tests
+  corrected, i0028 relocated + stray folder removed; 480 green, status →
+  review
 - 2026-07-18 status → ready (app)
