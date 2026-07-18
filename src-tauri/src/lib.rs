@@ -272,6 +272,11 @@ fn watch_git_head(
     let git_dir = head.parent().map(|p| p.to_path_buf()).unwrap_or(head.clone());
     let mut watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
         if let Ok(event) = result {
+            // c0083: `.git/HEAD` (checkout) and `.git/logs/HEAD` (any commit,
+            // reset, or merge — HEAD stays on the same branch so its file never
+            // changes, but the reflog is appended). The dirty indicator listens
+            // on this event, so an external commit that cleans the worktree
+            // must fire it too, not just a branch switch.
             if event.paths.iter().any(|p| p.ends_with("HEAD")) {
                 let _ = app.emit("git-head-changed", ());
             }
@@ -287,8 +292,14 @@ fn watch_git_head(
         .map_err(|error| FsError {
             kind: "Watch".into(),
             message: error.to_string(),
-            path: root,
+            path: root.clone(),
         })?;
+    // c0083: `.git/logs/HEAD` (the reflog) is appended on every commit; watch
+    // its dir so a plain commit — which leaves `.git/HEAD` untouched — still
+    // refreshes the dirty indicator. Best-effort: the logs dir may not exist
+    // yet in a brand-new repo.
+    let logs_dir = git_dir.join("logs");
+    let _ = watcher.watch(&logs_dir, notify::RecursiveMode::NonRecursive);
     *state.0.lock().unwrap() = Some(watcher);
     Ok(())
 }
