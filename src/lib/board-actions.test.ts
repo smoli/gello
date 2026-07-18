@@ -9,6 +9,7 @@ import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
   createIssueFor,
   createCard,
+  createEpic,
   deleteCard,
   moveCard,
   renumberCards,
@@ -424,6 +425,46 @@ describe("issue creation (c024)", () => {
 
     expect(card.path).toBe("inbox/i0001-inbox-trouble.md");
     expect(card.epic).toBeNull();
+  });
+});
+
+describe("createEpic (i0028)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  it("scaffolds epics/eNN-<slug>/epic.md with the next e-id and the goal", async () => {
+    const { epic, folder, persisted } = createEpic("/repo/.gello", CAPTURE_MODEL, {
+      title: "Dark mode",
+      goal: "Ship a full dark theme.",
+    });
+
+    // next id after legacy m02 → e03
+    expect(epic.id).toBe("e03");
+    expect(folder).toBe("e03-dark-mode");
+    expect(epic.path).toBe("epics/e03-dark-mode/epic.md");
+    expect(epic.title).toBe("Dark mode");
+    expect(epic.status).toBe("backlog");
+    await persisted;
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e03-dark-mode/epic.md",
+      expect.stringContaining("id: e03"),
+    );
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("## Goal");
+    expect(written).toContain("Ship a full dark theme.");
+    expect(written).toContain("## Definition of done");
+  });
+
+  it("never reuses an existing epic id", () => {
+    // a board that already has e03 → next is e04
+    const model = loadBoard([
+      { path: "epics/e03-x/epic.md", content: "---\nid: e03\ntitle: X\n---\n" },
+    ]);
+    const { epic } = createEpic("/repo/.gello", model, { title: "Y", goal: "" });
+    expect(epic.id).toBe("e04");
   });
 });
 

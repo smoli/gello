@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BOARD_CONFIG,
   newCardRaw,
+  newEpicRaw,
   parseBoardConfig,
   parseCard,
   parseEpic,
@@ -501,6 +502,34 @@ describe("newCardRaw", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.card.title).toBe('Fix: the "thing" [maybe]');
+  });
+});
+
+describe("newEpicRaw (i0028)", () => {
+  it("scaffolds an epic that parses, with the goal under ## Goal", () => {
+    const raw = newEpicRaw("e07", "Dark mode", "Ship a full dark theme.");
+    const result = parseEpic("epics/e07-dark-mode/epic.md", raw);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.epic.id).toBe("e07");
+    expect(result.epic.title).toBe("Dark mode");
+    expect(result.epic.status).toBe("backlog");
+    expect(result.epic.body).toContain("## Goal");
+    expect(result.epic.body).toContain("Ship a full dark theme.");
+    expect(result.epic.body).toContain("## Definition of done");
+  });
+
+  it("still parses with an empty goal", () => {
+    const result = parseEpic("epics/e08-x/epic.md", newEpicRaw("e08", "X", ""));
+    expect(result.ok).toBe(true);
+  });
+
+  it("quotes a title YAML would misread", () => {
+    const result = parseEpic("epics/e09-x/epic.md", newEpicRaw("e09", "Fix: [it]", "g"));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.epic.title).toBe("Fix: [it]");
   });
 });
 

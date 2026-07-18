@@ -1,15 +1,18 @@
 // Board mutations: pure planning via cards.ts, persistence via fs.ts.
 
-import { nextCardId, nextIssueId, type BoardModel } from "./board";
+import { nextCardId, nextEpicId, nextIssueId, type BoardModel } from "./board";
 import { removeDir, removeFile } from "./board-io";
 import {
   newCardRaw,
+  newEpicRaw,
   parseCard,
+  parseEpic,
   replaceCardBody,
   updateCardFields,
   type BoardConfig,
   type Card,
   type CardFieldChanges,
+  type Epic,
 } from "./cards";
 import { writeFileAtomic } from "./fs";
 import { appendLogLine, retargetAssetLinks } from "./markdown";
@@ -164,6 +167,38 @@ export function createCard(
   }
   const persisted = writeFileAtomic(`${root}/${path}`, raw);
   return { card: parsed.card, persisted };
+}
+
+/** i0028: a newly created epic and the folder it lives in. */
+export interface NewEpicResult {
+  epic: Epic;
+  /** Folder name under epics/ (e.g. "e07-dark-mode"), = the epic group key. */
+  folder: string;
+  persisted: Promise<void>;
+}
+
+/**
+ * i0028: create a new epic — allocate the next e-namespace id, scaffold
+ * `epics/eNN-<slug>/epic.md` (id, title, `status: backlog`, `## Goal` from
+ * input, empty `## Definition of done`) and write it atomically (the write
+ * creates the folder, c0076/i0026). Ids are never reused (nextEpicId).
+ */
+export function createEpic(
+  root: string,
+  model: BoardModel,
+  input: { title: string; goal: string },
+): NewEpicResult {
+  const id = nextEpicId(model);
+  const folder = `${id}-${slugify(input.title)}`;
+  const path = `epics/${folder}/epic.md`;
+  const raw = newEpicRaw(id, input.title, input.goal);
+  const parsed = parseEpic(path, raw);
+  if (!parsed.ok) {
+    // internal invariant: newEpicRaw output must always parse
+    throw new Error(`new epic would be invalid: ${parsed.invalid.reason}`);
+  }
+  const persisted = writeFileAtomic(`${root}/${path}`, raw);
+  return { epic: parsed.epic, folder, persisted };
 }
 
 /**

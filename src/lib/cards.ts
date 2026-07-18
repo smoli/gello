@@ -353,6 +353,21 @@ export function newCardRaw(
   return `---\n${lines.join("\n")}\n---\n${trimmedBody ? `\n${trimmedBody}\n` : ""}`;
 }
 
+/**
+ * i0028: scaffold a new epic's `epic.md` — id, title, `status: backlog`, a
+ * `## Goal` (from the captured goal) and an empty `## Definition of done` to
+ * fill in later. Matches the epic format in concept.md §4 (id/title/status).
+ */
+export function newEpicRaw(id: string, title: string, goal: string): string {
+  const frontmatter = [`id: ${id}`, `title: ${formatScalar(title)}`, "status: backlog"];
+  const trimmedGoal = goal.trim();
+  return (
+    `---\n${frontmatter.join("\n")}\n---\n\n` +
+    `## Goal\n\n${trimmedGoal ? `${trimmedGoal}\n` : ""}\n` +
+    `## Definition of done\n\n`
+  );
+}
+
 // --- serialization (surgical edits) ------------------------------------------
 
 /** Quote a scalar only when YAML would misread it plain. A colon only

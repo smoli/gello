@@ -10,6 +10,7 @@ import {
   nextEpicId,
   openIssuesFor,
   withCardTriaged,
+  withNewEpic,
   withNewInboxCard,
   withUpdatedCard,
   withoutCard,
@@ -17,7 +18,7 @@ import {
   planManualInsert,
   type BoardFile,
 } from "./board";
-import { DEFAULT_BOARD_CONFIG, parseCard, type Card } from "./cards";
+import { DEFAULT_BOARD_CONFIG, parseCard, parseEpic, type Card } from "./cards";
 
 // --- helpers -----------------------------------------------------------------
 
@@ -218,6 +219,32 @@ describe("withNewInboxCard", () => {
     // c056: capture order — priority does not jump the queue
     expect(next.inbox.map((c) => c.id)).toEqual(["c103", "c106"]);
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+  });
+});
+
+describe("withNewEpic (i0028)", () => {
+  it("adds a new empty epic group, sorted by folder", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseEpic("epics/e09-zeta/epic.md", "---\nid: e09\ntitle: Zeta\n---\n");
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withNewEpic(model, parsed.epic, "e09-zeta");
+    const group = next.epics.find((g) => g.folder === "e09-zeta");
+    expect(group).toBeDefined();
+    expect(group!.epic?.id).toBe("e09");
+    expect(group!.cards).toEqual([]);
+  });
+
+  it("is a no-op when the folder already exists", () => {
+    const model = loadBoard(SYNTHETIC);
+    const existing = model.epics[0];
+    const parsed = parseEpic(
+      `${existing.folder}/epic.md`,
+      `---\nid: dup\ntitle: Dup\n---\n`,
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+    const next = withNewEpic(model, parsed.epic, existing.folder);
+    expect(next).toBe(model);
   });
 });
 

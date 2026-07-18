@@ -317,6 +317,22 @@ export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
 }
 
 /**
+ * i0028: immutably add a freshly created epic (empty, no cards yet) to the
+ * model, keeping epics sorted by folder. A no-op if the folder already exists.
+ */
+export function withNewEpic(
+  model: BoardModel,
+  epic: Epic,
+  folder: string,
+): BoardModel {
+  if (model.epics.some((group) => group.folder === folder)) return model;
+  const epics = [...model.epics, { folder, epic, cards: [] }].sort((a, b) =>
+    a.folder.localeCompare(b.folder),
+  );
+  return { ...model, epics };
+}
+
+/**
  * Immutably move a triaged card (matched by its old path) into an epic group,
  * keeping sort order. The card is stripped from the inbox, from standalone,
  * and from every epic group first, so this also handles re-triage between
