@@ -38,10 +38,14 @@ import {
   gitBranch,
   imageDataUrl,
   initBoard,
+  gitBoardChanges,
+  gitCommitBoard,
+  gitWorktreeStatus,
   loadBoardAt,
   loadBoardFromDisk,
   migrateLegacyBoard,
   pickFolder,
+  type WorktreeStatus,
   pickImageFile,
   readFileRaw,
   removeFile,
@@ -85,10 +89,15 @@ const skillsDismissedKey = (projectPath: string) =>
 const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
 const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
+// c0083: per-project auto-commit — off by default, keyed by project path
+const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
+const autoCommitWindowKey = (projectPath: string) => `auto-commit-window:${projectPath}`;
+const AUTO_COMMIT_DEFAULT_MS = 30_000;
 
 type Theme = "system" | "light" | "dark";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { rebaseCard } from "./lib/conflict";
+import { buildCommitMessage, type BoardChange } from "./lib/commit-message";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
@@ -150,6 +159,10 @@ function App() {
   const [showThumbnails, setShowThumbnails] = useState(true);
   // c0068: theme override — "system" follows the OS (default), else forced
   const [theme, setTheme] = useState<Theme>("system");
+  // c0083: per-project auto-commit of board changes (off by default) + window
+  const [autoCommit, setAutoCommit] = useState(false);
+  const [autoCommitWindowMs, setAutoCommitWindowMs] = useState(AUTO_COMMIT_DEFAULT_MS);
+  const [dirty, setDirty] = useState<WorktreeStatus | null>(null);
   // c0066: fulltext search now lives in the top bar; the board filters by it
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
@@ -257,6 +270,9 @@ function App() {
       void gitBranch(root).then((b) => {
         if (!stopped) setBranch(b);
       });
+      // c0083: a .git change (commit/checkout) can flip code-side dirtiness —
+      // refresh the indicator on the same cadence as the branch
+      void refreshDirtyRef.current();
     };
     refresh();
     const stopPromise = watchGitHead(root, refresh).catch(() => () => {});
@@ -367,6 +383,56 @@ function App() {
     commitBackground(rel);
     setBgMenu(null);
   };
+  // c0083: auto-commit orchestration. Refs keep the debounce timer and the
+  // latest settings/handlers stable so the long-lived file watcher can (re)arm
+  // the commit without re-subscribing on every settings change.
+  const autoCommitRef = useRef(false);
+  const windowRef = useRef(AUTO_COMMIT_DEFAULT_MS);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const flushed = useRef(false);
+  autoCommitRef.current = autoCommit;
+  windowRef.current = autoCommitWindowMs;
+
+  /** c0083: parse a changed board file into a Card, or null (non-card files
+   *  like board.yaml/epic.md aren't itemised in the commit message). */
+  const parseChangedCard = (path: string, content: string | null): Card | null => {
+    if (!board || content === null) return null;
+    const parsed = parseCard(path, content, board.model.config);
+    return parsed.ok ? parsed.card : null;
+  };
+
+  /** c0083: refresh the title-bar dirty indicator from git. */
+  const refreshDirty = async () => {
+    if (!board) return;
+    setDirty(await gitWorktreeStatus(board.root));
+  };
+  const refreshDirtyRef = useRef(refreshDirty);
+  refreshDirtyRef.current = refreshDirty;
+
+  /** c0083: commit pending `.gello/` changes with a per-card message. The Rust
+   *  side skips non-repos, mid-merge states, and a clean board; failure is
+   *  surfaced non-fatally and never blocks the board. */
+  const runAutoCommit = async () => {
+    if (!board) return;
+    const raw = await gitBoardChanges(board.root);
+    if (!raw) return; // not a git repo
+    const changes: BoardChange[] = [];
+    for (const change of raw) {
+      const before = parseChangedCard(change.path, change.head);
+      const after = parseChangedCard(change.path, change.work);
+      const card = after ?? before;
+      if (card) changes.push({ id: card.id, title: card.title, before, after });
+    }
+    const message = buildCommitMessage(changes) ?? "board: update";
+    const outcome = await gitCommitBoard(board.root, message);
+    if (outcome.kind === "failed") {
+      setError(`auto-commit failed: ${outcome.message}`);
+    }
+    await refreshDirty();
+  };
+  const runAutoCommitRef = useRef(runAutoCommit);
+  runAutoCommitRef.current = runAutoCommit;
+
   useEffect(() => {
     if (!root) return;
     let stopped = false;
@@ -394,14 +460,73 @@ function App() {
       for (const path of paths) pending.add(path);
       clearTimeout(timer);
       timer = setTimeout(() => void reconcile(), 150);
+      // c0083: a board change → refresh the dirty indicator and (re)arm the
+      // auto-commit debounce so a burst of writes collapses into one commit
+      void refreshDirtyRef.current();
+      if (autoCommitRef.current) {
+        clearTimeout(commitTimer.current);
+        commitTimer.current = setTimeout(
+          () => void runAutoCommitRef.current(),
+          windowRef.current,
+        );
+      }
     }).catch(() => () => {});
 
     return () => {
+      clearTimeout(commitTimer.current);
       stopped = true;
       clearTimeout(timer);
       void stopPromise.then((stop) => stop());
     };
   }, [root]);
+
+  // c0083: load the per-project auto-commit settings + initial dirty state
+  // whenever the open project changes (app-local flags keyed by project path).
+  useEffect(() => {
+    if (!board) {
+      setDirty(null);
+      return;
+    }
+    const path = projectFolder(board.root).path;
+    let cancelled = false;
+    flushed.current = false;
+    void appFlagGet(autoCommitKey(path)).then((v) => {
+      if (!cancelled) setAutoCommit(v === "1");
+    });
+    void appFlagGet(autoCommitWindowKey(path)).then((v) => {
+      const ms = v ? Number(v) : NaN;
+      if (!cancelled) {
+        setAutoCommitWindowMs(Number.isFinite(ms) && ms > 0 ? ms : AUTO_COMMIT_DEFAULT_MS);
+      }
+    });
+    void refreshDirty();
+    return () => {
+      cancelled = true;
+    };
+  }, [root]);
+
+  // c0083: flush any pending (debounced) board commit before the window closes,
+  // so the last batch is never left uncommitted. Best-effort; no-op outside Tauri.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void (async () => {
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const win = getCurrentWindow();
+        unlisten = await win.onCloseRequested(async (event) => {
+          if (!autoCommitRef.current || flushed.current) return;
+          flushed.current = true;
+          event.preventDefault();
+          clearTimeout(commitTimer.current);
+          await runAutoCommitRef.current();
+          void win.destroy();
+        });
+      } catch {
+        // outside Tauri — nothing to flush
+      }
+    })();
+    return () => unlisten?.();
+  }, []);
 
   /** Optimistic update + rollback around any card-writing action. */
   const applyAction = (
@@ -612,6 +737,22 @@ function App() {
     });
   };
 
+  // c0083: flip / configure per-project auto-commit (keyed by project path)
+  const toggleAutoCommit = () => {
+    if (!board) return;
+    const path = projectFolder(board.root).path;
+    setAutoCommit((current) => {
+      const next = !current;
+      void appFlagSet(autoCommitKey(path), next ? "1" : "0");
+      return next;
+    });
+  };
+  const chooseAutoCommitWindow = (ms: number) => {
+    if (!board) return;
+    setAutoCommitWindowMs(ms);
+    void appFlagSet(autoCommitWindowKey(projectFolder(board.root).path), String(ms));
+  };
+
   const handleDiscardDraft = () => {
     // a reserved id is only consumed on create; abandon it (its asset dir, if
     // any, is a harmless orphan — same as cancelling a card-detail image edit)
@@ -769,7 +910,7 @@ function App() {
   if (board && board.legacy) {
     return (
       <div className="app-shell app-shell-frameless">
-        <TitleBar root={board.root} branch={branch} search={query} onSearch={setQuery} />
+        <TitleBar root={board.root} branch={branch} dirty={dirty} search={query} onSearch={setQuery} />
         <MigrationGate
           onMigrate={() => void handleMigrate()}
           busy={migrating}
@@ -797,6 +938,7 @@ function App() {
         <TitleBar
           root={board.root}
           branch={branch}
+          dirty={dirty}
           search={query}
           onSearch={setQuery}
         />
@@ -926,6 +1068,19 @@ function App() {
                     label: "Show thumbnails",
                     checked: showThumbnails,
                     onSelect: toggleThumbnails,
+                  },
+                  {
+                    label: "Auto-commit board changes",
+                    checked: autoCommit,
+                    onSelect: toggleAutoCommit,
+                  },
+                  {
+                    label: "Auto-commit delay",
+                    items: [10, 30, 60].map((seconds) => ({
+                      label: `${seconds}s`,
+                      checked: autoCommitWindowMs === seconds * 1000,
+                      onSelect: () => chooseAutoCommitWindow(seconds * 1000),
+                    })),
                   },
                 ],
               },

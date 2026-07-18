@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { windowTitle } from "../lib/status";
 import { isMacOS } from "../lib/platform";
+import type { WorktreeStatus } from "../lib/board-io";
 import { WindowControls } from "./WindowControls";
 import "./TitleBar.css";
 
@@ -14,11 +15,14 @@ import "./TitleBar.css";
 export function TitleBar({
   root,
   branch,
+  dirty,
   search,
   onSearch,
 }: {
   root: string;
   branch: string | null;
+  /** c0083: worktree dirtiness for the indicator (null = clean or non-git). */
+  dirty?: WorktreeStatus | null;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
@@ -48,6 +52,30 @@ export function TitleBar({
     <div className={mac ? "titlebar titlebar-mac" : "titlebar titlebar-win"}>
       <div className="titlebar-left" data-tauri-drag-region>
         <span className="titlebar-caption">{windowTitle(root, branch)}</span>
+        {/* c0083: uncommitted-changes dot — hollow when only .gello/ is dirty,
+            filled/distinct when the dirtiness includes code; nothing when clean */}
+        {dirty && (dirty.board_dirty || dirty.code_dirty) && (
+          <span
+            className={
+              dirty.code_dirty
+                ? "titlebar-dirty titlebar-dirty-code"
+                : "titlebar-dirty titlebar-dirty-board"
+            }
+            role="status"
+            aria-label={
+              dirty.code_dirty
+                ? "Uncommitted changes (includes code)"
+                : "Uncommitted board changes"
+            }
+            title={
+              dirty.code_dirty
+                ? "Uncommitted changes (includes code)"
+                : "Uncommitted board changes"
+            }
+          >
+            {dirty.code_dirty ? "●" : "○"}
+          </span>
+        )}
       </div>
       {onSearch && (
         <input

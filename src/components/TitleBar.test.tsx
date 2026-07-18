@@ -26,6 +26,27 @@ describe("TitleBar", () => {
     expect(screen.getByText("gello - proj")).toBeInTheDocument();
   });
 
+  it("c0083: shows no dirty indicator when clean or absent", () => {
+    render(<TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: false, code_dirty: false }} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("c0083: shows a board-only dirty indicator distinct from a code one", () => {
+    const { rerender } = render(
+      <TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: true, code_dirty: false }} />,
+    );
+    const boardDot = screen.getByRole("status");
+    expect(boardDot).toHaveAccessibleName("Uncommitted board changes");
+    expect(boardDot.className).toContain("titlebar-dirty-board");
+
+    rerender(
+      <TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: true, code_dirty: true }} />,
+    );
+    const codeDot = screen.getByRole("status");
+    expect(codeDot).toHaveAccessibleName("Uncommitted changes (includes code)");
+    expect(codeDot.className).toContain("titlebar-dirty-code");
+  });
+
   it("is a Tauri drag region", () => {
     const { container } = render(<TitleBar root="/x/.gello" branch={null} />);
     expect(container.querySelector("[data-tauri-drag-region]")).not.toBeNull();

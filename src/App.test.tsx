@@ -8,6 +8,9 @@ import {
   gitBranch,
   imageDataUrl,
   initBoard,
+  gitBoardChanges,
+  gitCommitBoard,
+  gitWorktreeStatus,
   loadBoardAt,
   loadBoardFromDisk,
   migrateLegacyBoard,
@@ -41,6 +44,9 @@ vi.mock("./lib/board-io", () => ({
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
   writeAsset: vi.fn(),
+  gitBoardChanges: vi.fn(),
+  gitCommitBoard: vi.fn(),
+  gitWorktreeStatus: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 const loadMock = vi.mocked(loadBoardFromDisk);
@@ -96,6 +102,12 @@ describe("App", () => {
     vi.mocked(initBoard).mockResolvedValue("/x/.gello");
     vi.mocked(writeNewFiles).mockReset();
     vi.mocked(writeNewFiles).mockResolvedValue(undefined);
+    vi.mocked(gitBoardChanges).mockReset();
+    vi.mocked(gitBoardChanges).mockResolvedValue(null);
+    vi.mocked(gitCommitBoard).mockReset();
+    vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "nothing" });
+    vi.mocked(gitWorktreeStatus).mockReset();
+    vi.mocked(gitWorktreeStatus).mockResolvedValue(null);
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -822,6 +834,71 @@ describe("App", () => {
       );
       const review = screen.getByRole("region", { name: "review" });
       expect(within(review).getByText("Board card")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0083: auto-commits board changes after the debounce, when enabled", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      // per-project auto-commit flag on; default 30s window
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key.startsWith("auto-commit:") ? "1" : null,
+      );
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      vi.mocked(gitBoardChanges).mockResolvedValue([
+        {
+          path: ".gello/inbox/c001-hello.md",
+          head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+          work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
+        },
+      ]);
+      vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "committed" });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      // a burst of board writes within the window → one commit
+      emitChange!(["inbox/c001-hello.md"]);
+      emitChange!(["inbox/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).toHaveBeenCalledTimes(1);
+      const [, message] = vi.mocked(gitCommitBoard).mock.calls[0];
+      expect(message).toContain("c001: Hello board");
+      expect(message).toContain("status backlog → ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0083: does not auto-commit when the setting is off (default)", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null (off)
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["inbox/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
