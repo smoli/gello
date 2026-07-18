@@ -15,6 +15,6 @@ export function projectFolder(root: string): { name: string; path: string } {
  *  branch and its parens omitted when the project is not a git repo. */
 export function windowTitle(root: string, branch: string | null): string {
   const { name } = projectFolder(root);
-  return branch ? `gello: ${name} (${branch})` : `gello: ${name}`;
+  return branch ? `gello - ${name} (${branch})` : `gello - ${name}`;
 }
 

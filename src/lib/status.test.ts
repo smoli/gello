@@ -33,10 +33,10 @@ describe("projectFolder", () => {
 
 describe("windowTitle (c0059)", () => {
   it("includes the branch in parentheses", () => {
-    expect(windowTitle("/Users/x/proj/.gello", "main")).toBe("gello: proj (main)");
+    expect(windowTitle("/Users/x/proj/.gello", "main")).toBe("gello - proj (main)");
   });
 
   it("omits the parens entirely when not a git repo", () => {
-    expect(windowTitle("/Users/x/proj/.gello", null)).toBe("gello: proj");
+    expect(windowTitle("/Users/x/proj/.gello", null)).toBe("gello - proj");
   });
 });
