@@ -51,8 +51,6 @@ structured frontmatter, and render them as a Kanban board in a desktop app.
     assets/                     # attachments, keyed by card ID
       c003/
         drag-drop-bug.png
-    inbox/                      # quick-captured ideas, not yet assigned
-      idea-dark-mode.md
     epics/
       e01-core-parser/
         epic.md                 # goal, scope, definition of done
@@ -61,18 +59,24 @@ structured frontmatter, and render them as a Kanban board in a desktop app.
       e02-board-ui/
         epic.md
         c003-kanban-view.md
-    cards/                      # epic-less standalone cards (bugs, small changes)
-      c004-typo-in-tooltip.md
+    cards/                      # epic-less cards; a new capture lands here
+      c004-typo-in-tooltip.md   #   with status: inbox
   CLAUDE.md                     # includes the gello agent convention
 ```
 
-A card lives in exactly one of **three homes**:
+A card's **location is purely its epic assignment** — two homes:
 
-- **`inbox/`** — quick-captured, not yet triaged.
+- **`cards/`** — no epic (unassigned). A freshly captured idea lands here with
+  `status: inbox`; bugs and small standalone changes live here too. First-class,
+  not a lesser bucket.
 - **`epics/eNN-name/`** — assigned to an epic (a large effort broken into
   dependent steps). The folder *is* the membership.
-- **`cards/`** — epic-less standalone cards: bugs and small changes that don't
-  belong to any epic. First-class, not a lesser bucket.
+
+**Inbox is a status, not a folder** (the first column): an unprocessed card has
+`status: inbox` and lives in `cards/` (or, once assigned, in its epic). Moving a
+card back to inbox is a plain status change — no file move. Location (assignment)
+and status (workflow stage) are orthogonal, so an epic-assigned card can still be
+`status: inbox`.
 
 **Epics** replace the earlier *milestone* concept: same single-container folder
 model, but named for what it is — an effort broken into steps, not a deadline.
@@ -84,8 +88,8 @@ Notes:
 
 - Files never move when status changes (stable links, clean diffs). Optional:
   an archive action moves long-done cards to `archive/` to keep folders small.
-- The **inbox** is a first-class concept: new ideas become cards immediately;
-  triage (assign to an epic or to `cards/`, refine) happens later on the board.
+- **Capture** creates a card in `cards/` with `status: inbox`; triage (assign to
+  an epic, refine) happens later on the board.
 - IDs are per-board sequential and part of the filename → stable references
   in commits, card bodies (`depends on c002`), and conversation. Tasks live
   in the `c` namespace (`c001`), issues in the `i` namespace (`i0001`);
