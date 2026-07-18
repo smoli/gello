@@ -1,12 +1,12 @@
 ---
 id: i0029
 title: Triage to an epic writes to legacy milestones/ path
-status: review
+status: done
 type: issue
 epic: e06
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T14:34:00
+status-changed: 2026-07-18T18:03:05
 ---
 
 ## What
@@ -83,3 +83,4 @@ folder and group correctly.
   corrected, i0028 relocated + stray folder removed; 480 green, status →
   review
 - 2026-07-18 status → ready (app)
+- 2026-07-18 status → done (app)
