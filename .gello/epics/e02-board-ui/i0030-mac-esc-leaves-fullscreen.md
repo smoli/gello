@@ -1,11 +1,11 @@
 ---
 id: i0030
 title: "Mac: ESC leaves Fullscreen"
-status: discuss
+status: ready
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:20:07
+status-changed: 2026-07-18T16:28:35
 epic: e02
 ---
 
@@ -65,3 +65,4 @@ intercept. Verify on the Mac.
 - 2026-07-18 discussed (agent): Esc must only dismiss overlays, never leave
   fullscreen; fix = global preventDefault-on-Escape (JS), native intercept if
   macOS still exits at the AppKit/Fullscreen-API level; verify on Mac
+- 2026-07-18 status → ready (app)
