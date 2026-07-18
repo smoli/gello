@@ -243,10 +243,10 @@ export function triageCard(
       config,
     ));
   }
-  // c0078: destination folder — an epic (legacy `milestones/<folder>/` until
-  // migration) or the flat `cards/` home for standalone
+  // c0078: destination folder — an epic (`epics/<folder>/`) or the flat
+  // `cards/` home for standalone (i0029: was the pre-migration `milestones/`)
   const destFolder =
-    target.epicId === null ? "cards" : `milestones/${target.folder}`;
+    target.epicId === null ? "cards" : `epics/${target.folder}`;
   // rewrite relative asset links from the source depth to the destination
   // depth (inbox & cards/ are depth 1, an epic folder is depth 2)
   const srcDepth = card.path.split("/").length - 1;

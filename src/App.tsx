@@ -833,7 +833,8 @@ function App() {
     // but never open a dialog as a side effect (drag-triage, c028). c0078:
     // standalone (no epic) lands in cards/, an epic in its folder.
     const base = oldPath.slice(oldPath.lastIndexOf("/") + 1);
-    const newPath = epicId === null ? `cards/${base}` : `milestones/${folder}/${base}`;
+    // i0029: an epic lands in epics/<folder>/ (was the pre-migration milestones/)
+    const newPath = epicId === null ? `cards/${base}` : `epics/${folder}/${base}`;
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 

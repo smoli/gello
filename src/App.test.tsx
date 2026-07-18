@@ -640,7 +640,7 @@ describe("App", () => {
     });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      "/repo/.gello/epics/m02-board-ui/c001-hello.md",
       expect.stringContaining("epic: m02"),
     );
     // optimistic move out of the inbox into the milestone group
@@ -691,7 +691,7 @@ describe("App", () => {
     fireEvent.click(within(picker).getByText("Board UI"));
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      "/repo/.gello/epics/m02-board-ui/c001-hello.md",
       expect.stringContaining("status: ready"),
     );
     expect(writeMock.mock.calls[0][1]).toContain("epic: m02");
@@ -723,7 +723,7 @@ describe("App", () => {
     fireEvent.click(within(picker).getByText("Board UI"));
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
+      "/repo/.gello/epics/m02-board-ui/c001-hello.md",
       expect.stringContaining("status: ready"),
     );
     const written = writeMock.mock.calls[0][1];

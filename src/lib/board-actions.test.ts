@@ -460,12 +460,13 @@ updated: 2026-07-10
       "2026-07-16",
     );
 
-    expect(card.path).toBe("milestones/m02-board-ui/c007-existing.md");
+    // i0029: triage to an epic lands under epics/, not the legacy milestones/
+    expect(card.path).toBe("epics/m02-board-ui/c007-existing.md");
     expect(card.epic).toBe("m02");
     await persisted;
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m02-board-ui/c007-existing.md",
+      "/repo/.gello/epics/m02-board-ui/c007-existing.md",
       expect.stringContaining("![shot](../../assets/c007/shot.png)"),
     );
     expect(writeMock.mock.calls[0][1]).toContain("epic: m02");
