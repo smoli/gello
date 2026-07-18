@@ -1,11 +1,13 @@
 ---
 id: c0090
 title: Board — inbox column + drag/picker rework
-status: backlog
+status: ready
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:53:34
+order: 18.125
 ---
 
 ## What
@@ -41,3 +43,4 @@ c030 removal.
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
+- 2026-07-18 status → ready (app)
