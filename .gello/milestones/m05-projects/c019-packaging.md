@@ -1,15 +1,14 @@
 ---
 id: c019
 title: github build pipeline for mac, windows, linux
-status: review
+status: done
 milestone: m05
 priority: low
 depends: [c014]
 tags: [infra]
 created: 2026-07-16
-updated: 2026-07-17
-status-changed: 2026-07-17T09:21:58
-order: 15
+updated: 2026-07-18
+status-changed: 2026-07-18T00:00:02
 ---
 
 ## What
@@ -56,3 +55,4 @@ cross-platform must run on native GitHub runners.
 - 2026-07-17 status → discuss (app)
 - 2026-07-17 status → ready (app)
 - 2026-07-17 pure CI release workflow (3-platform matrix), status → review
+- 2026-07-18 status → done (app)

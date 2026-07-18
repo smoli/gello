@@ -1,15 +1,14 @@
 ---
 id: i0021
 title: This created two releases
-status: review
+status: done
 priority: normal
 type: issue
 ref: c019
 milestone: m05
 created: 2026-07-17
 updated: 2026-07-17
-status-changed: 2026-07-17T22:02:00
-order: 10
+status-changed: 2026-07-17T23:59:59
 ---
 The renaming was done by me
 
@@ -96,3 +95,4 @@ then have the matrix upload to it.
 - 2026-07-17 rewrote release.yml (create-release → build/releaseId →
   publish-release), validated statically; live tag-push verification is the
   human's; status → review
+- 2026-07-17 status → done (app)
