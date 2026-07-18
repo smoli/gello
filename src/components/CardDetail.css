@@ -1,7 +1,7 @@
 .card-detail-backdrop {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, CanvasText 35%, transparent);
+  background: color-mix(in srgb, Canvas 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,7 +15,7 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 12px 40px color-mix(in srgb, CanvasText 25%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, black 25%, transparent);
 }
 
 .card-detail-header {
