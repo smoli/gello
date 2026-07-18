@@ -161,17 +161,18 @@ export interface LoadedBoard {
 }
 
 /**
- * c0079: apply a migration plan on disk. Writes the whole new epic tree first
- * (via the mkdir-p writer), then removes the old `milestones/` tree wholesale —
- * so a failure or interruption leaves the old board fully intact, never
- * half-deleted. Re-running is safe: it rewrites the same epic files and removes
- * the same tree.
+ * c0079/c0091: apply a migration plan on disk. Writes the whole new tree first
+ * (via the mkdir-p writer), then removes the old `milestones/` and `inbox/`
+ * folders wholesale — so a failure or interruption leaves the old board fully
+ * intact, never half-deleted. remove_dir tolerates a missing folder, so it is
+ * safe to remove both unconditionally. Re-running is safe.
  */
 export async function migrateBoard(root: string, plan: MigrationPlan): Promise<void> {
   await writeNewFiles(
     plan.writes.map((file) => ({ path: `${root}/${file.path}`, content: file.content })),
   );
   await removeDir(`${root}/milestones`);
+  await removeDir(`${root}/inbox`);
 }
 
 /**

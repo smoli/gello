@@ -6,7 +6,7 @@ export interface ScaffoldFile {
   content: string;
 }
 
-const BOARD_YAML = `columns: [discuss, backlog, ready, in-progress, review, done]
+const BOARD_YAML = `columns: [inbox, backlog, ready, in-progress, review, done]
 types: [task, issue]
 wip_limits:
   in-progress: 2
@@ -25,9 +25,9 @@ export function scaffoldFiles(projectRoot: string): ScaffoldFile[] {
   return [
     { path: `${gello}/board.yaml`, content: BOARD_YAML },
     { path: `${gello}/concept.md`, content: CONCEPT_MD },
-    { path: `${gello}/inbox/.gitkeep`, content: "" },
     { path: `${gello}/assets/.gitkeep`, content: "" },
-    // epics/ for grouped work, cards/ for epic-less standalone cards
+    // c0088: no inbox/ folder — inbox is a status. epics/ for grouped work,
+    // cards/ for epic-less standalone cards (a fresh capture lands here).
     { path: `${gello}/epics/.gitkeep`, content: "" },
     { path: `${gello}/cards/.gitkeep`, content: "" },
   ];
@@ -45,14 +45,15 @@ frontmatter. Read \`.gello/concept.md\` for the product spec.
 
 - **Query the board** (never read all cards to find one):
   \`\`\`bash
-  grep -rl "^status: ready" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"
-  grep -rh "^status:" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md" | sort | uniq -c
+  grep -rl "^status: ready" .gello/cards .gello/epics --include="[ci][0-9]*.md"
+  grep -rh "^status:" .gello/cards .gello/epics --include="[ci][0-9]*.md" | sort | uniq -c
   \`\`\`
 - **Pick up work**: re-query the board from disk first, then take the
   top \`ready\` card whose \`depends\` are all \`done\`; set
   \`status: in-progress\` before starting.
 - **Finish**: set \`status: review\` (only a human moves cards to \`done\`).
-- **New ideas**: drop a card in \`.gello/inbox/\` — a heading and a sentence.
+- **New ideas**: capture a card in \`.gello/cards/\` with \`status: inbox\` — a
+  heading and a sentence. (Inbox is a status, the first column — not a folder.)
 - **Triage**: move a card into an epic (\`epics/eNN-name/\`) or leave it
   standalone in \`.gello/cards/\`; \`tags:\` are the separate cross-cutting axis.
 - Valid statuses come from \`board.yaml\`; frontmatter must be valid YAML.

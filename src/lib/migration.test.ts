@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLegacyBoard, planMigration } from "./migration";
+import { addInboxColumn, isLegacyBoard, planMigration } from "./migration";
 import { loadBoard, type BoardFile } from "./board";
 
 const MILESTONE_MD = `---
@@ -58,7 +58,7 @@ describe("isLegacyBoard", () => {
       { path: "epics/e06-epics/epic.md", content: "---\nid: e06\ntitle: T\n---\n" },
       { path: "epics/e06-epics/c001-x.md", content: "---\nid: c001\ntitle: X\nepic: e06\n---\n" },
       { path: "cards/c002-y.md", content: "---\nid: c002\ntitle: Y\n---\n" },
-      { path: "inbox/c003-z.md", content: "---\nid: c003\ntitle: Z\n---\n" },
+      { path: "cards/c003-z.md", content: "---\nid: c003\ntitle: Z\n---\n" },
     ];
     expect(isLegacyBoard(files)).toBe(false);
   });
@@ -66,9 +66,11 @@ describe("isLegacyBoard", () => {
 
 describe("planMigration", () => {
   const files: BoardFile[] = [
-    { path: "board.yaml", content: "columns: [ready]\n" },
+    // already inbox-migrated (inbox column present), so these tests isolate the
+    // milestone→epic transform
+    { path: "board.yaml", content: "columns: [inbox, ready]\n" },
     { path: "concept.md", content: "# concept\n" },
-    { path: "inbox/c003-z.md", content: "---\nid: c003\ntitle: Z\nstatus: ready\n---\n" },
+    { path: "cards/c003-z.md", content: "---\nid: c003\ntitle: Z\nstatus: ready\n---\n" },
     { path: "milestones/m06-epics/milestone.md", content: MILESTONE_MD },
     { path: "milestones/m06-epics/c0079-migration-engine.md", content: CARD_MD },
     { path: "milestones/m01-foundation/milestone.md", content: "---\nid: m01\ntitle: F\n---\n" },
@@ -140,11 +142,11 @@ describe("planMigration", () => {
     ]);
   });
 
-  it("does not touch inbox, cards, board.yaml or concept.md", () => {
+  it("does not touch standalone cards, an inbox-ready board.yaml, or concept.md", () => {
     const { writes, deletes } = planMigration(files);
     const touched = [...writes.map((w) => w.path), ...deletes];
-    expect(touched.some((p) => p.startsWith("inbox/"))).toBe(false);
-    expect(touched).not.toContain("board.yaml");
+    expect(touched.some((p) => p.startsWith("cards/"))).toBe(false);
+    expect(touched).not.toContain("board.yaml"); // already has inbox column
     expect(touched).not.toContain("concept.md");
   });
 
@@ -175,5 +177,57 @@ describe("planMigration", () => {
     expect(e06.cards.map((c) => ({ id: c.id, epic: c.epic }))).toEqual([
       { id: "c0079", epic: "e06" },
     ]);
+  });
+});
+
+describe("inbox → cards migration (c0091)", () => {
+  const files: BoardFile[] = [
+    { path: "board.yaml", content: "columns: [discuss, backlog, ready, done]\n" },
+    { path: "inbox/c010-idea.md", content: "---\nid: c010\ntitle: Idea\nstatus: backlog\n---\nx\n" },
+    { path: "inbox/c011-flagged.md", content: "---\nid: c011\ntitle: Flagged\nstatus: discuss\n---\nx\n" },
+    { path: "cards/c012-loose.md", content: "---\nid: c012\ntitle: Loose\nstatus: backlog\n---\nx\n" },
+  ];
+
+  it("detects an inbox/ folder as legacy", () => {
+    expect(isLegacyBoard(files)).toBe(true);
+    expect(isLegacyBoard([{ path: "cards/c1.md", content: "---\nid: c1\ntitle: X\n---\n" }])).toBe(false);
+  });
+
+  it("moves inbox/*.md to cards/, mapping backlog → inbox and preserving other statuses", () => {
+    const { writes, deletes } = planMigration(files);
+    const idea = writes.find((w) => w.path === "cards/c010-idea.md")!;
+    expect(idea.content).toContain("status: inbox"); // backlog → inbox
+    const flagged = writes.find((w) => w.path === "cards/c011-flagged.md")!;
+    expect(flagged.content).toContain("status: discuss"); // preserved (old c030)
+    expect(deletes).toEqual(
+      expect.arrayContaining(["inbox/c010-idea.md", "inbox/c011-flagged.md"]),
+    );
+    // the already-standalone card is untouched
+    expect(writes.find((w) => w.path === "cards/c012-loose.md")).toBeUndefined();
+  });
+
+  it("prepends inbox to board.yaml's columns", () => {
+    const { writes } = planMigration(files);
+    const yaml = writes.find((w) => w.path === "board.yaml")!;
+    expect(yaml.content).toContain("columns: [inbox, discuss, backlog, ready, done]");
+  });
+
+  it("addInboxColumn is idempotent", () => {
+    expect(addInboxColumn("columns: [inbox, backlog]\n")).toBe("columns: [inbox, backlog]\n");
+  });
+
+  it("post-migration the board loads with zero invalid, inbox cards standalone", () => {
+    const plan = planMigration(files);
+    const untouched = files.filter((f) => !plan.deletes.includes(f.path));
+    const migrated = [
+      ...untouched.filter((f) => !plan.writes.some((w) => w.path === f.path)),
+      ...plan.writes,
+    ];
+    const model = loadBoard(migrated);
+    expect(model.invalid).toEqual([]);
+    expect(isLegacyBoard(migrated)).toBe(false);
+    expect(model.cards.map((c) => c.id).sort()).toEqual(["c010", "c011", "c012"]);
+    expect(model.cards.find((c) => c.id === "c010")?.status).toBe("inbox");
+    expect(model.config.columns[0]).toBe("inbox");
   });
 });

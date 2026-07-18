@@ -39,13 +39,14 @@ function editFrontmatter(content: string, edit: (line: string) => string): strin
 }
 
 /**
- * Detect a board still in the pre-epic milestone format. Signals: any
- * `milestones/` path, or a `milestone:` key in a file's frontmatter (never a
- * mention in body prose).
+ * Detect a board that needs migrating. Signals: the pre-epic milestone format
+ * (any `milestones/` path or a `milestone:` frontmatter key), or the pre-status
+ * inbox format (c0091 — an `inbox/` folder; inbox is a status now, not a home).
  */
 export function isLegacyBoard(files: BoardFile[]): boolean {
   return files.some((file) => {
-    if (file.path.split("/")[0] === "milestones") return true;
+    const top = file.path.split("/")[0];
+    if (top === "milestones" || top === "inbox") return true;
     return frontmatterLines(file.content).some((line) => /^milestone:\s/.test(line));
   });
 }
@@ -81,28 +82,60 @@ function migrateCardContent(content: string): string {
   });
 }
 
+/** c0091: an inbox/ card moves to cards/ with `status: inbox`. A card already
+ *  carrying a non-backlog status (an old c030 flagged card) keeps it. */
+function migrateInboxCardContent(content: string): string {
+  return editFrontmatter(content, (line) =>
+    /^status:\s*backlog\s*$/.test(line) ? "status: inbox" : line,
+  );
+}
+
+/** c0091: prepend `inbox` to board.yaml's `columns:` list, if absent. */
+export function addInboxColumn(boardYaml: string): string {
+  return boardYaml.replace(/^(columns:\s*\[)([^\]]*)(\])/m, (full, open, cols, close) => {
+    const items = cols.split(",").map((s: string) => s.trim()).filter(Boolean);
+    return items.includes("inbox") ? full : `${open}inbox, ${cols}${close}`;
+  });
+}
+
 /**
- * Build the migration plan for a legacy board: every file under `milestones/`
- * moves to `epics/` with its folder and ids remapped; nothing outside that tree
- * is touched. Writes come first, deletes after — apply in that order so an
- * interruption leaves the old tree intact, never a half-deleted board.
+ * Build the migration plan for a legacy board:
+ * - `milestones/` → `epics/` with folder + id remap (c0079);
+ * - `inbox/*.md` → `cards/` with `status: inbox` (c0091);
+ * - `board.yaml` gains `inbox` as the first column (c0091).
+ * Nothing else is touched. Writes come first, deletes after — apply in that
+ * order so an interruption leaves the old tree intact, never half-deleted.
  */
 export function planMigration(files: BoardFile[]): MigrationPlan {
   const writes: BoardFile[] = [];
   const deletes: string[] = [];
   for (const file of files) {
     const segments = file.path.split("/");
-    if (segments[0] !== "milestones") continue;
-    const isEpicDoc =
-      segments[segments.length - 1] === "milestone.md" ||
-      segments[segments.length - 1] === "epic.md";
-    const content = !file.path.endsWith(".md")
-      ? file.content
-      : isEpicDoc
-        ? migrateEpicContent(file.content)
-        : migrateCardContent(file.content);
-    writes.push({ path: migratePath(file.path), content });
-    deletes.push(file.path);
+    const top = segments[0];
+
+    if (top === "milestones") {
+      const isEpicDoc =
+        segments[segments.length - 1] === "milestone.md" ||
+        segments[segments.length - 1] === "epic.md";
+      const content = !file.path.endsWith(".md")
+        ? file.content
+        : isEpicDoc
+          ? migrateEpicContent(file.content)
+          : migrateCardContent(file.content);
+      writes.push({ path: migratePath(file.path), content });
+      deletes.push(file.path);
+    } else if (top === "inbox" && segments.length === 2) {
+      // c0091: inbox/<file> → cards/<file>; same depth, so asset links are fine
+      const content = file.path.endsWith(".md")
+        ? migrateInboxCardContent(file.content)
+        : file.content;
+      writes.push({ path: `cards/${segments[1]}`, content });
+      deletes.push(file.path);
+    } else if (file.path === "board.yaml") {
+      // c0091: ensure `inbox` leads the columns list
+      const migrated = addInboxColumn(file.content);
+      if (migrated !== file.content) writes.push({ path: "board.yaml", content: migrated });
+    }
   }
   return { writes, deletes };
 }

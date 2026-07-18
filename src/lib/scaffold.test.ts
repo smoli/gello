@@ -10,29 +10,30 @@ import {
 describe("scaffoldFiles", () => {
   const files = scaffoldFiles("/p/proj");
 
-  it("creates the .gello layout (board.yaml, concept, inbox, assets, epics, cards)", () => {
+  it("creates the .gello layout (board.yaml, concept, assets, epics, cards; no inbox/)", () => {
     const paths = files.map((f) => f.path).sort();
     expect(paths).toContain("/p/proj/.gello/board.yaml");
     expect(paths).toContain("/p/proj/.gello/concept.md");
-    expect(paths).toContain("/p/proj/.gello/inbox/.gitkeep");
     expect(paths).toContain("/p/proj/.gello/assets/.gitkeep");
-    // c0081: a fresh board is born in the epic format — epics/ + standalone cards/
+    // c0081: epic format — epics/ + standalone cards/. c0088: no inbox/ folder.
     expect(paths).toContain("/p/proj/.gello/epics/.gitkeep");
     expect(paths).toContain("/p/proj/.gello/cards/.gitkeep");
+    expect(paths).not.toContain("/p/proj/.gello/inbox/.gitkeep");
     expect(paths).not.toContain("/p/proj/.gello/milestones/.gitkeep");
   });
 
-  it("ships the convention snippet with epic vocabulary, not milestone", () => {
+  it("ships the convention snippet with epic vocabulary, not milestone or inbox-folder", () => {
     const snippet = claudeMdContent(null);
     expect(snippet).not.toMatch(/milestone/i);
     expect(snippet).toContain(".gello/epics");
+    expect(snippet).not.toContain(".gello/inbox");
   });
 
-  it("produces a board.yaml that parses with the default columns", () => {
+  it("produces a board.yaml that parses with inbox as the first column (c0088)", () => {
     const yaml = files.find((f) => f.path.endsWith("board.yaml"))!.content;
     const model = loadBoard([{ path: "board.yaml", content: yaml }]);
     expect(model.configError).toBeNull();
-    expect(model.config.columns).toContain("backlog");
+    expect(model.config.columns[0]).toBe("inbox");
     expect(model.config.columns).toContain("done");
   });
 });
