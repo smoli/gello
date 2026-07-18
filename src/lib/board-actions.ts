@@ -213,7 +213,7 @@ export function createIssueFor(
 export function triageCard(
   root: string,
   card: Card,
-  target: { folder: string; epicId: string },
+  target: { folder: string; epicId: string | null },
   config: BoardConfig,
   now: string,
   status?: string,
@@ -221,6 +221,7 @@ export function triageCard(
 ): MoveResult {
   const today = now.slice(0, 10);
   const statusChanges = status !== undefined && status !== card.status;
+  // c0078: epicId null → standalone card under `.gello/cards/` (epic cleared)
   let changes: CardFieldChanges = { epic: target.epicId };
   if (statusChanges) {
     // mirror saveCardFields' c056 bookkeeping: stamp when the status was assigned
@@ -242,8 +243,23 @@ export function triageCard(
       config,
     ));
   }
-  const newRaw = retargetAssetLinks(raw, "../assets/", "../../assets/");
-  const newPath = `milestones/${target.folder}/${basename(card.path)}`;
+  // c0078: destination folder — an epic (legacy `milestones/<folder>/` until
+  // migration) or the flat `cards/` home for standalone
+  const destFolder =
+    target.epicId === null ? "cards" : `milestones/${target.folder}`;
+  // rewrite relative asset links from the source depth to the destination
+  // depth (inbox & cards/ are depth 1, an epic folder is depth 2)
+  const srcDepth = card.path.split("/").length - 1;
+  const destDepth = destFolder.split("/").length;
+  const newRaw =
+    srcDepth === destDepth
+      ? raw
+      : retargetAssetLinks(
+          raw,
+          `${"../".repeat(srcDepth)}assets/`,
+          `${"../".repeat(destDepth)}assets/`,
+        );
+  const newPath = `${destFolder}/${basename(card.path)}`;
   const parsed = parseCard(newPath, newRaw, config);
   if (!parsed.ok) {
     throw new Error(`triaged card would be invalid: ${parsed.invalid.reason}`);

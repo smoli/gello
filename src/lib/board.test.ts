@@ -230,7 +230,9 @@ describe("withCardTriaged", () => {
     );
     if (!parsed.ok) throw new Error("fixture must parse");
 
-    const next = withCardTriaged(model, "inbox/c103-an-idea.md", parsed.card, "m01-alpha");
+    // triageCard sets the epic field; withCardTriaged routes by it
+    const moved = { ...parsed.card, epic: "m01" };
+    const next = withCardTriaged(model, "inbox/c103-an-idea.md", moved, "m01-alpha");
 
     expect(next.inbox).toEqual([]);
     expect(next.epics[0].cards.map((c) => c.id)).toEqual([
@@ -241,6 +243,20 @@ describe("withCardTriaged", () => {
     // original untouched
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
     expect(model.epics[0].cards).toHaveLength(2);
+  });
+
+  it("c0078: triages an inbox card to standalone (no epic) → model.cards", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard("cards/c103-an-idea.md", card("c103"));
+    if (!parsed.ok) throw new Error("fixture must parse");
+    const moved = { ...parsed.card, epic: null };
+
+    const next = withCardTriaged(model, "inbox/c103-an-idea.md", moved, "cards");
+
+    expect(next.inbox).toEqual([]);
+    expect(next.cards.map((c) => c.id)).toEqual(["c103"]);
+    // not added to any epic group
+    expect(next.epics.flatMap((g) => g.cards).map((c) => c.id)).not.toContain("c103");
   });
 
   it("i0005: re-triages a card between milestone groups without duplicating it", () => {
@@ -254,7 +270,7 @@ describe("withCardTriaged", () => {
     const next = withCardTriaged(
       model,
       "milestones/m01-alpha/c102-second.md",
-      parsed.card,
+      { ...parsed.card, epic: "m02" },
       "m02-beta",
     );
 

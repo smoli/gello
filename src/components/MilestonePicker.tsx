@@ -21,7 +21,7 @@ export function MilestonePicker({
   status: string;
   /** The card's current status, so dismiss can return it to its origin. */
   fromStatus: string;
-  onPick: (folder: string, milestoneId: string) => void;
+  onPick: (folder: string, epicId: string | null) => void;
   onDismiss: () => void;
 }) {
   useEffect(() => {
@@ -47,11 +47,11 @@ export function MilestonePicker({
       <div
         className="milestone-picker"
         role="dialog"
-        aria-label="assign milestone"
+        aria-label="assign epic"
         onClick={(event) => event.stopPropagation()}
       >
         <p className="milestone-picker-hint">
-          Move to <strong>{status}</strong> in milestone:
+          Move to <strong>{status}</strong> in epic:
         </p>
         <ul className="milestone-picker-list">
           {options.map((option) => (

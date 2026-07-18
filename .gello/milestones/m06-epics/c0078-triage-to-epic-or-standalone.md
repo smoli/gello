@@ -1,12 +1,12 @@
 ---
 id: c0078
 title: Triage to an epic or to standalone cards/
-status: ready
+status: review
 milestone: m06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T06:09:15
+status-changed: 2026-07-18T07:34:35
 ---
 
 ## What
@@ -23,14 +23,19 @@ epic model.
 
 ## Acceptance criteria
 
-- [ ] Triage moves an inbox card into an epic folder (sets epic membership by
+- [x] Triage moves an inbox card into an epic folder (sets epic membership by
       location) or into `.gello/cards/` (standalone), atomically
       (write-new-then-delete)
-- [ ] Relative asset links are rewritten to the destination depth
-- [ ] The inbox-triage UI offers epics and a "no epic / standalone" target
-- [ ] i0005 / c028 behaviours work against the epic model (or are refiled)
+- [x] Relative asset links are rewritten to the destination depth
+- [x] The inbox-triage UI offers epics and a "no epic / standalone" target
+- [x] i0005 / c028 behaviours work against the epic model (or are refiled)
 
 ## Log
 
 - 2026-07-18 created from the c0074 epic breakdown (dry run)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): triageCard takes epicId string|null — null
+  → standalone in `cards/` (epic cleared, no line); depth-based asset rewrite
+  (inbox↔cards same depth = none, epic = ../../). withCardTriaged routes by
+  moved.epic. Picker + detail offer a "No epic" target. i0005 works; c028's
+  milestone strip was already retired (refiled). Tests added; suite green.

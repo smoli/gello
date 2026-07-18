@@ -616,7 +616,7 @@ function App() {
   const handleTriage = (
     card: Card,
     folder: string,
-    milestoneId: string,
+    epicId: string | null,
     status?: string,
     order?: number,
   ) => {
@@ -627,7 +627,7 @@ function App() {
         triageCard(
           board.root,
           card,
-          { folder, epicId: milestoneId },
+          { folder, epicId },
           board.model.config,
           nowIsoDateTime(),
           status,
@@ -636,8 +636,10 @@ function App() {
       (model, moved) => withCardTriaged(model, oldPath, moved, folder),
     );
     // if the detail was open on this card, follow it to its new location —
-    // but never open a dialog as a side effect (drag-triage, c028)
-    const newPath = `milestones/${folder}/${oldPath.slice(oldPath.lastIndexOf("/") + 1)}`;
+    // but never open a dialog as a side effect (drag-triage, c028). c0078:
+    // standalone (no epic) lands in cards/, an epic in its folder.
+    const base = oldPath.slice(oldPath.lastIndexOf("/") + 1);
+    const newPath = epicId === null ? `cards/${base}` : `milestones/${folder}/${base}`;
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
@@ -711,13 +713,17 @@ function App() {
 
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;
-    const milestoneOptions: MilestoneOption[] = board.model.epics
-      .filter((group) => group.epic !== null)
-      .map((group) => ({
-        folder: group.folder,
-        milestoneId: group.epic!.id,
-        label: group.epic!.title,
-      }));
+    const milestoneOptions: MilestoneOption[] = [
+      ...board.model.epics
+        .filter((group) => group.epic !== null)
+        .map((group) => ({
+          folder: group.folder,
+          milestoneId: group.epic!.id as string | null,
+          label: group.epic!.title,
+        })),
+      // c0078: triage to standalone (no epic) → .gello/cards/
+      { folder: "cards", milestoneId: null, label: "No epic" },
+    ];
     return (
       <div className="app-shell app-shell-frameless">
         <TitleBar

@@ -509,6 +509,22 @@ describe("App", () => {
     expect(within(dialog).getByLabelText("Epic")).toHaveValue("m02-board-ui");
   });
 
+  it("c0078: triages an inbox card to standalone via the detail's No-epic option", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.change(screen.getByLabelText("Epic"), {
+      target: { value: "cards" }, // the "No epic" option
+    });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c001-hello.md",
+      expect.not.stringContaining("epic:"),
+    );
+  });
+
   it("i0005: dropping an inbox card on ready prompts for a milestone, then triages", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
@@ -527,7 +543,7 @@ describe("App", () => {
 
     // no write yet — the picker is waiting for a milestone choice
     expect(writeMock).not.toHaveBeenCalled();
-    const picker = screen.getByRole("dialog", { name: "assign milestone" });
+    const picker = screen.getByRole("dialog", { name: "assign epic" });
     fireEvent.click(within(picker).getByText("Board UI"));
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
@@ -559,7 +575,7 @@ describe("App", () => {
     fireEvent.drop(zone, { dataTransfer });
 
     // still prompts, then triages to the chosen slot — the write carries an order
-    const picker = screen.getByRole("dialog", { name: "assign milestone" });
+    const picker = screen.getByRole("dialog", { name: "assign epic" });
     fireEvent.click(within(picker).getByText("Board UI"));
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(

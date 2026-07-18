@@ -572,6 +572,30 @@ updated: 2026-07-10
     expect(written).not.toContain("status-changed:");
     expect(written).not.toContain("status → backlog");
   });
+
+  it("c0078: triages to standalone (epicId null) → cards/, no epic, no asset rewrite", async () => {
+    const { card, persisted } = triageCard(
+      "/repo/.gello",
+      inboxCard(), // inbox card with ![shot](../assets/c007/shot.png)
+      { folder: "cards", epicId: null },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.path).toBe("cards/c007-existing.md");
+    expect(card.epic).toBeNull();
+    await persisted;
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c007-existing.md",
+      // inbox → cards/ are both depth 1: asset link is unchanged
+      expect.stringContaining("![shot](../assets/c007/shot.png)"),
+    );
+    expect(writeMock.mock.calls[0][1]).not.toContain("epic:");
+    expect(removeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/inbox/c007-existing.md",
+    );
+  });
 });
 
 describe("deleteCard (c0062)", () => {

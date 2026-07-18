@@ -16,7 +16,8 @@ export interface CardEdit {
 
 export interface MilestoneOption {
   folder: string;
-  milestoneId: string;
+  /** Epic id to assign; null for the "No epic" (standalone) target (c0078). */
+  milestoneId: string | null;
   label: string;
 }
 
@@ -52,7 +53,7 @@ export function CardDetail({
   onChangeFields: (changes: CardFieldChanges) => void;
   onToggleTask: (index: number) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
-  onTriage: (folder: string, milestoneId: string) => void;
+  onTriage: (folder: string, epicId: string | null) => void;
   onReportIssue: () => void;
   onOpenCardId: (id: string) => void;
   refCard: RefCardInfo | null;

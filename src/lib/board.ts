@@ -328,16 +328,31 @@ export function withCardTriaged(
   moved: Card,
   targetFolder: string,
 ): BoardModel {
+  const strippedInbox = model.inbox.filter((c) => c.path !== oldPath);
+  const strippedCards = model.cards.filter((c) => c.path !== oldPath);
+  const strippedEpics = model.epics.map((group) => ({
+    ...group,
+    cards: group.cards.filter((c) => c.path !== oldPath),
+  }));
+  // c0078: a card triaged to standalone (no epic) joins model.cards; otherwise
+  // it joins its epic group (matched by folder name)
+  if (moved.epic === null) {
+    return {
+      ...model,
+      inbox: strippedInbox,
+      cards: [...strippedCards, moved].sort(byCreatedThenId),
+      epics: strippedEpics,
+    };
+  }
   return {
     ...model,
-    inbox: model.inbox.filter((c) => c.path !== oldPath),
-    cards: model.cards.filter((c) => c.path !== oldPath),
-    epics: model.epics.map((group) => {
-      const without = group.cards.filter((c) => c.path !== oldPath);
-      return group.folder === targetFolder
-        ? { ...group, cards: [...without, moved].sort(byCreatedThenId) }
-        : { ...group, cards: without };
-    }),
+    inbox: strippedInbox,
+    cards: strippedCards,
+    epics: strippedEpics.map((group) =>
+      group.folder === targetFolder
+        ? { ...group, cards: [...group.cards, moved].sort(byCreatedThenId) }
+        : group,
+    ),
   };
 }
 
