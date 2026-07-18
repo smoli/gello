@@ -265,9 +265,21 @@ of the file tree:
 
 ## 8. Risks & open questions
 
-- **Concurrent writes** (human edits card in app while agent edits same file):
-  last-write-wins with file-watcher refresh is fine for v1; app should never
-  hold unsaved state for more than one field-edit.
+- **Concurrent writes** (human edits a card in the app while an agent edits the
+  same file). Policy (c015): app state is always derived from disk; the only
+  transient state is the active field edit. No edit silently overwrites newer
+  disk content, in either direction:
+  - **Surgical edits** (drag/status/field/checkbox — one field or one task line)
+    are *rebased on the current disk bytes before writing*, so an unrelated
+    external change survives: the status comes from the app, the body from disk
+    (field-level last-write-wins). No path lets a stale in-memory card clobber
+    newer disk state.
+  - **Full body edits** (the inline editor replaces the whole body, which can't
+    be merged): if the file changed on disk since the edit began, the user is
+    prompted — **Overwrite** or **Discard my edit** (keep disk) — never a silent
+    write.
+  - The file watcher reconciles external changes into the model continuously;
+    the app never holds unsaved state beyond a single active field edit.
 - **Frontmatter drift** (agent writes invalid YAML / unknown status): board
   shows a "needs attention" lane for unparseable cards instead of hiding them.
 - **How much structure is too much?** Keep frontmatter minimal; resist adding

@@ -318,8 +318,12 @@ describe("App", () => {
     const card = (await screen.findByText("Board card")).closest("article")!;
     fireEvent.keyDown(card, { key: "ArrowRight" });
 
-    const ready = screen.getByRole("region", { name: "ready" });
-    expect(within(ready).getByText("Board card")).toBeInTheDocument();
+    // c015: the move rebases on disk first, so the optimistic update is async
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("region", { name: "ready" })).getByText("Board card"),
+      ).toBeInTheDocument(),
+    );
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/milestones/m02-board-ui/c005-board-card.md",
       expect.stringContaining("status: ready"),
@@ -369,9 +373,12 @@ describe("App", () => {
       target: { value: "ready" },
     });
 
-    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
-      expect.stringContaining("status: ready"),
+    // c015: rebase-on-disk makes the write async
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/inbox/c001-hello.md",
+        expect.stringContaining("status: ready"),
+      ),
     );
   });
 
@@ -383,9 +390,12 @@ describe("App", () => {
     fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
     fireEvent.click(screen.getByRole("checkbox"));
 
-    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
-      expect.stringContaining("- [x] a first task"),
+    // c015: rebase-on-disk makes the write async
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/inbox/c001-hello.md",
+        expect.stringContaining("- [x] a first task"),
+      ),
     );
     // and the dialog reflects the optimistic update
     expect(screen.getByRole("checkbox")).toBeChecked();
@@ -440,6 +450,80 @@ describe("App", () => {
       "/repo/.gello/inbox/c001-hello.md",
       expect.stringContaining("my competing draft"),
     );
+  });
+
+  it("c015: reloads disk on 'Discard my edit' after a conflict (take-disk path)", async () => {
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    const externallyChanged = fixture.model.inbox[0].raw.replace(
+      "a first task",
+      "agent rewrote this task",
+    );
+    readMock.mockResolvedValue(externallyChanged);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Card body" }), {
+      target: { value: "\nmy competing draft\n" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText(/changed on disk/i)).toBeInTheDocument();
+    // take disk: discard my edit — nothing written, the disk version is shown
+    fireEvent.click(screen.getByRole("button", { name: /discard my edit/i }));
+    expect(writeMock).not.toHaveBeenCalled();
+    expect(await screen.findByText(/agent rewrote this task/i)).toBeInTheDocument();
+  });
+
+  it("c015: a status change merges with an unrelated external edit, never clobbers it", async () => {
+    // c005 "Board card" lives in an epic; change its status from the detail
+    // while an agent has rewritten its body on disk. The write must carry BOTH
+    // the new status (from the app) and the external body (from disk).
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    const c005 = fixture.model.epics
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "c005")!;
+    const externallyChanged = c005.raw.replace("x\n", "agent added a design note\n");
+    readMock.mockResolvedValue(externallyChanged);
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Board card")).closest("article")!);
+    fireEvent.change(await screen.findByLabelText("Status"), {
+      target: { value: "in-progress" },
+    });
+
+    await vi.waitFor(() => {
+      expect(writeMock).toHaveBeenCalled();
+    });
+    const calls = writeMock.mock.calls;
+    const written = calls[calls.length - 1][1] as string;
+    expect(written).toContain("status: in-progress"); // app's change
+    expect(written).toContain("agent added a design note"); // external edit survived
+  });
+
+  it("c015: a status move (drag/keyboard) merges with an unrelated external edit", async () => {
+    // criterion 4: status from the app, body from disk. Move c005 to the next
+    // status while an agent has rewritten its body on disk.
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    const c005 = fixture.model.epics
+      .flatMap((g) => g.cards)
+      .find((c) => c.id === "c005")!;
+    readMock.mockResolvedValue(c005.raw.replace("x\n", "agent added a note\n"));
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" }); // keyboard move → handleMove
+
+    await waitFor(() => expect(writeMock).toHaveBeenCalled());
+    const calls = writeMock.mock.calls;
+    const written = calls[calls.length - 1][1] as string;
+    expect(written).toContain("status: ready"); // app's move
+    expect(written).toContain("agent added a note"); // external body survived
   });
 
   it("captures a new idea into the inbox", async () => {
@@ -654,9 +738,12 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /stay in inbox/i }));
 
     // status applied in place, still in the inbox folder (no milestone, no move)
-    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
-      expect.stringContaining("status: ready"),
+    // c015: rebase-on-disk makes the write async
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/inbox/c001-hello.md",
+        expect.stringContaining("status: ready"),
+      ),
     );
     expect(writeMock.mock.calls[0][1]).not.toContain("milestone:");
   });
@@ -1080,9 +1167,12 @@ describe("App", () => {
     const zone = within(backlog).getByLabelText("insert at 0");
     fireEvent.drop(zone, { dataTransfer });
 
-    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/milestones/m01-a/c002-two.md",
-      expect.stringContaining("order: 0"),
+    // c015: rebase-on-disk makes the reorder write async
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/milestones/m01-a/c002-two.md",
+        expect.stringContaining("order: 0"),
+      ),
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });

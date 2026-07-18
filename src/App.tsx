@@ -88,6 +88,7 @@ const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
 
 type Theme = "system" | "light" | "dark";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
+import { rebaseCard } from "./lib/conflict";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
@@ -424,29 +425,53 @@ function App() {
     }
   };
 
-  const handleMove = (card: Card, status: string, order?: number) => {
+  /**
+   * c015: rebase a card on the current disk bytes before a surgical write, so a
+   * status/field/task edit merges with an unrelated external change (e.g. an
+   * agent rewriting the body while the user drags the card) instead of clobbering
+   * it. A read-before-write; the merge itself is the pure `rebaseCard`. Unchanged
+   * disk (the common case) returns the same card — nothing to merge.
+   */
+  const rebaseOnDisk = async (card: Card): Promise<Card> => {
+    if (!board) return card;
+    let diskRaw: unknown = null;
+    try {
+      diskRaw = await readFileRaw(`${board.root}/${card.path}`);
+    } catch {
+      diskRaw = null; // unreadable / just deleted — nothing external to merge
+    }
+    return rebaseCard(card, typeof diskRaw === "string" ? diskRaw : null, board.model.config);
+  };
+
+  const handleMove = async (card: Card, status: string, order?: number) => {
     if (!board || card.status === status) return;
+    const fresh = await rebaseOnDisk(card);
     applyAction(() =>
-      moveCard(board.root, card, status, board.model.config, nowIsoDateTime(), order),
+      moveCard(board.root, fresh, status, board.model.config, nowIsoDateTime(), order),
     );
   };
 
   /** Same-column reposition in a manual column (c056). */
-  const handleReorder = (card: Card, order: number) => {
+  const handleReorder = async (card: Card, order: number) => {
     if (!board) return;
+    const fresh = await rebaseOnDisk(card);
     applyAction(() =>
-      reorderCard(board.root, card, order, board.model.config, nowIsoDateTime()),
+      reorderCard(board.root, fresh, order, board.model.config, nowIsoDateTime()),
     );
   };
 
   /** Bulk re-rank when one write can't express the drop position (c056). */
-  const handleRenumber = (ranks: Array<{ card: Card; order: number }>) => {
+  const handleRenumber = async (ranks: Array<{ card: Card; order: number }>) => {
     if (!board) return;
     const before = board.model;
+    // c015: rebase each card on disk so a rank write can't clobber an external edit
+    const fresh = await Promise.all(
+      ranks.map(async ({ card, order }) => ({ card: await rebaseOnDisk(card), order })),
+    );
     try {
       const results = renumberCards(
         board.root,
-        ranks,
+        fresh,
         board.model.config,
         nowIsoDateTime(),
       );
@@ -470,12 +495,15 @@ function App() {
     }
   };
 
-  const handleFieldChanges = (card: Card, changes: CardFieldChanges) => {
+  const handleFieldChanges = async (card: Card, changes: CardFieldChanges) => {
     if (!board) return;
+    // c015: merge onto current disk content — a field edit must not clobber an
+    // unrelated external change to the same card.
+    const fresh = await rebaseOnDisk(card);
     // full datetime so a status change from the detail view stamps
     // status-changed correctly (c056)
     applyAction(() =>
-      saveCardFields(board.root, card, changes, board.model.config, nowIsoDateTime()),
+      saveCardFields(board.root, fresh, changes, board.model.config, nowIsoDateTime()),
     );
   };
 
@@ -516,13 +544,15 @@ function App() {
     return "saved";
   };
 
-  const handleToggleTask = (card: Card, index: number) => {
+  const handleToggleTask = async (card: Card, index: number) => {
     if (!board) return;
+    // c015: toggle the checkbox on the current disk body, not a stale copy
+    const fresh = await rebaseOnDisk(card);
     applyAction(() =>
       saveCardBody(
         board.root,
-        card,
-        toggleTaskItem(card.body, index),
+        fresh,
+        toggleTaskItem(fresh.body, index),
         board.model.config,
         todayIsoDate(),
       ),
