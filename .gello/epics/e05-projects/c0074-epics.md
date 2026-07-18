@@ -1,10 +1,10 @@
 ---
 id: c0074
 title: Epics
-status: discuss
+status: done
 created: 2026-07-17
 updated: 2026-07-18
-status-changed: 2026-07-18T00:03:06
+status-changed: 2026-07-18T11:19:43
 epic: e05
 ---
 
@@ -178,3 +178,4 @@ the epic's folder with `depends` wired between them. Two-phase
   into `m06-epics` (milestone.md charter + c0076–c0082 with depends wired).
   Created as a milestone for now, since epics don't exist yet — the first
   thing m06 builds is what would have held it.
+- 2026-07-18 status → done (app)

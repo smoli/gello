@@ -1,12 +1,12 @@
 ---
 id: c0079
 title: Board migration engine — detect, gate, convert
-status: review
+status: done
 epic: e06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T09:20:11
+status-changed: 2026-07-18T09:27:32
 ---
 
 ## What
@@ -54,3 +54,4 @@ foreign format) — this converts gello's own prior format.
   `epic: m06` — written mid-transition with the new `epic:` key but a legacy
   `mNN` value, which planMigration (only rewriting `milestone:` keys) skipped.
   Engine now remaps `epic: mNN` → `epic: eNN` too; fixed the stray card on disk.
+- 2026-07-18 status → done (app)

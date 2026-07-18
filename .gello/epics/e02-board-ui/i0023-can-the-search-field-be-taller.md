@@ -1,14 +1,13 @@
 ---
 id: i0023
 title: Can the search field be taller
-status: review
+status: done
 type: issue
 ref: c0066
 epic: e02
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T00:19:55
-order: 10
+status-changed: 2026-07-18T09:27:45
 ---
 
 or is it limited by the fact that it is in the topbar now? How is this overdifferent OSes
@@ -40,6 +39,7 @@ Make the top-bar search box taller. It *was* bounded by the 30px title bar
 ## Log
 
 - 2026-07-18 status → ready (app)
+- 2026-07-18 status → done (app)
 
 ## Log
 

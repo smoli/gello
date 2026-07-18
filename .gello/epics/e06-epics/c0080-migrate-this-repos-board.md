@@ -1,12 +1,12 @@
 ---
 id: c0080
 title: Migrate this repo's own board to epics
-status: ready
+status: done
 epic: e06
 depends: [c0079]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T06:09:18
+status-changed: 2026-07-18T09:27:31
 ---
 
 ## What
@@ -30,3 +30,4 @@ Update the dogfood load test to the epic format so it stays green.
 
 - 2026-07-18 created from the c0074 epic breakdown (dry run)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 status → done (app)

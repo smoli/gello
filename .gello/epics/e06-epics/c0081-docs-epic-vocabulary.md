@@ -1,12 +1,12 @@
 ---
 id: c0081
 title: Docs — epic vocabulary in concept.md + CLAUDE.md
-status: review
+status: done
 epic: e06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T09:33:38
+status-changed: 2026-07-18T11:19:49
 ---
 
 ## What
@@ -39,3 +39,4 @@ Update the docs to the epic model.
   the *shipped* convention (scaffold.ts): a fresh board now scaffolds epics/ +
   cards/ (not milestones/) and ships epic vocabulary — with tests. Follow-up:
   gello-discuss/onboard skills still say "milestone" (leave to c0082).
+- 2026-07-18 status → done (app)

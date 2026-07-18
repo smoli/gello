@@ -1,12 +1,12 @@
 ---
 id: c0082
 title: Epic-planning skill (gello-discuss sibling)
-status: review
+status: done
 epic: e06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T09:46:09
+status-changed: 2026-07-18T11:19:53
 ---
 
 ## What
@@ -42,6 +42,7 @@ the kind of breakdown that created m06.
 
 - 2026-07-18 created from the c0074 epic breakdown (dry run)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 status → done (app)
 
 ## Discussion
 

@@ -1,12 +1,12 @@
 ---
 id: c0078
 title: Triage to an epic or to standalone cards/
-status: review
+status: done
 epic: e06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T07:34:35
+status-changed: 2026-07-18T11:19:50
 ---
 
 ## What
@@ -39,3 +39,4 @@ epic model.
   (inbox↔cards same depth = none, epic = ../../). withCardTriaged routes by
   moved.epic. Picker + detail offer a "No epic" target. i0005 works; c028's
   milestone strip was already retired (refiled). Tests added; suite green.
+- 2026-07-18 status → done (app)
