@@ -50,3 +50,7 @@ foreign format) — this converts gello's own prior format.
   assets are keyed by card id. Note for c0080: loadBoard still parses legacy
   milestones/ (dogfood load stays green); the gate is app-only. Full suite +
   typecheck + lint green.
+- 2026-07-18 follow-up (agent): after the UI migration, one card (i0026) had
+  `epic: m06` — written mid-transition with the new `epic:` key but a legacy
+  `mNN` value, which planMigration (only rewriting `milestone:` keys) skipped.
+  Engine now remaps `epic: mNN` → `epic: eNN` too; fixed the stray card on disk.

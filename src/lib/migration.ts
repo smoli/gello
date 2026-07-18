@@ -69,10 +69,14 @@ function migrateEpicContent(content: string): string {
   });
 }
 
-/** card: `milestone: mNN` → `epic: eNN` (rename the key, remap the value). */
+/**
+ * card: `milestone: mNN` → `epic: eNN` (rename the key, remap the value). Also
+ * handles a card written mid-transition with the new `epic:` key but a legacy
+ * `mNN` value (`epic: mNN` → `epic: eNN`).
+ */
 function migrateCardContent(content: string): string {
   return editFrontmatter(content, (line) => {
-    const match = line.match(/^(\s*)milestone:(\s*)m(\d+)(.*)$/);
+    const match = line.match(/^(\s*)(?:milestone|epic):(\s*)m(\d+)(.*)$/);
     return match ? `${match[1]}epic:${match[2]}e${match[3]}${match[4]}` : line;
   });
 }

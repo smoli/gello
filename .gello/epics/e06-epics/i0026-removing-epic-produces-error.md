@@ -1,14 +1,13 @@
 ---
 id: i0026
 title: Removing Epic produces error
-status: review
+status: done
 type: issue
 ref: c0078
-epic: m06
+epic: e06
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T07:43:36
-order: 10
+status-changed: 2026-07-18T09:23:50
 ---
 
 It determins the folder before updating, trying to update the file in the cards folder I guess
@@ -43,3 +42,4 @@ Purely a Rust-layer fix — the triage path logic was already correct.
   it had just written. Guarded: skip the delete when newPath === card.path.
   Reproducing test in board-actions.test.ts. (The earlier create_dir_all fix
   handled the first-time cards/ folder; this handles the second removal.)
+- 2026-07-18 status → done (app)

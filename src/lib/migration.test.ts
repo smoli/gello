@@ -99,6 +99,21 @@ describe("planMigration", () => {
     expect(card!.content).toContain("status: ready");
   });
 
+  it("remaps a legacy value under the new epic: key too (epic: mNN → epic: eNN)", () => {
+    // a card written during the epic transition used the new `epic:` key but
+    // still held a legacy `mNN` id — it must be remapped, not left as-is.
+    const withEpicKey: BoardFile[] = [
+      {
+        path: "milestones/m06-epics/i0026-x.md",
+        content: "---\nid: i0026\ntitle: X\nstatus: ready\nepic: m06\n---\nbody\n",
+      },
+    ];
+    const { writes } = planMigration(withEpicKey);
+    expect(writes[0].path).toBe("epics/e06-epics/i0026-x.md");
+    expect(writes[0].content).toContain("epic: e06");
+    expect(writes[0].content).not.toContain("m06");
+  });
+
   it("leaves relative asset links unchanged (folder depth is preserved)", () => {
     const { writes } = planMigration(files);
     const card = writes.find(
