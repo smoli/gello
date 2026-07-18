@@ -1,11 +1,11 @@
 ---
 id: i0028
 title: Cannot create an epic
-status: discuss
+status: ready
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T14:16:30
+status-changed: 2026-07-18T14:46:22
 epic: e06
 ---
 
@@ -77,3 +77,4 @@ the epic's detail view.
   (⌘E) + epic-filter "+ New epic" + create-on-triage; captures title + goal;
   scaffolds epics/eNN/epic.md and opens the epic detail view. Flagged the
   detail view as a large sub-piece to split out.
+- 2026-07-18 status → ready (app)
