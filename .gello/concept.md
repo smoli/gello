@@ -142,10 +142,10 @@ the `status` frontmatter field.
   render on GitHub and in any editor, not just in the app.
 - Keying by card ID means: a card's images are trivially findable, cleanup on
   card deletion is one folder removal, and links survive status changes.
-- Moving a card between inbox and an epic changes its folder depth; whoever
+- Moving a card between `cards/` and an epic changes its folder depth; whoever
   moves the card (app or agent) rewrites the relative link prefix. This is a
-  mechanical step covered by the convention. (inbox/ and cards/ are the same
-  depth, so triaging to standalone needs no link rewrite.)
+  mechanical step covered by the convention. (Assigning/unassigning is the only
+  move; a status change — including to/from inbox — never moves the file.)
 
 ### Epic format
 
