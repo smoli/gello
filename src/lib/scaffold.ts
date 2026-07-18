@@ -6,7 +6,7 @@ export interface ScaffoldFile {
   content: string;
 }
 
-const BOARD_YAML = `columns: [inbox, backlog, ready, in-progress, review, done]
+const BOARD_YAML = `columns: [inbox, discuss, backlog, ready, in-progress, review, done]
 types: [task, issue]
 wip_limits:
   in-progress: 2

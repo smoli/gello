@@ -29,12 +29,14 @@ describe("scaffoldFiles", () => {
     expect(snippet).not.toContain(".gello/inbox");
   });
 
-  it("produces a board.yaml that parses with inbox as the first column (c0088)", () => {
+  it("produces a board.yaml with the default column lineup (c0088/i0033)", () => {
     const yaml = files.find((f) => f.path.endsWith("board.yaml"))!.content;
     const model = loadBoard([{ path: "board.yaml", content: yaml }]);
     expect(model.configError).toBeNull();
-    expect(model.config.columns[0]).toBe("inbox");
-    expect(model.config.columns).toContain("done");
+    // inbox leads (c0088); discuss ships by default so gello-discuss works (i0033)
+    expect(model.config.columns).toEqual([
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+    ]);
   });
 });
 

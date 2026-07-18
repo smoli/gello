@@ -575,6 +575,18 @@ Kanban.
 });
 
 describe("parseBoardConfig", () => {
+  it("i0033: the default lineup includes inbox and discuss in order", () => {
+    expect(DEFAULT_BOARD_CONFIG.columns).toEqual([
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+    ]);
+    // discuss parses as a valid status on a board with no board.yaml
+    const parsed = parseCard(
+      "cards/c001-x.md",
+      "---\nid: c001\ntitle: X\nstatus: discuss\n---\n",
+    );
+    expect(parsed.ok).toBe(true);
+  });
+
   it("parses columns and wip limits", () => {
     const { config, error } = parseBoardConfig(
       `columns: [todo, doing, done]\nwip_limits:\n  doing: 2\n`,

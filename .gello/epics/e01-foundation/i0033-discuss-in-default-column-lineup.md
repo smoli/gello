@@ -1,11 +1,11 @@
 ---
 id: i0033
 title: Ship `discuss` in the default column lineup
-status: in-progress
+status: review
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T19:18:12
+status-changed: 2026-07-18T19:22:06
 epic: e01
 ---
 
@@ -33,12 +33,12 @@ Touch points:
 
 ## Acceptance criteria
 
-- [ ] A freshly initialized board's `board.yaml` includes `discuss` in the
+- [x] A freshly initialized board's `board.yaml` includes `discuss` in the
       default order (`inbox, discuss, backlog, ready, in-progress, review, done`)
-- [ ] `DEFAULT_BOARD_CONFIG` includes `discuss`
-- [ ] `discuss` parses as a valid status on a default board with no board.yaml
-- [ ] README + concept.md describe `discuss` as a default column (not optional)
-- [ ] Existing tests updated; suite + typecheck + lint green
+- [x] `DEFAULT_BOARD_CONFIG` includes `discuss`
+- [x] `discuss` parses as a valid status on a default board with no board.yaml
+- [x] README + concept.md describe `discuss` as a default column (not optional)
+- [x] Existing tests updated; suite + typecheck + lint green
 
 ## Notes
 
@@ -50,3 +50,8 @@ discuss). The discuss skill (c032) predates it. This closes the gap.
 - 2026-07-18 created (agent): flagged by the human — since we ship the
   discuss skill, discuss should be a default column, not opt-in.
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): added `discuss` to the default lineup in
+  scaffold.ts (BOARD_YAML) and cards.ts (DEFAULT_BOARD_CONFIG), order
+  inbox → discuss → backlog → ready → in-progress → review → done. README +
+  concept.md updated (default, not optional). Tests: scaffold/default-lineup
+  assertions + the empty-board column count. 501 tests + typecheck + lint green.

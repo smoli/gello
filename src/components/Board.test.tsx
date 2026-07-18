@@ -178,8 +178,8 @@ describe("Board", () => {
   it("renders an entirely empty board without crashing", () => {
     render(<Board model={loadBoard([])} />);
 
-    // c0088: default columns now lead with inbox (6 columns)
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(6);
+    // c0088: lead with inbox; i0033: discuss ships by default (7 columns)
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
   });
 
   it("applies a background with readable translucent columns (c047/c0060)", () => {

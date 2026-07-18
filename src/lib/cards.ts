@@ -18,8 +18,10 @@ export interface BoardConfig {
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
-  // c0088: `inbox` is a normal status and the first column (was a folder)
-  columns: ["inbox", "backlog", "ready", "in-progress", "review", "done"],
+  // c0088: `inbox` is a normal status and the first column (was a folder).
+  // i0033: `discuss` ships by default so the gello-discuss skill works out of
+  // the box (a triage stage between inbox capture and backlog).
+  columns: ["inbox", "discuss", "backlog", "ready", "in-progress", "review", "done"],
   wipLimits: {},
   types: ["task", "issue"],
   background: null,

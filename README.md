@@ -29,11 +29,12 @@ work its own file with structured frontmatter, and renders it as a board:
 The board's status columns are configured in `.gello/board.yaml`; a fresh board
 starts with:
 
-`inbox` → `backlog` → `ready` → `in-progress` → `review` → `done`
+`inbox` → `discuss` → `backlog` → `ready` → `in-progress` → `review` → `done`
 
 **`inbox` is a status, not a folder** — the first column, where freshly captured
-cards land until you triage them. (Some boards add an optional `discuss` column
-for cards you want to think through before committing.)
+cards land until you triage them. **`discuss`** is a triage stage for cards you
+want to think through with the agent before committing (the **gello-discuss**
+skill drives it). Both ship by default; columns are yours to customize.
 
 ### The lifecycle of a card
 
