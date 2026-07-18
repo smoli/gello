@@ -222,8 +222,9 @@ Shipped as a Markdown snippet for `CLAUDE.md` (or a skill). The contract:
   feedback in Notes).
 
 **New ideas**
-- Human (or agent!) drops a new `.md` into `inbox/` anytime — one heading and a
-  sentence is enough. Triage later.
+- Human (or agent!) drops a new `.md` into `cards/` with `status: inbox` anytime
+  — one heading and a sentence is enough. It shows in the inbox column; triage
+  later.
 
 ## 6. The desktop app
 
@@ -242,7 +243,7 @@ of the file tree:
   file) into a card → app saves it to `.gello/assets/<card-id>/` and inserts
   the Markdown link; images render inline in the card detail, and cards with
   images show a thumbnail on the board.
-- Quick capture: global "new idea" input → file in `inbox/`.
+- Quick capture: global "new idea" input → file in `cards/` with `status: inbox`.
 - File watcher: agent edits appear live on the board (this is the magic moment —
   watching cards move while the agent works).
 - Markdown fallback guarantee: everything degrades gracefully to plain files.
