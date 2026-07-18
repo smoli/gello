@@ -1,11 +1,11 @@
 ---
 id: i0030
 title: "Mac: ESC leaves Fullscreen"
-status: review
+status: done
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:34:16
+status-changed: 2026-07-18T16:35:19
 epic: e02
 ---
 
@@ -76,3 +76,4 @@ intercept. Verify on the Mac.
   + default-prevented). 498 tests green. ⚠️ Criterion 5 (Mac verify) is the
   human's — if macOS STILL exits fullscreen, the approved native/AppKit intercept
   is the follow-up.
+- 2026-07-18 status → done (app)
