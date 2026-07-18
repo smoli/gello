@@ -1,0 +1,113 @@
+.epic-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 30%, transparent);
+  padding: 2rem;
+}
+.epic-detail {
+  width: min(560px, 94vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 14px 44px color-mix(in srgb, CanvasText 25%, transparent);
+}
+.epic-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.epic-detail-title {
+  margin: 0;
+  font-size: 1.1rem;
+  flex: 1;
+  min-width: 0;
+}
+.epic-detail-status {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, CanvasText 10%, transparent);
+}
+.epic-detail-close {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+.epic-detail-body {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, CanvasText 5%, transparent);
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.epic-detail-rollup h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+.epic-detail-count {
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+.epic-detail-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+.epic-detail-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.epic-detail-cards button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.epic-detail-cards button:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+.epic-detail-card-status {
+  font-size: 0.68rem;
+  opacity: 0.6;
+  min-width: 4.5rem;
+}
+.epic-detail-card-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.epic-detail-note {
+  margin: 1rem 0 0;
+  font-size: 0.72rem;
+  opacity: 0.55;
+}

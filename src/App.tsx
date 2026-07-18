@@ -10,6 +10,7 @@ import {
   nextIssueId,
   openIssuesFor,
   withCardTriaged,
+  withNewEpic,
   withNewInboxCard,
   withoutCard,
   withUpdatedCard,
@@ -18,6 +19,7 @@ import {
 import {
   createIssueFor,
   createCard,
+  createEpic,
   deleteCard,
   moveCard,
   nowIsoDateTime,
@@ -81,6 +83,7 @@ import {
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 import { MigrationGate } from "./components/MigrationGate";
+import { EpicDetail } from "./components/EpicDetail";
 
 // i0010: the "don't ask about skills" choice is per-project, not global —
 // a global flag bled the decision across every project.
@@ -163,6 +166,12 @@ function App() {
   const [autoCommit, setAutoCommit] = useState(false);
   const [autoCommitWindowMs, setAutoCommitWindowMs] = useState(AUTO_COMMIT_DEFAULT_MS);
   const [dirty, setDirty] = useState<WorktreeStatus | null>(null);
+  // i0028: epic creation + minimal-view selection. openEpicSignal opens the
+  // capture form in epic mode from the filter / create-on-triage; epicAssign is
+  // the card to assign to the epic once created (create-on-triage).
+  const [selectedEpicFolder, setSelectedEpicFolder] = useState<string | null>(null);
+  const [openEpicSignal, setOpenEpicSignal] = useState(0);
+  const epicAssign = useRef<{ card: Card; status?: string; order?: number } | null>(null);
   // c0066: fulltext search now lives in the top bar; the board filters by it
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
@@ -703,6 +712,38 @@ function App() {
     );
   };
 
+  // i0028: create an epic (from ⌘E capture, the epic filter, or create-on-
+  // triage), open its minimal detail view, and — for create-on-triage — assign
+  // the remembered card to it once the epic file has landed.
+  const handleCreateEpic = (title: string, goal: string) => {
+    if (!board) return;
+    const before = board.model;
+    const assign = epicAssign.current;
+    epicAssign.current = null;
+    try {
+      const { epic, folder, persisted } = createEpic(board.root, board.model, {
+        title,
+        goal,
+      });
+      setBoard((current) =>
+        current ? { ...current, model: withNewEpic(current.model, epic, folder) } : current,
+      );
+      setSelectedEpicFolder(folder);
+      setError(null);
+      persisted
+        .then(() => {
+          if (assign) handleTriage(assign.card, folder, epic.id, assign.status, assign.order);
+        })
+        .catch((failure: unknown) => {
+          setBoard((current) => (current ? { ...current, model: before } : current));
+          setSelectedEpicFolder(null);
+          setError(failure instanceof Error ? failure.message : String(failure));
+        });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   // i0013: persist an image pasted into a quick-create draft. The card has no
   // id yet, so reserve the next one (once per draft) and save under it; new
   // cards land in the inbox, hence the `../` link prefix.
@@ -965,13 +1006,16 @@ function App() {
         )}
         <QuickCapture
           onCreate={handleCreate}
+          onCreateEpic={handleCreateEpic}
           onSaveImage={handleCaptureImage}
           onDiscard={handleDiscardDraft}
+          openEpicSignal={openEpicSignal}
         />
         <Board
           background={effectiveBackground}
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           model={board.model}
+          onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
           toolbarLeading={
             <ProjectMenu
               currentPath={projectFolder(board.root).path}
@@ -1028,6 +1072,17 @@ function App() {
               const target = from === "backlog" ? pendingTriage.status : from;
               handleMove(pendingTriage.card, target, pendingTriage.order);
               setPendingTriage(null);
+            }}
+            onNewEpic={() => {
+              // i0028: create a new epic and assign this card to it, keeping the
+              // dropped status/slot
+              epicAssign.current = {
+                card: pendingTriage.card,
+                status: pendingTriage.status,
+                order: pendingTriage.order,
+              };
+              setPendingTriage(null);
+              setOpenEpicSignal((n) => n + 1);
             }}
           />
         )}
@@ -1133,6 +1188,23 @@ function App() {
             onClose={() => setSelectedPath(null)}
           />
         )}
+        {selectedEpicFolder &&
+          (() => {
+            // i0028: minimal epic view for the selected epic group
+            const group = board.model.epics.find((g) => g.folder === selectedEpicFolder);
+            if (!group?.epic) return null;
+            return (
+              <EpicDetail
+                epic={group.epic}
+                cards={group.cards}
+                onClose={() => setSelectedEpicFolder(null)}
+                onSelectCard={(card) => {
+                  setSelectedEpicFolder(null);
+                  setSelectedPath(card.path);
+                }}
+              />
+            );
+          })()}
       </div>
     );
   }

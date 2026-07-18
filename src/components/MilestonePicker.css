@@ -65,3 +65,9 @@
   color: color-mix(in srgb, CanvasText 75%, transparent);
   cursor: pointer;
 }
+
+/* i0028: create-and-assign a new epic inline */
+.milestone-picker-new-epic {
+  font-style: italic;
+  opacity: 0.85;
+}

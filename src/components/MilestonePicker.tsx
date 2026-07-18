@@ -15,6 +15,7 @@ export function MilestonePicker({
   fromStatus,
   onPick,
   onDismiss,
+  onNewEpic,
 }: {
   options: MilestoneOption[];
   /** The dropped-on column — the status a milestone pick will apply. */
@@ -23,6 +24,8 @@ export function MilestonePicker({
   fromStatus: string;
   onPick: (folder: string, epicId: string | null) => void;
   onDismiss: () => void;
+  /** i0028: create a new epic inline and assign this card to it. */
+  onNewEpic?: () => void;
 }) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -64,6 +67,17 @@ export function MilestonePicker({
               </button>
             </li>
           ))}
+          {onNewEpic && (
+            <li>
+              <button
+                type="button"
+                className="milestone-picker-new-epic"
+                onClick={onNewEpic}
+              >
+                + New epic…
+              </button>
+            </li>
+          )}
         </ul>
         <button
           type="button"

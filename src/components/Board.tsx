@@ -12,6 +12,9 @@ import { AssetImage } from "./AssetImage";
 import { startWindowDrag } from "../lib/window";
 import "./Board.css";
 
+// i0028: sentinel value for the epic filter's "+ New epic" action option
+const NEW_EPIC_OPTION = "__new_epic__";
+
 // c0059: drag the window from a pure-background surface — only when the
 // element's own area is clicked (target === currentTarget), so cards,
 // columns, and controls (children) are never turned into a drag handle.
@@ -81,6 +84,7 @@ export function Board({
   onInboxStatusDrop,
   onReorderCard,
   onRenumber,
+  onNewEpic,
   background,
   toolbarLeading,
   onBackgroundContextMenu,
@@ -89,6 +93,8 @@ export function Board({
 }: {
   model: BoardModel;
   onMoveCard?: MoveCardHandler;
+  /** i0028: create a new epic from the filter's "+ New epic" option. */
+  onNewEpic?: () => void;
   /** c0066: fulltext filter, now owned by the top bar's search box. */
   query?: string;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
@@ -256,7 +262,15 @@ export function Board({
           <select
             aria-label="Epic filter"
             value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+            onChange={(event) => {
+              // i0028: "+ New epic" is an action, not a filter value — trigger
+              // creation and leave the current filter unchanged
+              if (event.target.value === NEW_EPIC_OPTION) {
+                onNewEpic?.();
+                return;
+              }
+              setFilter(event.target.value);
+            }}
           >
             <option value="all">All epics</option>
             {model.epics.map((group) => (
@@ -265,6 +279,7 @@ export function Board({
               </option>
             ))}
             {model.cards.length > 0 && <option value="no-epic">No epic</option>}
+            {onNewEpic && <option value={NEW_EPIC_OPTION}>+ New epic…</option>}
           </select>
           <select
             aria-label="Type filter"

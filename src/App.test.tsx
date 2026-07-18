@@ -538,6 +538,86 @@ describe("App", () => {
     expect(written).toContain("agent added a note"); // external body survived
   });
 
+  it("i0028: creates an epic (⌘E), writes epic.md, and opens its minimal view", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+
+    fireEvent.keyDown(window, { key: "e", metaKey: true });
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Dark mode" } });
+    fireEvent.change(screen.getByLabelText("Goal"), {
+      target: { value: "Ship a full dark theme." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    // scaffolds epics/eNN-<slug>/epic.md (next id after m02 → e03)
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/epics/e03-dark-mode/epic.md",
+        expect.stringContaining("id: e03"),
+      ),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("Ship a full dark theme.");
+    // the new epic's minimal detail view opens
+    expect(await screen.findByRole("dialog", { name: "e03" })).toBeInTheDocument();
+    expect(screen.getByText("No cards yet.")).toBeInTheDocument();
+  });
+
+  it("i0028: create-on-triage makes an epic and assigns the dragged card to it", async () => {
+    const fixture = loadedFixture();
+    loadMock.mockResolvedValueOnce(fixture);
+    writeMock.mockResolvedValue(undefined);
+    // rebaseOnDisk reads the card being triaged — return its own raw (no-op merge)
+    readMock.mockResolvedValue(fixture.model.inbox[0].raw);
+
+    render(<App />);
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
+
+    // the picker offers "+ New epic" → opens epic capture
+    const picker = screen.getByRole("dialog", { name: "assign epic" });
+    fireEvent.click(within(picker).getByRole("button", { name: /new epic/i }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Theming" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    // epic.md is written, then the card is triaged into the new epic folder
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/epics/e03-theming/epic.md",
+        expect.stringContaining("id: e03"),
+      ),
+    );
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/epics/e03-theming/c001-hello.md",
+        expect.stringContaining("epic: e03"),
+      ),
+    );
+  });
+
+  it("i0028: the epic filter's '+ New epic' opens the epic capture form", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    await screen.findByText("Hello board");
+
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "__new_epic__" },
+    });
+    expect(await screen.findByText("New epic")).toBeInTheDocument();
+    expect(screen.getByLabelText("Goal")).toBeInTheDocument();
+  });
+
   it("captures a new idea into the inbox", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

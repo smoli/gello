@@ -1,11 +1,11 @@
 ---
 id: i0028
 title: Cannot create an epic
-status: in-progress
+status: review
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T15:24:17
+status-changed: 2026-07-18T15:43:46
 epic: e06
 ---
 
@@ -36,18 +36,18 @@ the epic's detail view.
 
 ## Acceptance criteria
 
-- [ ] Quick-capture has an epic mode; **⌘/Ctrl+E** opens the form in epic
+- [x] Quick-capture has an epic mode; **⌘/Ctrl+E** opens the form in epic
       mode (⌘N task, ⌘I issue unchanged); epic mode captures title + goal
-- [ ] "+ New epic" in the epic filter creates an epic
-- [ ] Triaging a card into an epic offers "+ New epic" to create-and-assign
+- [x] "+ New epic" in the epic filter creates an epic
+- [x] Triaging a card into an epic offers "+ New epic" to create-and-assign
       inline
-- [ ] Creating an epic scaffolds `epics/eNN-<slug>/epic.md` with a fresh
+- [x] Creating an epic scaffolds `epics/eNN-<slug>/epic.md` with a fresh
       e-id, title, `status: backlog`, `## Goal` from input, empty
       `## Definition of done`; folder + file written atomically
-- [ ] After creation the new epic's detail view opens (goal/DoD editor +
+- [x] After creation the new epic's detail view opens (goal/DoD editor +
       child rollup)
-- [ ] The new epic appears in the epic filter and as a board group
-- [ ] e-id allocation never reuses or renumbers existing ids
+- [x] The new epic appears in the epic filter and as a board group
+- [x] e-id allocation never reuses or renumbers existing ids
 
 ## Discussion
 
@@ -82,3 +82,9 @@ the epic's detail view.
   own card (c0084); i0028 opens a **minimal** epic view (goal/DoD editor stub +
   child rollup). Create-on-triage **is** included here. ⌘E for epic capture;
   non-mac uses Ctrl+E.
+- 2026-07-18 implemented (agent): createEpic/newEpicRaw/withNewEpic (core);
+  QuickCapture epic mode + ⌘/Ctrl+E + "+ New epic" button; epic-filter
+  "+ New epic"; create-on-triage via MilestonePicker; minimal EpicDetail
+  (goal/DoD stub + child rollup) opens on create. Full editor split to
+  [[c0084]]. 496 tests, typecheck, lint green. Criterion 5 opens the MINIMAL
+  view per the scope call — the full detail view is c0084.

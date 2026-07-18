@@ -9,11 +9,14 @@ import "./QuickCapture.css";
  */
 export function CaptureForm({
   heading,
+  detailsLabel = "Details",
   onSubmit,
   onCancel,
   onSaveImage,
 }: {
   heading: string;
+  /** i0028: label for the second field — "Goal" in epic mode, else "Details". */
+  detailsLabel?: string;
   onSubmit: (title: string, body: string) => void;
   onCancel: () => void;
   /** i0013: persist a pasted/dropped image, returning its relative link path. */
@@ -82,10 +85,10 @@ export function CaptureForm({
         />
       </label>
       <label>
-        Details
+        {detailsLabel}
         <textarea
           ref={imageInsert.ref}
-          aria-label="Details"
+          aria-label={detailsLabel}
           value={body}
           onChange={(event) => setBody(event.target.value)}
           onPaste={imageInsert.onPaste}

@@ -4,7 +4,7 @@ import { QuickCapture } from "./QuickCapture";
 
 describe("QuickCapture", () => {
   it("opens the capture form with an autofocused title input", () => {
-    render(<QuickCapture onCreate={vi.fn()} />);
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
 
@@ -14,7 +14,7 @@ describe("QuickCapture", () => {
 
   it("submits title and body, then closes and resets", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -35,7 +35,7 @@ describe("QuickCapture", () => {
 
   it("submits from the title input with Enter", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -46,9 +46,45 @@ describe("QuickCapture", () => {
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("Quick one", "", "task");
   });
 
+  it("i0028: ⌘/Ctrl+E opens epic mode and submits title + goal via onCreateEpic", () => {
+    const onCreateEpic = vi.fn();
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={onCreateEpic} />);
+
+    fireEvent.keyDown(window, { key: "e", metaKey: true });
+    expect(screen.getByText("New epic")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Dark mode" } });
+    fireEvent.change(screen.getByLabelText("Goal"), {
+      target: { value: "Ship a full dark theme." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(onCreateEpic).toHaveBeenCalledExactlyOnceWith(
+      "Dark mode",
+      "Ship a full dark theme.",
+    );
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("i0028: the '+ New epic' button opens epic mode", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new epic/i }));
+    expect(screen.getByText("New epic")).toBeInTheDocument();
+    expect(screen.getByLabelText("Goal")).toBeInTheDocument();
+  });
+
+  it("i0028: bumping openEpicSignal opens epic mode (external trigger)", () => {
+    const { rerender } = render(
+      <QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} openEpicSignal={0} />,
+    );
+    expect(screen.queryByText("New epic")).not.toBeInTheDocument();
+    rerender(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} openEpicSignal={1} />);
+    expect(screen.getByText("New epic")).toBeInTheDocument();
+  });
+
   it("offers a visible '+ New issue' button (c034)", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
     expect(screen.getByText(/new issue/i)).toBeInTheDocument();
@@ -63,7 +99,7 @@ describe("QuickCapture", () => {
 
   it("opens in issue mode via mod+I and creates an issue (c024)", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.keyDown(window, { key: "i", metaKey: true });
     expect(screen.getByText(/new issue/i)).toBeInTheDocument();
@@ -78,7 +114,7 @@ describe("QuickCapture", () => {
 
   it("ignores submission with an empty title", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -89,7 +125,7 @@ describe("QuickCapture", () => {
 
   it("c0064: Cmd/Ctrl+Enter submits from the Details textarea", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Big idea" },
@@ -109,7 +145,7 @@ describe("QuickCapture", () => {
     // regression: both the title-input and form-level Enter handlers used to
     // fire for one keypress, creating the card twice
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Only once" },
@@ -124,7 +160,7 @@ describe("QuickCapture", () => {
 
   it("i0016: submit is idempotent — a second Add click can't create a twin", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Guarded" },
@@ -137,7 +173,7 @@ describe("QuickCapture", () => {
 
   it("i0016: IME-composition Enter does not submit", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "日本語" },
@@ -151,7 +187,7 @@ describe("QuickCapture", () => {
 
   it("c0064: Ctrl+Enter also submits", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.change(screen.getByLabelText("Title"), {
       target: { value: "Ctrl idea" },
@@ -165,7 +201,7 @@ describe("QuickCapture", () => {
 
   it("closes on Escape without creating", () => {
     const onCreate = vi.fn();
-    render(<QuickCapture onCreate={onCreate} />);
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
@@ -175,7 +211,7 @@ describe("QuickCapture", () => {
   });
 
   it("opens via the global mod+N shortcut", () => {
-    render(<QuickCapture onCreate={vi.fn()} />);
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
 
     fireEvent.keyDown(window, { key: "n", metaKey: true });
 
@@ -184,7 +220,7 @@ describe("QuickCapture", () => {
 
   it("i0013: pasting an image into the draft inserts a link (with the draft's type)", async () => {
     const onSaveImage = vi.fn().mockResolvedValue("../assets/c0008/shot.png");
-    render(<QuickCapture onCreate={vi.fn()} onSaveImage={onSaveImage} />);
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} onSaveImage={onSaveImage} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
     const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
@@ -205,7 +241,7 @@ describe("QuickCapture", () => {
 
   it("i0013: cancelling the draft discards the reserved id", () => {
     const onDiscard = vi.fn();
-    render(<QuickCapture onCreate={vi.fn()} onDiscard={onDiscard} />);
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} onDiscard={onDiscard} />);
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
