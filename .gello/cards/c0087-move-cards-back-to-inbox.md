@@ -1,6 +1,6 @@
 ---
 id: c0087
-title: Move cards back to inbox
+title: Inbox is a status, not a folder
 status: discuss
 created: 2026-07-18
 updated: 2026-07-18
