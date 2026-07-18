@@ -1,9 +1,10 @@
 ---
 id: c0075
 title: Swimlanes by tag
-status: backlog
+status: discuss
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:17:17
 ---
 
 Spun out of [[c0058]] (tags refinement): grouping the board into horizontal
@@ -31,3 +32,4 @@ on the board) and reads the same `tags:` field.
 ## Log
 
 - 2026-07-18 spun out of c0058 during the tags-refinement discussion
+- 2026-07-18 status → discuss (app)
