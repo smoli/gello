@@ -1,11 +1,11 @@
 ---
 id: i0033
 title: Ship `discuss` in the default column lineup
-status: review
+status: done
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T19:22:06
+status-changed: 2026-07-18T21:20:59
 epic: e01
 ---
 
@@ -55,3 +55,4 @@ discuss). The discuss skill (c032) predates it. This closes the gap.
   inbox → discuss → backlog → ready → in-progress → review → done. README +
   concept.md updated (default, not optional). Tests: scaffold/default-lineup
   assertions + the empty-board column count. 501 tests + typecheck + lint green.
+- 2026-07-18 status → done (app)
