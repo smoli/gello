@@ -3,6 +3,7 @@ import {
   ALL_SKILLS,
   DISCUSS_SKILL,
   ONBOARD_SKILL,
+  PLAN_SKILL,
   SKILL_VERSION,
   dirsNeedingInstall,
   installDecision,
@@ -40,11 +41,18 @@ describe("dirsNeedingInstall (i0009)", () => {
 });
 
 describe("ALL_SKILLS (c029)", () => {
-  it("ships the discuss and onboard skills, each with a distinct folder", () => {
+  it("ships the discuss, onboard, and plan skills, each with a distinct folder", () => {
     expect(ALL_SKILLS).toContain(DISCUSS_SKILL);
     expect(ALL_SKILLS).toContain(ONBOARD_SKILL);
+    expect(ALL_SKILLS).toContain(PLAN_SKILL);
     const folders = ALL_SKILLS.map((s) => s.folder);
     expect(new Set(folders).size).toBe(folders.length);
+  });
+
+  it("c0081: no skill template still uses the old milestone vocabulary", () => {
+    for (const skill of ALL_SKILLS) {
+      expect(skill.body.toLowerCase()).not.toContain("milestone");
+    }
   });
 
   it("onboard skill round-trips through the managed-file machinery", () => {
@@ -59,6 +67,25 @@ describe("ALL_SKILLS (c029)", () => {
     expect(body).toContain("clean");
     expect(body).toContain("migration.md");
     expect(body).toContain("done"); // completed items → done cards
+  });
+
+  it("plan skill: gello-plan folder, round-trips, and is self-contained", () => {
+    expect(PLAN_SKILL.folder).toBe("gello-plan");
+    expect(PLAN_SKILL.version).toBe(SKILL_VERSION);
+    const file = managedSkillFile(PLAN_SKILL);
+    expect(file).toContain("name: gello-plan");
+    expect(installDecision(file, PLAN_SKILL)).toBe("skip");
+  });
+
+  it("plan skill embeds the two-phase, epic-format invariants", () => {
+    const body = PLAN_SKILL.body.toLowerCase();
+    // two-phase, human-gated: plan into epic.md, then create only on approval
+    expect(body).toContain("epic.md");
+    expect(body).toContain("approv"); // approve/approval
+    expect(body).toContain("depends"); // child cards wired by dependency
+    expect(body).toContain("epics/"); // the epic folder home
+    // nothing created before approval
+    expect(body).toMatch(/before .*approv|only .*approv|approv.* before/);
   });
 });
 

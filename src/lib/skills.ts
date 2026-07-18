@@ -3,7 +3,8 @@
 // skill. Reused by c029 (legacy onboarding) later.
 
 // v2 (i0025): templates no longer mention the removed `priority` field
-export const SKILL_VERSION = 2;
+// v3 (c0081/c0082): milestone→epic vocabulary; adds the gello-plan skill
+export const SKILL_VERSION = 3;
 
 export interface SkillTemplate {
   /** Folder name under a skills dir, e.g. `.claude/skills/<folder>/SKILL.md`. */
@@ -110,15 +111,18 @@ human approves the plan**.
   board.yaml                 # columns: [backlog, ready, in-progress, review, done]
   concept.md                 # long-form product concept (optional)
   inbox/                     # unassigned ideas
-  milestones/m01-<slug>/
-    milestone.md             # id, title, status
-    c001-<slug>.md           # cards, flat within their milestone
+  epics/e01-<slug>/
+    epic.md                  # id, title, status
+    c001-<slug>.md           # cards, flat within their epic
+  cards/                     # epic-less standalone cards (bugs, small changes)
+    c002-<slug>.md
 \`\`\`
 
 Card frontmatter: \`id\` (per-board sequential, \`c\`+4 digits, never reused or
-duplicated), \`title\`, \`status\` (only values from board.yaml), \`milestone\`,
-\`created\`, \`updated\`, optional \`tags\`. Card bodies use \`## What\`,
-\`## Acceptance criteria\` (\`- [ ]\`), \`## Notes\`, \`## Log\`.
+duplicated), \`title\`, \`status\` (only values from board.yaml), \`epic\` (the
+\`eNN\` id; omit for a standalone card in \`cards/\`), \`created\`, \`updated\`,
+optional \`tags\`. Card bodies use \`## What\`, \`## Acceptance criteria\`
+(\`- [ ]\`), \`## Notes\`, \`## Log\`.
 
 ## Pre-flight (do this first, always)
 
@@ -134,7 +138,8 @@ duplicated), \`title\`, \`status\` (only values from board.yaml), \`milestone\`,
 3. **Propose a mapping** and present it for approval — this is the reviewable
    artifact, and it must be **complete** (never sampled or truncated, however
    large):
-   - source structure / phases → **milestones**
+   - source structure / phases → **epics** (a small change with no phase can be
+     a standalone card in \`cards/\`)
    - completed items → \`done\` cards (keeps throughput history on the board)
    - active / next work → \`ready\` at most (**never** \`in-progress\` — WIP is
      claimed by whoever actually works it)
@@ -143,7 +148,7 @@ duplicated), \`title\`, \`status\` (only values from board.yaml), \`milestone\`,
    proposal to a file rather than chat, but keep it complete.
 4. **Confirm** — make no board writes until the human approves or adjusts the
    mapping at this single checkpoint.
-5. **Write** the board: create milestone folders + cards with sequential,
+5. **Write** the board: create epic folders + cards with sequential,
    unique IDs and valid frontmatter.
 
 ## History & provenance
@@ -181,14 +186,14 @@ description: Interview the human about a gello board card flagged \`status: disc
 # Discuss a gello card
 
 gello is a Markdown-native Kanban board: every card is one \`.md\` file under
-\`.gello/\` with YAML frontmatter (\`id\`, \`title\`, \`status\`, \`milestone\`, …).
+\`.gello/\` with YAML frontmatter (\`id\`, \`title\`, \`status\`, \`epic\`, …).
 The \`discuss\` status means the human wants to think a card through with you
 *before* it becomes implementable — usually a raw inbox idea.
 
 ## Find discuss cards
 
 \`\`\`bash
-grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"
+grep -rl "^status: discuss" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"
 sed -n '/^---$/,/^---$/p' <card-file>   # one card's frontmatter
 \`\`\`
 
@@ -205,19 +210,91 @@ sed -n '/^---$/,/^---$/p' <card-file>   # one card's frontmatter
    - a drafted \`## Acceptance criteria\` (each a checkable, testable line)
    - a compact \`## Discussion\` — key decisions, rejected alternatives, open
      questions. No verbatim transcript.
-5. **Offer triage** — assign to a milestone / \`backlog\` / \`ready\`. Only the
-   human decides the exit; perform any move only on explicit confirmation.
+5. **Offer triage** — assign to an epic / \`cards/\` / \`backlog\` / \`ready\`. Only
+   the human decides the exit; perform any move only on explicit confirmation.
 
 ## Triage move (only on the human's say-so)
 
 Moving a card between folders is a file move plus a status edit:
-- inbox → milestone: move \`.gello/inbox/<card>.md\` to
-  \`.gello/milestones/<m>/<card>.md\`, set \`milestone:\`, and rewrite relative
+- inbox → epic: move \`.gello/inbox/<card>.md\` to
+  \`.gello/epics/<eNN-slug>/<card>.md\`, set \`epic:\`, and rewrite relative
   asset links (\`](../assets/\` → \`](../../assets/\`).
+- inbox → standalone: move to \`.gello/cards/<card>.md\` (same depth, no link
+  rewrite); leave \`epic\` unset.
 - Set \`status\` and \`status-changed\` (local ISO datetime) on any status change.
 - Never reuse or renumber existing card IDs.
 `,
 };
 
+export const PLAN_SKILL: SkillTemplate = {
+  folder: "gello-plan",
+  version: SKILL_VERSION,
+  body: `---
+name: gello-plan
+description: Break a gello epic into dependent child cards. Interview the human about the epic, draft a stepwise plan + dependency graph into epic.md, and only on approval create the wired child cards. Use when asked to plan or break down an epic.
+---
+
+# Plan a gello epic into cards
+
+gello is a Markdown-native Kanban board: every card is one \`.md\` file under
+\`.gello/\` with YAML frontmatter. An **epic** (\`epics/eNN-<slug>/\`) is a large
+effort broken into dependent child cards. This skill turns an epic's goal into
+that breakdown — **two phases, human-gated: plan → approve → create**. Nothing
+is created before the human approves.
+
+## Board format you're writing into
+
+\`\`\`
+epics/eNN-<slug>/
+  epic.md            # id: eNN, title, status; ## Goal, ## Definition of done
+  c001-<slug>.md     # child cards, flat within the epic
+\`\`\`
+
+Child-card frontmatter: \`id\` (per-board sequential — \`c\`+4 digits for tasks,
+\`i\`+4 for issues; never reused, renumbered, or duplicated), \`title\`,
+\`status: backlog\`, \`epic: eNN\`, \`depends: [<ids>]\`, \`created\`, \`updated\`.
+Bodies use \`## What\`, \`## Acceptance criteria\` (\`- [ ]\`, each testable),
+\`## Notes\`, \`## Log\`.
+
+## Find the epic and the next free ids
+
+\`\`\`bash
+grep -rh "^id: " .gello/epics/*/epic.md                     # existing epics
+sed -n '/^---$/,/^---$/p' .gello/epics/<eNN-slug>/epic.md    # the epic's goal
+grep -rhoE "^id: [ci][0-9]+" .gello/inbox .gello/epics .gello/cards | sort -u  # taken ids
+\`\`\`
+
+## Phase 1 — interview + plan (write only epic.md)
+
+1. Read \`epic.md\` — its Goal and Definition of done — and any related cards.
+2. Interview the human, one topic at a time: scope boundaries, constraints,
+   the smallest shippable slice, what is explicitly out.
+3. Draft a \`## Plan (steps + dependencies)\` section into \`epic.md\` with a
+   surgical edit (preserve untouched lines byte-for-byte, valid YAML): an
+   ordered list of proposed child cards, each a one-line scope plus its
+   dependencies (e.g. \`3. Card — … (← step 1, step 2)\`). Number steps so the
+   dependency graph reads top-down (root steps first). **Create no card files.**
+
+## Phase 2 — create the child cards (only on explicit approval)
+
+4. Present the plan and ask for approval. Change nothing until the human
+   approves or adjusts it — this is the single checkpoint.
+5. On approval, create one card file per step in \`epics/eNN-<slug>/\`:
+   - allocate fresh sequential ids (never reuse or renumber existing ones),
+   - set \`epic: eNN\`, \`status: backlog\`, and \`depends:\` wired to the ids of
+     the steps it follows,
+   - write a \`## What\`, a drafted \`## Acceptance criteria\`, and a \`## Log\`
+     line citing "created from the eNN epic breakdown".
+6. Leave every card in \`backlog\`; the human moves roots to \`ready\` when it's
+   time to work. **Never** set \`in-progress\`.
+
+## Rules
+
+- Two-phase always: nothing is created before the human approves the plan.
+- Ids are per-board and unique; existing ids never change.
+- Surgical frontmatter edits; only statuses from \`board.yaml\`.
+`,
+};
+
 /** Every gello-managed skill the installer ships (c032/c029). */
-export const ALL_SKILLS: SkillTemplate[] = [DISCUSS_SKILL, ONBOARD_SKILL];
+export const ALL_SKILLS: SkillTemplate[] = [DISCUSS_SKILL, ONBOARD_SKILL, PLAN_SKILL];

@@ -17,15 +17,18 @@ human approves the plan**.
   board.yaml                 # columns: [backlog, ready, in-progress, review, done]
   concept.md                 # long-form product concept (optional)
   inbox/                     # unassigned ideas
-  milestones/m01-<slug>/
-    milestone.md             # id, title, status
-    c001-<slug>.md           # cards, flat within their milestone
+  epics/e01-<slug>/
+    epic.md                  # id, title, status
+    c001-<slug>.md           # cards, flat within their epic
+  cards/                     # epic-less standalone cards (bugs, small changes)
+    c002-<slug>.md
 ```
 
 Card frontmatter: `id` (per-board sequential, `c`+4 digits, never reused or
-duplicated), `title`, `status` (only values from board.yaml), `milestone`,
-`priority` (low|normal|high), `created`, `updated`, optional `tags`. Card
-bodies use `## What`, `## Acceptance criteria` (`- [ ]`), `## Notes`, `## Log`.
+duplicated), `title`, `status` (only values from board.yaml), `epic` (the
+`eNN` id; omit for a standalone card in `cards/`), `created`, `updated`,
+optional `tags`. Card bodies use `## What`, `## Acceptance criteria`
+(`- [ ]`), `## Notes`, `## Log`.
 
 ## Pre-flight (do this first, always)
 
@@ -41,7 +44,8 @@ bodies use `## What`, `## Acceptance criteria` (`- [ ]`), `## Notes`, `## Log`.
 3. **Propose a mapping** and present it for approval — this is the reviewable
    artifact, and it must be **complete** (never sampled or truncated, however
    large):
-   - source structure / phases → **milestones**
+   - source structure / phases → **epics** (a small change with no phase can be
+     a standalone card in `cards/`)
    - completed items → `done` cards (keeps throughput history on the board)
    - active / next work → `ready` at most (**never** `in-progress` — WIP is
      claimed by whoever actually works it)
@@ -50,7 +54,7 @@ bodies use `## What`, `## Acceptance criteria` (`- [ ]`), `## Notes`, `## Log`.
    proposal to a file rather than chat, but keep it complete.
 4. **Confirm** — make no board writes until the human approves or adjusts the
    mapping at this single checkpoint.
-5. **Write** the board: create milestone folders + cards with sequential,
+5. **Write** the board: create epic folders + cards with sequential,
    unique IDs and valid frontmatter.
 
 ## History & provenance
@@ -74,4 +78,4 @@ bodies use `## What`, `## Acceptance criteria` (`- [ ]`), `## Notes`, `## Log`.
   decision, not yours**.
 - Validate: every card parses, statuses are all from board.yaml, and no two
   cards share an id.
-<!-- gello-managed v1 1wv5y9 -->
+<!-- gello-managed v3 1pvcao2 -->

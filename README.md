@@ -165,10 +165,10 @@ The board doubles as the agent's task list — no parallel TODO files. An agent:
 - **Captures new ideas** as inbox cards rather than bloating existing ones.
 
 The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
-`AGENTS.md` when that file exists) at board init. The app can also install two
-gello-managed agent skills into a project (under `.claude/skills/`, `.pi/`, or
-`.agents/`); it prompts to add or update them when they're missing or
-out-of-date, and never clobbers your edits:
+`AGENTS.md` when that file exists) at board init. The app can also install
+three gello-managed agent skills into a project (under `.claude/skills/`,
+`.pi/`, or `.agents/`); it prompts to add or update them when they're missing
+or out-of-date, and never clobbers your edits:
 
 - **`gello-discuss`** — interview the human about a card flagged
   `status: discuss` and write the refined outcome (a sharpened **What**,
@@ -178,6 +178,9 @@ out-of-date, and never clobbers your edits:
 - **`gello-onboard`** — migrate an existing project's task organisation
   (`TODO.md`, plan files, docs, issue lists) onto a gello board, preserving
   history. Used to bring a legacy project onto gello.
+- **`gello-plan`** — break an epic into dependent child cards: interview the
+  human, draft a stepwise plan + dependency graph into `epic.md`, then create
+  the wired child cards only after you approve (plan → approve → create).
 
 ## Development
 

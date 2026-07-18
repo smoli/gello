@@ -6,14 +6,14 @@ description: Interview the human about a gello board card flagged `status: discu
 # Discuss a gello card
 
 gello is a Markdown-native Kanban board: every card is one `.md` file under
-`.gello/` with YAML frontmatter (`id`, `title`, `status`, `milestone`,
-`priority`, …). The `discuss` status means the human wants to think a card
-through with you *before* it becomes implementable — usually a raw inbox idea.
+`.gello/` with YAML frontmatter (`id`, `title`, `status`, `epic`, …).
+The `discuss` status means the human wants to think a card through with you
+*before* it becomes implementable — usually a raw inbox idea.
 
 ## Find discuss cards
 
 ```bash
-grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"
+grep -rl "^status: discuss" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"
 sed -n '/^---$/,/^---$/p' <card-file>   # one card's frontmatter
 ```
 
@@ -30,15 +30,17 @@ sed -n '/^---$/,/^---$/p' <card-file>   # one card's frontmatter
    - a drafted `## Acceptance criteria` (each a checkable, testable line)
    - a compact `## Discussion` — key decisions, rejected alternatives, open
      questions. No verbatim transcript.
-5. **Offer triage** — assign to a milestone / `backlog` / `ready`. Only the
-   human decides the exit; perform any move only on explicit confirmation.
+5. **Offer triage** — assign to an epic / `cards/` / `backlog` / `ready`. Only
+   the human decides the exit; perform any move only on explicit confirmation.
 
 ## Triage move (only on the human's say-so)
 
 Moving a card between folders is a file move plus a status edit:
-- inbox → milestone: move `.gello/inbox/<card>.md` to
-  `.gello/milestones/<m>/<card>.md`, set `milestone:`, and rewrite relative
+- inbox → epic: move `.gello/inbox/<card>.md` to
+  `.gello/epics/<eNN-slug>/<card>.md`, set `epic:`, and rewrite relative
   asset links (`](../assets/` → `](../../assets/`).
+- inbox → standalone: move to `.gello/cards/<card>.md` (same depth, no link
+  rewrite); leave `epic` unset.
 - Set `status` and `status-changed` (local ISO datetime) on any status change.
 - Never reuse or renumber existing card IDs.
-<!-- gello-managed v1 3fnpce -->
+<!-- gello-managed v3 17co32q -->

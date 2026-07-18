@@ -17,8 +17,8 @@ export function SkillPrompt({
   return (
     <div className="skill-prompt" role="dialog" aria-label="install gello skill">
       <p className="skill-prompt-text">
-        Install gello's agent skills (<strong>discuss</strong> +{" "}
-        <strong>onboard</strong>) into this project?
+        Install gello's agent skills (<strong>discuss</strong>,{" "}
+        <strong>onboard</strong> + <strong>plan</strong>) into this project?
       </p>
       <ul className="skill-prompt-dirs">
         {dirs.map((dir) => (
