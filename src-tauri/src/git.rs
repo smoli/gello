@@ -1,8 +1,129 @@
 //! Minimal git awareness for the status bar (c0057): find the repo, read
 //! `.git/HEAD`, and derive the current branch — a short SHA when detached.
-//! Plain file reads only; no git library.
+//! Branch reading is plain file reads; the commit/status plumbing (c0083)
+//! shells out to `git` (no git library).
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
+
+/// Outcome of an auto-commit attempt (c0083), serialized to the frontend.
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum CommitOutcome {
+    /// A commit was made.
+    Committed,
+    /// Nothing under `.gello/` was pending — no commit.
+    Nothing,
+    /// `root` is not inside a git repo — skipped, not an error.
+    NotARepo,
+    /// A merge/rebase/cherry-pick/revert is in progress — skipped.
+    MidOperation,
+    /// git failed; the message is surfaced non-fatally.
+    Failed { message: String },
+}
+
+/// Whether the worktree is dirty, split by whether the change is board-only
+/// (`.gello/`) or includes non-board (code) files (c0083 dirty indicator).
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+pub struct WorktreeStatus {
+    /// At least one uncommitted change lives under `.gello/`.
+    pub board_dirty: bool,
+    /// At least one uncommitted change lives outside `.gello/` (code).
+    pub code_dirty: bool,
+}
+
+/// Run `git -C <cwd> <args>`, capturing output. None if git can't be spawned.
+fn run_git(cwd: &Path, args: &[&str]) -> Option<std::process::Output> {
+    Command::new("git").arg("-C").arg(cwd).args(args).output().ok()
+}
+
+/// True if the repo containing `git_dir` is mid-merge/rebase/cherry-pick/revert
+/// — states where an automated commit would be unsafe.
+fn is_mid_operation(git_dir: &Path) -> bool {
+    ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"]
+        .iter()
+        .any(|marker| git_dir.join(marker).exists())
+}
+
+/// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/"), used to
+/// classify porcelain paths as board vs code. `root` is the `.gello` dir.
+fn board_prefix(root: &Path) -> Option<String> {
+    let out = run_git(root, &["rev-parse", "--show-toplevel"]).filter(|o| o.status.success())?;
+    let top = String::from_utf8(out.stdout).ok()?;
+    let top = Path::new(top.trim());
+    // canonicalize so a symlinked tempdir (/var → /private/var on macOS) still
+    // strips against git's already-resolved toplevel path
+    let root = root.canonicalize().ok()?;
+    let rel = root.strip_prefix(top).ok()?;
+    let mut prefix = rel.to_string_lossy().replace('\\', "/");
+    if !prefix.is_empty() {
+        prefix.push('/');
+    }
+    Some(prefix)
+}
+
+/// Classify the worktree's dirtiness (board vs code). None when `root` is not
+/// inside a git repo.
+pub fn worktree_status(root: &Path) -> Option<WorktreeStatus> {
+    let prefix = board_prefix(root)?;
+    let out = run_git(root, &["status", "--porcelain"]).filter(|o| o.status.success())?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut status = WorktreeStatus { board_dirty: false, code_dirty: false };
+    for line in text.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        // porcelain: "XY <path>" (paths relative to repo top; rename shown as
+        // "old -> new" — the new path decides classification)
+        let path = &line[3..];
+        let path = path.rsplit(" -> ").next().unwrap_or(path);
+        if path.starts_with(&prefix) {
+            status.board_dirty = true;
+        } else {
+            status.code_dirty = true;
+        }
+    }
+    Some(status)
+}
+
+/// Stage and commit only `.gello/` changes (c0083). A pathspec commit: the
+/// user's staged/unstaged code changes are never swept in — that is the
+/// load-bearing safety property. `root` is the `.gello` dir, so pathspec `.`
+/// scopes both the stage and the commit to the board subtree.
+pub fn commit_board(root: &Path, message: &str) -> CommitOutcome {
+    let git_dir = match find_git_dir(root) {
+        Some(dir) => dir,
+        None => return CommitOutcome::NotARepo,
+    };
+    if is_mid_operation(&git_dir) {
+        return CommitOutcome::MidOperation;
+    }
+    // stage every board change (adds, mods, deletes) under .gello, code untouched
+    match run_git(root, &["add", "-A", "--", "."]) {
+        Some(out) if out.status.success() => {}
+        Some(out) => {
+            return CommitOutcome::Failed {
+                message: String::from_utf8_lossy(&out.stderr).trim().to_string(),
+            };
+        }
+        None => {
+            return CommitOutcome::Failed { message: "could not run git".into() };
+        }
+    }
+    // nothing staged under .gello → nothing to commit
+    let staged = run_git(root, &["diff", "--cached", "--quiet", "--", "."]);
+    let has_changes = matches!(staged, Some(out) if !out.status.success());
+    if !has_changes {
+        return CommitOutcome::Nothing;
+    }
+    match run_git(root, &["commit", "-m", message, "--", "."]) {
+        Some(out) if out.status.success() => CommitOutcome::Committed,
+        Some(out) => CommitOutcome::Failed {
+            message: String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        },
+        None => CommitOutcome::Failed { message: "could not run git".into() },
+    }
+}
 
 /// Derive the branch name (or short SHA when detached) from `.git/HEAD`.
 pub fn branch_from_head(head: &str) -> String {
@@ -106,5 +227,114 @@ mod tests {
         fs::write(work.join(".git"), "gitdir: ../realgit\n").unwrap();
 
         assert_eq!(git_branch(&work).as_deref(), Some("wt"));
+    }
+
+    // --- c0083: commit / status plumbing -----------------------------------
+
+    fn git_run(cwd: &Path, args: &[&str]) {
+        let out = Command::new("git").arg("-C").arg(cwd).args(args).output().unwrap();
+        assert!(out.status.success(), "git {:?} failed: {}", args, String::from_utf8_lossy(&out.stderr));
+    }
+
+    /// A temp git repo with a committed `.gello/board.yaml`. Returns (dir, gello).
+    fn repo_with_board() -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let top = dir.path();
+        git_run(top, &["init", "-q", "-b", "main"]);
+        git_run(top, &["config", "user.email", "t@example.com"]);
+        git_run(top, &["config", "user.name", "Test"]);
+        let gello = top.join(".gello");
+        fs::create_dir_all(gello.join("inbox")).unwrap();
+        fs::write(gello.join("board.yaml"), "columns: [ready]\n").unwrap();
+        git_run(top, &["add", "-A"]);
+        git_run(top, &["commit", "-qm", "init"]);
+        (dir, gello)
+    }
+
+    fn head_count(top: &Path) -> usize {
+        let out = Command::new("git")
+            .arg("-C").arg(top).args(["rev-list", "--count", "HEAD"]).output().unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().parse().unwrap()
+    }
+
+    #[test]
+    fn commit_board_commits_only_gello_and_preserves_staged_code() {
+        let (dir, gello) = repo_with_board();
+        let top = dir.path();
+        let before = head_count(top);
+
+        // the user has staged a code change (mid-edit index) …
+        fs::write(top.join("code.rs"), "fn main() {}\n").unwrap();
+        git_run(top, &["add", "code.rs"]);
+        // … and a board file changed
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+
+        assert_eq!(commit_board(&gello, "board: 1 card updated"), CommitOutcome::Committed);
+
+        // exactly one new commit
+        assert_eq!(head_count(top), before + 1);
+        // the commit contains only the board file, not the code
+        let show = Command::new("git")
+            .arg("-C").arg(top).args(["show", "--name-only", "--format=", "HEAD"]).output().unwrap();
+        let names = String::from_utf8_lossy(&show.stdout);
+        assert!(names.contains(".gello/inbox/c001.md"), "board file committed: {names}");
+        assert!(!names.contains("code.rs"), "code must NOT be in the commit: {names}");
+        // the staged code change survives, still uncommitted
+        let porcelain = Command::new("git")
+            .arg("-C").arg(top).args(["status", "--porcelain"]).output().unwrap();
+        assert!(String::from_utf8_lossy(&porcelain.stdout).contains("A  code.rs"));
+    }
+
+    #[test]
+    fn commit_board_reports_nothing_when_no_board_changes() {
+        let (dir, gello) = repo_with_board();
+        // only a code change exists; nothing under .gello
+        fs::write(dir.path().join("code.rs"), "x\n").unwrap();
+        assert_eq!(commit_board(&gello, "board: 0"), CommitOutcome::Nothing);
+    }
+
+    #[test]
+    fn commit_board_skips_outside_a_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let gello = dir.path().join(".gello");
+        fs::create_dir_all(&gello).unwrap();
+        assert_eq!(commit_board(&gello, "x"), CommitOutcome::NotARepo);
+    }
+
+    #[test]
+    fn commit_board_skips_mid_merge() {
+        let (dir, gello) = repo_with_board();
+        fs::write(dir.path().join(".git/MERGE_HEAD"), "deadbeef\n").unwrap();
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+        assert_eq!(commit_board(&gello, "x"), CommitOutcome::MidOperation);
+    }
+
+    #[test]
+    fn worktree_status_classifies_board_vs_code() {
+        let (dir, gello) = repo_with_board();
+        let top = dir.path();
+        // clean
+        assert_eq!(
+            worktree_status(&gello),
+            Some(WorktreeStatus { board_dirty: false, code_dirty: false })
+        );
+        // board-only dirty
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+        assert_eq!(
+            worktree_status(&gello),
+            Some(WorktreeStatus { board_dirty: true, code_dirty: false })
+        );
+        // now also a code change → both
+        fs::write(top.join("code.rs"), "x\n").unwrap();
+        assert_eq!(
+            worktree_status(&gello),
+            Some(WorktreeStatus { board_dirty: true, code_dirty: true })
+        );
+    }
+
+    #[test]
+    fn worktree_status_is_none_outside_a_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(worktree_status(dir.path()), None);
     }
 }

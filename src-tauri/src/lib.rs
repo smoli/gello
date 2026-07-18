@@ -178,6 +178,19 @@ fn git_branch(root: String) -> Option<String> {
     git::git_branch(std::path::Path::new(&root))
 }
 
+/// c0083: auto-commit only `.gello/` changes (pathspec commit; never sweeps in
+/// the user's code index). Skips non-repos and mid-merge/rebase states.
+#[tauri::command]
+fn git_commit_board(root: String, message: String) -> git::CommitOutcome {
+    git::commit_board(std::path::Path::new(&root), &message)
+}
+
+/// c0083: worktree dirtiness split by board-only (`.gello/`) vs code.
+#[tauri::command]
+fn git_worktree_status(root: String) -> Option<git::WorktreeStatus> {
+    git::worktree_status(std::path::Path::new(&root))
+}
+
 /// c032: existing agent-skill directories under the project root.
 #[tauri::command]
 fn detect_skill_dirs(project_root: String) -> Vec<String> {
@@ -321,6 +334,8 @@ pub fn run() {
             read_board_files,
             watch_board,
             git_branch,
+            git_commit_board,
+            git_worktree_status,
             watch_git_head,
             detect_skill_dirs,
             app_flag_get,
