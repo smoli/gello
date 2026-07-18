@@ -148,6 +148,12 @@ tells:
 - **No empty intensifiers.** Cut: purely, simply, just, really, seamlessly,
   robust, powerful, in seconds, byte-for-byte, out of the box, and similar.
 - **No buzzwords when a plain verb works** ("reactive renderer" → "renders").
+- **Don't stack possessives.** Avoid genitive chains ("the card's column is its
+  status field"). Make the object the subject ("the `status` field decides the
+  column"), or use "of".
+- **Avoid personification and drama.** Things don't "live in", "travel with", or
+  "own" — say "is in", "is part of". Skip stakes-raising framing ("delete the
+  app and you still have your board" → "the files work without the app").
 - **No emphatic italics/bold for punch.** Let word choice carry emphasis.
 - **Parentheticals only for needed clarification**, not to show off detail (the
   tech stack, an aside).

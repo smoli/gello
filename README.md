@@ -4,20 +4,19 @@ A local, Markdown-native Kanban board for agentic software development.
 
 ![gello board](assets/gello-ui.png)
 
-gello turns the plan for a software project into a Kanban board — where every
-card is a Markdown file. The files in `.gello/` are the **single source of
-truth**; the desktop app represents that file tree. Delete the app and you 
-still have your board, usable in any editor.
+gello turns a project's plan into a Kanban board. Every card is a Markdown file.
+The files in `.gello/` are the single source of truth; the desktop app
+represents that file tree. The files stay usable in any editor without the app.
 
 ## Why
 
-Agentic development (Claude Code & co.) works best from a written plan broken
-into epics and steps. gello keeps everything as Markdown but gives each unit of
-work its own file with structured frontmatter, and renders it as a board:
+Agentic development works best from a written plan broken into epics and steps.
+gello keeps everything as Markdown but gives each unit of work its own file with
+structured frontmatter, and renders it as a board:
 
 - **Concept → epics → cards**, each its own `.md` file.
-- A card's column is its `status` frontmatter field. Moving a card changes the status.
-- The board lives in the repo, travels with branches, and shows up in PRs.
+- The `status` frontmatter field decides which column a card shows in. Moving a card rewrites it.
+- The board is part of the repo and appears in PRs.
 - Agents interact with it by reading and editing Markdown, following a documented convention
 
 ## How the board works
@@ -30,20 +29,19 @@ starts with:
 `inbox` → `discuss` → `backlog` → `ready` → `in-progress` → `review` → `done`
 
 **`inbox` is a status, not a folder** — the first column, where freshly captured
-cards land until you triage them. **`discuss`** is a triage stage for cards you
-want to think through with the agent before committing (the **gello-discuss**
-skill drives it). Both ship by default; columns are yours to customize.
+cards land until you triage them. **`discuss`** is a triage stage for ideas you
+want to think through with the agent first, driven by the **gello-discuss**
+skill. Both ship by default.
 
 ### The lifecycle of a card
 
 1. **Capture.** A new idea or bug lands in the inbox column — a title
    and a sentence is enough. No need to pick an epic up front. (`⌘N` for an idea,
    `⌘I` for an issue, `⌘E` for an epic.)
-2. **Discuss** *(optional).* Move an ideat to `discuss` when you want to think it
-   through with the agent before committing. The agent interviews you — goal,
-   scope, edge cases, what "done" looks like — and writes the outcome back into
-   the card: a refined **What**, drafted **Acceptance criteria**, and a compact
-   **Discussion** section.
+2. **Discuss** *(optional).* Move an idea to `discuss` when you want to think it
+   through with the agent. The agent interviews you — goal, scope, edge cases,
+   what "done" looks like — and writes the outcome back into the card: a
+   **What**, **Acceptance criteria**, and a **Discussion** section.
 3. **Triage.** Drag a card out of the inbox column to give it a status. If it
    has no epic yet, an inline **epic picker** appears (pick an epic, leave it
    standalone with **No epic**, or **+ New epic**); assigning to an epic moves
@@ -80,8 +78,8 @@ A card's location is its epic assignment: `cards/` (no epic) or
 `epics/eNN-name/` (assigned). Every card is one Markdown file with YAML
 frontmatter (`id`, `title`, `status`, `epic`, `depends`, `tags`, …) and a body
 of `## What`, `## Acceptance criteria` (checkboxes), `## Notes`, and a machine-managed
-`## Log`. External edits to any file appear in the app live, without a reload —
-and the app's own writes are surgical, so your formatting and comments survive.
+`## Log`. External edits appear in the app live, without a reload. The app's own
+writes are surgical, preserving your formatting and comments.
 
 See [.gello/concept.md](.gello/concept.md) for the full spec.
 
@@ -93,8 +91,7 @@ See [.gello/concept.md](.gello/concept.md) for the full spec.
   and per-type filter.
 - Drag & drop to change status (writes the `status` field), or move the focused
   card with the arrow keys.
-- Manual drag-to-reorder within `backlog` / `ready`, with precise drop
-  positions between cards.
+- Manual drag-to-reorder within `backlog` / `ready`, dropping between cards.
 - WIP-limit warnings per column.
 - Sticky column headers; columns size to their content; a "needs attention"
   lane surfaces malformed cards instead of hiding them.
@@ -172,13 +169,12 @@ The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
 `AGENTS.md` when that file exists) at board init. The app can also install
 three gello-managed agent skills into a project (under `.claude/skills/`,
 `.pi/`, or `.agents/`); it prompts to add or update them when they're missing
-or are out-of-date:
+or out-of-date:
 
 - **`gello-discuss`** — interview the human about a card flagged
-  `status: discuss` and write the refined outcome (a sharpened **What**,
-  drafted **Acceptance criteria**, and a **Discussion** section) back into the
-  card. Kicks in when you ask to discuss a card, or when the only `ready`-ish
-  work left is discuss-flagged.
+  `status: discuss` and write the outcome (a **What**, **Acceptance criteria**,
+  and a **Discussion** section) back into the card. Kicks in when you ask to
+  discuss a card, or when the only `ready`-ish work left is discuss-flagged.
 - **`gello-onboard`** — migrate an existing project's task organisation
   (`TODO.md`, plan files, docs, issue lists) onto a gello board, preserving
   history. Used to bring a legacy project onto gello.
