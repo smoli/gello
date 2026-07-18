@@ -1,14 +1,13 @@
 ---
 id: c015
 title: Concurrent-edit policy (last-write-wins, no silent loss)
-status: review
+status: done
 epic: e04
 depends: [c010, c014]
 tags: [core]
 created: 2026-07-16
 updated: 2026-07-18
-order: 40
-status-changed: 2026-07-18T10:42:02
+status-changed: 2026-07-18T18:10:06
 ---
 
 ## What
@@ -31,6 +30,7 @@ never silently overwritten in either direction.
 ## Log
 
 - 2026-07-16 created from concept breakdown
+- 2026-07-18 status → done (app)
 
 ## Notes
 

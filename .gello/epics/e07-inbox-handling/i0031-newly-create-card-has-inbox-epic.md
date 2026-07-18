@@ -1,13 +1,13 @@
 ---
 id: i0031
 title: Newly create Card has inbox epic
-status: review
+status: done
 type: issue
 ref: c0088
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T18:09:30
+status-changed: 2026-07-18T18:09:57
 ---
 
 ## What
@@ -31,3 +31,4 @@ and defaults to it. A no-epic card should show **"No epic"**.
   `<option value="inbox">inbox</option>` and now derives its value from
   card.epic — a null epic matches the "No epic" option (milestoneId null).
   Reproducing test added. 500 tests + typecheck + lint green.
+- 2026-07-18 status → done (app)

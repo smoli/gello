@@ -1,12 +1,11 @@
 ---
 id: c0088
 title: Inbox-as-status data model
-status: review
+status: done
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T17:58:03
-order: 15
+status-changed: 2026-07-18T18:10:04
 ---
 
 ## What
@@ -43,3 +42,4 @@ epic — decide here whether that state is allowed.
 - 2026-07-18 created from the e07 inbox reframe (c0087)
 - 2026-07-18 status → ready (app)
 - 2026-07-18 implemented (agent): part of the e07 inbox-as-status reframe, landed as one coherent pass; full suite (500) + Rust (41) + typecheck + lint green.
+- 2026-07-18 status → done (app)

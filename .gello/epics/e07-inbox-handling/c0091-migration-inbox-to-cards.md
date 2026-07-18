@@ -1,13 +1,12 @@
 ---
 id: c0091
 title: Migration — inbox/ to cards/ + status inbox
-status: review
+status: done
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T17:58:03
-order: 16.25
+status-changed: 2026-07-18T18:10:00
 ---
 
 ## What
@@ -36,3 +35,4 @@ convert; c0079-style), and covers this repo's own board.
 - 2026-07-18 created from the e07 inbox reframe (c0087)
 - 2026-07-18 status → ready (app)
 - 2026-07-18 implemented (agent): part of the e07 inbox-as-status reframe, landed as one coherent pass; full suite (500) + Rust (41) + typecheck + lint green.
+- 2026-07-18 status → done (app)
