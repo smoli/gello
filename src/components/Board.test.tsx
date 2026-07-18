@@ -464,7 +464,7 @@ describe("Board card moves", () => {
     fireEvent.drop(column("in-progress"), { dataTransfer });
 
     expect(onMove).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ id: "c010", milestone: null }),
+      expect.objectContaining({ id: "c010", epic: null }),
       "in-progress",
     );
   });
@@ -516,7 +516,7 @@ describe("Board card moves", () => {
     fireEvent.drop(column("ready"), { dataTransfer });
 
     expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ id: "c010", milestone: null }),
+      expect.objectContaining({ id: "c010", epic: null }),
       "ready",
     );
     expect(onMove).not.toHaveBeenCalled();
@@ -537,7 +537,7 @@ describe("Board card moves", () => {
     fireEvent.drop(column("backlog"), { dataTransfer });
 
     expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ id: "c010", milestone: null }),
+      expect.objectContaining({ id: "c010", epic: null }),
       "backlog",
     );
     expect(onMove).not.toHaveBeenCalled();

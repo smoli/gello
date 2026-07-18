@@ -97,10 +97,12 @@ function findCard(
 ): { card: Card; milestoneLabel: string | null } | null {
   const inboxCard = model.inbox.find((c) => c.path === path);
   if (inboxCard) return { card: inboxCard, milestoneLabel: null };
-  for (const group of model.milestones) {
+  const standalone = model.cards.find((c) => c.path === path);
+  if (standalone) return { card: standalone, milestoneLabel: null };
+  for (const group of model.epics) {
     const card = group.cards.find((c) => c.path === path);
     if (card) {
-      return { card, milestoneLabel: group.milestone?.title ?? group.folder };
+      return { card, milestoneLabel: group.epic?.title ?? group.folder };
     }
   }
   return null;
@@ -600,8 +602,8 @@ function App() {
           ? withNewInboxCard(model, card)
           : {
               ...model,
-              milestones: model.milestones.map((group) =>
-                card.path.startsWith(`milestones/${group.folder}/`)
+              epics: model.epics.map((group) =>
+                card.path.includes(`/${group.folder}/`)
                   ? { ...group, cards: [...group.cards, card] }
                   : group,
               ),
@@ -625,7 +627,7 @@ function App() {
         triageCard(
           board.root,
           card,
-          { folder, milestoneId },
+          { folder, epicId: milestoneId },
           board.model.config,
           nowIsoDateTime(),
           status,
@@ -709,12 +711,12 @@ function App() {
 
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;
-    const milestoneOptions: MilestoneOption[] = board.model.milestones
-      .filter((group) => group.milestone !== null)
+    const milestoneOptions: MilestoneOption[] = board.model.epics
+      .filter((group) => group.epic !== null)
       .map((group) => ({
         folder: group.folder,
-        milestoneId: group.milestone!.id,
-        label: group.milestone!.title,
+        milestoneId: group.epic!.id,
+        label: group.epic!.title,
       }));
     return (
       <div className="app-shell app-shell-frameless">

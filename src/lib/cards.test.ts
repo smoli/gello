@@ -4,7 +4,7 @@ import {
   newCardRaw,
   parseBoardConfig,
   parseCard,
-  parseMilestone,
+  parseEpic,
   replaceCardBody,
   updateCardFields,
 } from "./cards";
@@ -47,7 +47,7 @@ describe("parseCard", () => {
     expect(card.id).toBe("c003");
     expect(card.title).toBe("Kanban view with drag & drop");
     expect(card.status).toBe("ready");
-    expect(card.milestone).toBe("m02");
+    expect(card.epic).toBe("m02");
     expect(card.depends).toEqual(["c001"]);
     expect(card.tags).toEqual(["ui", "core"]);
     expect(card.created).toBe("2026-07-16");
@@ -63,7 +63,7 @@ describe("parseCard", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.card.milestone).toBeNull();
+    expect(result.card.epic).toBeNull();
     expect(result.card.depends).toEqual([]);
     expect(result.card.tags).toEqual([]);
     expect(result.card.created).toBeNull();
@@ -207,14 +207,14 @@ Body
 
     const { card, raw } = updateCardFields(
       parsed.card,
-      { milestone: "m03" },
+      { epic: "m03" },
       "2026-07-17",
     );
 
-    expect(card.milestone).toBe("m03");
+    expect(card.epic).toBe("m03");
     expect(card.updated).toBe("2026-07-17");
     // appended inside the frontmatter block, body untouched
-    expect(raw).toContain("milestone: m03\n");
+    expect(raw).toContain("epic: m03\n");
     expect(raw).toContain("updated: 2026-07-17\n");
     expect(raw.endsWith("A quick inbox note.\n")).toBe(true);
     const reparsed = parseCard("inbox/c042.md", raw);
@@ -362,7 +362,7 @@ describe("card types and refs (c024)", () => {
     const raw = newCardRaw("c040", "Broken thing", "It broke.", "2026-07-16", {
       type: "issue",
       ref: "c007",
-      milestone: "m02",
+      epic: "m02",
     });
     const result = parseCard("milestones/m02-x/c040-broken-thing.md", raw);
 
@@ -370,7 +370,7 @@ describe("card types and refs (c024)", () => {
     if (!result.ok) return;
     expect(result.card.type).toBe("issue");
     expect(result.card.ref).toBe("c007");
-    expect(result.card.milestone).toBe("m02");
+    expect(result.card.epic).toBe("m02");
     expect(result.card.status).toBe("backlog");
   });
 });
@@ -398,14 +398,14 @@ describe("line-ending tolerance (CRLF / BOM)", () => {
     expect(result.card.raw).toBe(crlf(FULL_CARD));
   });
 
-  it("parses a CRLF milestone", () => {
+  it("parses a CRLF epic", () => {
     const raw = crlf(`---\nid: m02\ntitle: Board core\n---\nGoal.\n`);
-    const result = parseMilestone("milestones/m02/milestone.md", raw);
+    const result = parseEpic("epics/e02/epic.md", raw);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.milestone.id).toBe("m02");
-    expect(result.milestone.title).toBe("Board core");
+    expect(result.epic.id).toBe("m02");
+    expect(result.epic.title).toBe("Board core");
   });
 
   it("tolerates a UTF-8 BOM before the frontmatter", () => {
@@ -443,9 +443,9 @@ describe("line-ending tolerance (CRLF / BOM)", () => {
     const parsed = parseCard("inbox/c042.md", source);
     if (!parsed.ok) throw new Error("fixture must parse");
 
-    const { raw } = updateCardFields(parsed.card, { milestone: "m03" }, "2026-07-17");
+    const { raw } = updateCardFields(parsed.card, { epic: "m03" }, "2026-07-17");
 
-    expect(raw).toContain("milestone: m03\r\n");
+    expect(raw).toContain("epic: m03\r\n");
     expect(raw).toContain("updated: 2026-07-17\r\n");
     expect(raw).not.toMatch(/[^\r]\n/);
     const reparsed = parseCard("inbox/c042.md", raw);
@@ -504,8 +504,8 @@ describe("newCardRaw", () => {
   });
 });
 
-describe("parseMilestone", () => {
-  it("parses a milestone file", () => {
+describe("parseEpic", () => {
+  it("parses an epic file", () => {
     const raw = `---
 id: m02
 title: Board UI
@@ -517,29 +517,27 @@ due: 2026-08-15
 
 Kanban.
 `;
-    const result = parseMilestone("milestones/m02-board-ui/milestone.md", raw);
+    const result = parseEpic("epics/e02-board-ui/epic.md", raw);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.milestone.id).toBe("m02");
-    expect(result.milestone.title).toBe("Board UI");
-    expect(result.milestone.status).toBe("in-progress");
-    expect(result.milestone.due).toBe("2026-08-15");
-    expect(result.milestone.body).toContain("## Goal");
+    expect(result.epic.id).toBe("m02");
+    expect(result.epic.title).toBe("Board UI");
+    expect(result.epic.status).toBe("in-progress");
+    expect(result.epic.body).toContain("## Goal");
   });
 
   it("defaults status to backlog and due to null", () => {
     const raw = `---\nid: m09\ntitle: Later\n---\nbody\n`;
-    const result = parseMilestone("x/milestone.md", raw);
+    const result = parseEpic("x/epic.md", raw);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.milestone.status).toBe("backlog");
-    expect(result.milestone.due).toBeNull();
+    expect(result.epic.status).toBe("backlog");
   });
 
-  it("rejects a milestone missing id or title", () => {
-    const result = parseMilestone("x/milestone.md", `---\nid: m09\n---\nbody\n`);
+  it("rejects an epic missing id or title", () => {
+    const result = parseEpic("x/epic.md", `---\nid: m09\n---\nbody\n`);
 
     expect(result.ok).toBe(false);
     if (result.ok) return;

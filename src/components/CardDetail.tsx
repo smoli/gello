@@ -263,7 +263,7 @@ export function CardDetail({
               value={
                 milestoneLabel === null
                   ? "inbox"
-                  : (milestoneOptions.find((o) => o.milestoneId === card.milestone)
+                  : (milestoneOptions.find((o) => o.milestoneId === card.epic)
                       ?.folder ?? "")
               }
               onChange={(event) => {
@@ -275,7 +275,7 @@ export function CardDetail({
             >
               {milestoneLabel === null && <option value="inbox">inbox</option>}
               {milestoneLabel !== null &&
-                !milestoneOptions.some((o) => o.milestoneId === card.milestone) && (
+                !milestoneOptions.some((o) => o.milestoneId === card.epic) && (
                   <option value="">{milestoneLabel}</option>
                 )}
               {milestoneOptions.map((option) => (

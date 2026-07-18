@@ -497,7 +497,7 @@ describe("App", () => {
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
-      expect.stringContaining("milestone: m02"),
+      expect.stringContaining("epic: m02"),
     );
     // optimistic move out of the inbox into the milestone group
     expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
@@ -534,7 +534,7 @@ describe("App", () => {
       "/repo/.gello/milestones/m02-board-ui/c001-hello.md",
       expect.stringContaining("status: ready"),
     );
-    expect(writeMock.mock.calls[0][1]).toContain("milestone: m02");
+    expect(writeMock.mock.calls[0][1]).toContain("epic: m02");
   });
 
   it("i0015: a positioned drop triages into the picked milestone at the chosen slot (with order)", async () => {
@@ -567,7 +567,7 @@ describe("App", () => {
       expect.stringContaining("status: ready"),
     );
     const written = writeMock.mock.calls[0][1];
-    expect(written).toContain("milestone: m02");
+    expect(written).toContain("epic: m02");
     expect(written).toMatch(/^order: \d/m); // placed at the dropped slot, not the bottom
   });
 
@@ -645,7 +645,7 @@ describe("App", () => {
         emitChange = onChange;
         return () => {};
       });
-      const movedRaw = fixture.model.milestones[0].cards[0].raw.replace(
+      const movedRaw = fixture.model.epics[0].cards[0].raw.replace(
         "status: backlog",
         "status: review",
       );

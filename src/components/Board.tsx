@@ -50,13 +50,15 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
   const flaggedInbox: BoardCard[] = model.inbox
     .filter((card) => card.status !== "backlog")
     .map((card) => ({ card, milestoneLabel: null, filterKey: "inbox" }));
-  const milestoneCards: BoardCard[] = model.milestones.flatMap((group) =>
+  const milestoneCards: BoardCard[] = model.epics.flatMap((group) =>
     group.cards.map((card) => ({
       card,
-      milestoneLabel: group.milestone?.title ?? group.folder,
+      milestoneLabel: group.epic?.title ?? group.folder,
       filterKey: group.folder,
     })),
   );
+  // c0076: standalone cards (.gello/cards/) are loaded but not yet rendered
+  // here — the "No epic" board treatment lands in c0077.
   return [...flaggedInbox, ...milestoneCards];
 }
 
@@ -152,9 +154,9 @@ export function Board({
   const promptsForMilestone = (card: Card, column: string): boolean =>
     onInboxStatusDrop != null &&
     card.path.startsWith("inbox/") &&
-    card.milestone === null &&
+    card.epic === null &&
     TRIAGE_DROP_COLUMNS.has(column) &&
-    model.milestones.some((g) => g.milestone !== null);
+    model.epics.some((g) => g.epic !== null);
 
   const dropOnColumn = (column: string, cardPath: string) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
@@ -244,9 +246,9 @@ export function Board({
             onChange={(event) => setFilter(event.target.value)}
           >
             <option value="all">All milestones</option>
-            {model.milestones.map((group) => (
+            {model.epics.map((group) => (
               <option key={group.folder} value={group.folder}>
-                {group.milestone?.title ?? group.folder}
+                {group.epic?.title ?? group.folder}
               </option>
             ))}
           </select>

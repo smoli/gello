@@ -186,7 +186,7 @@ export function createIssueFor(
   const raw = newCardRaw(id, input.title, input.body, today, {
     type: "issue",
     ref: source.id,
-    milestone: source.milestone ?? undefined,
+    epic: source.epic ?? undefined,
   });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {
@@ -213,7 +213,7 @@ export function createIssueFor(
 export function triageCard(
   root: string,
   card: Card,
-  target: { folder: string; milestoneId: string },
+  target: { folder: string; epicId: string },
   config: BoardConfig,
   now: string,
   status?: string,
@@ -221,7 +221,7 @@ export function triageCard(
 ): MoveResult {
   const today = now.slice(0, 10);
   const statusChanges = status !== undefined && status !== card.status;
-  let changes: CardFieldChanges = { milestone: target.milestoneId };
+  let changes: CardFieldChanges = { epic: target.epicId };
   if (statusChanges) {
     // mirror saveCardFields' c056 bookkeeping: stamp when the status was assigned
     changes = { statusChanged: now, status, ...changes };

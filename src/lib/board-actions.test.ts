@@ -132,20 +132,20 @@ describe("moveCard", () => {
     await expect(persisted).rejects.toThrow("disk full");
   });
 
-  it("persists combined field edits (milestone + tags)", async () => {
+  it("persists combined field edits (epic + tags)", async () => {
     const { card, persisted } = saveCardFields(
       "/repo/.gello",
       fixtureCard(),
-      { milestone: "m03", tags: ["ui", "core"] },
+      { epic: "m03", tags: ["ui", "core"] },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
 
-    expect(card.milestone).toBe("m03");
+    expect(card.epic).toBe("m03");
     expect(card.tags).toEqual(["ui", "core"]);
     await persisted;
     const written = writeMock.mock.calls[0][1];
-    expect(written).toContain("milestone: m03\n");
+    expect(written).toContain("epic: m03\n");
     expect(written).toContain("tags: [ui, core]\n");
   });
 
@@ -397,13 +397,13 @@ describe("issue creation (c024)", () => {
     expect(card.type).toBe("issue");
     expect(card.ref).toBe("c005");
     expect(card.status).toBe("backlog");
-    expect(card.milestone).toBe("m02");
+    expect(card.epic).toBe("m02");
     expect(card.title).toBe("It broke badly");
     expect(card.path).toBe("milestones/m02-board-ui/i0001-it-broke-badly.md");
     await persisted;
     const written = writeMock.mock.calls[0][1];
     expect(written).toContain("ref: c005\n");
-    expect(written).toContain("milestone: m02\n");
+    expect(written).toContain("epic: m02\n");
     expect(written).toContain("Repro: click it.");
   });
 
@@ -423,7 +423,7 @@ describe("issue creation (c024)", () => {
     );
 
     expect(card.path).toBe("inbox/i0001-inbox-trouble.md");
-    expect(card.milestone).toBeNull();
+    expect(card.epic).toBeNull();
   });
 });
 
@@ -451,24 +451,24 @@ updated: 2026-07-10
     return parsed.card;
   }
 
-  it("writes the card to the milestone folder with milestone field and rewritten links, then deletes the old file", async () => {
+  it("writes the card to the epic folder with epic field and rewritten links, then deletes the old file", async () => {
     const { card, persisted } = triageCard(
       "/repo/.gello",
       inboxCard(),
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
 
     expect(card.path).toBe("milestones/m02-board-ui/c007-existing.md");
-    expect(card.milestone).toBe("m02");
+    expect(card.epic).toBe("m02");
     await persisted;
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/milestones/m02-board-ui/c007-existing.md",
       expect.stringContaining("![shot](../../assets/c007/shot.png)"),
     );
-    expect(writeMock.mock.calls[0][1]).toContain("milestone: m02");
+    expect(writeMock.mock.calls[0][1]).toContain("epic: m02");
     expect(removeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/inbox/c007-existing.md",
     );
@@ -488,7 +488,7 @@ updated: 2026-07-10
     const { card, persisted } = triageCard(
       root,
       inboxCard(),
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
@@ -507,7 +507,7 @@ updated: 2026-07-10
     const { persisted } = triageCard(
       "/repo/.gello",
       inboxCard(),
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
@@ -520,13 +520,13 @@ updated: 2026-07-10
     const { card, persisted } = triageCard(
       "/repo/.gello",
       inboxCard(),
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16T09:15:00",
       "ready",
     );
 
-    expect(card.milestone).toBe("m02");
+    expect(card.epic).toBe("m02");
     expect(card.status).toBe("ready");
     expect(card.statusChanged).toBe("2026-07-16T09:15:00");
     await persisted;
@@ -541,14 +541,14 @@ updated: 2026-07-10
     const { card, persisted } = triageCard(
       "/repo/.gello",
       inboxCard(), // status backlog
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16T09:15:00",
       "backlog", // same status → no status change
       25, // the chosen slot
     );
 
-    expect(card.milestone).toBe("m02");
+    expect(card.epic).toBe("m02");
     expect(card.order).toBe(25);
     await persisted;
     const written = writeMock.mock.calls[0][1];
@@ -560,7 +560,7 @@ updated: 2026-07-10
     const { card, persisted } = triageCard(
       "/repo/.gello",
       inboxCard(),
-      { folder: "m02-board-ui", milestoneId: "m02" },
+      { folder: "m02-board-ui", epicId: "m02" },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16T09:15:00",
       "backlog",

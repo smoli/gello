@@ -4,11 +4,11 @@
 import {
   parseBoardConfig,
   parseCard,
-  parseMilestone,
+  parseEpic,
   type BoardConfig,
   type Card,
   type InvalidFile,
-  type Milestone,
+  type Epic,
 } from "./cards";
 
 export interface BoardFile {
@@ -17,11 +17,12 @@ export interface BoardFile {
   content: string;
 }
 
-export interface MilestoneGroup {
-  /** Folder name under milestones/, e.g. "m01-foundation". */
+/** c0076: an epic folder (renamed from milestone) and the cards it contains. */
+export interface EpicGroup {
+  /** Folder name under epics/ (or legacy milestones/), e.g. "e01-foundation". */
   folder: string;
-  /** Parsed milestone.md, or null if the folder has none. */
-  milestone: Milestone | null;
+  /** Parsed epic.md (or legacy milestone.md), or null if the folder has none. */
+  epic: Epic | null;
   cards: Card[];
 }
 
@@ -31,7 +32,9 @@ export interface BoardModel {
   /** Raw board.yaml content ("" if absent) — kept so the model can be
    *  reconstructed into files for incremental reconciliation. */
   configRaw: string;
-  milestones: MilestoneGroup[];
+  epics: EpicGroup[];
+  /** c0076: standalone cards under `.gello/cards/` — no epic membership. */
+  cards: Card[];
   inbox: Card[];
   invalid: InvalidFile[];
 }
@@ -136,13 +139,14 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   const { config, error: configError } = parseBoardConfig(configRaw);
 
   const inbox: Card[] = [];
+  const standalone: Card[] = [];
   const invalid: InvalidFile[] = [];
-  const groups = new Map<string, MilestoneGroup>();
+  const groups = new Map<string, EpicGroup>();
 
-  const groupFor = (folder: string): MilestoneGroup => {
+  const groupFor = (folder: string): EpicGroup => {
     let group = groups.get(folder);
     if (!group) {
-      group = { folder, milestone: null, cards: [] };
+      group = { folder, epic: null, cards: [] };
       groups.set(folder, group);
     }
     return group;
@@ -156,11 +160,19 @@ export function loadBoard(files: BoardFile[]): BoardModel {
       const result = parseCard(path, content, config);
       if (result.ok) inbox.push(result.card);
       else invalid.push(result.invalid);
-    } else if (segments.length === 3 && segments[0] === "milestones") {
+    } else if (segments.length === 2 && segments[0] === "cards") {
+      // c0076: standalone cards — a flat home, no epic membership
+      const result = parseCard(path, content, config);
+      if (result.ok) standalone.push(result.card);
+      else invalid.push(result.invalid);
+    } else if (
+      segments.length === 3 &&
+      (segments[0] === "epics" || segments[0] === "milestones") // legacy
+    ) {
       const folder = segments[1];
-      if (segments[2] === "milestone.md") {
-        const result = parseMilestone(path, content);
-        if (result.ok) groupFor(folder).milestone = result.milestone;
+      if (segments[2] === "epic.md" || segments[2] === "milestone.md") {
+        const result = parseEpic(path, content);
+        if (result.ok) groupFor(folder).epic = result.epic;
         else invalid.push(result.invalid);
       } else {
         const result = parseCard(path, content, config);
@@ -176,7 +188,11 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   // the dogfood test, so a duplicate can never sit silently on the board.
   const owner = new Map<string, string>();
   const duplicate = new Map<string, string>(); // path → reason
-  const everyCard = [...inbox, ...[...groups.values()].flatMap((g) => g.cards)];
+  const everyCard = [
+    ...inbox,
+    ...standalone,
+    ...[...groups.values()].flatMap((g) => g.cards),
+  ];
   everyCard.sort((a, b) => a.path.localeCompare(b.path));
   for (const card of everyCard) {
     const ownerPath = owner.get(card.id);
@@ -196,16 +212,26 @@ export function loadBoard(files: BoardFile[]): BoardModel {
 
   const dedupedInbox = dedup(inbox);
   dedupedInbox.sort(byCreatedThenId);
-  const milestones = [...groups.values()].sort((a, b) =>
+  const dedupedStandalone = dedup(standalone);
+  dedupedStandalone.sort(byCreatedThenId);
+  const epics = [...groups.values()].sort((a, b) =>
     a.folder.localeCompare(b.folder),
   );
-  for (const group of milestones) {
+  for (const group of epics) {
     group.cards = dedup(group.cards);
     group.cards.sort(byCreatedThenId);
   }
   invalid.sort((a, b) => a.path.localeCompare(b.path));
 
-  return { config, configError, configRaw, milestones, inbox: dedupedInbox, invalid };
+  return {
+    config,
+    configError,
+    configRaw,
+    epics,
+    cards: dedupedStandalone,
+    inbox: dedupedInbox,
+    invalid,
+  };
 }
 
 // --- incremental reconciliation -------------------------------------------------
@@ -222,8 +248,9 @@ function modelToFiles(model: BoardModel): Map<string, string> {
   const files = new Map<string, string>();
   if (model.configRaw !== "") files.set("board.yaml", model.configRaw);
   for (const card of model.inbox) files.set(card.path, card.raw);
-  for (const group of model.milestones) {
-    if (group.milestone) files.set(group.milestone.path, group.milestone.raw);
+  for (const card of model.cards) files.set(card.path, card.raw);
+  for (const group of model.epics) {
+    if (group.epic) files.set(group.epic.path, group.epic.raw);
     for (const card of group.cards) files.set(card.path, card.raw);
   }
   for (const entry of model.invalid) files.set(entry.path, entry.raw);
@@ -260,9 +287,13 @@ export function applyFileChanges(
   return loadBoard([...files].map(([path, content]) => ({ path, content })));
 }
 
-/** All cards on the board, inbox and milestones alike. */
+/** All cards on the board — inbox, standalone, and epic-grouped alike. */
 function allCards(model: BoardModel): Card[] {
-  return [...model.inbox, ...model.milestones.flatMap((g) => g.cards)];
+  return [
+    ...model.inbox,
+    ...model.cards,
+    ...model.epics.flatMap((g) => g.cards),
+  ];
 }
 
 /** Find a card by id anywhere on the board; null when absent (dangling ref). */
@@ -286,10 +317,10 @@ export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
 }
 
 /**
- * Immutably move a triaged card (matched by its old path) into a milestone
- * group, keeping sort order. The card is stripped from the inbox and from
- * every milestone group first, so this also handles re-triage between
- * milestones (i0005) without leaving a duplicate behind.
+ * Immutably move a triaged card (matched by its old path) into an epic group,
+ * keeping sort order. The card is stripped from the inbox, from standalone,
+ * and from every epic group first, so this also handles re-triage between
+ * epics (i0005) without leaving a duplicate behind.
  */
 export function withCardTriaged(
   model: BoardModel,
@@ -300,7 +331,8 @@ export function withCardTriaged(
   return {
     ...model,
     inbox: model.inbox.filter((c) => c.path !== oldPath),
-    milestones: model.milestones.map((group) => {
+    cards: model.cards.filter((c) => c.path !== oldPath),
+    epics: model.epics.map((group) => {
       const without = group.cards.filter((c) => c.path !== oldPath);
       return group.folder === targetFolder
         ? { ...group, cards: [...without, moved].sort(byCreatedThenId) }
@@ -314,7 +346,8 @@ export function withoutCard(model: BoardModel, path: string): BoardModel {
   return {
     ...model,
     inbox: model.inbox.filter((c) => c.path !== path),
-    milestones: model.milestones.map((group) => ({
+    cards: model.cards.filter((c) => c.path !== path),
+    epics: model.epics.map((group) => ({
       ...group,
       cards: group.cards.filter((c) => c.path !== path),
     })),
@@ -331,7 +364,8 @@ export function withUpdatedCard(model: BoardModel, updated: Card): BoardModel {
   return {
     ...model,
     inbox: model.inbox.map(replace),
-    milestones: model.milestones.map((group) => ({
+    cards: model.cards.map(replace),
+    epics: model.epics.map((group) => ({
       ...group,
       cards: group.cards.map(replace),
     })),
@@ -357,7 +391,8 @@ function basename(path: string): string {
 function nextIdInNamespace(model: BoardModel, prefix: string): string {
   const candidates = [
     ...model.inbox.map((c) => c.id),
-    ...model.milestones.flatMap((g) => g.cards.map((c) => c.id)),
+    ...model.cards.map((c) => c.id),
+    ...model.epics.flatMap((g) => g.cards.map((c) => c.id)),
     ...model.invalid.map((entry) => basename(entry.path)),
   ];
   const next = maxIdNumber(candidates, prefix) + 1;
@@ -379,11 +414,14 @@ export function nextIssueId(model: BoardModel): string {
   return nextIdInNamespace(model, "i");
 }
 
-export function nextMilestoneId(model: BoardModel): string {
-  const candidates = model.milestones.flatMap((g) => [
+/** c0076: next free epic id in the `e` namespace (legacy `m` folders/ids
+ *  count too, so the sequence never collides during migration). */
+export function nextEpicId(model: BoardModel): string {
+  const candidates = model.epics.flatMap((g) => [
     g.folder,
-    ...(g.milestone ? [g.milestone.id] : []),
+    ...(g.epic ? [g.epic.id] : []),
   ]);
-  const next = maxIdNumber(candidates, "m") + 1;
-  return `m${String(next).padStart(2, "0")}`;
+  // "[me]" so both legacy `m` and new `e` ids feed the sequence
+  const next = maxIdNumber(candidates, "[me]") + 1;
+  return `e${String(next).padStart(2, "0")}`;
 }

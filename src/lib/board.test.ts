@@ -7,7 +7,7 @@ import {
   loadBoard,
   nextCardId,
   nextIssueId,
-  nextMilestoneId,
+  nextEpicId,
   openIssuesFor,
   withCardTriaged,
   withNewInboxCard,
@@ -77,36 +77,68 @@ describe("loadBoard on this repo's own .gello tree", () => {
       "discuss", "backlog", "ready", "in-progress", "review", "done",
     ]);
     expect(model.config.wipLimits).toEqual({ "in-progress": 2 });
-    expect(model.milestones.length).toBeGreaterThanOrEqual(5);
-    const allCards = model.milestones.flatMap((group) => group.cards);
+    expect(model.epics.length).toBeGreaterThanOrEqual(5);
+    const allCards = model.epics.flatMap((group) => group.cards);
     expect(allCards.length).toBeGreaterThanOrEqual(19);
     expect(allCards.map((c) => c.id)).toContain("c001");
-    for (const group of model.milestones) {
-      expect(group.milestone).not.toBeNull();
+    for (const group of model.epics) {
+      expect(group.epic).not.toBeNull();
     }
   });
 
   it("derives the next free IDs beyond the existing ones", () => {
     expect(nextCardId(model)).toMatch(/^c\d{3,}$/);
     expect(Number(nextCardId(model).slice(1))).toBeGreaterThanOrEqual(20);
-    expect(Number(nextMilestoneId(model).slice(1))).toBeGreaterThanOrEqual(6);
+    expect(Number(nextEpicId(model).slice(1))).toBeGreaterThanOrEqual(6);
   });
 });
 
 // --- synthetic tree ------------------------------------------------------------
+
+describe("c0076: epic folders + standalone cards", () => {
+  const model = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\n"),
+    file("epics/e01-core/epic.md", "---\nid: e01\ntitle: Core\nstatus: backlog\n---\ngoal\n"),
+    file("epics/e01-core/c001-a.md", "---\nid: c001\ntitle: In epic\nstatus: backlog\nepic: e01\n---\nx\n"),
+    file("cards/c002-loose.md", "---\nid: c002\ntitle: Standalone\nstatus: backlog\n---\nx\n"),
+    file("inbox/c003-idea.md", "---\nid: c003\ntitle: Idea\nstatus: backlog\n---\nx\n"),
+    // legacy milestone folder still loads (compat, until migration)
+    file("milestones/m09-old/milestone.md", "---\nid: m09\ntitle: Legacy\n---\ng\n"),
+    file("milestones/m09-old/c004-b.md", "---\nid: c004\ntitle: Legacy card\nstatus: backlog\nmilestone: m09\n---\nx\n"),
+  ]);
+
+  it("reads epics/ (grouped), cards/ (standalone), inbox/, and legacy milestones/", () => {
+    expect(model.invalid).toEqual([]);
+    expect(model.epics.map((g) => g.folder)).toEqual(["e01-core", "m09-old"]);
+    expect(model.epics[0].epic?.title).toBe("Core");
+    expect(model.epics[0].cards.map((c) => c.id)).toEqual(["c001"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c002"]); // standalone
+    expect(model.inbox.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("maps legacy `milestone:` to `epic`, and standalone cards have no epic", () => {
+    expect(model.epics[0].cards[0].epic).toBe("e01");
+    expect(model.epics[1].cards[0].epic).toBe("m09"); // legacy milestone: mapped
+    expect(model.cards[0].epic).toBeNull();
+  });
+
+  it("allocates epic ids in the e-namespace past legacy m-ids", () => {
+    expect(nextEpicId(model)).toBe("e10"); // max(e01, m09) = 9 → e10
+  });
+});
 
 describe("loadBoard on a synthetic tree", () => {
   const model = loadBoard(SYNTHETIC);
 
   it("represents inbox, milestone cards, and invalid cards", () => {
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
-    expect(model.milestones.map((g) => g.folder)).toEqual([
+    expect(model.epics.map((g) => g.folder)).toEqual([
       "m01-alpha",
       "m02-beta",
     ]);
-    expect(model.milestones[0].milestone?.title).toBe("Alpha");
+    expect(model.epics[0].epic?.title).toBe("Alpha");
     // c056: created/id order (no created in fixtures → id decides)
-    expect(model.milestones[0].cards.map((c) => c.id)).toEqual(["c101", "c102"]);
+    expect(model.epics[0].cards.map((c) => c.id)).toEqual(["c101", "c102"]);
     expect(model.invalid.map((entry) => entry.path)).toEqual([
       "milestones/m02-beta/c104-broken.md",
       "milestones/m02-beta/c105-no-id.md",
@@ -116,7 +148,7 @@ describe("loadBoard on a synthetic tree", () => {
   it("ignores non-card files (config, concept, assets, .gitkeep)", () => {
     const mentioned = [
       ...model.inbox,
-      ...model.milestones.flatMap((g) => g.cards),
+      ...model.epics.flatMap((g) => g.cards),
     ].map((c) => c.path);
     expect(mentioned.every((p) => p.endsWith(".md"))).toBe(true);
     expect(model.invalid.map((e) => e.path)).not.toContain("concept.md");
@@ -138,24 +170,24 @@ describe("loadBoard on a synthetic tree", () => {
   it("derives next IDs, counting invalid files by filename", () => {
     // c104/c105 are invalid but their filenames still reserve the IDs
     expect(nextCardId(model)).toBe("c0106");
-    expect(nextMilestoneId(model)).toBe("m03");
+    expect(nextEpicId(model)).toBe("e03");
   });
 });
 
 describe("withUpdatedCard", () => {
   it("replaces a milestone card by path without touching anything else", () => {
     const model = loadBoard(SYNTHETIC);
-    const original = model.milestones[0].cards.find((c) => c.id === "c102")!;
+    const original = model.epics[0].cards.find((c) => c.id === "c102")!;
     const updated = { ...original, status: "done" };
 
     const next = withUpdatedCard(model, updated);
 
     expect(
-      next.milestones[0].cards.find((c) => c.id === "c102")?.status,
+      next.epics[0].cards.find((c) => c.id === "c102")?.status,
     ).toBe("done");
     // original model untouched (no mutation)
     expect(
-      model.milestones[0].cards.find((c) => c.id === "c102")?.status,
+      model.epics[0].cards.find((c) => c.id === "c102")?.status,
     ).toBe("ready");
     expect(next.inbox).toEqual(model.inbox);
     expect(next.invalid).toEqual(model.invalid);
@@ -201,14 +233,14 @@ describe("withCardTriaged", () => {
     const next = withCardTriaged(model, "inbox/c103-an-idea.md", parsed.card, "m01-alpha");
 
     expect(next.inbox).toEqual([]);
-    expect(next.milestones[0].cards.map((c) => c.id)).toEqual([
+    expect(next.epics[0].cards.map((c) => c.id)).toEqual([
       "c101",
       "c102",
       "c103",
     ]);
     // original untouched
     expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
-    expect(model.milestones[0].cards).toHaveLength(2);
+    expect(model.epics[0].cards).toHaveLength(2);
   });
 
   it("i0005: re-triages a card between milestone groups without duplicating it", () => {
@@ -227,8 +259,8 @@ describe("withCardTriaged", () => {
     );
 
     // gone from the source milestone, present exactly once in the target
-    expect(next.milestones[0].cards.map((c) => c.id)).toEqual(["c101"]);
-    expect(next.milestones[1].cards.filter((c) => c.id === "c102")).toHaveLength(1);
+    expect(next.epics[0].cards.map((c) => c.id)).toEqual(["c101"]);
+    expect(next.epics[1].cards.filter((c) => c.id === "c102")).toHaveLength(1);
   });
 });
 
@@ -238,9 +270,9 @@ describe("withoutCard (c0062)", () => {
 
     const next = withoutCard(model, "milestones/m01-alpha/c101-first.md");
 
-    expect(next.milestones[0].cards.map((c) => c.id)).toEqual(["c102"]);
+    expect(next.epics[0].cards.map((c) => c.id)).toEqual(["c102"]);
     // original untouched (immutability)
-    expect(model.milestones[0].cards).toHaveLength(2);
+    expect(model.epics[0].cards).toHaveLength(2);
   });
 
   it("drops an inbox card", () => {
@@ -263,12 +295,12 @@ describe("applyFileChanges", () => {
     ]);
 
     expect(
-      next.milestones[0].cards.find((c) => c.id === "c101")?.status,
+      next.epics[0].cards.find((c) => c.id === "c101")?.status,
     ).toBe("review");
   });
 
   it("returns the same reference when content matches the model (self-write echo)", () => {
-    const existing = model.milestones[0].cards.find((c) => c.id === "c101")!;
+    const existing = model.epics[0].cards.find((c) => c.id === "c101")!;
     const next = applyFileChanges(model, [
       { path: existing.path, content: existing.raw },
     ]);
@@ -297,7 +329,7 @@ describe("applyFileChanges", () => {
       { path: "milestones/m01-alpha/c101-first.md", content: "---\nbroken: [\n---\n" },
     ]);
 
-    expect(next.milestones[0].cards.map((c) => c.id)).not.toContain("c101");
+    expect(next.epics[0].cards.map((c) => c.id)).not.toContain("c101");
     expect(next.invalid.map((e) => e.path)).toContain(
       "milestones/m01-alpha/c101-first.md",
     );
@@ -311,7 +343,7 @@ describe("applyFileChanges", () => {
     expect(next.invalid.map((e) => e.path)).not.toContain(
       "milestones/m02-beta/c104-broken.md",
     );
-    expect(next.milestones[1].cards.map((c) => c.id)).toContain("c104");
+    expect(next.epics[1].cards.map((c) => c.id)).toContain("c104");
   });
 
   it("applies milestone.md and board.yaml changes", () => {
@@ -323,7 +355,7 @@ describe("applyFileChanges", () => {
       { path: "board.yaml", content: "columns: [todo, doing]\n" },
     ]);
 
-    expect(next.milestones[0].milestone?.title).toBe("Alpha Renamed");
+    expect(next.epics[0].epic?.title).toBe("Alpha Renamed");
     expect(next.config.columns).toEqual(["todo", "doing"]);
     // cards whose status no longer exists become invalid under the new config
     expect(next.invalid.length).toBeGreaterThan(model.invalid.length);
@@ -426,7 +458,7 @@ describe("duplicate card IDs (c031)", () => {
 
     // "inbox/..." sorts before "milestones/..." — inbox copy wins
     expect(model.inbox.map((c) => c.id)).toEqual(["c010"]);
-    expect(model.milestones[0].cards).toEqual([]);
+    expect(model.epics[0].cards).toEqual([]);
     expect(model.invalid).toHaveLength(1);
     expect(model.invalid[0].path).toBe("milestones/m01-a/c010-original.md");
     expect(model.invalid[0].reason).toContain("duplicate id c010");
@@ -494,10 +526,10 @@ describe("loadBoard edge cases", () => {
     const model = loadBoard([
       file("milestones/m07-stray/c001-x.md", card("c001")),
     ]);
-    expect(model.milestones).toHaveLength(1);
-    expect(model.milestones[0].folder).toBe("m07-stray");
-    expect(model.milestones[0].milestone).toBeNull();
-    expect(model.milestones[0].cards.map((c) => c.id)).toEqual(["c001"]);
+    expect(model.epics).toHaveLength(1);
+    expect(model.epics[0].folder).toBe("m07-stray");
+    expect(model.epics[0].epic).toBeNull();
+    expect(model.epics[0].cards.map((c) => c.id)).toEqual(["c001"]);
   });
 
   it("routes an invalid milestone.md to the invalid list", () => {
@@ -511,10 +543,10 @@ describe("loadBoard edge cases", () => {
   it("returns an empty model for an empty file list", () => {
     const model = loadBoard([]);
     expect(model.inbox).toEqual([]);
-    expect(model.milestones).toEqual([]);
+    expect(model.epics).toEqual([]);
     expect(model.invalid).toEqual([]);
     expect(nextCardId(model)).toBe("c0001");
-    expect(nextMilestoneId(model)).toBe("m01");
+    expect(nextEpicId(model)).toBe("e01");
   });
 });
 

@@ -32,7 +32,8 @@ export interface Card {
   type: string;
   /** Provenance (c024): id of the card this one was found in, or null. */
   ref: string | null;
-  milestone: string | null;
+  /** c0076: epic membership (renamed from milestone); null = standalone. */
+  epic: string | null;
   depends: string[];
   tags: string[];
   /** Manual position in backlog/ready columns (c056); null = unranked. */
@@ -46,11 +47,12 @@ export interface Card {
   path: string;
 }
 
-export interface Milestone {
+/** c0076: an epic (renamed from milestone) — a single-container folder for a
+ *  large effort broken into cards. `epic.md` carries id, title, status. */
+export interface Epic {
   id: string;
   title: string;
   status: string;
-  due: string | null;
   body: string;
   raw: string;
   path: string;
@@ -66,8 +68,8 @@ export type CardParseResult =
   | { ok: true; card: Card }
   | { ok: false; invalid: InvalidFile };
 
-export type MilestoneParseResult =
-  | { ok: true; milestone: Milestone }
+export type EpicParseResult =
+  | { ok: true; epic: Epic }
   | { ok: false; invalid: InvalidFile };
 
 // --- frontmatter block handling ---------------------------------------------
@@ -213,7 +215,8 @@ export function parseCard(
       status,
       type,
       ref: asOptionalString(data, "ref"),
-      milestone: asOptionalString(data, "milestone"),
+      // c0076: canonical `epic:`, falling back to legacy `milestone:`
+      epic: asOptionalString(data, "epic") ?? asOptionalString(data, "milestone"),
       depends: depends.value,
       tags: tags.value,
       order,
@@ -227,8 +230,9 @@ export function parseCard(
   };
 }
 
-export function parseMilestone(path: string, raw: string): MilestoneParseResult {
-  const invalid = (reason: string): MilestoneParseResult => ({
+/** c0076: parse an `epic.md` (or legacy `milestone.md`) container file. */
+export function parseEpic(path: string, raw: string): EpicParseResult {
+  const invalid = (reason: string): EpicParseResult => ({
     ok: false,
     invalid: { path, raw, reason },
   });
@@ -249,11 +253,10 @@ export function parseMilestone(path: string, raw: string): MilestoneParseResult 
 
   return {
     ok: true,
-    milestone: {
+    epic: {
       id: asRequiredString(data, "id")!,
       title: asRequiredString(data, "title")!,
       status: asOptionalString(data, "status") ?? "backlog",
-      due: asOptionalString(data, "due"),
       body: split.body,
       raw,
       path,
@@ -321,8 +324,8 @@ export interface NewCardOptions {
   type?: string;
   /** Provenance: card this one was found in. */
   ref?: string;
-  /** Milestone id when the card is born inside a milestone folder. */
-  milestone?: string;
+  /** c0076: epic id when the card is born inside an epic folder. */
+  epic?: string;
 }
 
 /**
@@ -343,7 +346,7 @@ export function newCardRaw(
   ];
   if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
   if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);
-  if (options.milestone) lines.push(`milestone: ${formatScalar(options.milestone)}`);
+  if (options.epic) lines.push(`epic: ${formatScalar(options.epic)}`);
   // c056: created keeps the full capture time; updated stays a plain date
   lines.push(`created: ${now}`, `updated: ${now.slice(0, 10)}`);
   const trimmedBody = body.trim();
@@ -399,7 +402,7 @@ function removeFrontmatterField(raw: string, field: string): string {
 export type CardFieldChanges = Partial<
   Pick<
     Card,
-    "status" | "milestone" | "title" | "tags" | "order" | "statusChanged"
+    "status" | "epic" | "title" | "tags" | "order" | "statusChanged"
   >
 >;
 
