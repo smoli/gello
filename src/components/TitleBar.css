@@ -1,6 +1,7 @@
 /* c0059: frameless draggable top bar. Transparent so the board background
    (c047) bleeds through; a soft scrim keeps the caption legible. */
 .titlebar {
+  color-scheme: dark;
   position: absolute;
   top: 0;
   left: 0;
@@ -51,6 +52,7 @@
 }
 
 .titlebar-caption {
+  color: white;
   /* i0024: first-class chrome, not a watermark — larger, full opacity, and
      line-height 1 so the flex box centres it cleanly in the bar */
   font-size: 0.8rem;
