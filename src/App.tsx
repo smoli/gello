@@ -82,6 +82,9 @@ const skillsDismissedKey = (projectPath: string) =>
   `skills-prompt-dismissed:${projectPath}`;
 const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
+const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
+
+type Theme = "system" | "light" | "dark";
 import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
 import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
@@ -137,6 +140,8 @@ function App() {
   const [recent, setRecent] = useState<string[]>([]);
   // c0063: show first-image thumbnails on board cards (default on, off = "0")
   const [showThumbnails, setShowThumbnails] = useState(true);
+  // c0068: theme override — "system" follows the OS (default), else forced
+  const [theme, setTheme] = useState<Theme>("system");
   // c0066: fulltext search now lives in the top bar; the board filters by it
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
@@ -164,6 +169,9 @@ function App() {
     void appFlagGet(THUMBNAILS_FLAG).then((v) => {
       if (!cancelled) setShowThumbnails(v !== "0");
     });
+    void appFlagGet(THEME_FLAG).then((v) => {
+      if (!cancelled && (v === "light" || v === "dark")) setTheme(v);
+    });
     void loadBoardFromDisk()
       .then((loaded) => {
         if (cancelled) return;
@@ -177,6 +185,13 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  // c0068: apply the theme override to the document — "light"/"dark" force the
+  // scheme, "system" falls back to following the OS (prefers-color-scheme)
+  useEffect(() => {
+    document.documentElement.style.colorScheme =
+      theme === "system" ? "light dark" : theme;
+  }, [theme]);
 
   // c016: open a different project (folder picker or a recent entry). A folder
   // without .gello yields null → the "no board" placeholder (init = c017).
@@ -527,6 +542,12 @@ function App() {
     return `../${await persistImage(id, file)}`;
   };
 
+  // c0068: set the theme override and persist it app-locally
+  const chooseTheme = (next: Theme) => {
+    setTheme(next);
+    void appFlagSet(THEME_FLAG, next);
+  };
+
   // c0063: flip the board thumbnail preference and persist it app-locally
   const toggleThumbnails = () => {
     setShowThumbnails((current) => {
@@ -801,6 +822,26 @@ function App() {
                 label: "Background…",
                 // hand the menu's anchor point to the picker
                 onSelect: () => setBgMenu(ctxMenu),
+              },
+              {
+                label: "Theme",
+                items: [
+                  {
+                    label: "Follow OS",
+                    checked: theme === "system",
+                    onSelect: () => chooseTheme("system"),
+                  },
+                  {
+                    label: "Light",
+                    checked: theme === "light",
+                    onSelect: () => chooseTheme("light"),
+                  },
+                  {
+                    label: "Dark",
+                    checked: theme === "dark",
+                    onSelect: () => chooseTheme("dark"),
+                  },
+                ],
               },
               {
                 label: "Settings",

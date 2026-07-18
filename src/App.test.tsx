@@ -233,6 +233,25 @@ describe("App", () => {
     );
   });
 
+  it("c0068: Theme › Light forces the color scheme and persists it", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.mouseEnter(screen.getByRole("menuitem", { name: /Theme/ }));
+    // default follows the OS
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Follow OS" }),
+    ).toBeChecked();
+
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: "Light" }));
+
+    expect(document.documentElement.style.colorScheme).toBe("light");
+    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("theme", "light");
+  });
+
   it("renders the board once loaded", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
