@@ -1,11 +1,11 @@
 ---
 id: c0088
 title: Inbox-as-status data model
-status: ready
+status: in-progress
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:52:41
+status-changed: 2026-07-18T17:18:40
 order: 15
 ---
 

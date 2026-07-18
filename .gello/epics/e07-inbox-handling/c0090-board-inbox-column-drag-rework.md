@@ -1,12 +1,12 @@
 ---
 id: c0090
 title: Board — inbox column + drag/picker rework
-status: ready
+status: in-progress
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:53:34
+status-changed: 2026-07-18T17:18:40
 order: 18.125
 ---
 

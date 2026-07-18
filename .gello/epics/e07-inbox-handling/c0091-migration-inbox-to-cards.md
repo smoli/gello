@@ -1,12 +1,12 @@
 ---
 id: c0091
 title: Migration — inbox/ to cards/ + status inbox
-status: ready
+status: in-progress
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:53:15
+status-changed: 2026-07-18T17:18:40
 order: 16.25
 ---
 

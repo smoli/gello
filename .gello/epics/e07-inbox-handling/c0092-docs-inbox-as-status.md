@@ -1,12 +1,12 @@
 ---
 id: c0092
 title: Docs — inbox as a status
-status: ready
+status: in-progress
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:53:23
+status-changed: 2026-07-18T17:18:40
 ---
 
 ## What

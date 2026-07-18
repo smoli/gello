@@ -1,12 +1,12 @@
 ---
 id: c0089
 title: Capture to cards/ with status inbox
-status: ready
+status: in-progress
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:53:04
+status-changed: 2026-07-18T17:18:40
 order: 18.75
 ---
 
