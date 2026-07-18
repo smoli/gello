@@ -72,6 +72,57 @@ export async function gitBranch(root: string): Promise<string | null> {
   }
 }
 
+/** c0083: outcome of a board auto-commit (mirrors the Rust CommitOutcome). */
+export type CommitOutcome =
+  | { kind: "committed" }
+  | { kind: "nothing" }
+  | { kind: "not_a_repo" }
+  | { kind: "mid_operation" }
+  | { kind: "failed"; message: string };
+
+/** c0083: worktree dirtiness, split board-only (`.gello/`) vs code. */
+export interface WorktreeStatus {
+  board_dirty: boolean;
+  code_dirty: boolean;
+}
+
+/** c0083: a changed `.gello/` file with its HEAD and worktree content. */
+export interface BoardChangeRaw {
+  path: string;
+  head: string | null;
+  work: string | null;
+}
+
+/** c0083: commit only `.gello/` changes with the given message. */
+export async function gitCommitBoard(
+  root: string,
+  message: string,
+): Promise<CommitOutcome> {
+  try {
+    return await invoke<CommitOutcome>("git_commit_board", { root, message });
+  } catch (error) {
+    return { kind: "failed", message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** c0083: board-vs-code worktree dirtiness (null outside a git repo). */
+export async function gitWorktreeStatus(root: string): Promise<WorktreeStatus | null> {
+  try {
+    return (await invoke<WorktreeStatus | null>("git_worktree_status", { root })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** c0083: changed `.gello/` files with HEAD + worktree content (null outside a repo). */
+export async function gitBoardChanges(root: string): Promise<BoardChangeRaw[] | null> {
+  try {
+    return (await invoke<BoardChangeRaw[] | null>("git_board_changes", { root })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Watch the repo's `.git/HEAD`; `onChange` fires on checkout. Subscribes to
  * the event before starting the Rust watcher. Returns a stop function.

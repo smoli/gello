@@ -45,21 +45,63 @@ fn is_mid_operation(git_dir: &Path) -> bool {
         .any(|marker| git_dir.join(marker).exists())
 }
 
+/// The repo's top-level directory (git's already-resolved absolute path).
+fn repo_top(root: &Path) -> Option<PathBuf> {
+    let out = run_git(root, &["rev-parse", "--show-toplevel"]).filter(|o| o.status.success())?;
+    let top = String::from_utf8(out.stdout).ok()?;
+    Some(PathBuf::from(top.trim()))
+}
+
 /// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/"), used to
 /// classify porcelain paths as board vs code. `root` is the `.gello` dir.
 fn board_prefix(root: &Path) -> Option<String> {
-    let out = run_git(root, &["rev-parse", "--show-toplevel"]).filter(|o| o.status.success())?;
-    let top = String::from_utf8(out.stdout).ok()?;
-    let top = Path::new(top.trim());
+    let top = repo_top(root)?;
     // canonicalize so a symlinked tempdir (/var → /private/var on macOS) still
     // strips against git's already-resolved toplevel path
     let root = root.canonicalize().ok()?;
-    let rel = root.strip_prefix(top).ok()?;
+    let rel = root.strip_prefix(&top).ok()?;
     let mut prefix = rel.to_string_lossy().replace('\\', "/");
     if !prefix.is_empty() {
         prefix.push('/');
     }
     Some(prefix)
+}
+
+/// A changed board file (c0083): repo-top-relative path plus its content at HEAD
+/// (`head`, None if newly added) and in the worktree (`work`, None if deleted).
+/// The frontend parses both to build the per-card commit message.
+#[derive(Debug, serde::Serialize)]
+pub struct BoardChange {
+    pub path: String,
+    pub head: Option<String>,
+    pub work: Option<String>,
+}
+
+/// Every changed file under `.gello/` (added/modified/deleted, incl. untracked),
+/// with its HEAD and worktree content. None when `root` is not in a git repo.
+pub fn board_changes(root: &Path) -> Option<Vec<BoardChange>> {
+    let top = repo_top(root)?;
+    let prefix = board_prefix(root)?;
+    // run from the repo top with a pathspec so porcelain paths are top-relative;
+    // -uall expands untracked directories to individual files
+    let out = run_git(&top, &["status", "--porcelain", "-uall", "--", &prefix])
+        .filter(|o| o.status.success())?;
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let mut changes = Vec::new();
+    for line in text.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let path = &line[3..];
+        // a rename is "old -> new"; the new path is the current one
+        let path = path.rsplit(" -> ").next().unwrap_or(path).to_string();
+        let head = run_git(&top, &["show", &format!("HEAD:{path}")])
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
+        let work = std::fs::read_to_string(top.join(&path)).ok();
+        changes.push(BoardChange { path, head, work });
+    }
+    Some(changes)
 }
 
 /// Classify the worktree's dirtiness (board vs code). None when `root` is not
@@ -336,5 +378,30 @@ mod tests {
     fn worktree_status_is_none_outside_a_repo() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(worktree_status(dir.path()), None);
+    }
+
+    #[test]
+    fn board_changes_reports_head_and_worktree_content() {
+        let (dir, gello) = repo_with_board();
+        let top = dir.path();
+        // modify a committed file and add a new one, both under .gello
+        fs::write(gello.join("board.yaml"), "columns: [ready, done]\n").unwrap();
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+        // a code change must be ignored
+        fs::write(top.join("code.rs"), "x\n").unwrap();
+
+        let mut changes = board_changes(&gello).unwrap();
+        changes.sort_by(|a, b| a.path.cmp(&b.path));
+        let paths: Vec<&str> = changes.iter().map(|c| c.path.as_str()).collect();
+        assert_eq!(paths, vec![".gello/board.yaml", ".gello/inbox/c001.md"]);
+
+        // modified file: head is the old content, work is the new
+        let yaml = changes.iter().find(|c| c.path.ends_with("board.yaml")).unwrap();
+        assert_eq!(yaml.head.as_deref(), Some("columns: [ready]\n"));
+        assert_eq!(yaml.work.as_deref(), Some("columns: [ready, done]\n"));
+        // newly added file: no head, has worktree content
+        let card = changes.iter().find(|c| c.path.ends_with("c001.md")).unwrap();
+        assert_eq!(card.head, None);
+        assert_eq!(card.work.as_deref(), Some("---\nid: c001\n---\n"));
     }
 }

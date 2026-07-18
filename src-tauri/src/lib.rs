@@ -191,6 +191,13 @@ fn git_worktree_status(root: String) -> Option<git::WorktreeStatus> {
     git::worktree_status(std::path::Path::new(&root))
 }
 
+/// c0083: changed `.gello/` files with HEAD + worktree content, for building the
+/// per-card commit message on the frontend.
+#[tauri::command]
+fn git_board_changes(root: String) -> Option<Vec<git::BoardChange>> {
+    git::board_changes(std::path::Path::new(&root))
+}
+
 /// c032: existing agent-skill directories under the project root.
 #[tauri::command]
 fn detect_skill_dirs(project_root: String) -> Vec<String> {
@@ -336,6 +343,7 @@ pub fn run() {
             git_branch,
             git_commit_board,
             git_worktree_status,
+            git_board_changes,
             watch_git_head,
             detect_skill_dirs,
             app_flag_get,
