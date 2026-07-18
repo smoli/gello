@@ -1,12 +1,12 @@
 ---
 id: i0029
 title: Triage to an epic writes to legacy milestones/ path
-status: ready
+status: in-progress
 type: issue
 epic: e06
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T14:26:41
+status-changed: 2026-07-18T14:28:00
 ---
 
 ## What
