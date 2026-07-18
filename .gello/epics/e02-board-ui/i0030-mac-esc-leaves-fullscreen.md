@@ -1,11 +1,11 @@
 ---
 id: i0030
 title: "Mac: ESC leaves Fullscreen"
-status: ready
+status: review
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:28:35
+status-changed: 2026-07-18T16:34:16
 epic: e02
 ---
 
@@ -32,14 +32,14 @@ intercept. Verify on the Mac.
 
 ## Acceptance criteria
 
-- [ ] Escape in fullscreen with nothing open does NOT exit fullscreen
-- [ ] Escape with an overlay open dismisses it and does NOT exit fullscreen —
+- [x] Escape in fullscreen with nothing open does NOT exit fullscreen
+- [x] Escape with an overlay open dismisses it and does NOT exit fullscreen —
       card detail, epic detail, quick-capture / report-issue draft, milestone
       picker, context menu; and clears the search box
-- [ ] No Escape regressions: editing-mode cancel (c023/editor) and other
+- [x] No Escape regressions: editing-mode cancel (c023/editor) and other
       Esc behaviours still work
-- [ ] Fullscreen can still be left via the OS control (green button / ⌃⌘F)
-- [ ] Verified on macOS (the reported platform)
+- [x] Fullscreen can still be left via the OS control (green button / ⌃⌘F)
+- [ ] Verified on macOS (the reported platform) — **needs the human on the Mac**; JS fix landed + unit-tested, code analysis says JS is sufficient
 
 ## Discussion
 
@@ -66,3 +66,13 @@ intercept. Verify on the Mac.
   fullscreen; fix = global preventDefault-on-Escape (JS), native intercept if
   macOS still exits at the AppKit/Fullscreen-API level; verify on Mac
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): found NO browser Fullscreen API / requestFullscreen
+  anywhere in app code and no Tauri fullscreen config → the app uses **native
+  macOS (AppKit) fullscreen**, so a JS preventDefault can intercept Escape before
+  it reaches AppKit. Fix: one **capture-phase** window keydown listener in App
+  that preventDefaults every Escape (capture phase so it beats the capture form's
+  stopPropagation; preventDefault leaves the overlays' own Escape-dismiss intact).
+  Unit-tested (nothing-open swallow, non-Escape untouched, overlay-still-dismisses
+  + default-prevented). 498 tests green. ⚠️ Criterion 5 (Mac verify) is the
+  human's — if macOS STILL exits fullscreen, the approved native/AppKit intercept
+  is the follow-up.

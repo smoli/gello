@@ -216,6 +216,20 @@ function App() {
     };
   }, []);
 
+  // i0030: macOS exits *native* fullscreen on an unhandled Escape (the app uses
+  // no browser Fullscreen API, so JS can win). Swallow the default action for
+  // every Escape in the CAPTURE phase — it runs before any overlay handler that
+  // calls stopPropagation (e.g. the capture form), and preventDefault cancels
+  // only the default, so the overlays' own Escape-to-dismiss still fires.
+  // Leaving fullscreen stays an OS gesture (green button / ⌃⌘F).
+  useEffect(() => {
+    const swallowEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") event.preventDefault();
+    };
+    window.addEventListener("keydown", swallowEscape, true);
+    return () => window.removeEventListener("keydown", swallowEscape, true);
+  }, []);
+
   // c0068: apply the theme override to the document — "light"/"dark" force the
   // scheme, "system" falls back to following the OS (prefers-color-scheme)
   useEffect(() => {

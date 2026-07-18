@@ -356,6 +356,51 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("i0030: preventDefaults every Escape so macOS fullscreen never exits", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    render(<App />);
+    await screen.findByText("Hello board");
+
+    // nothing open → Escape's default (fullscreen exit) is still swallowed
+    const escape = new KeyboardEvent("keydown", {
+      key: "Escape",
+      cancelable: true,
+      bubbles: true,
+    });
+    document.body.dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+
+    // a non-Escape key is left alone
+    const other = new KeyboardEvent("keydown", {
+      key: "a",
+      cancelable: true,
+      bubbles: true,
+    });
+    document.body.dispatchEvent(other);
+    expect(other.defaultPrevented).toBe(false);
+  });
+
+  it("i0030: Escape still dismisses an overlay AND prevents the fullscreen default", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    const dialog = screen.getByRole("dialog", { name: "c001" });
+
+    // dispatch from within the dialog (as a real Escape while it's focused);
+    // the capture-phase window swallow fires first, the dialog's handler after
+    const escape = new KeyboardEvent("keydown", {
+      key: "Escape",
+      cancelable: true,
+      bubbles: true,
+    });
+    act(() => {
+      dialog.dispatchEvent(escape);
+    });
+
+    expect(escape.defaultPrevented).toBe(true); // fullscreen stays
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); // overlay dismissed
+  });
+
   it("Escape in the quick-capture form leaves an open card detail alone (c023)", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
