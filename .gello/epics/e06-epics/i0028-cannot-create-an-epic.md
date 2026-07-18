@@ -1,11 +1,11 @@
 ---
 id: i0028
 title: Cannot create an epic
-status: ready
+status: in-progress
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T14:46:22
+status-changed: 2026-07-18T15:24:17
 epic: e06
 ---
 
@@ -78,3 +78,7 @@ the epic's detail view.
   scaffolds epics/eNN/epic.md and opens the epic detail view. Flagged the
   detail view as a large sub-piece to split out.
 - 2026-07-18 status → ready (app)
+- 2026-07-18 scope resolved (human): the epic **detail view** is split into its
+  own card (c0084); i0028 opens a **minimal** epic view (goal/DoD editor stub +
+  child rollup). Create-on-triage **is** included here. ⌘E for epic capture;
+  non-mac uses Ctrl+E.
