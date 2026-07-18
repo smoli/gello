@@ -10,6 +10,7 @@ import {
   initBoard,
   loadBoardAt,
   loadBoardFromDisk,
+  migrateLegacyBoard,
   pickFolder,
   readFileRaw,
   removeDir,
@@ -35,6 +36,7 @@ vi.mock("./lib/board-io", () => ({
   appFlagGet: vi.fn(),
   appFlagSet: vi.fn(),
   loadBoardAt: vi.fn(),
+  migrateLegacyBoard: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
@@ -50,6 +52,7 @@ const imageMock = vi.mocked(imageDataUrl);
 function loadedFixture() {
   return {
     root: "/repo/.gello",
+    legacy: false,
     model: loadBoard([
       {
         path: "inbox/c001-hello.md",
@@ -109,6 +112,7 @@ describe("App", () => {
     vi.mocked(pickFolder).mockResolvedValue("/x");
     vi.mocked(loadBoardAt).mockResolvedValue({
       root: "/x/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Opened board\nstatus: backlog\n---\nx\n" },
       ]),
@@ -121,6 +125,46 @@ describe("App", () => {
     expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/x");
   });
 
+  it("c0079: gates a legacy board and migrates it on click", async () => {
+    // legacy board loads → gate shown instead of the board
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: true,
+      model: loadBoard([
+        {
+          path: "milestones/m01-x/c001-hello.md",
+          content: "---\nid: c001\ntitle: Legacy card\nstatus: backlog\nmilestone: m01\n---\nx\n",
+        },
+      ]),
+    });
+    vi.mocked(migrateLegacyBoard).mockResolvedValue(undefined);
+    // after migration, the board reloads in epic format (no longer legacy)
+    vi.mocked(loadBoardAt).mockResolvedValue({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        {
+          path: "epics/e01-x/c001-hello.md",
+          content: "---\nid: c001\ntitle: Migrated card\nstatus: backlog\nepic: e01\n---\nx\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+
+    // gated: the card is not rendered, the migration prompt is
+    expect(
+      await screen.findByRole("dialog", { name: "board needs migration" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Legacy card")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Migrate board" }));
+
+    // after migration the real board renders
+    expect(await screen.findByText("Migrated card")).toBeInTheDocument();
+    expect(vi.mocked(migrateLegacyBoard)).toHaveBeenCalledWith("/repo/.gello");
+  });
+
   it("offers to initialize a board when the picked folder has none, then opens it (c017)", async () => {
     loadMock.mockResolvedValueOnce(null);
     vi.mocked(pickFolder).mockResolvedValue("/x");
@@ -129,6 +173,7 @@ describe("App", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         root: "/x/.gello",
+        legacy: false,
         model: loadBoard([
           { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Fresh board\nstatus: backlog\n---\nx\n" },
         ]),
@@ -147,6 +192,7 @@ describe("App", () => {
   it("sets a color background via the right-click picker in one board.yaml write (c0060)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [backlog, done]\n" },
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
@@ -177,6 +223,7 @@ describe("App", () => {
   it("i0011: right-click opens a context menu with Reload and Background…", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [backlog, done]\n" },
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
@@ -203,6 +250,7 @@ describe("App", () => {
     vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,QQ==");
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [backlog, done]\n" },
         { path: "milestones/m01/milestone.md", content: "---\nid: m01\ntitle: A\n---\ng\n" },
@@ -616,6 +664,7 @@ describe("App", () => {
   it("i0005: dismissing returns a discuss-origin card to discuss, not the dropped status", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [discuss, backlog, ready, done]\n" },
         {
@@ -813,6 +862,7 @@ describe("App", () => {
   it("loads the configured board background image (c047)", async () => {
     const fixture = {
       root: "/repo/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "background: assets/board/bg.jpg\n" },
         {
@@ -840,6 +890,7 @@ describe("App", () => {
   it("offers and installs the discuss skill into detected dirs (c032)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
@@ -869,6 +920,7 @@ describe("App", () => {
   it("remembers 'don't ask' and does not install (c032)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
@@ -889,6 +941,7 @@ describe("App", () => {
   it("does not prompt when all skills are already present and current (i0009)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
@@ -910,6 +963,7 @@ describe("App", () => {
   it("does not prompt when this project was previously dismissed (c032)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
@@ -929,6 +983,7 @@ describe("App", () => {
   it("a dismissal for another project does not bleed into this one (i0010)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
@@ -947,6 +1002,7 @@ describe("App", () => {
   it("opens a picked folder and swaps the board (c016)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Old board\nstatus: backlog\n---\nx\n" },
       ]),
@@ -954,6 +1010,7 @@ describe("App", () => {
     vi.mocked(pickFolder).mockResolvedValue("/other");
     vi.mocked(loadBoardAt).mockResolvedValue({
       root: "/other/.gello",
+      legacy: false,
       model: loadBoard([
         { path: "inbox/c001.md", content: "---\nid: c001\ntitle: New board\nstatus: backlog\n---\nx\n" },
       ]),
@@ -987,6 +1044,7 @@ describe("App", () => {
   it("reorders a card within the backlog and persists its rank (c056)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
+      legacy: false,
       model: loadBoard([
         {
           path: "milestones/m01-a/milestone.md",

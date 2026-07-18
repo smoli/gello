@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { loadBoard, type BoardFile, type BoardModel } from "./board";
+import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
@@ -104,6 +105,32 @@ export interface LoadedBoard {
   /** Absolute path of the .gello directory — needed for writes. */
   root: string;
   model: BoardModel;
+  /** c0079: board is still in the pre-epic milestone format → gate on open. */
+  legacy: boolean;
+}
+
+/**
+ * c0079: apply a migration plan on disk. Writes the whole new epic tree first
+ * (via the mkdir-p writer), then removes the old `milestones/` tree wholesale —
+ * so a failure or interruption leaves the old board fully intact, never
+ * half-deleted. Re-running is safe: it rewrites the same epic files and removes
+ * the same tree.
+ */
+export async function migrateBoard(root: string, plan: MigrationPlan): Promise<void> {
+  await writeNewFiles(
+    plan.writes.map((file) => ({ path: `${root}/${file.path}`, content: file.content })),
+  );
+  await removeDir(`${root}/milestones`);
+}
+
+/**
+ * c0079: read the board's current on-disk bytes, plan the milestone→epic
+ * migration from them, and apply it. Operates on true disk content (not a
+ * possibly-stale model) so the rewrite is exact.
+ */
+export async function migrateLegacyBoard(root: string): Promise<void> {
+  const files = await invoke<BoardFile[]>("read_board_files", { root });
+  await migrateBoard(root, planMigration(files));
 }
 
 /** c016: native folder picker — the chosen directory, or null if cancelled. */
@@ -189,7 +216,7 @@ export async function loadBoardAt(folder: string): Promise<LoadedBoard | null> {
     const root = await invoke<string | null>("find_board_root_at", { folder });
     if (!root) return null;
     const files = await invoke<BoardFile[]>("read_board_files", { root });
-    return { root, model: loadBoard(files) };
+    return { root, model: loadBoard(files), legacy: isLegacyBoard(files) };
   } catch {
     return null;
   }
@@ -205,7 +232,7 @@ export async function loadBoardFromDisk(): Promise<LoadedBoard | null> {
     const root = await invoke<string | null>("find_board_root");
     if (!root) return null;
     const files = await invoke<BoardFile[]>("read_board_files", { root });
-    return { root, model: loadBoard(files) };
+    return { root, model: loadBoard(files), legacy: isLegacyBoard(files) };
   } catch {
     return null;
   }

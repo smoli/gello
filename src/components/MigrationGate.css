@@ -1,0 +1,69 @@
+.migration-gate {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.migration-gate-panel {
+  width: min(480px, 92vw);
+  padding: 1.6rem 1.75rem;
+  border-radius: 14px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, CanvasText 22%, transparent);
+}
+
+.migration-gate-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.migration-gate-text {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.migration-gate-note {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  opacity: 0.7;
+}
+
+.migration-gate-text code,
+.migration-gate-note code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82em;
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.migration-gate-error {
+  margin: 0 0 0.9rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, red 70%, CanvasText);
+  background: color-mix(in srgb, red 10%, transparent);
+}
+
+.migration-gate-button {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: CanvasText;
+  color: Canvas;
+  cursor: pointer;
+}
+
+.migration-gate-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { imageDataUrl, loadBoardFromDisk, readFileRaw, watchBoard } from "./board-io";
+import {
+  imageDataUrl,
+  loadBoardFromDisk,
+  migrateBoard,
+  readFileRaw,
+  watchBoard,
+} from "./board-io";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
@@ -34,6 +40,23 @@ describe("loadBoardFromDisk", () => {
     expect(loaded?.root).toBe("/repo/.gello");
     expect(loaded?.model.config.columns).toEqual(["backlog", "ready"]);
     expect(loaded?.model.inbox.map((c) => c.id)).toEqual(["c001"]);
+    expect(loaded?.legacy).toBe(false);
+  });
+
+  it("c0079: flags a legacy milestone-format board", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "find_board_root") return "/repo/.gello";
+      if (command === "read_board_files") {
+        return [
+          { path: "milestones/m01-x/milestone.md", content: "---\nid: m01\ntitle: X\n---\n" },
+        ];
+      }
+      throw new Error(`unexpected command ${String(command)}`);
+    });
+
+    const loaded = await loadBoardFromDisk();
+
+    expect(loaded?.legacy).toBe(true);
   });
 
   it("returns null when no board root exists", async () => {
@@ -47,6 +70,90 @@ describe("loadBoardFromDisk", () => {
     invokeMock.mockRejectedValueOnce(new Error("window.__TAURI_INTERNALS__ missing"));
 
     expect(await loadBoardFromDisk()).toBeNull();
+  });
+});
+
+describe("migrateBoard (c0079)", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue(undefined);
+  });
+
+  it("writes the new epic tree first, then removes the old milestones tree", async () => {
+    await migrateBoard("/repo/.gello", {
+      writes: [
+        { path: "epics/e01-x/epic.md", content: "---\nid: e01\n---\n" },
+        { path: "epics/e01-x/c001-y.md", content: "---\nid: c001\nepic: e01\n---\n" },
+      ],
+      deletes: ["milestones/m01-x/milestone.md", "milestones/m01-x/c001-y.md"],
+    });
+
+    // new files written with absolute paths, via the mkdir-p writer
+    expect(invokeMock).toHaveBeenCalledWith("write_new_files", {
+      files: [
+        { path: "/repo/.gello/epics/e01-x/epic.md", content: "---\nid: e01\n---\n" },
+        {
+          path: "/repo/.gello/epics/e01-x/c001-y.md",
+          content: "---\nid: c001\nepic: e01\n---\n",
+        },
+      ],
+    });
+    // the old tree is removed wholesale, only after the writes
+    expect(invokeMock).toHaveBeenCalledWith("remove_dir", {
+      path: "/repo/.gello/milestones",
+    });
+    const writeOrder = invokeMock.mock.calls.findIndex((c) => c[0] === "write_new_files");
+    const removeOrder = invokeMock.mock.calls.findIndex((c) => c[0] === "remove_dir");
+    expect(writeOrder).toBeLessThan(removeOrder);
+  });
+
+  it("migrateLegacyBoard reads disk bytes, plans, and applies the rewrite", async () => {
+    const { migrateLegacyBoard } = await import("./board-io");
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "read_board_files") {
+        return [
+          { path: "milestones/m01-x/milestone.md", content: "---\nid: m01\ntitle: X\n---\n" },
+          {
+            path: "milestones/m01-x/c001-y.md",
+            content: "---\nid: c001\ntitle: Y\nmilestone: m01\n---\n",
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await migrateLegacyBoard("/repo/.gello");
+
+    expect(invokeMock).toHaveBeenCalledWith("write_new_files", {
+      files: [
+        {
+          path: "/repo/.gello/epics/e01-x/epic.md",
+          content: "---\nid: e01\ntitle: X\n---\n",
+        },
+        {
+          path: "/repo/.gello/epics/e01-x/c001-y.md",
+          content: "---\nid: c001\ntitle: Y\nepic: e01\n---\n",
+        },
+      ],
+    });
+    expect(invokeMock).toHaveBeenCalledWith("remove_dir", {
+      path: "/repo/.gello/milestones",
+    });
+  });
+
+  it("does not remove the old tree if the write fails", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "write_new_files") throw new Error("disk full");
+      return undefined;
+    });
+
+    await expect(
+      migrateBoard("/repo/.gello", {
+        writes: [{ path: "epics/e01-x/epic.md", content: "x" }],
+        deletes: ["milestones/m01-x/milestone.md"],
+      }),
+    ).rejects.toThrow("disk full");
+    expect(invokeMock).not.toHaveBeenCalledWith("remove_dir", expect.anything());
   });
 });
 

@@ -40,6 +40,7 @@ import {
   initBoard,
   loadBoardAt,
   loadBoardFromDisk,
+  migrateLegacyBoard,
   pickFolder,
   pickImageFile,
   readFileRaw,
@@ -75,6 +76,7 @@ import {
 } from "./lib/skills";
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
+import { MigrationGate } from "./components/MigrationGate";
 
 // i0010: the "don't ask about skills" choice is per-project, not global —
 // a global flag bled the decision across every project.
@@ -112,6 +114,9 @@ function App() {
   const [board, setBoard] = useState<LoadedBoard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // c0079: legacy-board migration state
+  const [migrating, setMigrating] = useState(false);
+  const [migrateError, setMigrateError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // report-issue draft target (c037): the form is open, nothing on disk yet
   const [issueSource, setIssueSource] = useState<Card | null>(null);
@@ -217,6 +222,24 @@ function App() {
     await initBoard(folder);
     setInitCandidate(null);
     await openProject(folder);
+  };
+
+  // c0079: convert a legacy milestone-format board, then reload it fresh so it
+  // renders in the new epic format. On failure the old tree is untouched (the
+  // rewrite writes new before removing old), so the gate simply shows the error.
+  const handleMigrate = async () => {
+    if (!board) return;
+    setMigrating(true);
+    setMigrateError(null);
+    try {
+      await migrateLegacyBoard(board.root);
+      const reloaded = await loadBoardAt(board.root);
+      if (reloaded) setBoard(reloaded);
+    } catch (failure: unknown) {
+      setMigrateError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setMigrating(false);
+    }
   };
 
   // Live sync: watch the board directory, coalesce event bursts, re-read
@@ -710,6 +733,21 @@ function App() {
       </div>
     </div>
   );
+
+  // c0079: a pre-epic milestone-format board is gated until migrated — the
+  // board never renders in the old format.
+  if (board && board.legacy) {
+    return (
+      <div className="app-shell app-shell-frameless">
+        <TitleBar root={board.root} branch={branch} search={query} onSearch={setQuery} />
+        <MigrationGate
+          onMigrate={() => void handleMigrate()}
+          busy={migrating}
+          error={migrateError}
+        />
+      </div>
+    );
+  }
 
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;

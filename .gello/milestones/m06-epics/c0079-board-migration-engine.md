@@ -1,12 +1,12 @@
 ---
 id: c0079
 title: Board migration engine — detect, gate, convert
-status: ready
+status: review
 milestone: m06
 depends: [c0076]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T06:09:16
+status-changed: 2026-07-18T09:20:11
 ---
 
 ## What
@@ -24,12 +24,12 @@ read-alias — an old-format board is gated on open until migrated.
 
 ## Acceptance criteria
 
-- [ ] Detection recognises an old milestone-format board on open
-- [ ] An un-migrated board is gated (does not render as a board)
-- [ ] One-click conversion performs the full rename + id remap + link rewrite
-- [ ] Migration is recoverable — new tree written before old removed; an
+- [x] Detection recognises an old milestone-format board on open
+- [x] An un-migrated board is gated (does not render as a board)
+- [x] One-click conversion performs the full rename + id remap + link rewrite
+- [x] Migration is recoverable — new tree written before old removed; an
       interruption never leaves a half-deleted board
-- [ ] Post-migration board loads with zero invalid files
+- [x] Post-migration board loads with zero invalid files
 
 ## Notes
 
@@ -41,3 +41,12 @@ foreign format) — this converts gello's own prior format.
 
 - 2026-07-18 created from the c0074 epic breakdown (dry run)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): pure engine `src/lib/migration.ts`
+  (`isLegacyBoard` + `planMigration`, surgical mNN→eNN frontmatter edits,
+  writes-before-deletes). `migrateBoard`/`migrateLegacyBoard` apply on disk
+  (write new epics tree, then remove milestones/ wholesale). `LoadedBoard.legacy`
+  flag; App gates a legacy board with `MigrationGate` (board never renders old
+  format). Asset links unchanged by design — folder depth is preserved and
+  assets are keyed by card id. Note for c0080: loadBoard still parses legacy
+  milestones/ (dogfood load stays green); the gate is app-only. Full suite +
+  typecheck + lint green.
