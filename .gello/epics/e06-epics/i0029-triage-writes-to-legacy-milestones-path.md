@@ -36,13 +36,13 @@ folder and group correctly.
 
 ## Acceptance criteria
 
-- [ ] Reproducing test (fails before fix): triaging a card to an epic yields
+- [x] Reproducing test (fails before fix): triaging a card to an epic yields
       a path under `epics/<folder>/`, not `milestones/<folder>/`
-- [ ] Both the persisted write (`triageCard`) and the optimistic model update
+- [x] Both the persisted write (`triageCard`) and the optimistic model update
       (`handleTriage`) use `epics/<folder>/`, kept in sync
-- [ ] Asset-link depth stays correct (epic folder = depth 2 → `../../assets/`)
-- [ ] Standalone (`cards/`) triage and other behaviour unchanged
-- [ ] Cleanup: the misplaced `milestones/e06-epics/i0028-*.md` is moved to
+- [x] Asset-link depth stays correct (epic folder = depth 2 → `../../assets/`)
+- [x] Standalone (`cards/`) triage and other behaviour unchanged
+- [x] Cleanup: the misplaced `milestones/e06-epics/i0028-*.md` is moved to
       `epics/e06-epics/`; the stray `milestones/e06-epics/` folder is gone;
       dogfood load test green
 
