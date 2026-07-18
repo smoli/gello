@@ -1,11 +1,12 @@
 ---
 id: c0092
 title: Docs — inbox as a status
-status: backlog
+status: ready
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:53:23
 ---
 
 ## What
@@ -30,3 +31,4 @@ Update the docs to the inbox-as-status model.
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
+- 2026-07-18 status → ready (app)

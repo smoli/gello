@@ -1,11 +1,13 @@
 ---
 id: c0091
 title: Migration — inbox/ to cards/ + status inbox
-status: backlog
+status: ready
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:53:15
+order: 16.25
 ---
 
 ## What
@@ -32,3 +34,4 @@ convert; c0079-style), and covers this repo's own board.
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
+- 2026-07-18 status → ready (app)
