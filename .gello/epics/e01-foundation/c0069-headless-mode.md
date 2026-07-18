@@ -3,8 +3,8 @@ id: c0069
 title: Headless mode
 status: discuss
 created: 2026-07-17
-updated: 2026-07-17
-status-changed: 2026-07-17T16:03:28
+updated: 2026-07-18
+status-changed: 2026-07-18T18:01:49
 epic: e01
 ---
 
@@ -102,3 +102,5 @@ way the desktop app already does against an agent editing files.
   transport abstraction (Tauri IPC vs HTTP/WS); remote/self-hosted use, LAN
   + shared-token scope; server language deferred. Flagged as an epic;
   desktop-only features (pickers, clipboard, app-flags) need fallbacks.
+- 2026-07-18 status → inbox (app)
+- 2026-07-18 status → discuss (app)
