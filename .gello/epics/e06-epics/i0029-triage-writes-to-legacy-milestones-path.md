@@ -1,11 +1,12 @@
 ---
 id: i0029
 title: Triage to an epic writes to legacy milestones/ path
-status: discuss
+status: ready
 type: issue
 epic: e06
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T14:26:41
 ---
 
 ## What
@@ -62,3 +63,4 @@ folder and group correctly.
 - 2026-07-18 recorded (agent): triage-to-epic writes to legacy
   `milestones/<folder>/`; fix = switch both write paths to `epics/<folder>/`
   + relocate the misplaced i0028
+- 2026-07-18 status → ready (app)
