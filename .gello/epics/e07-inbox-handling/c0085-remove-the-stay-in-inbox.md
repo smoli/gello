@@ -6,7 +6,7 @@ created: 2026-07-18
 updated: 2026-07-18
 status-changed: 2026-07-18T16:32:54
 epic: e07
-order: 10
+order: 17.5
 ---
 
 In the epic picker on drag there’s a „sta yin inbox“ option. That’s confusing because the card elaves inbox nonetheless. Remove that option
