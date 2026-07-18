@@ -1,13 +1,13 @@
 ---
 id: i0031
 title: Newly create Card has inbox epic
-status: in-progress
+status: review
 type: issue
 ref: c0088
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T18:06:30
+status-changed: 2026-07-18T18:09:30
 ---
 
 ## What
@@ -20,10 +20,14 @@ and defaults to it. A no-epic card should show **"No epic"**.
 
 ## Acceptance criteria
 
-- [ ] A no-epic card's Epic selector shows "No epic" (not "inbox")
-- [ ] There is no "inbox" option in the epic selector
-- [ ] An epic-assigned card still shows its epic
+- [x] A no-epic card's Epic selector shows "No epic" (not "inbox")
+- [x] There is no "inbox" option in the epic selector
+- [x] An epic-assigned card still shows its epic
 
 ## Log
 
 - 2026-07-18 status → ready (app)
+- 2026-07-18 fixed (agent): CardDetail's Epic selector dropped the leftover
+  `<option value="inbox">inbox</option>` and now derives its value from
+  card.epic — a null epic matches the "No epic" option (milestoneId null).
+  Reproducing test added. 500 tests + typecheck + lint green.

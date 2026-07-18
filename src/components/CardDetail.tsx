@@ -261,11 +261,10 @@ export function CardDetail({
             Epic
             <select
               aria-label="Epic"
+              // c0088/i0031: a no-epic card (card.epic null) matches the
+              // "No epic" option (milestoneId null); an epic card matches its id.
               value={
-                milestoneLabel === null
-                  ? "inbox"
-                  : (milestoneOptions.find((o) => o.milestoneId === card.epic)
-                      ?.folder ?? "")
+                milestoneOptions.find((o) => o.milestoneId === card.epic)?.folder ?? ""
               }
               onChange={(event) => {
                 const option = milestoneOptions.find(
@@ -274,7 +273,8 @@ export function CardDetail({
                 if (option) onTriage(option.folder, option.milestoneId);
               }}
             >
-              {milestoneLabel === null && <option value="inbox">inbox</option>}
+              {/* a card whose epic isn't among the options (e.g. a legacy id)
+                  still shows its label rather than an empty select */}
               {milestoneLabel !== null &&
                 !milestoneOptions.some((o) => o.milestoneId === card.epic) && (
                   <option value="">{milestoneLabel}</option>

@@ -49,6 +49,8 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     milestoneOptions: [
       { folder: "m01-alpha", milestoneId: "m01", label: "Alpha" },
       { folder: "m03-card-detail", milestoneId: "m03", label: "Card detail & capture" },
+      // c0078: the standalone "No epic" target the App always provides
+      { folder: "cards", milestoneId: null, label: "No epic" },
     ],
     onClose: vi.fn(),
     ...overrides,
@@ -127,14 +129,20 @@ describe("CardDetail", () => {
     expect(props.onTriage).toHaveBeenCalledExactlyOnceWith("m01-alpha", "m01");
   });
 
-  it("offers a triage select for inbox cards", () => {
-    const props = renderDetail({ milestoneLabel: null });
+  it("i0031: a no-epic card shows 'No epic' (not 'inbox') and can be assigned", () => {
+    // a genuinely standalone card: no epic field, no milestone label
+    const props = renderDetail({
+      card: { ...fixture(), epic: null },
+      milestoneLabel: null,
+    });
 
     const select = screen.getByLabelText("Epic");
-    expect(select).toHaveValue("inbox");
+    // c0088: a standalone card has no epic → the "No epic" option is selected
+    expect(select).toHaveValue("cards");
+    expect(within(select).queryByText("inbox")).not.toBeInTheDocument();
+    expect(within(select).getByText("No epic")).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: "m01-alpha" } });
-
     expect(props.onTriage).toHaveBeenCalledExactlyOnceWith("m01-alpha", "m01");
   });
 
