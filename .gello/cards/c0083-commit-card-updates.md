@@ -1,10 +1,10 @@
 ---
 id: c0083
 title: commit card updates
-status: review
+status: done
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T12:01:46
+status-changed: 2026-07-18T14:07:35
 ---
 
 Updating cards pollutes the worktree and needs discipline by the user to commit. Agent’s normally commit before review, which is fine. But that would be needed another trigger by the user for the agent to commit after review or a manual commit.
@@ -168,6 +168,11 @@ the indicator is most useful with auto-commit off or when code is dirty.
   branch, with a distinct mark when the dirtiness is board-only (`.gello/`)
   vs. includes code — shares the git plumbing, separable if wanted.
 - 2026-07-18 status → ready (app)
+- 2026-07-18 status → done (app)
+- 2026-07-18 status → review (app)
+- 2026-07-18 status → done (app)
+- 2026-07-18 status → review (app)
+- 2026-07-18 status → done (app)
 
 ## Log
 
