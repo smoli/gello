@@ -1,7 +1,7 @@
 ---
 id: i0033
 title: Ship `discuss` in the default column lineup
-status: ready
+status: in-progress
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
