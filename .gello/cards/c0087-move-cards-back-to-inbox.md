@@ -90,3 +90,6 @@ model to "drop = status, with one epic prompt on inbox-exit".
   epics/), inbox is the first column, `.gello/inbox/` removed. Drop = status;
   epic prompt only when leaving inbox with no epic. Epic-sized; supersedes
   c0085/c0086, reworks i0005/c028/c030. Retitled.
+- 2026-07-18 planned into e07 (agent): this reframe is now e07's goal, broken
+  into c0088–c0092 (c0088 root). This card is the design record; close when
+  e07 lands.
