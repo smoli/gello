@@ -1,11 +1,13 @@
 ---
 id: c0089
 title: Capture to cards/ with status inbox
-status: backlog
+status: ready
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:53:04
+order: 18.75
 ---
 
 ## What
@@ -26,3 +28,4 @@ New card capture writes to `.gello/cards/` with `status: inbox` (was
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
+- 2026-07-18 status → ready (app)
