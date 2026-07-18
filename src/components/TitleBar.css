@@ -5,7 +5,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: var(--titlebar-height, 34px);
+  height: var(--titlebar-height, 24px);
   z-index: 8;
   /* c0066: [title | search | filler] — full-width grid with equal side columns
      so the search sits at the true window centre (the traffic-light inset lives
@@ -22,7 +22,7 @@
   background: linear-gradient(
     to bottom,
     color-mix(in srgb, Canvas 80%, transparent),
-    color-mix(in srgb, Canvas 45%, transparent) 55%,
+    color-mix(in srgb, Canvas 55%, transparent) 25%,
     transparent
   );
   user-select: none;

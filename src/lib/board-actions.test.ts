@@ -96,7 +96,7 @@ describe("moveCard", () => {
     const { persisted } = saveCardFields(
       "/repo/.gello",
       fixtureCard(),
-      { priority: "low" },
+      { tags: ["ui"] },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
@@ -132,20 +132,20 @@ describe("moveCard", () => {
     await expect(persisted).rejects.toThrow("disk full");
   });
 
-  it("persists combined field edits (priority + tags)", async () => {
+  it("persists combined field edits (milestone + tags)", async () => {
     const { card, persisted } = saveCardFields(
       "/repo/.gello",
       fixtureCard(),
-      { priority: "low", tags: ["ui", "core"] },
+      { milestone: "m03", tags: ["ui", "core"] },
       DEFAULT_BOARD_CONFIG,
       "2026-07-16",
     );
 
-    expect(card.priority).toBe("low");
+    expect(card.milestone).toBe("m03");
     expect(card.tags).toEqual(["ui", "core"]);
     await persisted;
     const written = writeMock.mock.calls[0][1];
-    expect(written).toContain("priority: low\n");
+    expect(written).toContain("milestone: m03\n");
     expect(written).toContain("tags: [ui, core]\n");
   });
 

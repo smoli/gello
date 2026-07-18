@@ -2,7 +2,6 @@
 id: c0081
 title: Docs — epic vocabulary in concept.md + CLAUDE.md
 status: ready
-priority: normal
 milestone: m06
 depends: [c0076]
 created: 2026-07-18

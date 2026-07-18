@@ -2,7 +2,6 @@
 id: i0011
 title: I expect a proper context menu
 status: done
-priority: normal
 type: issue
 ref: c0060
 created: 2026-07-17

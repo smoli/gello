@@ -3,7 +3,6 @@ id: c003
 title: Board loader — .gello tree to board model
 status: done
 milestone: m01
-priority: high
 depends: [c002]
 tags: [core]
 created: 2026-07-16

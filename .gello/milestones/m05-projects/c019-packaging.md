@@ -3,7 +3,6 @@ id: c019
 title: github build pipeline for mac, windows, linux
 status: done
 milestone: m05
-priority: low
 depends: [c014]
 tags: [infra]
 created: 2026-07-16

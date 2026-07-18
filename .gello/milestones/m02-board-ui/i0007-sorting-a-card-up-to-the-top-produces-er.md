@@ -2,7 +2,6 @@
 id: i0007
 title: Sorting a card up to the top produces error
 status: done
-priority: normal
 type: issue
 ref: c056
 milestone: m02

@@ -3,7 +3,6 @@ id: c016
 title: Folder picker + recent projects
 status: done
 milestone: m05
-priority: normal
 depends: [c005]
 tags: [ui]
 created: 2026-07-16

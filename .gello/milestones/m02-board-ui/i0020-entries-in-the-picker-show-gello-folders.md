@@ -2,7 +2,6 @@
 id: i0020
 title: Entries in the picker show .gello folders
 status: done
-priority: normal
 type: issue
 ref: i0019
 milestone: m02

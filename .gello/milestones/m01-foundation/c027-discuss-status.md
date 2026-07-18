@@ -2,7 +2,6 @@
 id: c027
 title: Discuss status
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-16
 milestone: m01

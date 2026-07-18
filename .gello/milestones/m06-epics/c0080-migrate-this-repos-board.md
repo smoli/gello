@@ -2,7 +2,6 @@
 id: c0080
 title: Migrate this repo's own board to epics
 status: ready
-priority: normal
 milestone: m06
 depends: [c0079]
 created: 2026-07-18

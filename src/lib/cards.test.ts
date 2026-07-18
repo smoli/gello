@@ -48,7 +48,6 @@ describe("parseCard", () => {
     expect(card.title).toBe("Kanban view with drag & drop");
     expect(card.status).toBe("ready");
     expect(card.milestone).toBe("m02");
-    expect(card.priority).toBe("high");
     expect(card.depends).toEqual(["c001"]);
     expect(card.tags).toEqual(["ui", "core"]);
     expect(card.created).toBe("2026-07-16");
@@ -65,7 +64,6 @@ describe("parseCard", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.card.milestone).toBeNull();
-    expect(result.card.priority).toBe("normal");
     expect(result.card.depends).toEqual([]);
     expect(result.card.tags).toEqual([]);
     expect(result.card.created).toBeNull();
@@ -130,16 +128,17 @@ describe("parseCard", () => {
     expect(result.invalid.reason).toMatch(/frontmatter/i);
   });
 
-  it("rejects an invalid priority", () => {
+  it("i0025: ignores a leftover priority line — card still parses", () => {
     const raw = MINIMAL_CARD.replace(
       "status: backlog",
       "status: backlog\npriority: urgent",
     );
     const result = parseCard("x.md", raw);
 
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.invalid.reason).toMatch(/priority/i);
+    // priority was removed; the line is just an unknown, tolerated field
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.raw).toContain("priority: urgent"); // preserved byte-for-byte
   });
 });
 
@@ -168,12 +167,11 @@ describe("updateCardFields", () => {
 
     const { card } = updateCardFields(
       parsed.card,
-      { status: "done", priority: "low" },
+      { status: "done" },
       "2026-07-17",
     );
 
     expect(card.status).toBe("done");
-    expect(card.priority).toBe("low");
     expect(card.updated).toBe("2026-07-17");
     expect(card.body).toBe(parsed.card.body);
   });
@@ -482,7 +480,6 @@ describe("newCardRaw", () => {
     expect(result.card.id).toBe("c022");
     expect(result.card.title).toBe("A fresh idea");
     expect(result.card.status).toBe("backlog");
-    expect(result.card.priority).toBe("normal");
     expect(result.card.created).toBe("2026-07-16");
     expect(result.card.updated).toBe("2026-07-16");
     expect(result.card.body.trim()).toBe("");

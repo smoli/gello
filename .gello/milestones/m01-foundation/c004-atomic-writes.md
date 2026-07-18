@@ -3,7 +3,6 @@ id: c004
 title: Atomic file write layer (Rust command + TS wrapper)
 status: done
 milestone: m01
-priority: high
 depends: [c001]
 tags: [core, rust]
 created: 2026-07-16

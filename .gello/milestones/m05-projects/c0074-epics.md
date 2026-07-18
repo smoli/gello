@@ -2,7 +2,6 @@
 id: c0074
 title: Epics
 status: discuss
-priority: normal
 created: 2026-07-17
 updated: 2026-07-18
 status-changed: 2026-07-18T00:03:06

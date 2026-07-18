@@ -1,14 +1,12 @@
 ---
 id: i0024
 title: Title styling is not optimal
-status: review
-priority: normal
+status: done
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T06:24:42
+status-changed: 2026-07-18T06:30:50
 milestone: m02
-order: 10
 ---
 
 ![image](../../assets/i0024/image.png)
@@ -72,3 +70,4 @@ poorly over a board background. Three fixes in `TitleBar.css`:
   (centred); title-bar scrim strengthened to a top-down gradient (Canvas 80%→
   45%→transparent). Verified legibility over bright/busy/light/dark backgrounds
   in-browser; search centring unaffected.
+- 2026-07-18 status → done (app)

@@ -3,7 +3,6 @@ id: c002
 title: Card/milestone types + frontmatter parse & serialize
 status: done
 milestone: m01
-priority: high
 depends: [c001]
 tags: [core]
 created: 2026-07-16

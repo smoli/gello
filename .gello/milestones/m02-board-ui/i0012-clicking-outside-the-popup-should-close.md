@@ -2,7 +2,6 @@
 id: i0012
 title: Clicking outside the popup should close it
 status: done
-priority: normal
 type: issue
 ref: c0060
 created: 2026-07-17

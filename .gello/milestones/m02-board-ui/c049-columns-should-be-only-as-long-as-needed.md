@@ -2,7 +2,6 @@
 id: c049
 title: Columns should be only as long as needed for the cards in them
 status: done
-priority: normal
 type: issue
 ref: c047
 milestone: m02

@@ -2,7 +2,6 @@
 id: i0009
 title: asks to add skill on every reload although skills already present
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

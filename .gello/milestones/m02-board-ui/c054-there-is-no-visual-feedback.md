@@ -2,7 +2,6 @@
 id: c054
 title: There is no visual feedback
 status: done
-priority: normal
 type: issue
 ref: c052
 milestone: m02

@@ -122,14 +122,13 @@ describe("Board", () => {
     expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
   });
 
-  it("shows id, title, milestone, and priority on the card front", () => {
+  it("shows id, title, and milestone on the card front", () => {
     render(<Board model={MODEL} />);
 
     const front = screen.getByText("First card").closest("article");
     expect(front).not.toBeNull();
     expect(within(front!).getByText("c001")).toBeInTheDocument();
     expect(within(front!).getByText("Alpha")).toBeInTheDocument();
-    expect(within(front!).getByText("high")).toBeInTheDocument();
   });
 
   it("labels inbox cards as inbox", () => {

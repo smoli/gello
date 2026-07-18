@@ -2,7 +2,6 @@
 id: c0075
 title: Swimlanes by tag
 status: backlog
-priority: normal
 created: 2026-07-18
 updated: 2026-07-18
 ---

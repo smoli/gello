@@ -2,7 +2,6 @@
 id: c056
 title: Sorting
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 status-changed: 2026-07-17T08:18:50

@@ -2,7 +2,6 @@
 id: c044
 title: 3 digit card ids is too short, make it 4 to be save
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m01

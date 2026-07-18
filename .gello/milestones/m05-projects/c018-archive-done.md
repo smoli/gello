@@ -3,7 +3,6 @@ id: c018
 title: Archive done cards
 status: backlog
 milestone: m05
-priority: low
 depends: [c006]
 tags: [core]
 created: 2026-07-16

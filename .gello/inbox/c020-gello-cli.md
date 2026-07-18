@@ -2,7 +2,6 @@
 id: c020
 title: Tiny gello CLI for agent board queries
 status: backlog
-priority: low
 tags: [agent-dx]
 created: 2026-07-16
 updated: 2026-07-16

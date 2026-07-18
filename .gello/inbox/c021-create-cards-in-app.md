@@ -2,7 +2,6 @@
 id: c021
 title: Create new cards in the app
 status: backlog
-priority: normal
 tags: [ui]
 created: 2026-07-16
 updated: 2026-07-16

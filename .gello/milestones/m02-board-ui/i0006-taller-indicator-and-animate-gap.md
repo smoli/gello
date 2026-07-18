@@ -2,7 +2,6 @@
 id: i0006
 title: Taller drop indicator and animate the opening gap
 status: done
-priority: normal
 type: issue
 ref: i0004
 milestone: m02

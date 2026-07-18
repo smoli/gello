@@ -2,7 +2,6 @@
 id: i0005
 title: Moving inbox card to milestone puts it in backlog
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

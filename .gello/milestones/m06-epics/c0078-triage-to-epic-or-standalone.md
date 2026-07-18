@@ -2,7 +2,6 @@
 id: c0078
 title: Triage to an epic or to standalone cards/
 status: ready
-priority: normal
 milestone: m06
 depends: [c0076]
 created: 2026-07-18

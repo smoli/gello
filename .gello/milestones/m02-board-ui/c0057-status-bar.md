@@ -2,7 +2,6 @@
 id: c0057
 title: Status bar
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02

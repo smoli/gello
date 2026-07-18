@@ -3,7 +3,6 @@ id: c015
 title: Concurrent-edit policy (last-write-wins, no silent loss)
 status: backlog
 milestone: m04
-priority: normal
 depends: [c010, c014]
 tags: [core]
 created: 2026-07-16

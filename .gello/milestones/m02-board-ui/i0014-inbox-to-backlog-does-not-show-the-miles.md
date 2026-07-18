@@ -2,7 +2,6 @@
 id: i0014
 title: Inbox to Backlog does not show the milestone picker
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

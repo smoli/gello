@@ -2,7 +2,6 @@
 id: c030
 title: Show flagged inbox cards in their status column
 status: done
-priority: normal
 tags: [ui]
 created: 2026-07-16
 updated: 2026-07-16

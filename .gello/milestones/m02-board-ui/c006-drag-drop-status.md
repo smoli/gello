@@ -3,7 +3,6 @@ id: c006
 title: Drag & drop persists status to frontmatter
 status: done
 milestone: m02
-priority: high
 depends: [c004, c005]
 tags: [ui, core]
 created: 2026-07-16

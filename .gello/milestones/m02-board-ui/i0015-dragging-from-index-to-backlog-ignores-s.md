@@ -2,7 +2,6 @@
 id: i0015
 title: Dragging from index to backlog ignores selected pos
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

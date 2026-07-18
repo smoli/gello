@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Card, CardFieldChanges, Priority } from "../lib/cards";
+import type { Card, CardFieldChanges } from "../lib/cards";
 import { splitLogSection } from "../lib/markdown";
 import { useImageInsert } from "./useImageInsert";
 import { AssetImage } from "./AssetImage";
 import "./CardDetail.css";
-
-const PRIORITIES: Priority[] = ["low", "normal", "high"];
 
 export type SaveBodyResult = "saved" | "conflict";
 
@@ -239,22 +237,6 @@ export function CardDetail({
               {columns.map((column) => (
                 <option key={column} value={column}>
                   {column}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Priority
-            <select
-              aria-label="Priority"
-              value={card.priority}
-              onChange={(event) =>
-                onChangeFields({ priority: event.target.value as Priority })
-              }
-            >
-              {PRIORITIES.map((priority) => (
-                <option key={priority} value={priority}>
-                  {priority}
                 </option>
               ))}
             </select>

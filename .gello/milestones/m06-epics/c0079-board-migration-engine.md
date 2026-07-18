@@ -2,7 +2,6 @@
 id: c0079
 title: Board migration engine — detect, gate, convert
 status: ready
-priority: normal
 milestone: m06
 depends: [c0076]
 created: 2026-07-18

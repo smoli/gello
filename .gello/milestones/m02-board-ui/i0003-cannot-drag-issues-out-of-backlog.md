@@ -2,7 +2,6 @@
 id: i0003
 title: Cannot drag issues out of backlog
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

@@ -2,7 +2,6 @@
 id: c0058
 title: Surface tags on the board (chips, filter, management)
 status: discuss
-priority: normal
 created: 2026-07-17
 updated: 2026-07-18
 status-changed: 2026-07-18T05:51:04

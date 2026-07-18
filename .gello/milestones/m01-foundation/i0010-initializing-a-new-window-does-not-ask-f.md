@@ -2,7 +2,6 @@
 id: i0010
 title: initializing a new window does not ask for adding skills
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

@@ -3,7 +3,6 @@ id: c001
 title: Scaffold Tauri 2 + React/TS app with test harness
 status: done
 milestone: m01
-priority: high
 depends: []
 tags: [infra]
 created: 2026-07-16

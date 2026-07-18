@@ -3,7 +3,6 @@ id: c014
 title: File watcher with debounced board reconciliation
 status: done
 milestone: m04
-priority: high
 depends: [c003, c005]
 tags: [core, rust]
 created: 2026-07-16

@@ -1,11 +1,10 @@
 ---
 id: c0068
 title: Light mode
-status: review
-priority: normal
+status: done
 created: 2026-07-17
-updated: 2026-07-17
-status-changed: 2026-07-18T06:18:45
+updated: 2026-07-18
+status-changed: 2026-07-18T06:20:38
 milestone: m02
 ---
 
@@ -39,3 +38,4 @@ colors (priority/type badges, links) are theme-independent.
 - 2026-07-18 implemented (agent): Theme submenu (Follow OS/Light/Dark) sets
   color-scheme on the document root + persists a `theme` flag. Light-mode
   legibility verified in-browser. App test covers the toggle + persistence.
+- 2026-07-18 status → done (app)

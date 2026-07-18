@@ -2,7 +2,6 @@
 id: c033
 title: Edits fail on cards with custom-column statuses
 status: done
-priority: high
 tags: [bug, core]
 created: 2026-07-16
 updated: 2026-07-16

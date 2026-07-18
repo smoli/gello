@@ -3,7 +3,6 @@ id: c017
 title: Initialize a board in a fresh repo
 status: done
 milestone: m05
-priority: normal
 depends: [c016]
 tags: [core]
 created: 2026-07-16

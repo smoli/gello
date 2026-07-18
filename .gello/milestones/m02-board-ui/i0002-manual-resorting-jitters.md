@@ -2,7 +2,6 @@
 id: i0002
 title: Manual resorting jitters
 status: done
-priority: normal
 type: issue
 ref: c056
 milestone: m02

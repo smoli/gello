@@ -311,19 +311,19 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("persists a priority change from the detail view", async () => {
+  it("persists a status change from the detail view", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
     fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
-    fireEvent.change(screen.getByLabelText("Priority"), {
-      target: { value: "high" },
+    fireEvent.change(screen.getByLabelText("Status"), {
+      target: { value: "ready" },
     });
 
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/inbox/c001-hello.md",
-      expect.stringContaining("priority: high"),
+      expect.stringContaining("status: ready"),
     );
   });
 

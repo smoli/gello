@@ -2,7 +2,6 @@
 id: c0063
 title: Showing image thumbnails in board should be a setting
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02

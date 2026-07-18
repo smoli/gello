@@ -2,7 +2,6 @@
 id: i0018
 title: On windows foldername in the title shows the full path
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

@@ -93,8 +93,9 @@ do not maintain parallel plan/TODO files.
 - **Pick up work**: ALWAYS re-query the board from disk first (the status
   grep above) — never act on remembered board state. The human moves cards in
   the app between turns, and app writes are silent; disk is the only truth.
-  Then take the highest-priority card in `ready` whose `depends` are all
-  `done`, and set `status: in-progress` before starting.
+  Then take the **top** card in `ready` (the manual `order` — priority was
+  removed in i0025) whose `depends` are all `done`, and set
+  `status: in-progress` before starting.
 - **During work**: append decisions and blockers to the card's `## Notes`,
   check off acceptance criteria as their tests pass, add dated `## Log` lines.
 - **Finish**: set `status: review`. Only a human moves cards to `done`.

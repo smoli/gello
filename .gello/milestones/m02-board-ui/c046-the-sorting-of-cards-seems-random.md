@@ -2,7 +2,6 @@
 id: c046
 title: The sorting of cards seems random
 status: done
-priority: normal
 type: issue
 created: 2026-07-16
 updated: 2026-07-16

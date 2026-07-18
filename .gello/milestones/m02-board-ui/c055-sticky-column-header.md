@@ -2,7 +2,6 @@
 id: c055
 title: Sticky column header
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m02

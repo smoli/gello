@@ -2,7 +2,6 @@
 id: i0017
 title: On Windows, custom header is not working
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

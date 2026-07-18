@@ -2,7 +2,6 @@
 id: i0023
 title: Can the search field be taller
 status: review
-priority: normal
 type: issue
 ref: c0066
 milestone: m02

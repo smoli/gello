@@ -3,7 +3,6 @@ id: c010
 title: Inline body editing
 status: done
 milestone: m03
-priority: normal
 depends: [c009]
 tags: [ui]
 created: 2026-07-16

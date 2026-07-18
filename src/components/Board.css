@@ -162,12 +162,6 @@
   padding: 0.1rem 0.5rem;
 }
 
-.card-priority {
-  font-size: 0.65rem;
-  border-radius: 999px;
-  padding: 0.1rem 0.45rem;
-}
-
 .card-meta-badges {
   display: flex;
   gap: 0.3rem;
@@ -199,21 +193,6 @@
 .toolbar-filters {
   display: flex;
   gap: 0.5rem;
-}
-
-.priority-high {
-  background: color-mix(in srgb, #e5484d 18%, transparent);
-  color: #e5484d;
-}
-
-.priority-normal {
-  background: color-mix(in srgb, CanvasText 8%, transparent);
-  opacity: 0.7;
-}
-
-.priority-low {
-  background: color-mix(in srgb, #46a758 15%, transparent);
-  color: #46a758;
 }
 
 .needs-attention {

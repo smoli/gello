@@ -2,7 +2,6 @@
 id: c031
 title: Detect duplicate card IDs on the board
 status: done
-priority: normal
 tags: [core]
 created: 2026-07-16
 updated: 2026-07-17

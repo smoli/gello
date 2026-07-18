@@ -50,7 +50,7 @@ function compareIds(a: string, b: string): number {
 
 // --- per-column sorting (c056) ---------------------------------------------------
 //
-// Priority is display-only: no column sorts by it. ISO dates and datetimes
+// No column sorts by priority (removed in i0025). ISO dates and datetimes
 // compare lexicographically, so day-only and timed values mix fine.
 
 /** Capture order: created ascending, sequential ids as the tiebreaker. */

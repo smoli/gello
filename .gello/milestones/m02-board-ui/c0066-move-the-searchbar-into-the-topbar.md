@@ -2,7 +2,6 @@
 id: c0066
 title: Move the searchbar into the topbar
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 status-changed: 2026-07-17T16:05:13

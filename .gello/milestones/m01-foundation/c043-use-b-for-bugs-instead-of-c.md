@@ -2,7 +2,6 @@
 id: c043
 title: Use b… for bugs instead of c
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 milestone: m01

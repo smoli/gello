@@ -2,7 +2,6 @@
 id: c032
 title: Provide skill for discussion
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-17
 status-changed: 2026-07-17T09:41:42

@@ -2,7 +2,6 @@
 id: c053
 title: Inbox column changes widht with horizontal resize
 status: done
-priority: normal
 type: issue
 ref: c050
 milestone: m02

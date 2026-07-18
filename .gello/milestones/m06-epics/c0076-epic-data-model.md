@@ -2,7 +2,6 @@
 id: c0076
 title: Epic data model — rename milestone→epic in schema + loader
 status: ready
-priority: normal
 milestone: m06
 created: 2026-07-18
 updated: 2026-07-18

@@ -2,7 +2,6 @@
 id: i0021
 title: This created two releases
 status: done
-priority: normal
 type: issue
 ref: c019
 milestone: m05

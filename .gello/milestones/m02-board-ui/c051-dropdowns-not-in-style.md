@@ -2,7 +2,6 @@
 id: c051
 title: Dropdowns not in style
 status: done
-priority: normal
 type: issue
 created: 2026-07-16
 updated: 2026-07-16

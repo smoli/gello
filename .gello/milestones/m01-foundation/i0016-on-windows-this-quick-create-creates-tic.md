@@ -2,7 +2,6 @@
 id: i0016
 title: On Windows this quick create creates ticekt twice
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

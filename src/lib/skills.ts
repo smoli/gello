@@ -2,7 +2,8 @@
 // detected agent-skill locations" mechanism; the discuss skill is the first
 // skill. Reused by c029 (legacy onboarding) later.
 
-export const SKILL_VERSION = 1;
+// v2 (i0025): templates no longer mention the removed `priority` field
+export const SKILL_VERSION = 2;
 
 export interface SkillTemplate {
   /** Folder name under a skills dir, e.g. `.claude/skills/<folder>/SKILL.md`. */
@@ -116,8 +117,8 @@ human approves the plan**.
 
 Card frontmatter: \`id\` (per-board sequential, \`c\`+4 digits, never reused or
 duplicated), \`title\`, \`status\` (only values from board.yaml), \`milestone\`,
-\`priority\` (low|normal|high), \`created\`, \`updated\`, optional \`tags\`. Card
-bodies use \`## What\`, \`## Acceptance criteria\` (\`- [ ]\`), \`## Notes\`, \`## Log\`.
+\`created\`, \`updated\`, optional \`tags\`. Card bodies use \`## What\`,
+\`## Acceptance criteria\` (\`- [ ]\`), \`## Notes\`, \`## Log\`.
 
 ## Pre-flight (do this first, always)
 
@@ -180,9 +181,9 @@ description: Interview the human about a gello board card flagged \`status: disc
 # Discuss a gello card
 
 gello is a Markdown-native Kanban board: every card is one \`.md\` file under
-\`.gello/\` with YAML frontmatter (\`id\`, \`title\`, \`status\`, \`milestone\`,
-\`priority\`, …). The \`discuss\` status means the human wants to think a card
-through with you *before* it becomes implementable — usually a raw inbox idea.
+\`.gello/\` with YAML frontmatter (\`id\`, \`title\`, \`status\`, \`milestone\`, …).
+The \`discuss\` status means the human wants to think a card through with you
+*before* it becomes implementable — usually a raw inbox idea.
 
 ## Find discuss cards
 

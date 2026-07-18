@@ -3,7 +3,6 @@ id: c011
 title: Paste/drag screenshots into a card
 status: done
 milestone: m03
-priority: high
 depends: [c009]
 tags: [ui, rust]
 created: 2026-07-16

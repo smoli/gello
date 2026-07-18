@@ -2,7 +2,6 @@
 id: c050
 title: There should be no vert scrollbar on the app
 status: done
-priority: normal
 type: issue
 created: 2026-07-16
 updated: 2026-07-16

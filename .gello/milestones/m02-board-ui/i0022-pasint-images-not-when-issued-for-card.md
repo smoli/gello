@@ -2,7 +2,6 @@
 id: i0022
 title: Pasting images not when issued for card
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17

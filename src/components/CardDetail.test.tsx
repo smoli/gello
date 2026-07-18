@@ -94,18 +94,13 @@ describe("CardDetail", () => {
     expect(props.onToggleTask).toHaveBeenCalledExactlyOnceWith(2);
   });
 
-  it("edits status and priority via selects", () => {
+  it("edits status via the select", () => {
     const props = renderDetail();
 
     fireEvent.change(screen.getByLabelText("Status"), {
       target: { value: "review" },
     });
     expect(props.onChangeFields).toHaveBeenLastCalledWith({ status: "review" });
-
-    fireEvent.change(screen.getByLabelText("Priority"), {
-      target: { value: "low" },
-    });
-    expect(props.onChangeFields).toHaveBeenLastCalledWith({ priority: "low" });
   });
 
   it("commits tags on Enter as a trimmed list", () => {

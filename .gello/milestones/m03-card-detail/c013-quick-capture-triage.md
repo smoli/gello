@@ -3,7 +3,6 @@ id: c013
 title: Quick capture to inbox + triage to milestone
 status: done
 milestone: m03
-priority: high
 depends: [c005, c009]
 tags: [ui, core]
 created: 2026-07-16

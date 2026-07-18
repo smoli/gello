@@ -2,7 +2,6 @@
 id: i0008
 title: That’s not the center
 status: done
-priority: normal
 type: issue
 ref: c022
 milestone: m01

@@ -3,7 +3,6 @@ id: c012
 title: Image thumbnails on board cards
 status: done
 milestone: m03
-priority: low
 depends: [c011]
 tags: [ui]
 created: 2026-07-16

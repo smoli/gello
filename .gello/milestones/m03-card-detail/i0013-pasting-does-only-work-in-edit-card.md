@@ -2,7 +2,6 @@
 id: i0013
 title: Pasting does only work in Edit card
 status: done
-priority: normal
 type: issue
 ref: c011
 milestone: m03

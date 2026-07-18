@@ -2,7 +2,6 @@
 id: c0064
 title: Want to confirm quick entry with keys
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m02

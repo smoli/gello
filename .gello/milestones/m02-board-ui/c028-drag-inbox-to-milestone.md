@@ -2,7 +2,6 @@
 id: c028
 title: Drag inbox to milestone
 status: done
-priority: normal
 created: 2026-07-16
 updated: 2026-07-16
 milestone: m02

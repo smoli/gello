@@ -2,7 +2,6 @@
 id: c036
 title: Bug in c024
 status: done
-priority: normal
 type: issue
 ref: c024
 milestone: m01

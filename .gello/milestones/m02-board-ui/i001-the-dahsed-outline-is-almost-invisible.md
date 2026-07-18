@@ -2,7 +2,6 @@
 id: i001
 title: The dashed outline is almost invisible
 status: backlog
-priority: normal
 type: issue
 ref: c052
 milestone: m02

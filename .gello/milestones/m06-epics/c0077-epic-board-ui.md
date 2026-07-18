@@ -2,7 +2,6 @@
 id: c0077
 title: Epic board UI — filter, labels, "No epic"
 status: ready
-priority: normal
 milestone: m06
 depends: [c0076]
 created: 2026-07-18

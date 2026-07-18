@@ -85,7 +85,6 @@ status: ready            # discuss | backlog | ready | in-progress | review | do
 type: issue              # optional; default task; allowed values from board.yaml types
 ref: c001                # optional; card this issue was found in (provenance, not dependency)
 milestone: m02-board-ui
-priority: high           # low | normal | high (display only — never affects column order)
 depends: [c001]
 tags: [ui]
 order: 15                # optional; manual rank in backlog/ready (fractional; unranked cards sort last)
@@ -158,7 +157,7 @@ The `discuss` column is a triage stage: the human flags a card (typically a
 raw inbox idea) for a structured conversation with an agent; the discussion's
 outcomes are written back into the card, which then graduates to a milestone.
 
-**Card order within a column** (c056) is per-column, never by priority:
+**Card order within a column** (c056) is per-column:
 
 - **inbox** and **discuss** — by `created`, oldest on top (a capture queue;
   the inbox column is not manually rearrangeable).
@@ -169,8 +168,8 @@ outcomes are written back into the card, which then graduates to a milestone.
   top (the order work entered the stage). Missing `status-changed` falls back
   to `updated` → `created` → id.
 
-Priority never reorders a column — it is a display badge and an input for
-agents picking work. Timestamps are local-time ISO (`YYYY-MM-DDTHH:MM:SS`),
+The manual `order` in backlog/ready *is* the priority signal (i0025 removed the
+`priority` field). Timestamps are local-time ISO (`YYYY-MM-DDTHH:MM:SS`),
 sortable as plain strings.
 
 ## 5. The agent workflow (convention)
@@ -184,8 +183,9 @@ Shipped as a Markdown snippet for `CLAUDE.md` (or a skill). The contract:
 **Signal to work**
 - The human moves cards to **ready** (this is the "go" signal — the board *is*
   the prompt queue).
-- "Pick up the next card": agent takes the highest-priority `ready` card whose
-  `depends` are all `done`, sets `status: in-progress`, and starts.
+- "Pick up the next card": agent takes the top `ready` card (the manual
+  `order`) whose `depends` are all `done`, sets `status: in-progress`, and
+  starts.
 
 **During work**
 - Agent appends decisions/blockers to the card's **Notes**, checks off

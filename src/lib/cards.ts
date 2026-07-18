@@ -8,9 +8,6 @@
 
 import YAML from "yaml";
 
-export type Priority = "low" | "normal" | "high";
-const PRIORITIES: readonly Priority[] = ["low", "normal", "high"];
-
 export interface BoardConfig {
   columns: string[];
   wipLimits: Record<string, number>;
@@ -36,7 +33,6 @@ export interface Card {
   /** Provenance (c024): id of the card this one was found in, or null. */
   ref: string | null;
   milestone: string | null;
-  priority: Priority;
   depends: string[];
   tags: string[];
   /** Manual position in backlog/ready columns (c056); null = unranked. */
@@ -194,17 +190,7 @@ export function parseCard(
     );
   }
 
-  const priorityRaw = data["priority"];
-  let priority: Priority = "normal";
-  if (priorityRaw !== undefined && priorityRaw !== null) {
-    if (!PRIORITIES.includes(priorityRaw as Priority)) {
-      return invalid(
-        `invalid priority "${String(priorityRaw)}" (allowed: ${PRIORITIES.join(", ")})`,
-      );
-    }
-    priority = priorityRaw as Priority;
-  }
-
+  // i0025: `priority` was removed — a leftover line is just an ignored field
   const depends = asStringArray(data, "depends");
   if (!depends.ok) return invalid(depends.reason);
   const tags = asStringArray(data, "tags");
@@ -228,7 +214,6 @@ export function parseCard(
       type,
       ref: asOptionalString(data, "ref"),
       milestone: asOptionalString(data, "milestone"),
-      priority,
       depends: depends.value,
       tags: tags.value,
       order,
@@ -355,7 +340,6 @@ export function newCardRaw(
     `id: ${id}`,
     `title: ${formatScalar(title)}`,
     "status: backlog",
-    "priority: normal",
   ];
   if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
   if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);
@@ -415,7 +399,7 @@ function removeFrontmatterField(raw: string, field: string): string {
 export type CardFieldChanges = Partial<
   Pick<
     Card,
-    "status" | "priority" | "milestone" | "title" | "tags" | "order" | "statusChanged"
+    "status" | "milestone" | "title" | "tags" | "order" | "statusChanged"
   >
 >;
 

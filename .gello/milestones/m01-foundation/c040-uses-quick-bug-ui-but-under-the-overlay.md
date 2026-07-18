@@ -2,7 +2,6 @@
 id: c040
 title: Uses quick bug UI but under the overlay
 status: done
-priority: normal
 type: issue
 ref: c037
 milestone: m01

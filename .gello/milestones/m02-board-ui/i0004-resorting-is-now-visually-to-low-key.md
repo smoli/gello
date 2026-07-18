@@ -2,7 +2,6 @@
 id: i0004
 title: Resorting is now visually to low key
 status: done
-priority: normal
 type: issue
 ref: i0002
 milestone: m02

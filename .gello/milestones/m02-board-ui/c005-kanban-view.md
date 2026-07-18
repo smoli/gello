@@ -3,7 +3,6 @@ id: c005
 title: Kanban view (read-only) with milestone filter
 status: done
 milestone: m02
-priority: high
 depends: [c003]
 tags: [ui]
 created: 2026-07-16

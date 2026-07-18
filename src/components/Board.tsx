@@ -544,9 +544,6 @@ function CardFront({
           {card.type !== "task" && (
             <span className={`card-type type-${card.type}`}>{card.type}</span>
           )}
-          <span className={`card-priority priority-${card.priority}`}>
-            {card.priority}
-          </span>
         </span>
       </div>
       <p className="card-title">{card.title}</p>

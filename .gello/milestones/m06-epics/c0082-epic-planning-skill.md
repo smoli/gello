@@ -2,7 +2,6 @@
 id: c0082
 title: Epic-planning skill (gello-discuss sibling)
 status: ready
-priority: normal
 milestone: m06
 depends: [c0076]
 created: 2026-07-18

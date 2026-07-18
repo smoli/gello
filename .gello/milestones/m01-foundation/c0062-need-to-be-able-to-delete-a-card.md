@@ -2,7 +2,6 @@
 id: c0062
 title: Need to be able to delete a card
 status: done
-priority: normal
 created: 2026-07-17
 updated: 2026-07-17
 milestone: m01

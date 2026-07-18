@@ -2,7 +2,6 @@
 id: c037
 title: Escaping bug creation from card creates empty bug
 status: done
-priority: normal
 type: issue
 ref: c024
 milestone: m01

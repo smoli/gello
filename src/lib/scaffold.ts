@@ -47,7 +47,7 @@ frontmatter. Read \`.gello/concept.md\` for the product spec.
   grep -rh "^status:" .gello/inbox .gello/milestones --include="[ci][0-9]*.md" | sort | uniq -c
   \`\`\`
 - **Pick up work**: re-query the board from disk first, then take the
-  highest-priority \`ready\` card whose \`depends\` are all \`done\`; set
+  top \`ready\` card whose \`depends\` are all \`done\`; set
   \`status: in-progress\` before starting.
 - **Finish**: set \`status: review\` (only a human moves cards to \`done\`).
 - **New ideas**: drop a card in \`.gello/inbox/\` — a heading and a sentence.

@@ -2,7 +2,6 @@
 id: c038
 title: Any mouseup outside card detail closes
 status: done
-priority: normal
 type: issue
 created: 2026-07-16
 updated: 2026-07-16

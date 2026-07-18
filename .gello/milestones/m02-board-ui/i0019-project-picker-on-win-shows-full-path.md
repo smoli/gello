@@ -2,7 +2,6 @@
 id: i0019
 title: Project picker on Win shows full path
 status: done
-priority: normal
 type: issue
 created: 2026-07-17
 updated: 2026-07-17
