@@ -26,6 +26,11 @@ pub fn atomic_write_bytes(path: &Path, contents: &[u8]) -> std::io::Result<()> {
         .file_name()
         .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "path has no file name"))?;
 
+    // i0026: create the parent dir if missing — triaging a card into a new home
+    // (e.g. the flat `cards/` folder introduced in c0076) shouldn't fail just
+    // because the directory doesn't exist yet.
+    std::fs::create_dir_all(dir)?;
+
     let temp_path = dir.join(format!(
         ".{}.gello-tmp.{}.{}",
         file_name.to_string_lossy(),
@@ -182,16 +187,20 @@ mod tests {
     }
 
     #[test]
-    fn fails_with_error_and_no_debris_for_missing_directory() {
+    fn creates_the_parent_directory_if_missing() {
+        // i0026: triaging a card into a not-yet-existing home (e.g. cards/)
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("no-such-dir").join("card.md");
+        let path = dir.path().join("cards").join("c005.md");
 
-        let result = atomic_write(&path, "content");
+        atomic_write(&path, "content").unwrap();
 
-        assert!(result.is_err());
-        // parent dir of tempdir unchanged: no stray temp files anywhere
-        let entries: Vec<_> = fs::read_dir(dir.path()).unwrap().collect();
-        assert!(entries.is_empty());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "content");
+        // no stray temp files left in the created dir
+        let entries: Vec<_> = fs::read_dir(dir.path().join("cards"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(entries, vec![std::ffi::OsString::from("c005.md")]);
     }
 
     #[test]
