@@ -265,9 +265,16 @@ export function triageCard(
     throw new Error(`triaged card would be invalid: ${parsed.invalid.reason}`);
   }
 
-  const persisted = writeFileAtomic(`${root}/${newPath}`, newRaw).then(() =>
-    removeFile(`${root}/${card.path}`),
-  );
+  // i0026: a card can be triaged to where it already lives (e.g. clearing the
+  // epic on a card that is already standalone → cards/). Source and dest are
+  // then the same file, so write-then-delete-old would delete what we just
+  // wrote. Only remove the old file when the move actually relocates it.
+  const persisted =
+    newPath === card.path
+      ? writeFileAtomic(`${root}/${newPath}`, newRaw)
+      : writeFileAtomic(`${root}/${newPath}`, newRaw).then(() =>
+          removeFile(`${root}/${card.path}`),
+        );
   return { card: parsed.card, persisted };
 }
 

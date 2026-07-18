@@ -596,6 +596,41 @@ updated: 2026-07-10
       "/repo/.gello/inbox/c007-existing.md",
     );
   });
+
+  it("i0026: re-triaging a standalone card to standalone does NOT delete it (same source & dest path)", async () => {
+    // The reported data loss: remove the epic from a card that is ALREADY
+    // standalone (lives in cards/) → source path === destination path, so
+    // write-new-then-delete-old would delete the file it just wrote.
+    const STANDALONE_RAW = `---
+id: c007
+title: Existing
+status: backlog
+updated: 2026-07-10
+---
+
+body
+`;
+    const parsed = parseCard("cards/c007-existing.md", STANDALONE_RAW);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = triageCard(
+      "/repo/.gello",
+      parsed.card,
+      { folder: "cards", epicId: null },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+
+    expect(card.path).toBe("cards/c007-existing.md");
+    await persisted;
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c007-existing.md",
+      expect.any(String),
+    );
+    // the file it just wrote must NOT be removed
+    expect(removeMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("deleteCard (c0062)", () => {
