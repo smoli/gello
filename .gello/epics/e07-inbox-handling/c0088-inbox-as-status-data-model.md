@@ -1,11 +1,11 @@
 ---
 id: c0088
 title: Inbox-as-status data model
-status: in-progress
+status: review
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T17:18:40
+status-changed: 2026-07-18T17:58:03
 order: 15
 ---
 
@@ -24,13 +24,13 @@ status/column and drop the inbox-*folder* specialness from the loader.
 
 ## Acceptance criteria
 
-- [ ] `inbox` parses as a valid status; default `board.yaml` columns lead
+- [x] `inbox` parses as a valid status; default `board.yaml` columns lead
       with `inbox`
-- [ ] Loader reads `cards/` and `epics/eNN/`; no special handling for an
+- [x] Loader reads `cards/` and `epics/eNN/`; no special handling for an
       `inbox/` folder
-- [ ] A card with `status: inbox` in `cards/` or an epic folder loads into
+- [x] A card with `status: inbox` in `cards/` or an epic folder loads into
       the inbox column
-- [ ] Existing loader tests updated (inbox-folder fixtures → status-based)
+- [x] Existing loader tests updated (inbox-folder fixtures → status-based)
 
 ## Notes
 
@@ -42,3 +42,4 @@ epic — decide here whether that state is allowed.
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): part of the e07 inbox-as-status reframe, landed as one coherent pass; full suite (500) + Rust (41) + typecheck + lint green.

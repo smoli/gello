@@ -1,12 +1,12 @@
 ---
 id: c0090
 title: Board — inbox column + drag/picker rework
-status: in-progress
+status: review
 epic: e07
 depends: [c0088]
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T17:18:40
+status-changed: 2026-07-18T17:58:03
 order: 18.125
 ---
 
@@ -30,17 +30,18 @@ c030 removal.
 
 ## Acceptance criteria
 
-- [ ] Inbox is a normal column; no separate inbox-column rendering or
+- [x] Inbox is a normal column; no separate inbox-column rendering or
       inbox/c030 badge
-- [ ] Dragging between columns changes only status; dragging onto inbox sets
+- [x] Dragging between columns changes only status; dragging onto inbox sets
       `status: inbox` (no file move / epic change)
-- [ ] Dragging a no-epic card out of inbox prompts for an epic; cancel keeps
+- [x] Dragging a no-epic card out of inbox prompts for an epic; cancel keeps
       it in inbox; picking an epic moves the file + applies status
-- [ ] A card that already has an epic leaving inbox just changes status (no
+- [x] A card that already has an epic leaving inbox just changes status (no
       prompt)
-- [ ] No "Stay in inbox" dismiss button; dismiss cancels (c0085 folded in)
+- [x] No "Stay in inbox" dismiss button; dismiss cancels (c0085 folded in)
 
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
 - 2026-07-18 status → ready (app)
+- 2026-07-18 implemented (agent): part of the e07 inbox-as-status reframe, landed as one coherent pass; full suite (500) + Rust (41) + typecheck + lint green.

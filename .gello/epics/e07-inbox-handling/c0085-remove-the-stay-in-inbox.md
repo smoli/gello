@@ -1,10 +1,10 @@
 ---
 id: c0085
 title: remove the stay in inbox
-status: ready
+status: review
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:32:54
+status-changed: 2026-07-18T17:58:03
 epic: e07
 order: 17.5
 ---
@@ -38,14 +38,14 @@ design.
 
 ## Acceptance criteria
 
-- [ ] The picker no longer shows a "Stay in inbox" / "Move back to …" button
-- [ ] Dismissing the picker (Escape or backdrop click) makes no change — the
+- [x] The picker no longer shows a "Stay in inbox" / "Move back to …" button
+- [x] Dismissing the picker (Escape or backdrop click) makes no change — the
       card keeps its original status, stays in the inbox column, and no file
       is written
-- [ ] The forward options still work: pick an epic (triage + dropped status),
+- [x] The forward options still work: pick an epic (triage + dropped status),
       "No epic" (→ `cards/` + dropped status), "+ New epic"
-- [ ] No status is applied on dismiss (c030 flag-forward-on-dismiss removed)
-- [ ] Tests that asserted dismiss-applies-status are updated to
+- [x] No status is applied on dismiss (c030 flag-forward-on-dismiss removed)
+- [x] Tests that asserted dismiss-applies-status are updated to
       dismiss-cancels
 
 ## Discussion
@@ -70,3 +70,4 @@ design.
   dismiss now cancels the drop (no status applied, card stays in inbox);
   picker keeps epic / No-epic / New-epic. Removes c030 flag-forward-on-dismiss.
 - 2026-07-18 status → ready (app)
+- 2026-07-18 folded into c0090 (agent): the reframe removes the "Stay in inbox" gesture and the inbox label; implemented as part of the e07 pass.
