@@ -491,7 +491,7 @@ describe("App", () => {
 
     render(<App />);
     fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
-    fireEvent.change(screen.getByLabelText("Milestone"), {
+    fireEvent.change(screen.getByLabelText("Epic"), {
       target: { value: "m02-board-ui" },
     });
 
@@ -506,7 +506,7 @@ describe("App", () => {
     // detail stays open on the moved card; the milestone select now reflects
     // its new home and stays editable for reassignment (i0005)
     const dialog = screen.getByRole("dialog", { name: "c001" });
-    expect(within(dialog).getByLabelText("Milestone")).toHaveValue("m02-board-ui");
+    expect(within(dialog).getByLabelText("Epic")).toHaveValue("m02-board-ui");
   });
 
   it("i0005: dropping an inbox card on ready prompts for a milestone, then triages", async () => {

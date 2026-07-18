@@ -118,7 +118,7 @@ describe("CardDetail", () => {
   it("i0005: preselects the current milestone and reassigns a triaged card", () => {
     const props = renderDetail();
 
-    const select = screen.getByLabelText("Milestone");
+    const select = screen.getByLabelText("Epic");
     // fixture card has milestone m03 → the m03 folder is selected
     expect(select).toHaveValue("m03-card-detail");
 
@@ -130,7 +130,7 @@ describe("CardDetail", () => {
   it("offers a triage select for inbox cards", () => {
     const props = renderDetail({ milestoneLabel: null });
 
-    const select = screen.getByLabelText("Milestone");
+    const select = screen.getByLabelText("Epic");
     expect(select).toHaveValue("inbox");
 
     fireEvent.change(select, { target: { value: "m01-alpha" } });

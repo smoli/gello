@@ -26,9 +26,9 @@ const CARD_DRAG_TYPE = "application/x-gello-card-path";
 /** A card plus its display context on the board. */
 interface BoardCard {
   card: Card;
-  /** Milestone title (or folder as fallback); null = inbox. */
-  milestoneLabel: string | null;
-  /** Filter key: milestone folder. */
+  /** Epic title (or folder fallback); null = inbox or standalone. */
+  epicLabel: string | null;
+  /** Filter key: epic folder, "inbox", or "no-epic" (standalone, c0077). */
   filterKey: string;
 }
 
@@ -49,17 +49,21 @@ export type RenumberHandler = (
 function collectStatusCards(model: BoardModel): BoardCard[] {
   const flaggedInbox: BoardCard[] = model.inbox
     .filter((card) => card.status !== "backlog")
-    .map((card) => ({ card, milestoneLabel: null, filterKey: "inbox" }));
-  const milestoneCards: BoardCard[] = model.epics.flatMap((group) =>
+    .map((card) => ({ card, epicLabel: null, filterKey: "inbox" }));
+  const epicCards: BoardCard[] = model.epics.flatMap((group) =>
     group.cards.map((card) => ({
       card,
-      milestoneLabel: group.epic?.title ?? group.folder,
+      epicLabel: group.epic?.title ?? group.folder,
       filterKey: group.folder,
     })),
   );
-  // c0076: standalone cards (.gello/cards/) are loaded but not yet rendered
-  // here — the "No epic" board treatment lands in c0077.
-  return [...flaggedInbox, ...milestoneCards];
+  // c0077: standalone cards (.gello/cards/) render like any card, no epic label
+  const standaloneCards: BoardCard[] = model.cards.map((card) => ({
+    card,
+    epicLabel: null,
+    filterKey: "no-epic",
+  }));
+  return [...flaggedInbox, ...standaloneCards, ...epicCards];
 }
 
 /**
@@ -122,11 +126,20 @@ export function Board({
       ),
     [model, typeFilter, query],
   );
-  const byMilestone =
+  // c0077: epic filter — "all", a specific epic folder, or "no-epic"
+  // (standalone + inbox, which carry no epic). The inbox always shows so
+  // cards stay triageable regardless of the epic filter.
+  const byEpic =
     filter === "all"
       ? statusCards
-      : statusCards.filter((c) => c.filterKey === filter || c.filterKey === "inbox");
-  const visible = byMilestone.filter(
+      : filter === "no-epic"
+        ? statusCards.filter(
+            (c) => c.filterKey === "no-epic" || c.filterKey === "inbox",
+          )
+        : statusCards.filter(
+            (c) => c.filterKey === filter || c.filterKey === "inbox",
+          );
+  const visible = byEpic.filter(
     (c) =>
       (typeFilter === "all" || c.card.type === typeFilter) &&
       cardMatchesQuery(c.card, query),
@@ -139,7 +152,7 @@ export function Board({
       ...statusCards,
       ...inboxUnprocessed.map((card) => ({
         card,
-        milestoneLabel: null,
+        epicLabel: null,
         filterKey: "inbox",
       })),
     ],
@@ -241,16 +254,17 @@ export function Board({
         <div className="toolbar-filters">
           {toolbarLeading}
           <select
-            aria-label="Milestone filter"
+            aria-label="Epic filter"
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           >
-            <option value="all">All milestones</option>
+            <option value="all">All epics</option>
             {model.epics.map((group) => (
               <option key={group.folder} value={group.folder}>
                 {group.epic?.title ?? group.folder}
               </option>
             ))}
+            {model.cards.length > 0 && <option value="no-epic">No epic</option>}
           </select>
           <select
             aria-label="Type filter"
@@ -285,7 +299,7 @@ export function Board({
               {inboxUnprocessed.map((card) => (
                 <CardFront
                   key={card.path}
-                  entry={{ card, milestoneLabel: null, filterKey: "inbox" }}
+                  entry={{ card, epicLabel: null, filterKey: "inbox" }}
                   isOrigin={dragging?.path === card.path}
                   onMoveByKey={moveByKey}
                   onSelect={onSelectCard}
@@ -518,7 +532,7 @@ function CardFront({
   /** c012: resolve this card's first image to a data URL for the thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
 }) {
-  const { card, milestoneLabel } = entry;
+  const { card, epicLabel, filterKey } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   return (
@@ -557,9 +571,14 @@ function CardFront({
           className="card-thumb"
         />
       )}
-      <div className="card-meta">
-        <span className="card-milestone">{milestoneLabel ?? "inbox"}</span>
-      </div>
+      {/* c0077: inbox → "inbox"; epic → its title; standalone → no meta row */}
+      {(filterKey === "inbox" || epicLabel) && (
+        <div className="card-meta">
+          <span className="card-milestone">
+            {filterKey === "inbox" ? "inbox" : epicLabel}
+          </span>
+        </div>
+      )}
     </article>
   );
 }

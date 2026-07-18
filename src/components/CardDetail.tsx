@@ -257,9 +257,9 @@ export function CardDetail({
               detail — onTriage moves the file either way (inbox→milestone or
               milestone→milestone), without duplicating or losing it. */}
           <label>
-            Milestone
+            Epic
             <select
-              aria-label="Milestone"
+              aria-label="Epic"
               value={
                 milestoneLabel === null
                   ? "inbox"

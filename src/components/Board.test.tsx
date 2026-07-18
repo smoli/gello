@@ -140,7 +140,7 @@ describe("Board", () => {
 
   it("narrows to one milestone via the filter and back to all, inbox unaffected", () => {
     render(<Board model={MODEL} />);
-    const filter = screen.getByLabelText("Milestone filter");
+    const filter = screen.getByLabelText("Epic filter");
 
     fireEvent.change(filter, { target: { value: "m01-alpha" } });
     expect(screen.getByText("First card")).toBeInTheDocument();
@@ -150,6 +150,36 @@ describe("Board", () => {
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByText("Third card")).toBeInTheDocument();
     expect(screen.getByText("Inbox idea")).toBeInTheDocument();
+  });
+
+  it("c0077: renders standalone cards (no epic label) and the No-epic filter isolates them", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, done]\n"),
+      file("epics/e01-x/epic.md", "---\nid: e01\ntitle: Alpha\n---\ng\n"),
+      file("epics/e01-x/c001-a.md", card("c001", "Epic card", "backlog")),
+      file("cards/c002-b.md", card("c002", "Loose card", "backlog")),
+    ]);
+    render(<Board model={model} />);
+
+    // standalone card renders in its status column, with no epic/inbox label
+    const loose = screen.getByText("Loose card").closest("article")!;
+    expect(within(column("backlog")).getByText("Loose card")).toBeInTheDocument();
+    expect(within(loose).queryByText("inbox")).not.toBeInTheDocument();
+    expect(within(loose).queryByText("Alpha")).not.toBeInTheDocument();
+
+    // "No epic" filter shows only the standalone card
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "no-epic" },
+    });
+    expect(screen.getByText("Loose card")).toBeInTheDocument();
+    expect(screen.queryByText("Epic card")).not.toBeInTheDocument();
+  });
+
+  it("c0077: no No-epic option when there are no standalone cards", () => {
+    render(<Board model={MODEL} />);
+    expect(
+      within(screen.getByLabelText("Epic filter")).queryByText("No epic"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders empty columns with a zero count instead of hiding them", () => {
@@ -278,7 +308,7 @@ describe("fulltext search (c022)", () => {
   it("composes with the milestone filter (AND)", () => {
     // "board" matches c001 (body) which is in m01-a
     render(<Board model={SEARCH_MODEL} query="board" />);
-    fireEvent.change(screen.getByLabelText("Milestone filter"), {
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
       target: { value: "inbox" },
     });
     // c001 matches the query but is filtered out by the inbox milestone filter
