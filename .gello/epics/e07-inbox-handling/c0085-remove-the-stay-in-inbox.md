@@ -1,10 +1,10 @@
 ---
 id: c0085
 title: remove the stay in inbox
-status: discuss
+status: ready
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T16:19:18
+status-changed: 2026-07-18T16:32:54
 epic: e07
 ---
 
@@ -68,3 +68,4 @@ design.
 - 2026-07-18 discussed (agent): remove the "Stay in inbox" dismiss button;
   dismiss now cancels the drop (no status applied, card stays in inbox);
   picker keeps epic / No-epic / New-epic. Removes c030 flag-forward-on-dismiss.
+- 2026-07-18 status → ready (app)
