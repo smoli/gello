@@ -16,8 +16,13 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 0.5rem;
+  /* i0024: stronger top-down scrim — opaque behind the caption band, fading to
+     transparent lower so the title stays legible over a busy photo while the
+     board background still bleeds through below. */
   background: linear-gradient(
-    color-mix(in srgb, Canvas 55%, transparent),
+    to bottom,
+    color-mix(in srgb, Canvas 80%, transparent),
+    color-mix(in srgb, Canvas 45%, transparent) 55%,
     transparent
   );
   user-select: none;
@@ -46,9 +51,11 @@
 }
 
 .titlebar-caption {
-  font-size: 0.72rem;
+  /* i0024: first-class chrome, not a watermark — larger, full opacity, and
+     line-height 1 so the flex box centres it cleanly in the bar */
+  font-size: 0.8rem;
   font-weight: 600;
-  opacity: 0.75;
+  line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
