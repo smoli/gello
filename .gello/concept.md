@@ -5,7 +5,7 @@ A local, Markdown-native Kanban board for agentic software development.
 ## 1. Problem
 
 Agentic development (Claude Code & co.) works best with a written concept that gets
-broken down into milestones and implementation steps. Today this lives in Markdown
+broken down into epics and implementation steps. Today this lives in Markdown
 files — and those files rot:
 
 - The plan file grows into a huge, cluttered junk drawer.
@@ -20,8 +20,8 @@ files — and those files rot:
 Keep everything as Markdown files — but give each unit of work its own file with
 structured frontmatter, and render them as a Kanban board in a desktop app.
 
-- **Concept** → broken down into **milestones** → broken down into **cards**.
-- Every milestone and every card is one `.md` file.
+- **Concept** → broken down into **epics** → broken down into **cards**.
+- Every epic and every card is one `.md` file.
 - A card's board column is its `status` field in the frontmatter.
 - Moving a card on the board = a one-line frontmatter edit.
 - The agent interacts with the board by doing what it already does best:
@@ -39,7 +39,7 @@ structured frontmatter, and render them as a Kanban board in a desktop app.
 4. **Convention over integration.** V1 needs zero agent-side tooling — just a
    documented convention (a `CLAUDE.md` snippet / skill) that any agent can follow.
 5. **Ideas are cheap to capture.** Getting a new idea onto the board must take
-   seconds, without deciding a milestone up front.
+   seconds, without deciding an epic up front.
 
 ## 4. Domain model & file layout
 
@@ -53,23 +53,39 @@ structured frontmatter, and render them as a Kanban board in a desktop app.
         drag-drop-bug.png
     inbox/                      # quick-captured ideas, not yet assigned
       idea-dark-mode.md
-    milestones/
-      m01-core-parser/
-        milestone.md            # goal, scope, definition of done
-        c001-tokenizer.md       # cards, flat within their milestone
+    epics/
+      e01-core-parser/
+        epic.md                 # goal, scope, definition of done
+        c001-tokenizer.md       # cards, flat within their epic
         c002-ast-builder.md
-      m02-board-ui/
-        milestone.md
+      e02-board-ui/
+        epic.md
         c003-kanban-view.md
+    cards/                      # epic-less standalone cards (bugs, small changes)
+      c004-typo-in-tooltip.md
   CLAUDE.md                     # includes the gello agent convention
 ```
+
+A card lives in exactly one of **three homes**:
+
+- **`inbox/`** — quick-captured, not yet triaged.
+- **`epics/eNN-name/`** — assigned to an epic (a large effort broken into
+  dependent steps). The folder *is* the membership.
+- **`cards/`** — epic-less standalone cards: bugs and small changes that don't
+  belong to any epic. First-class, not a lesser bucket.
+
+**Epics** replace the earlier *milestone* concept: same single-container folder
+model, but named for what it is — an effort broken into steps, not a deadline.
+**Tags** (`tags:` on a card) are the separate, cross-cutting axis — a card has
+at most one epic but any number of tags, so a theme like `ui` or `perf` can span
+epics and standalone cards alike.
 
 Notes:
 
 - Files never move when status changes (stable links, clean diffs). Optional:
   an archive action moves long-done cards to `archive/` to keep folders small.
 - The **inbox** is a first-class concept: new ideas become cards immediately;
-  triage (assign to milestone, refine) happens later on the board.
+  triage (assign to an epic or to `cards/`, refine) happens later on the board.
 - IDs are per-board sequential and part of the filename → stable references
   in commits, card bodies (`depends on c002`), and conversation. Tasks live
   in the `c` namespace (`c001`), issues in the `i` namespace (`i0001`);
@@ -84,7 +100,7 @@ title: Kanban view with drag & drop
 status: ready            # discuss | backlog | ready | in-progress | review | done
 type: issue              # optional; default task; allowed values from board.yaml types
 ref: c001                # optional; card this issue was found in (provenance, not dependency)
-milestone: m02-board-ui
+epic: e02                # optional; the epic this card belongs to (its folder is epics/e02-*); absent → standalone in cards/
 depends: [c001]
 tags: [ui]
 order: 15                # optional; manual rank in backlog/ready (fractional; unranked cards sort last)
@@ -122,18 +138,18 @@ the `status` frontmatter field.
   render on GitHub and in any editor, not just in the app.
 - Keying by card ID means: a card's images are trivially findable, cleanup on
   card deletion is one folder removal, and links survive status changes.
-- Moving a card between inbox and a milestone changes its folder depth; whoever
+- Moving a card between inbox and an epic changes its folder depth; whoever
   moves the card (app or agent) rewrites the relative link prefix. This is a
-  mechanical step covered by the convention.
+  mechanical step covered by the convention. (inbox/ and cards/ are the same
+  depth, so triaging to standalone needs no link rewrite.)
 
-### Milestone format
+### Epic format
 
 ```markdown
 ---
-id: m02
+id: e02
 title: Board UI
 status: in-progress      # derived-ish; agent/human keeps it roughly current
-due: 2026-08-15
 ---
 
 ## Goal
@@ -142,6 +158,11 @@ due: 2026-08-15
 ## Definition of done
 ...
 ```
+
+An `eNN` id in the `e` namespace, matching the folder name (`epics/e02-board-ui/`).
+Legacy `mNN` milestone-format boards are gated on open and convert to the epic
+format via a one-click, recoverable migration (new tree written before the old
+is removed).
 
 ### board.yaml
 
@@ -155,7 +176,7 @@ wip_limits:
 
 The `discuss` column is a triage stage: the human flags a card (typically a
 raw inbox idea) for a structured conversation with an agent; the discussion's
-outcomes are written back into the card, which then graduates to a milestone.
+outcomes are written back into the card, which then graduates to an epic.
 
 **Card order within a column** (c056) is per-column:
 
@@ -177,7 +198,7 @@ sortable as plain strings.
 Shipped as a Markdown snippet for `CLAUDE.md` (or a skill). The contract:
 
 **Breakdown**
-- "Break down the concept": agent reads `concept.md`, creates milestone folders
+- "Break down the concept": agent reads `concept.md`, creates epic folders
   and cards with `status: backlog`.
 
 **Signal to work**
@@ -210,7 +231,7 @@ of the file tree:
 - Open a repo (folder picker + recent projects), detect `.gello/`.
 - Initialize a board in a repo that has none (scaffold + CLAUDE.md snippet).
 - Kanban view: columns from `board.yaml`, cards grouped by status,
-  swimlanes or filter by milestone.
+  swimlanes or filter by epic.
 - Drag & drop → atomic frontmatter write.
 - Card detail: rendered Markdown, inline editing, checkbox toggling.
 - **Screenshots from day one**: paste an image from the clipboard (or drag a
@@ -228,7 +249,7 @@ of the file tree:
 - Dependency graph view.
 - Optional MCP server / CLI for stricter validation (`gello move c003 ready`).
 - Launch the agent from the app ("run Claude on this card").
-- Metrics: cycle time, throughput per milestone.
+- Metrics: cycle time, throughput per epic.
 - Multi-board overview across projects.
 
 ## 7. Tech stack

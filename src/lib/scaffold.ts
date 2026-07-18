@@ -14,7 +14,7 @@ wip_limits:
 
 const CONCEPT_MD = `# Concept
 
-The product concept lives here — the authoritative spec that milestones and
+The product concept lives here — the authoritative spec that epics and
 cards are broken down from. Replace this with yours (or fold in an existing
 vision doc).
 `;
@@ -27,7 +27,9 @@ export function scaffoldFiles(projectRoot: string): ScaffoldFile[] {
     { path: `${gello}/concept.md`, content: CONCEPT_MD },
     { path: `${gello}/inbox/.gitkeep`, content: "" },
     { path: `${gello}/assets/.gitkeep`, content: "" },
-    { path: `${gello}/milestones/.gitkeep`, content: "" },
+    // epics/ for grouped work, cards/ for epic-less standalone cards
+    { path: `${gello}/epics/.gitkeep`, content: "" },
+    { path: `${gello}/cards/.gitkeep`, content: "" },
   ];
 }
 
@@ -43,14 +45,16 @@ frontmatter. Read \`.gello/concept.md\` for the product spec.
 
 - **Query the board** (never read all cards to find one):
   \`\`\`bash
-  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"
-  grep -rh "^status:" .gello/inbox .gello/milestones --include="[ci][0-9]*.md" | sort | uniq -c
+  grep -rl "^status: ready" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"
+  grep -rh "^status:" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md" | sort | uniq -c
   \`\`\`
 - **Pick up work**: re-query the board from disk first, then take the
   top \`ready\` card whose \`depends\` are all \`done\`; set
   \`status: in-progress\` before starting.
 - **Finish**: set \`status: review\` (only a human moves cards to \`done\`).
 - **New ideas**: drop a card in \`.gello/inbox/\` — a heading and a sentence.
+- **Triage**: move a card into an epic (\`epics/eNN-name/\`) or leave it
+  standalone in \`.gello/cards/\`; \`tags:\` are the separate cross-cutting axis.
 - Valid statuses come from \`board.yaml\`; frontmatter must be valid YAML.
 `;
 

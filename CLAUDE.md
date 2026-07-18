@@ -72,8 +72,8 @@ before every commit.
   may be watching/reading the same file.
 - Never hold unsaved editor state longer than a single field edit; the file
   watcher may bring external changes at any time.
-- Card/milestone types live in one shared types module; the schema in
-  CONCEPT.md §4 is the contract.
+- Card/epic types live in one shared types module; the schema in
+  concept.md §4 is the contract.
 
 ## Working the gello board (dogfooding)
 
@@ -83,10 +83,11 @@ do not maintain parallel plan/TODO files.
 - **Query the board** (cheap, one grep each — never read all cards to find one):
   ```bash
   # cards by status (task files c*.md, issue files i*.md; this glob
-  # excludes concept.md and milestone.md)
-  grep -rl "^status: ready" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"
+  # excludes concept.md and epic.md). Cards live in three homes: inbox/,
+  # epics/eNN-*/, and cards/ (epic-less standalone).
+  grep -rl "^status: ready" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"
   # status overview
-  grep -rh "^status:" .gello/inbox .gello/milestones --include="[ci][0-9]*.md" | sort | uniq -c
+  grep -rh "^status:" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md" | sort | uniq -c
   # one card's frontmatter at a glance
   sed -n '/^---$/,/^---$/p' <card-file>
   ```
@@ -101,6 +102,10 @@ do not maintain parallel plan/TODO files.
 - **Finish**: set `status: review`. Only a human moves cards to `done`.
 - **New ideas**: create a card in `.gello/inbox/` — a heading and a sentence is
   enough. Never bloat an existing card with unrelated scope.
+- **Triage** = move a card into a home: an **epic** (`epics/eNN-name/`, sets the
+  `epic:` field) for work that belongs to a larger effort, or **`cards/`** (the
+  epic-less standalone home) for a bug or small change that doesn't. A card has
+  at most one epic; **tags** (`tags:`) are the separate cross-cutting axis.
 - **Discuss** (`status: discuss`): the human flags a card they want to think
   through with you before it becomes implementable — typically an inbox idea
   before triage. When asked to discuss (or picking work and only discuss
@@ -109,8 +114,8 @@ do not maintain parallel plan/TODO files.
   back into the card: a refined `## What`, drafted `## Acceptance criteria`,
   and a compact `## Discussion` section (key decisions, rejected
   alternatives, open questions — no verbatim transcript). Find candidates:
-  `grep -rl "^status: discuss" .gello/inbox .gello/milestones --include="[ci][0-9]*.md"`.
-  Exit is the human's call: triage to a milestone / `backlog` / `ready`.
+  `grep -rl "^status: discuss" .gello/inbox .gello/epics .gello/cards --include="[ci][0-9]*.md"`.
+  Exit is the human's call: triage to an epic / `cards/` / `backlog` / `ready`.
 - **Attachments**: store under `.gello/assets/<card-id>/`, link with relative
   Markdown image paths. When moving a card file between folders, rewrite its
   relative asset links.

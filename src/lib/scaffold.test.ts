@@ -10,13 +10,22 @@ import {
 describe("scaffoldFiles", () => {
   const files = scaffoldFiles("/p/proj");
 
-  it("creates the .gello layout (board.yaml, concept, inbox, assets, milestones)", () => {
+  it("creates the .gello layout (board.yaml, concept, inbox, assets, epics, cards)", () => {
     const paths = files.map((f) => f.path).sort();
     expect(paths).toContain("/p/proj/.gello/board.yaml");
     expect(paths).toContain("/p/proj/.gello/concept.md");
     expect(paths).toContain("/p/proj/.gello/inbox/.gitkeep");
     expect(paths).toContain("/p/proj/.gello/assets/.gitkeep");
-    expect(paths).toContain("/p/proj/.gello/milestones/.gitkeep");
+    // c0081: a fresh board is born in the epic format — epics/ + standalone cards/
+    expect(paths).toContain("/p/proj/.gello/epics/.gitkeep");
+    expect(paths).toContain("/p/proj/.gello/cards/.gitkeep");
+    expect(paths).not.toContain("/p/proj/.gello/milestones/.gitkeep");
+  });
+
+  it("ships the convention snippet with epic vocabulary, not milestone", () => {
+    const snippet = claudeMdContent(null);
+    expect(snippet).not.toMatch(/milestone/i);
+    expect(snippet).toContain(".gello/epics");
   });
 
   it("produces a board.yaml that parses with the default columns", () => {
