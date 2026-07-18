@@ -1,10 +1,12 @@
 ---
 id: i0033
 title: Ship `discuss` in the default column lineup
-status: inbox
+status: ready
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T19:18:12
+epic: e01
 ---
 
 ## What
@@ -47,3 +49,4 @@ discuss). The discuss skill (c032) predates it. This closes the gap.
 
 - 2026-07-18 created (agent): flagged by the human — since we ship the
   discuss skill, discuss should be a default column, not opt-in.
+- 2026-07-18 status → ready (app)
