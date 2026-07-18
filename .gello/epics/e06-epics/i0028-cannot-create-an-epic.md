@@ -1,11 +1,11 @@
 ---
 id: i0028
 title: Cannot create an epic
-status: review
+status: done
 type: issue
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T15:43:46
+status-changed: 2026-07-18T18:00:03
 epic: e06
 ---
 
@@ -88,3 +88,4 @@ the epic's detail view.
   (goal/DoD stub + child rollup) opens on create. Full editor split to
   [[c0084]]. 496 tests, typecheck, lint green. Criterion 5 opens the MINIMAL
   view per the scope call — the full detail view is c0084.
+- 2026-07-18 status → done (app)
