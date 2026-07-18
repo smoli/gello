@@ -6,9 +6,8 @@ A local, Markdown-native Kanban board for agentic software development.
 
 gello turns the plan for a software project into a Kanban board — where every
 card is a Markdown file. The files in `.gello/` are the **single source of
-truth**; the desktop app (Tauri 2 + React/TypeScript) is a reactive renderer of
-that file tree. Delete the app and you still have your board, versioned in the
-repo, readable in any editor, and editable by hand or by a coding agent.
+truth**; the desktop app represents that file tree. Delete the app and you 
+still have your board, usable in any editor.
 
 ## Why
 
@@ -17,8 +16,7 @@ into epics and steps. gello keeps everything as Markdown but gives each unit of
 work its own file with structured frontmatter, and renders it as a board:
 
 - **Concept → epics → cards**, each its own `.md` file.
-- A card's column *is* its `status` frontmatter field. Moving a card is a
-  one-line edit.
+- A card's column is its `status` frontmatter field. Moving a card changes the status.
 - The board lives in the repo, travels with branches, and shows up in PRs.
 - Agents interact with it by reading and editing Markdown, following a documented convention
 
@@ -38,10 +36,10 @@ skill drives it). Both ship by default; columns are yours to customize.
 
 ### The lifecycle of a card
 
-1. **Capture.** A new idea or bug lands in the inbox column in seconds — a title
+1. **Capture.** A new idea or bug lands in the inbox column — a title
    and a sentence is enough. No need to pick an epic up front. (`⌘N` for an idea,
    `⌘I` for an issue, `⌘E` for an epic.)
-2. **Discuss** *(optional).* Flag a raw idea `discuss` when you want to think it
+2. **Discuss** *(optional).* Move an ideat to `discuss` when you want to think it
    through with the agent before committing. The agent interviews you — goal,
    scope, edge cases, what "done" looks like — and writes the outcome back into
    the card: a refined **What**, drafted **Acceptance criteria**, and a compact
@@ -78,14 +76,12 @@ changed.
       c003-kanban-view.md    # cards, flat within their epic
 ```
 
-A card's location is purely its epic assignment: `cards/` (no epic) or
+A card's location is its epic assignment: `cards/` (no epic) or
 `epics/eNN-name/` (assigned). Every card is one Markdown file with YAML
 frontmatter (`id`, `title`, `status`, `epic`, `depends`, `tags`, …) and a body
-of `## What`,
-`## Acceptance criteria` (checkboxes), `## Notes`, and a machine-managed
+of `## What`, `## Acceptance criteria` (checkboxes), `## Notes`, and a machine-managed
 `## Log`. External edits to any file appear in the app live, without a reload —
-and the app's own writes are surgical, so your formatting and comments survive
-byte-for-byte.
+and the app's own writes are surgical, so your formatting and comments survive.
 
 See [.gello/concept.md](.gello/concept.md) for the full spec.
 
@@ -160,7 +156,7 @@ See [.gello/concept.md](.gello/concept.md) for the full spec.
 
 ## For agents
 
-The board doubles as the agent's task list — no parallel TODO files. An agent:
+The board doubles as the agent's task list. An agent:
 
 - **Queries the board from disk** (a `grep` over frontmatter), never remembered
   state — a human may have moved cards between turns.
@@ -176,7 +172,7 @@ The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
 `AGENTS.md` when that file exists) at board init. The app can also install
 three gello-managed agent skills into a project (under `.claude/skills/`,
 `.pi/`, or `.agents/`); it prompts to add or update them when they're missing
-or out-of-date, and never clobbers your edits:
+or are out-of-date:
 
 - **`gello-discuss`** — interview the human about a card flagged
   `status: discuss` and write the refined outcome (a sharpened **What**,
