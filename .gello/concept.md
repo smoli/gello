@@ -171,7 +171,7 @@ is removed).
 ### board.yaml
 
 ```yaml
-columns: [discuss, backlog, ready, in-progress, review, done]
+columns: [inbox, backlog, ready, in-progress, review, done]  # inbox leads (c0088)
 types: [task, issue]     # optional; card types, open set; default [task, issue]
 background: assets/board/bg.jpg  # optional; full-image board background
 wip_limits:
