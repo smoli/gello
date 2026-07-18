@@ -18,7 +18,8 @@ export interface BoardConfig {
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
-  columns: ["backlog", "ready", "in-progress", "review", "done"],
+  // c0088: `inbox` is a normal status and the first column (was a folder)
+  columns: ["inbox", "backlog", "ready", "in-progress", "review", "done"],
   wipLimits: {},
   types: ["task", "issue"],
   background: null,
@@ -326,6 +327,8 @@ export interface NewCardOptions {
   ref?: string;
   /** c0076: epic id when the card is born inside an epic folder. */
   epic?: string;
+  /** c0089: initial status (default "backlog"; capture uses "inbox"). */
+  status?: string;
 }
 
 /**
@@ -342,7 +345,7 @@ export function newCardRaw(
   const lines = [
     `id: ${id}`,
     `title: ${formatScalar(title)}`,
-    "status: backlog",
+    `status: ${options.status ?? "backlog"}`,
   ];
   if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
   if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);

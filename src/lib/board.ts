@@ -33,9 +33,10 @@ export interface BoardModel {
    *  reconstructed into files for incremental reconciliation. */
   configRaw: string;
   epics: EpicGroup[];
-  /** c0076: standalone cards under `.gello/cards/` — no epic membership. */
+  /** c0076: standalone cards under `.gello/cards/` — no epic membership.
+   *  c0088: the inbox is no longer a folder — an unassigned card is just a
+   *  standalone card with `status: inbox`. */
   cards: Card[];
-  inbox: Card[];
   invalid: InvalidFile[];
 }
 
@@ -138,7 +139,6 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   const configRaw = configFile?.content ?? "";
   const { config, error: configError } = parseBoardConfig(configRaw);
 
-  const inbox: Card[] = [];
   const standalone: Card[] = [];
   const invalid: InvalidFile[] = [];
   const groups = new Map<string, EpicGroup>();
@@ -156,12 +156,9 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     if (!path.endsWith(".md")) continue;
     const segments = path.split("/");
 
-    if (segments.length === 2 && segments[0] === "inbox") {
-      const result = parseCard(path, content, config);
-      if (result.ok) inbox.push(result.card);
-      else invalid.push(result.invalid);
-    } else if (segments.length === 2 && segments[0] === "cards") {
-      // c0076: standalone cards — a flat home, no epic membership
+    if (segments.length === 2 && segments[0] === "cards") {
+      // c0076: standalone cards — a flat home, no epic membership. c0088: an
+      // unassigned card (incl. `status: inbox`) lives here; there is no inbox/.
       const result = parseCard(path, content, config);
       if (result.ok) standalone.push(result.card);
       else invalid.push(result.invalid);
@@ -189,7 +186,6 @@ export function loadBoard(files: BoardFile[]): BoardModel {
   const owner = new Map<string, string>();
   const duplicate = new Map<string, string>(); // path → reason
   const everyCard = [
-    ...inbox,
     ...standalone,
     ...[...groups.values()].flatMap((g) => g.cards),
   ];
@@ -210,8 +206,6 @@ export function loadBoard(files: BoardFile[]): BoardModel {
       return false;
     });
 
-  const dedupedInbox = dedup(inbox);
-  dedupedInbox.sort(byCreatedThenId);
   const dedupedStandalone = dedup(standalone);
   dedupedStandalone.sort(byCreatedThenId);
   const epics = [...groups.values()].sort((a, b) =>
@@ -229,7 +223,6 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     configRaw,
     epics,
     cards: dedupedStandalone,
-    inbox: dedupedInbox,
     invalid,
   };
 }
@@ -247,7 +240,6 @@ export interface FileChange {
 function modelToFiles(model: BoardModel): Map<string, string> {
   const files = new Map<string, string>();
   if (model.configRaw !== "") files.set("board.yaml", model.configRaw);
-  for (const card of model.inbox) files.set(card.path, card.raw);
   for (const card of model.cards) files.set(card.path, card.raw);
   for (const group of model.epics) {
     if (group.epic) files.set(group.epic.path, group.epic.raw);
@@ -287,13 +279,9 @@ export function applyFileChanges(
   return loadBoard([...files].map(([path, content]) => ({ path, content })));
 }
 
-/** All cards on the board — inbox, standalone, and epic-grouped alike. */
+/** All cards on the board — standalone and epic-grouped alike. */
 function allCards(model: BoardModel): Card[] {
-  return [
-    ...model.inbox,
-    ...model.cards,
-    ...model.epics.flatMap((g) => g.cards),
-  ];
+  return [...model.cards, ...model.epics.flatMap((g) => g.cards)];
 }
 
 /** Find a card by id anywhere on the board; null when absent (dangling ref). */
@@ -311,9 +299,13 @@ export function openIssuesFor(model: BoardModel, id: string): Card[] {
   );
 }
 
-/** Immutably add a freshly captured card to the inbox, keeping sort order. */
-export function withNewInboxCard(model: BoardModel, card: Card): BoardModel {
-  return { ...model, inbox: [...model.inbox, card].sort(byCreatedThenId) };
+/**
+ * c0088: immutably add a freshly captured card to the standalone `cards/` set,
+ * keeping sort order. Capture gives it `status: inbox`, so it lands in the inbox
+ * column; it has no epic. (Was withNewInboxCard, when the inbox was a folder.)
+ */
+export function withNewStandaloneCard(model: BoardModel, card: Card): BoardModel {
+  return { ...model, cards: [...model.cards, card].sort(byCreatedThenId) };
 }
 
 /**
@@ -344,7 +336,6 @@ export function withCardTriaged(
   moved: Card,
   targetFolder: string,
 ): BoardModel {
-  const strippedInbox = model.inbox.filter((c) => c.path !== oldPath);
   const strippedCards = model.cards.filter((c) => c.path !== oldPath);
   const strippedEpics = model.epics.map((group) => ({
     ...group,
@@ -355,14 +346,12 @@ export function withCardTriaged(
   if (moved.epic === null) {
     return {
       ...model,
-      inbox: strippedInbox,
       cards: [...strippedCards, moved].sort(byCreatedThenId),
       epics: strippedEpics,
     };
   }
   return {
     ...model,
-    inbox: strippedInbox,
     cards: strippedCards,
     epics: strippedEpics.map((group) =>
       group.folder === targetFolder
@@ -376,7 +365,6 @@ export function withCardTriaged(
 export function withoutCard(model: BoardModel, path: string): BoardModel {
   return {
     ...model,
-    inbox: model.inbox.filter((c) => c.path !== path),
     cards: model.cards.filter((c) => c.path !== path),
     epics: model.epics.map((group) => ({
       ...group,
@@ -394,7 +382,6 @@ export function withUpdatedCard(model: BoardModel, updated: Card): BoardModel {
     card.path === updated.path ? updated : card;
   return {
     ...model,
-    inbox: model.inbox.map(replace),
     cards: model.cards.map(replace),
     epics: model.epics.map((group) => ({
       ...group,
@@ -421,7 +408,6 @@ function basename(path: string): string {
 
 function nextIdInNamespace(model: BoardModel, prefix: string): string {
   const candidates = [
-    ...model.inbox.map((c) => c.id),
     ...model.cards.map((c) => c.id),
     ...model.epics.flatMap((g) => g.cards.map((c) => c.id)),
     ...model.invalid.map((entry) => basename(entry.path)),

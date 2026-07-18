@@ -44,15 +44,11 @@ export type RenumberHandler = (
 ) => void;
 
 /**
- * Cards that live in the status columns: all milestone cards, plus inbox
- * cards whose status is not backlog (c030 — e.g. flagged for discussion
- * before any milestone is assigned). Backlog inbox cards stay in the inbox
- * column: it means "unprocessed ideas", precisely.
+ * c0088: every card lands in a status column by its `status` (inbox is just the
+ * first column). A card is either standalone (`cards/`, no epic label) or
+ * epic-grouped (labelled with its epic). There is no separate inbox lane.
  */
 function collectStatusCards(model: BoardModel): BoardCard[] {
-  const flaggedInbox: BoardCard[] = model.inbox
-    .filter((card) => card.status !== "backlog")
-    .map((card) => ({ card, epicLabel: null, filterKey: "inbox" }));
   const epicCards: BoardCard[] = model.epics.flatMap((group) =>
     group.cards.map((card) => ({
       card,
@@ -60,22 +56,13 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
       filterKey: group.folder,
     })),
   );
-  // c0077: standalone cards (.gello/cards/) render like any card, no epic label
   const standaloneCards: BoardCard[] = model.cards.map((card) => ({
     card,
     epicLabel: null,
     filterKey: "no-epic",
   }));
-  return [...flaggedInbox, ...standaloneCards, ...epicCards];
+  return [...standaloneCards, ...epicCards];
 }
-
-/**
- * i0005: columns that are real inbox-triage destinations. Dropping a
- * milestone-less inbox card here prompts for a milestone (status comes from
- * the column); in-progress/review/done aren't where raw ideas land, so they
- * move without prompting.
- */
-const TRIAGE_DROP_COLUMNS = new Set(["discuss", "backlog", "ready"]);
 
 export function Board({
   model,
@@ -122,29 +109,11 @@ export function Board({
   const [dragging, setDragging] = useState<Card | null>(null);
 
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
-  const inboxUnprocessed = useMemo(
-    () =>
-      model.inbox.filter(
-        (card) =>
-          card.status === "backlog" &&
-          (typeFilter === "all" || card.type === typeFilter) &&
-          cardMatchesQuery(card, query),
-      ),
-    [model, typeFilter, query],
-  );
-  // c0077: epic filter — "all", a specific epic folder, or "no-epic"
-  // (standalone + inbox, which carry no epic). The inbox always shows so
-  // cards stay triageable regardless of the epic filter.
+  // c0088: epic filter — "all", a specific epic folder, or "no-epic" (standalone)
   const byEpic =
     filter === "all"
       ? statusCards
-      : filter === "no-epic"
-        ? statusCards.filter(
-            (c) => c.filterKey === "no-epic" || c.filterKey === "inbox",
-          )
-        : statusCards.filter(
-            (c) => c.filterKey === filter || c.filterKey === "inbox",
-          );
+      : statusCards.filter((c) => c.filterKey === filter);
   const visible = byEpic.filter(
     (c) =>
       (typeFilter === "all" || c.card.type === typeFilter) &&
@@ -152,38 +121,23 @@ export function Board({
   );
 
   const columns = model.config.columns;
-
-  const allCards = useMemo(
-    () => [
-      ...statusCards,
-      ...inboxUnprocessed.map((card) => ({
-        card,
-        epicLabel: null,
-        filterKey: "inbox",
-      })),
-    ],
-    [statusCards, inboxUnprocessed],
-  );
+  const allCards = statusCards;
 
   /**
-   * i0005: a milestone-less inbox card dropped on a triage column should
-   * prompt for a milestone rather than move silently. Only when a picker
-   * host is wired and the board actually has milestones to offer.
+   * c0090: a no-epic card leaving the inbox column prompts for an epic
+   * (pick / No epic / New epic / cancel). A card that already has an epic, or
+   * one moving *into* inbox, just changes status — no prompt.
    */
-  const promptsForMilestone = (card: Card, column: string): boolean =>
+  const promptsForExit = (card: Card, column: string): boolean =>
     onInboxStatusDrop != null &&
-    card.path.startsWith("inbox/") &&
-    card.epic === null &&
-    TRIAGE_DROP_COLUMNS.has(column) &&
-    model.epics.some((g) => g.epic !== null);
+    card.status === "inbox" &&
+    column !== "inbox" &&
+    card.epic === null;
 
   const dropOnColumn = (column: string, cardPath: string) => {
     const entry = allCards.find((c) => c.card.path === cardPath);
     if (!entry) return;
-    // i0014: a milestone-less inbox card triages even when its status already
-    // equals the column (a backlog inbox card dropped on backlog) — the point
-    // is to assign a milestone, so the picker must win over the no-op guard.
-    if (promptsForMilestone(entry.card, column)) {
+    if (promptsForExit(entry.card, column)) {
       onInboxStatusDrop?.(entry.card, column);
       return;
     }
@@ -211,7 +165,7 @@ export function Board({
     // i0005/i0015: a milestone-less inbox card still needs a milestone — open
     // the picker, but carry the chosen slot (order) so the pick/dismiss lands
     // the card exactly where it was dropped, not at the bottom.
-    if (promptsForMilestone(entry.card, column)) {
+    if (promptsForExit(entry.card, column)) {
       onInboxStatusDrop?.(entry.card, column, plan.order);
       return;
     }
@@ -300,32 +254,6 @@ export function Board({
         onMouseDown={backgroundDrag}
         onContextMenu={bgContext}
       >
-        {inboxUnprocessed.length > 0 && (
-          <div
-            className="column-track column-track-inbox"
-            onContextMenu={bgContext}
-          >
-            <section className="column column-inbox" aria-label="inbox">
-            <div className="column-header">
-              <h2>inbox</h2>
-              <span className="column-count">{inboxUnprocessed.length}</span>
-            </div>
-            <div className="column-cards">
-              {inboxUnprocessed.map((card) => (
-                <CardFront
-                  key={card.path}
-                  entry={{ card, epicLabel: null, filterKey: "inbox" }}
-                  isOrigin={dragging?.path === card.path}
-                  onMoveByKey={moveByKey}
-                  onSelect={onSelectCard}
-                  onDragState={setDragging}
-                  loadImage={loadImage}
-                />
-              ))}
-            </div>
-          </section>
-          </div>
-        )}
         {columns.map((column) => {
           const entries = visible
             .filter((c) => c.card.status === column)
@@ -547,7 +475,7 @@ function CardFront({
   /** c012: resolve this card's first image to a data URL for the thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
 }) {
-  const { card, epicLabel, filterKey } = entry;
+  const { card, epicLabel } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   return (
@@ -586,12 +514,10 @@ function CardFront({
           className="card-thumb"
         />
       )}
-      {/* c0077: inbox → "inbox"; epic → its title; standalone → no meta row */}
-      {(filterKey === "inbox" || epicLabel) && (
+      {/* c0086: epic → its title; standalone (incl. inbox status) → no meta row */}
+      {epicLabel && (
         <div className="card-meta">
-          <span className="card-milestone">
-            {filterKey === "inbox" ? "inbox" : epicLabel}
-          </span>
+          <span className="card-milestone">{epicLabel}</span>
         </div>
       )}
     </article>

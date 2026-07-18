@@ -61,9 +61,10 @@ function loadedFixture() {
     legacy: false,
     model: loadBoard([
       {
-        path: "inbox/c001-hello.md",
+        // c0088: an unassigned card is a standalone card with status: inbox
+        path: "cards/c001-hello.md",
         content:
-          "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\n\n- [ ] a first task\n",
+          "---\nid: c001\ntitle: Hello board\nstatus: inbox\n---\n\n- [ ] a first task\n",
       },
       {
         path: "milestones/m02-board-ui/milestone.md",
@@ -126,7 +127,7 @@ describe("App", () => {
       root: "/x/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Opened board\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: Opened board\nstatus: backlog\n---\nx\n" },
       ]),
     });
 
@@ -187,7 +188,7 @@ describe("App", () => {
         root: "/x/.gello",
         legacy: false,
         model: loadBoard([
-          { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Fresh board\nstatus: backlog\n---\nx\n" },
+          { path: "cards/c001.md", content: "---\nid: c001\ntitle: Fresh board\nstatus: backlog\n---\nx\n" },
         ]),
       });
 
@@ -207,7 +208,7 @@ describe("App", () => {
       legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [backlog, done]\n" },
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
 
@@ -238,7 +239,7 @@ describe("App", () => {
       legacy: false,
       model: loadBoard([
         { path: "board.yaml", content: "columns: [backlog, done]\n" },
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
 
@@ -433,7 +434,7 @@ describe("App", () => {
     // c015: rebase-on-disk makes the write async
     await waitFor(() =>
       expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-        "/repo/.gello/inbox/c001-hello.md",
+        "/repo/.gello/cards/c001-hello.md",
         expect.stringContaining("status: ready"),
       ),
     );
@@ -450,7 +451,7 @@ describe("App", () => {
     // c015: rebase-on-disk makes the write async
     await waitFor(() =>
       expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-        "/repo/.gello/inbox/c001-hello.md",
+        "/repo/.gello/cards/c001-hello.md",
         expect.stringContaining("- [x] a first task"),
       ),
     );
@@ -461,7 +462,7 @@ describe("App", () => {
   it("saves an edited body when the disk is unchanged", async () => {
     const fixture = loadedFixture();
     loadMock.mockResolvedValueOnce(fixture);
-    readMock.mockResolvedValueOnce(fixture.model.inbox[0].raw); // unchanged
+    readMock.mockResolvedValueOnce(fixture.model.cards[0].raw); // unchanged
     writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
@@ -474,7 +475,7 @@ describe("App", () => {
 
     await screen.findByRole("button", { name: "Edit" });
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
+      "/repo/.gello/cards/c001-hello.md",
       expect.stringContaining("fresh body"),
     );
   });
@@ -482,7 +483,7 @@ describe("App", () => {
   it("surfaces an external change instead of clobbering it", async () => {
     const fixture = loadedFixture();
     loadMock.mockResolvedValueOnce(fixture);
-    const externallyChanged = fixture.model.inbox[0].raw.replace(
+    const externallyChanged = fixture.model.cards[0].raw.replace(
       "a first task",
       "agent rewrote this task",
     );
@@ -504,7 +505,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /overwrite/i }));
     await screen.findByRole("button", { name: "Edit" });
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c001-hello.md",
+      "/repo/.gello/cards/c001-hello.md",
       expect.stringContaining("my competing draft"),
     );
   });
@@ -512,7 +513,7 @@ describe("App", () => {
   it("c015: reloads disk on 'Discard my edit' after a conflict (take-disk path)", async () => {
     const fixture = loadedFixture();
     loadMock.mockResolvedValueOnce(fixture);
-    const externallyChanged = fixture.model.inbox[0].raw.replace(
+    const externallyChanged = fixture.model.cards[0].raw.replace(
       "a first task",
       "agent rewrote this task",
     );
@@ -615,7 +616,7 @@ describe("App", () => {
     loadMock.mockResolvedValueOnce(fixture);
     writeMock.mockResolvedValue(undefined);
     // rebaseOnDisk reads the card being triaged — return its own raw (no-op merge)
-    readMock.mockResolvedValue(fixture.model.inbox[0].raw);
+    readMock.mockResolvedValue(fixture.model.cards[0].raw);
 
     render(<App />);
     const cardEl = (await screen.findByText("Hello board")).closest("article")!;
@@ -675,10 +676,12 @@ describe("App", () => {
     });
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
+    // c0089: capture writes to cards/ with status: inbox
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c0007-dark-mode.md",
+      "/repo/.gello/cards/c0007-dark-mode.md",
       expect.stringContaining("title: Dark mode"),
     );
+    expect(writeMock.mock.calls[0][1]).toContain("status: inbox");
     const inbox = screen.getByRole("region", { name: "inbox" });
     expect(within(inbox).getByText("Dark mode")).toBeInTheDocument();
   });
@@ -720,9 +723,9 @@ describe("App", () => {
     });
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
 
-    // the card is created under the SAME id, so the link resolves
+    // the card is created under the SAME id in cards/ (depth 1, ../ prefix holds)
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c0007-with-screenshot.md",
+      "/repo/.gello/cards/c0007-with-screenshot.md",
       expect.stringContaining("![shot](../assets/c0007/shot.png)"),
     );
   });
@@ -744,7 +747,7 @@ describe("App", () => {
     );
 
     expect(vi.mocked(removeFile)).toHaveBeenCalledWith(
-      "/repo/.gello/inbox/c001-hello.md",
+      "/repo/.gello/cards/c001-hello.md",
     );
     await vi.waitFor(() => {
       expect(vi.mocked(removeDir)).toHaveBeenCalledWith("/repo/.gello/assets/c001");
@@ -768,12 +771,11 @@ describe("App", () => {
       "/repo/.gello/epics/m02-board-ui/c001-hello.md",
       expect.stringContaining("epic: m02"),
     );
-    // optimistic move out of the inbox into the milestone group
-    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
-    const backlog = screen.getByRole("region", { name: "backlog" });
-    expect(within(backlog).getByText("Hello board")).toBeInTheDocument();
-    // detail stays open on the moved card; the milestone select now reflects
-    // its new home and stays editable for reassignment (i0005)
+    // c0088: triage keeps the card's status (inbox) — it's now an epic-assigned
+    // inbox card (allowed). The inbox column stays; the card gains an epic label.
+    const inbox = screen.getByRole("region", { name: "inbox" });
+    expect(within(inbox).getByText("Hello board")).toBeInTheDocument();
+    // detail stays open on the moved card; the epic select reflects its new home
     const dialog = screen.getByRole("dialog", { name: "c001" });
     expect(within(dialog).getByLabelText("Epic")).toHaveValue("m02-board-ui");
   });
@@ -856,9 +858,8 @@ describe("App", () => {
     expect(written).toMatch(/^order: \d/m); // placed at the dropped slot, not the bottom
   });
 
-  it("i0005: dismissing the milestone picker applies the status but keeps the card in inbox", async () => {
+  it("c0085: dismissing the picker (Escape) cancels the drop — no write, card stays in inbox", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
-    writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
     const cardEl = (await screen.findByText("Hello board")).closest("article")!;
@@ -872,56 +873,45 @@ describe("App", () => {
     fireEvent.dragStart(cardEl, { dataTransfer });
     fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
 
-    fireEvent.click(screen.getByRole("button", { name: /stay in inbox/i }));
+    // there is no "Stay in inbox" button; Escape cancels the whole drop
+    expect(screen.queryByRole("button", { name: /stay in inbox/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
 
-    // status applied in place, still in the inbox folder (no milestone, no move)
-    // c015: rebase-on-disk makes the write async
+    expect(writeMock).not.toHaveBeenCalled();
+    const inbox = screen.getByRole("region", { name: "inbox" });
+    expect(within(inbox).getByText("Hello board")).toBeInTheDocument();
+  });
+
+  it("c0090: picking 'No epic' applies the dropped status without moving the file", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValue(undefined);
+    // rebase-on-disk reads the card; return its own raw (no-op merge)
+    readMock.mockResolvedValue(loadedFixture().model.cards[0].raw);
+
+    render(<App />);
+    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
+    const data: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (t: string, v: string) => {
+        data[t] = v;
+      },
+      getData: (t: string) => data[t] ?? "",
+    };
+    fireEvent.dragStart(cardEl, { dataTransfer });
+    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
+
+    const picker = screen.getByRole("dialog", { name: "assign epic" });
+    fireEvent.click(within(picker).getByText("No epic"));
+
+    // stays in cards/, just changes status — no epic, no move
     await waitFor(() =>
-      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-        "/repo/.gello/inbox/c001-hello.md",
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/cards/c001-hello.md",
         expect.stringContaining("status: ready"),
       ),
     );
-    expect(writeMock.mock.calls[0][1]).not.toContain("milestone:");
-  });
-
-  it("i0005: dismissing returns a discuss-origin card to discuss, not the dropped status", async () => {
-    loadMock.mockResolvedValueOnce({
-      root: "/repo/.gello",
-      legacy: false,
-      model: loadBoard([
-        { path: "board.yaml", content: "columns: [discuss, backlog, ready, done]\n" },
-        {
-          path: "inbox/c001-hello.md",
-          content: "---\nid: c001\ntitle: Hello board\nstatus: discuss\n---\nx\n",
-        },
-        {
-          path: "milestones/m02-board-ui/milestone.md",
-          content: "---\nid: m02\ntitle: Board UI\n---\ngoal\n",
-        },
-      ]),
-    });
-    writeMock.mockResolvedValueOnce(undefined);
-
-    render(<App />);
-    // a discuss inbox card lives in the discuss column; drag it onto ready
-    const cardEl = (await screen.findByText("Hello board")).closest("article")!;
-    const data: Record<string, string> = {};
-    const dataTransfer = {
-      setData: (t: string, v: string) => {
-        data[t] = v;
-      },
-      getData: (t: string) => data[t] ?? "",
-    };
-    fireEvent.dragStart(cardEl, { dataTransfer });
-    fireEvent.drop(screen.getByRole("region", { name: "ready" }), { dataTransfer });
-
-    fireEvent.click(screen.getByRole("button", { name: /move back to discuss/i }));
-
-    // no status write at all — it's already discuss, so it stays put in inbox
-    expect(writeMock).not.toHaveBeenCalled();
-    expect(within(screen.getByRole("region", { name: "discuss" })).getByText("Hello board"))
-      .toBeInTheDocument();
+    const written = writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string;
+    expect(written).not.toContain("epic:");
   });
 
   it("applies external file changes to the board live (debounced)", async () => {
@@ -979,7 +969,7 @@ describe("App", () => {
       });
       vi.mocked(gitBoardChanges).mockResolvedValue([
         {
-          path: ".gello/inbox/c001-hello.md",
+          path: ".gello/cards/c001-hello.md",
           head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
           work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
         },
@@ -990,8 +980,8 @@ describe("App", () => {
       await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
 
       // a burst of board writes within the window → one commit
-      emitChange!(["inbox/c001-hello.md"]);
-      emitChange!(["inbox/c001-hello.md"]);
+      emitChange!(["cards/c001-hello.md"]);
+      emitChange!(["cards/c001-hello.md"]);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(30_000);
       });
@@ -1018,7 +1008,7 @@ describe("App", () => {
       render(<App />);
       await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
 
-      emitChange!(["inbox/c001-hello.md"]);
+      emitChange!(["cards/c001-hello.md"]);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
@@ -1045,7 +1035,7 @@ describe("App", () => {
         expect(screen.getByText("Hello board")).toBeInTheDocument();
       });
 
-      emitChange!(["inbox/c001-hello.md"]);
+      emitChange!(["cards/c001-hello.md"]);
       await act(async () => {
         await vi.advanceTimersByTimeAsync(300);
       });
@@ -1155,7 +1145,7 @@ describe("App", () => {
       model: loadBoard([
         { path: "board.yaml", content: "background: assets/board/bg.jpg\n" },
         {
-          path: "inbox/c001-hello.md",
+          path: "cards/c001-hello.md",
           content: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
         },
       ]),
@@ -1181,7 +1171,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
@@ -1211,7 +1201,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
@@ -1232,7 +1222,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
     vi.mocked(detectSkillDirs).mockResolvedValue(["/repo/proj/.claude/skills"]);
@@ -1254,7 +1244,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
     // dismissed flag set for THIS project's key only
@@ -1274,7 +1264,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: t\nstatus: backlog\n---\nx\n" },
       ]),
     });
     // a DIFFERENT project was dismissed — must not suppress this one
@@ -1293,7 +1283,7 @@ describe("App", () => {
       root: "/repo/proj/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: Old board\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: Old board\nstatus: backlog\n---\nx\n" },
       ]),
     });
     vi.mocked(pickFolder).mockResolvedValue("/other");
@@ -1301,7 +1291,7 @@ describe("App", () => {
       root: "/other/.gello",
       legacy: false,
       model: loadBoard([
-        { path: "inbox/c001.md", content: "---\nid: c001\ntitle: New board\nstatus: backlog\n---\nx\n" },
+        { path: "cards/c001.md", content: "---\nid: c001\ntitle: New board\nstatus: backlog\n---\nx\n" },
       ]),
     });
 

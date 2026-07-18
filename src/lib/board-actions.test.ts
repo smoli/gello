@@ -289,8 +289,8 @@ describe("saveCardEdit", () => {
 
 const CAPTURE_MODEL = loadBoard([
   {
-    path: "inbox/c007-existing.md",
-    content: "---\nid: c007\ntitle: Existing\nstatus: backlog\n---\nx\n",
+    path: "cards/c007-existing.md",
+    content: "---\nid: c007\ntitle: Existing\nstatus: inbox\n---\nx\n",
   },
   {
     path: "milestones/m02-board-ui/milestone.md",
@@ -313,11 +313,11 @@ describe("createCard", () => {
     );
 
     expect(card.id).toBe("c0008");
-    expect(card.path).toBe("inbox/c0008-fix-the-flaky-sync.md");
-    expect(card.status).toBe("backlog");
+    expect(card.path).toBe("cards/c0008-fix-the-flaky-sync.md");
+    expect(card.status).toBe("inbox"); // c0089
     await persisted;
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-      "/repo/.gello/inbox/c0008-fix-the-flaky-sync.md",
+      "/repo/.gello/cards/c0008-fix-the-flaky-sync.md",
       expect.stringContaining("title: Fix the Flaky Sync!!"),
     );
   });
@@ -330,7 +330,7 @@ describe("createCard", () => {
       "2026-07-16",
     );
 
-    expect(card.path).toBe("inbox/c0008-idea.md");
+    expect(card.path).toBe("cards/c0008-idea.md");
   });
 
   it("includes the optional body", async () => {
@@ -354,7 +354,7 @@ describe("createCard", () => {
     );
 
     expect(card.id).toBe("c0008");
-    expect(card.path).toBe("inbox/c0008-has-a-screenshot.md");
+    expect(card.path).toBe("cards/c0008-has-a-screenshot.md");
   });
 });
 
@@ -375,7 +375,7 @@ describe("issue creation (c024)", () => {
     expect(card.type).toBe("issue");
     expect(card.ref).toBeNull();
     expect(card.id).toBe("i0001");
-    expect(card.path).toBe("inbox/i0001-something-broke.md");
+    expect(card.path).toBe("cards/i0001-something-broke.md");
     await persisted;
     expect(writeMock.mock.calls[0][1]).toContain("type: issue\n");
   });

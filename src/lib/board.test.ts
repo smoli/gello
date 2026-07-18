@@ -11,7 +11,7 @@ import {
   openIssuesFor,
   withCardTriaged,
   withNewEpic,
-  withNewInboxCard,
+  withNewStandaloneCard,
   withUpdatedCard,
   withoutCard,
   columnComparator,
@@ -35,11 +35,12 @@ function milestone(id: string, title = `Milestone ${id}`): string {
 }
 
 const SYNTHETIC: BoardFile[] = [
-  file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\nwip_limits:\n  in-progress: 2\n"),
+  file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\nwip_limits:\n  in-progress: 2\n"),
   file("concept.md", "# not a card, ignored\n"),
-  file("inbox/.gitkeep", ""),
+  file("cards/.gitkeep", ""),
   file("assets/c101/shot.png", "\x89PNG-binary-ignored"),
-  file("inbox/c103-an-idea.md", card("c103")),
+  // c0088: an unassigned card is a standalone card with status: inbox
+  file("cards/c103-an-idea.md", card("c103", "inbox")),
   file("milestones/m01-alpha/milestone.md", milestone("m01", "Alpha")),
   file("milestones/m01-alpha/c101-first.md", card("c101", "done", "low")),
   file("milestones/m01-alpha/c102-second.md", card("c102", "ready", "high")),
@@ -98,23 +99,24 @@ describe("loadBoard on this repo's own .gello tree", () => {
 
 describe("c0076: epic folders + standalone cards", () => {
   const model = loadBoard([
-    file("board.yaml", "columns: [backlog, done]\n"),
+    file("board.yaml", "columns: [inbox, backlog, done]\n"),
     file("epics/e01-core/epic.md", "---\nid: e01\ntitle: Core\nstatus: backlog\n---\ngoal\n"),
     file("epics/e01-core/c001-a.md", "---\nid: c001\ntitle: In epic\nstatus: backlog\nepic: e01\n---\nx\n"),
     file("cards/c002-loose.md", "---\nid: c002\ntitle: Standalone\nstatus: backlog\n---\nx\n"),
-    file("inbox/c003-idea.md", "---\nid: c003\ntitle: Idea\nstatus: backlog\n---\nx\n"),
+    // c0088: an unassigned/inbox card is a standalone card with status: inbox
+    file("cards/c003-idea.md", "---\nid: c003\ntitle: Idea\nstatus: inbox\n---\nx\n"),
     // legacy milestone folder still loads (compat, until migration)
     file("milestones/m09-old/milestone.md", "---\nid: m09\ntitle: Legacy\n---\ng\n"),
     file("milestones/m09-old/c004-b.md", "---\nid: c004\ntitle: Legacy card\nstatus: backlog\nmilestone: m09\n---\nx\n"),
   ]);
 
-  it("reads epics/ (grouped), cards/ (standalone), inbox/, and legacy milestones/", () => {
+  it("reads epics/ (grouped), cards/ (standalone incl. inbox status), and legacy milestones/", () => {
     expect(model.invalid).toEqual([]);
     expect(model.epics.map((g) => g.folder)).toEqual(["e01-core", "m09-old"]);
     expect(model.epics[0].epic?.title).toBe("Core");
     expect(model.epics[0].cards.map((c) => c.id)).toEqual(["c001"]);
-    expect(model.cards.map((c) => c.id)).toEqual(["c002"]); // standalone
-    expect(model.inbox.map((c) => c.id)).toEqual(["c003"]);
+    // c002 (backlog) + c003 (inbox) are both standalone
+    expect(model.cards.map((c) => c.id)).toEqual(["c002", "c003"]);
   });
 
   it("maps legacy `milestone:` to `epic`, and standalone cards have no epic", () => {
@@ -131,8 +133,8 @@ describe("c0076: epic folders + standalone cards", () => {
 describe("loadBoard on a synthetic tree", () => {
   const model = loadBoard(SYNTHETIC);
 
-  it("represents inbox, milestone cards, and invalid cards", () => {
-    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+  it("represents standalone (inbox-status) cards, milestone cards, and invalid cards", () => {
+    expect(model.cards.map((c) => c.id)).toEqual(["c103"]);
     expect(model.epics.map((g) => g.folder)).toEqual([
       "m01-alpha",
       "m02-beta",
@@ -148,23 +150,22 @@ describe("loadBoard on a synthetic tree", () => {
 
   it("ignores non-card files (config, concept, assets, .gitkeep)", () => {
     const mentioned = [
-      ...model.inbox,
+      ...model.cards,
       ...model.epics.flatMap((g) => g.cards),
     ].map((c) => c.path);
     expect(mentioned.every((p) => p.endsWith(".md"))).toBe(true);
     expect(model.invalid.map((e) => e.path)).not.toContain("concept.md");
   });
 
-  // c056 superseded the old priority-first order: priority is display-only,
-  // capture order (created, then id) is what the inbox shows.
-  it("orders inbox cards by created/id regardless of priority", () => {
+  // c056: capture order (created, then id) — no priority jumping the queue
+  it("orders standalone cards by created/id regardless of priority", () => {
     const files = [
-      file("inbox/c202-normal.md", card("c202", "backlog", "normal")),
-      file("inbox/c204-low.md", card("c204", "backlog", "low")),
-      file("inbox/c203-high.md", card("c203", "backlog", "high")),
-      file("inbox/c201-normal.md", card("c201", "backlog", "normal")),
+      file("cards/c202-normal.md", card("c202", "inbox", "normal")),
+      file("cards/c204-low.md", card("c204", "inbox", "low")),
+      file("cards/c203-high.md", card("c203", "inbox", "high")),
+      file("cards/c201-normal.md", card("c201", "inbox", "normal")),
     ];
-    const ordered = loadBoard(files).inbox.map((c) => c.id);
+    const ordered = loadBoard(files).cards.map((c) => c.id);
     expect(ordered).toEqual(["c201", "c202", "c203", "c204"]);
   });
 
@@ -190,35 +191,32 @@ describe("withUpdatedCard", () => {
     expect(
       model.epics[0].cards.find((c) => c.id === "c102")?.status,
     ).toBe("ready");
-    expect(next.inbox).toEqual(model.inbox);
+    expect(next.cards).toEqual(model.cards);
     expect(next.invalid).toEqual(model.invalid);
   });
 
-  it("replaces an inbox card by path", () => {
+  it("replaces a standalone card by path", () => {
     const model = loadBoard(SYNTHETIC);
-    const updated = { ...model.inbox[0], status: "ready" };
+    const updated = { ...model.cards[0], status: "ready" };
 
     const next = withUpdatedCard(model, updated);
 
-    expect(next.inbox[0].status).toBe("ready");
-    expect(model.inbox[0].status).toBe("backlog");
+    expect(next.cards[0].status).toBe("ready");
+    expect(model.cards[0].status).toBe("inbox");
   });
 });
 
-describe("withNewInboxCard", () => {
-  it("adds the card to the inbox in sorted position", () => {
+describe("withNewStandaloneCard (c0088)", () => {
+  it("adds a captured card to model.cards in sorted position", () => {
     const model = loadBoard(SYNTHETIC);
-    const parsed = parseCard(
-      "inbox/c106-urgent.md",
-      card("c106", "backlog", "high"),
-    );
+    const parsed = parseCard("cards/c106-urgent.md", card("c106", "inbox", "high"));
     if (!parsed.ok) throw new Error("fixture must parse");
 
-    const next = withNewInboxCard(model, parsed.card);
+    const next = withNewStandaloneCard(model, parsed.card);
 
     // c056: capture order — priority does not jump the queue
-    expect(next.inbox.map((c) => c.id)).toEqual(["c103", "c106"]);
-    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+    expect(next.cards.map((c) => c.id)).toEqual(["c103", "c106"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c103"]);
   });
 });
 
@@ -249,7 +247,7 @@ describe("withNewEpic (i0028)", () => {
 });
 
 describe("withCardTriaged", () => {
-  it("moves a card from the inbox into a milestone group, sorted", () => {
+  it("moves a standalone card into a milestone group, sorted", () => {
     const model = loadBoard(SYNTHETIC);
     const parsed = parseCard(
       "milestones/m01-alpha/c103-an-idea.md",
@@ -259,28 +257,27 @@ describe("withCardTriaged", () => {
 
     // triageCard sets the epic field; withCardTriaged routes by it
     const moved = { ...parsed.card, epic: "m01" };
-    const next = withCardTriaged(model, "inbox/c103-an-idea.md", moved, "m01-alpha");
+    const next = withCardTriaged(model, "cards/c103-an-idea.md", moved, "m01-alpha");
 
-    expect(next.inbox).toEqual([]);
+    expect(next.cards).toEqual([]);
     expect(next.epics[0].cards.map((c) => c.id)).toEqual([
       "c101",
       "c102",
       "c103",
     ]);
     // original untouched
-    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c103"]);
     expect(model.epics[0].cards).toHaveLength(2);
   });
 
-  it("c0078: triages an inbox card to standalone (no epic) → model.cards", () => {
+  it("c0078: triages a card to standalone (no epic) → model.cards", () => {
     const model = loadBoard(SYNTHETIC);
     const parsed = parseCard("cards/c103-an-idea.md", card("c103"));
     if (!parsed.ok) throw new Error("fixture must parse");
     const moved = { ...parsed.card, epic: null };
 
-    const next = withCardTriaged(model, "inbox/c103-an-idea.md", moved, "cards");
+    const next = withCardTriaged(model, "cards/c103-an-idea.md", moved, "cards");
 
-    expect(next.inbox).toEqual([]);
     expect(next.cards.map((c) => c.id)).toEqual(["c103"]);
     // not added to any epic group
     expect(next.epics.flatMap((g) => g.cards).map((c) => c.id)).not.toContain("c103");
@@ -318,13 +315,13 @@ describe("withoutCard (c0062)", () => {
     expect(model.epics[0].cards).toHaveLength(2);
   });
 
-  it("drops an inbox card", () => {
+  it("drops a standalone card", () => {
     const model = loadBoard(SYNTHETIC);
-    expect(model.inbox.map((c) => c.id)).toEqual(["c103"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c103"]);
 
-    const next = withoutCard(model, "inbox/c103-an-idea.md");
+    const next = withoutCard(model, "cards/c103-an-idea.md");
 
-    expect(next.inbox).toEqual([]);
+    expect(next.cards).toEqual([]);
   });
 });
 
@@ -353,18 +350,18 @@ describe("applyFileChanges", () => {
 
   it("adds a new card file", () => {
     const next = applyFileChanges(model, [
-      { path: "inbox/c200-new.md", content: card("c200") },
+      { path: "cards/c200-new.md", content: card("c200", "inbox") },
     ]);
 
-    expect(next.inbox.map((c) => c.id)).toContain("c200");
+    expect(next.cards.map((c) => c.id)).toContain("c200");
   });
 
   it("removes a deleted card file", () => {
     const next = applyFileChanges(model, [
-      { path: "inbox/c103-an-idea.md", content: null },
+      { path: "cards/c103-an-idea.md", content: null },
     ]);
 
-    expect(next.inbox).toEqual([]);
+    expect(next.cards).toEqual([]);
   });
 
   it("moves a card that became invalid into the invalid list", () => {
@@ -424,13 +421,13 @@ describe("issue refs (c024)", () => {
     file("milestones/m01-x/c001-task.md", card("c001", "review")),
     file("milestones/m01-x/c002-issue-open.md", issue("c002", "c001")),
     file("milestones/m01-x/c003-issue-done.md", issue("c003", "c001", "done")),
-    file("inbox/c004-issue-elsewhere.md", issue("c004", "c099")),
-    file("inbox/c005-issue-unanchored.md", issue("c005", null)),
+    file("cards/c004-issue-elsewhere.md", issue("c004", "c099")),
+    file("cards/c005-issue-unanchored.md", issue("c005", null)),
   ]);
 
-  it("finds cards by id across inbox and milestones", () => {
+  it("finds cards by id across standalone cards and milestones", () => {
     expect(findCardById(model, "c001")?.title).toBe("Card c001");
-    expect(findCardById(model, "c005")?.path).toBe("inbox/c005-issue-unanchored.md");
+    expect(findCardById(model, "c005")?.path).toBe("cards/c005-issue-unanchored.md");
     expect(findCardById(model, "c099")).toBeNull();
   });
 
@@ -447,19 +444,19 @@ describe("4-digit id allocation (c044)", () => {
   });
 
   it("continues numerically after existing 3-digit ids without renumbering", () => {
-    const model = loadBoard([file("inbox/c055-old.md", card("c055"))]);
+    const model = loadBoard([file("cards/c055-old.md", card("c055"))]);
 
     expect(nextCardId(model)).toBe("c0056");
   });
 
   it("sorts mixed-width ids numerically, not lexicographically", () => {
     const model = loadBoard([
-      file("inbox/c0056-new.md", card("c0056")),
-      file("inbox/c055-old.md", card("c055")),
+      file("cards/c0056-new.md", card("c0056")),
+      file("cards/c055-old.md", card("c055")),
     ]);
 
     // lexicographic would put c0056 first; numeric order is c055, c0056
-    expect(model.inbox.map((c) => c.id)).toEqual(["c055", "c0056"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c055", "c0056"]);
   });
 });
 
@@ -470,8 +467,8 @@ describe("issue id namespace (c043)", () => {
 
   it("allocates issue ids in the i-namespace, independent of tasks", () => {
     const model = loadBoard([
-      file("inbox/c010-task.md", card("c010")),
-      file("inbox/i002-issue.md", issue("i002")),
+      file("cards/c010-task.md", card("c010")),
+      file("cards/i002-issue.md", issue("i002")),
     ]);
 
     expect(nextIssueId(model)).toBe("i0003");
@@ -484,7 +481,7 @@ describe("issue id namespace (c043)", () => {
 
   it("counts invalid i-files by filename so broken issues reserve their id", () => {
     const model = loadBoard([
-      file("inbox/i009-broken.md", "---\nid: [unclosed\n---\nx\n"),
+      file("cards/i009-broken.md", "---\nid: [unclosed\n---\nx\n"),
     ]);
 
     expect(nextIssueId(model)).toBe("i0010");
@@ -494,46 +491,46 @@ describe("issue id namespace (c043)", () => {
 describe("duplicate card IDs (c031)", () => {
   it("keeps the first occurrence (by path) and flags the rest as invalid", () => {
     const model = loadBoard([
-      file("inbox/c010-copy.md", card("c010", "backlog")),
+      file("cards/c010-copy.md", card("c010", "backlog")),
       file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: A\n---\ng\n"),
       file("milestones/m01-a/c010-original.md", card("c010", "review")),
     ]);
 
-    // "inbox/..." sorts before "milestones/..." — inbox copy wins
-    expect(model.inbox.map((c) => c.id)).toEqual(["c010"]);
+    // "cards/..." sorts before "milestones/..." — the standalone copy wins
+    expect(model.cards.map((c) => c.id)).toEqual(["c010"]);
     expect(model.epics[0].cards).toEqual([]);
     expect(model.invalid).toHaveLength(1);
     expect(model.invalid[0].path).toBe("milestones/m01-a/c010-original.md");
     expect(model.invalid[0].reason).toContain("duplicate id c010");
-    expect(model.invalid[0].reason).toContain("inbox/c010-copy.md");
+    expect(model.invalid[0].reason).toContain("cards/c010-copy.md");
   });
 
   it("flags every extra copy when an id appears three times", () => {
     const model = loadBoard([
-      file("inbox/c010-a.md", card("c010")),
-      file("inbox/c010-b.md", card("c010")),
-      file("inbox/c010-c.md", card("c010")),
+      file("cards/c010-a.md", card("c010")),
+      file("cards/c010-b.md", card("c010")),
+      file("cards/c010-c.md", card("c010")),
     ]);
 
-    expect(model.inbox).toHaveLength(1);
+    expect(model.cards).toHaveLength(1);
     expect(model.invalid).toHaveLength(2);
     expect(model.invalid.every((e) => e.reason.includes("duplicate id"))).toBe(true);
   });
 
   it("does not reuse a duplicated id for the next card", () => {
     const model = loadBoard([
-      file("inbox/c010-a.md", card("c010")),
-      file("inbox/c010-b.md", card("c010")),
+      file("cards/c010-a.md", card("c010")),
+      file("cards/c010-b.md", card("c010")),
     ]);
 
     expect(nextCardId(model)).toBe("c0011");
   });
 
   it("propagates through applyFileChanges (watcher path)", () => {
-    const model = loadBoard([file("inbox/c010-a.md", card("c010"))]);
+    const model = loadBoard([file("cards/c010-a.md", card("c010"))]);
 
     const next = applyFileChanges(model, [
-      { path: "inbox/c010-b.md", content: card("c010") },
+      { path: "cards/c010-b.md", content: card("c010") },
     ]);
 
     expect(next.invalid).toHaveLength(1);
@@ -543,7 +540,7 @@ describe("duplicate card IDs (c031)", () => {
 
 describe("loadBoard edge cases", () => {
   it("uses the default config when board.yaml is missing", () => {
-    const model = loadBoard([file("inbox/c001-x.md", card("c001"))]);
+    const model = loadBoard([file("cards/c001-x.md", card("c001"))]);
     expect(model.config.columns).toContain("backlog");
     expect(model.configError).toBeNull();
   });
@@ -557,10 +554,10 @@ describe("loadBoard edge cases", () => {
   it("validates card statuses against custom board.yaml columns", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [todo, doing]\n"),
-      file("inbox/c001-x.md", card("c001", "doing")),
-      file("inbox/c002-y.md", card("c002", "backlog")),
+      file("cards/c001-x.md", card("c001", "doing")),
+      file("cards/c002-y.md", card("c002", "backlog")),
     ]);
-    expect(model.inbox.map((c) => c.id)).toEqual(["c001"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c001"]);
     expect(model.invalid).toHaveLength(1);
     expect(model.invalid[0].reason).toMatch(/status/i);
   });
@@ -585,7 +582,7 @@ describe("loadBoard edge cases", () => {
 
   it("returns an empty model for an empty file list", () => {
     const model = loadBoard([]);
-    expect(model.inbox).toEqual([]);
+    expect(model.cards).toEqual([]);
     expect(model.epics).toEqual([]);
     expect(model.invalid).toEqual([]);
     expect(nextCardId(model)).toBe("c0001");
@@ -739,17 +736,17 @@ describe("planManualInsert (c056)", () => {
 });
 
 describe("loadBoard ordering (c056)", () => {
-  it("sorts the inbox by created, not priority", () => {
+  it("sorts standalone cards by created, not priority", () => {
     const model = loadBoard([
       file(
-        "inbox/c201-late.md",
-        "---\nid: c201\ntitle: Late\nstatus: backlog\npriority: high\ncreated: 2026-07-17\n---\n",
+        "cards/c201-late.md",
+        "---\nid: c201\ntitle: Late\nstatus: inbox\npriority: high\ncreated: 2026-07-17\n---\n",
       ),
       file(
-        "inbox/c202-early.md",
-        "---\nid: c202\ntitle: Early\nstatus: backlog\npriority: low\ncreated: 2026-07-15\n---\n",
+        "cards/c202-early.md",
+        "---\nid: c202\ntitle: Early\nstatus: inbox\npriority: low\ncreated: 2026-07-15\n---\n",
       ),
     ]);
-    expect(model.inbox.map((c) => c.id)).toEqual(["c202", "c201"]);
+    expect(model.cards.map((c) => c.id)).toEqual(["c202", "c201"]);
   });
 });

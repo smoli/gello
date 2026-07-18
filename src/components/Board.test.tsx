@@ -17,8 +17,9 @@ function card(
 }
 
 const MODEL = loadBoard([
-  file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
-  file("inbox/c010-idea.md", card("c010", "Inbox idea", "backlog")),
+  file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\n"),
+  // c0088: an unassigned card is a standalone card with status: inbox
+  file("cards/c010-idea.md", card("c010", "Inbox idea", "inbox")),
   file("milestones/m01-alpha/milestone.md", "---\nid: m01\ntitle: Alpha\n---\ngoal\n"),
   file("milestones/m01-alpha/c001-first.md", card("c001", "First card", "ready", "high")),
   file("milestones/m01-alpha/c002-second.md", card("c002", "Second card", "done")),
@@ -80,46 +81,23 @@ describe("Board", () => {
     expect(within(column("backlog")).getByText("Fourth card")).toBeInTheDocument();
   });
 
-  it("renders unprocessed (backlog) inbox cards in the inbox column only", () => {
+  it("c0088: renders inbox-status cards in the inbox column", () => {
     render(<Board model={MODEL} />);
 
     expect(within(column("inbox")).getByText("Inbox idea")).toBeInTheDocument();
     expect(within(column("backlog")).queryByText("Inbox idea")).not.toBeInTheDocument();
   });
 
-  it("renders inbox cards with a non-backlog status in that status column, inbox-badged (c030)", () => {
+  it("c0088: the inbox column is a normal column — always present, even when empty", () => {
     const model = loadBoard([
-      file("board.yaml", "columns: [discuss, backlog, done]\n"),
-      file("inbox/c010-raw.md", card("c010", "Raw idea", "backlog")),
-      file("inbox/c011-flagged.md", card("c011", "Flagged idea", "discuss")),
+      file("board.yaml", "columns: [inbox, backlog, done]\n"),
+      file("cards/c001-a.md", card("c001", "A", "backlog")),
     ]);
     render(<Board model={model} />);
 
-    const discuss = column("discuss");
-    expect(within(discuss).getByText("Flagged idea")).toBeInTheDocument();
-    expect(within(discuss).getByText("inbox")).toBeInTheDocument();
-    expect(within(column("inbox")).queryByText("Flagged idea")).not.toBeInTheDocument();
-    expect(within(column("inbox")).getByText("Raw idea")).toBeInTheDocument();
-  });
-
-  it("hides the inbox column when every inbox card is flagged elsewhere", () => {
-    const model = loadBoard([
-      file("board.yaml", "columns: [discuss, backlog]\n"),
-      file("inbox/c011-flagged.md", card("c011", "Flagged idea", "discuss")),
-    ]);
-    render(<Board model={model} />);
-
-    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
-  });
-
-  it("hides the inbox column when the inbox is empty", () => {
-    const noInbox = loadBoard([
-      file("board.yaml", "columns: [backlog, done]\n"),
-      file("milestones/m01-x/c001-a.md", card("c001", "A", "backlog")),
-    ]);
-    render(<Board model={noInbox} />);
-
-    expect(screen.queryByRole("region", { name: "inbox" })).not.toBeInTheDocument();
+    // inbox renders as a configured column with no cards
+    expect(screen.getByRole("region", { name: "inbox" })).toBeInTheDocument();
+    expect(within(column("backlog")).getByText("A")).toBeInTheDocument();
   });
 
   it("shows id, title, and milestone on the card front", () => {
@@ -131,21 +109,22 @@ describe("Board", () => {
     expect(within(front!).getByText("Alpha")).toBeInTheDocument();
   });
 
-  it("labels inbox cards as inbox", () => {
+  it("c0086: an inbox-status standalone card has no epic/inbox label", () => {
     render(<Board model={MODEL} />);
 
     const front = screen.getByText("Inbox idea").closest("article");
-    expect(within(front!).getByText("inbox")).toBeInTheDocument();
+    expect(within(front!).queryByText("inbox")).not.toBeInTheDocument();
   });
 
-  it("narrows to one milestone via the filter and back to all, inbox unaffected", () => {
+  it("c0088: narrows to one epic via the filter and back to all", () => {
     render(<Board model={MODEL} />);
     const filter = screen.getByLabelText("Epic filter");
 
     fireEvent.change(filter, { target: { value: "m01-alpha" } });
     expect(screen.getByText("First card")).toBeInTheDocument();
     expect(screen.queryByText("Third card")).not.toBeInTheDocument();
-    expect(screen.getByText("Inbox idea")).toBeInTheDocument();
+    // a standalone inbox card is filtered out with everything non-matching
+    expect(screen.queryByText("Inbox idea")).not.toBeInTheDocument();
 
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByText("Third card")).toBeInTheDocument();
@@ -176,7 +155,13 @@ describe("Board", () => {
   });
 
   it("c0077: no No-epic option when there are no standalone cards", () => {
-    render(<Board model={MODEL} />);
+    // a board whose only cards are epic-assigned (no standalone cards/)
+    const model = loadBoard([
+      file("board.yaml", "columns: [inbox, backlog, done]\n"),
+      file("epics/e01-x/epic.md", "---\nid: e01\ntitle: Alpha\n---\ng\n"),
+      file("epics/e01-x/c001-a.md", card("c001", "Epic card", "backlog")),
+    ]);
+    render(<Board model={model} />);
     expect(
       within(screen.getByLabelText("Epic filter")).queryByText("No epic"),
     ).not.toBeInTheDocument();
@@ -193,7 +178,8 @@ describe("Board", () => {
   it("renders an entirely empty board without crashing", () => {
     render(<Board model={loadBoard([])} />);
 
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(5);
+    // c0088: default columns now lead with inbox (6 columns)
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(6);
   });
 
   it("applies a background with readable translucent columns (c047/c0060)", () => {
@@ -265,7 +251,7 @@ describe("Board", () => {
 describe("fulltext search (c022)", () => {
   const SEARCH_MODEL = loadBoard([
     file("board.yaml", "columns: [backlog, done]\n"),
-    file("inbox/c010-idea.md", card("c010", "Dark mode toggle", "backlog")),
+    file("cards/c010-idea.md", card("c010", "Dark mode toggle", "backlog")),
     file("milestones/m01-a/milestone.md", "---\nid: m01\ntitle: Alpha\n---\ng\n"),
     file(
       "milestones/m01-a/c001-dnd.md",
@@ -351,9 +337,9 @@ describe("card types on the board (c024)", () => {
   it("applies the type filter to the inbox column too (c036)", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [backlog, done]\n"),
-      file("inbox/c010-idea.md", card("c010", "Inbox task", "backlog")),
+      file("cards/c010-idea.md", card("c010", "Inbox task", "backlog")),
       file(
-        "inbox/c011-issue.md",
+        "cards/c011-issue.md",
         "---\nid: c011\ntitle: Inbox issue\nstatus: backlog\ntype: issue\n---\nx\n",
       ),
     ]);
@@ -371,8 +357,8 @@ describe("card types on the board (c024)", () => {
 describe("needs-attention lane", () => {
   const MODEL_WITH_INVALID = loadBoard([
     file("board.yaml", "columns: [backlog, done]\n"),
-    file("inbox/c001-fine.md", card("c001", "Fine card", "backlog")),
-    file("inbox/c002-broken.md", "---\nid: [unclosed\n---\nbody\n"),
+    file("cards/c001-fine.md", card("c001", "Fine card", "backlog")),
+    file("cards/c002-broken.md", "---\nid: [unclosed\n---\nbody\n"),
     file(
       "milestones/m01-x/c003-bad-status.md",
       "---\nid: c003\ntitle: Bad status\nstatus: wip\n---\nraw card text here\n",
@@ -383,7 +369,7 @@ describe("needs-attention lane", () => {
     render(<Board model={MODEL_WITH_INVALID} />);
 
     const lane = screen.getByRole("region", { name: "needs attention" });
-    expect(within(lane).getByText("inbox/c002-broken.md")).toBeInTheDocument();
+    expect(within(lane).getByText("cards/c002-broken.md")).toBeInTheDocument();
     expect(within(lane).getByText(/yaml/i)).toBeInTheDocument();
     expect(
       within(lane).getByText("milestones/m01-x/c003-bad-status.md"),
@@ -474,8 +460,9 @@ describe("Board card moves", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} />);
 
-    const backlogCard = screen.getByText("Fourth card").closest("article")!;
-    fireEvent.keyDown(backlogCard, { key: "ArrowLeft" });
+    // inbox is the first column now
+    const inboxCard = screen.getByText("Inbox idea").closest("article")!;
+    fireEvent.keyDown(inboxCard, { key: "ArrowLeft" });
 
     const doneCard = screen.getByText("Second card").closest("article")!;
     fireEvent.keyDown(doneCard, { key: "ArrowRight" });
@@ -573,7 +560,7 @@ describe("Board card moves", () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
-  it("i0005: does not prompt for milestone when an inbox card is dropped on in-progress", () => {
+  it("c0090: prompts for an epic when a no-epic inbox card leaves inbox for ANY column", () => {
     const onMove = vi.fn();
     const onInboxStatusDrop = vi.fn();
     render(
@@ -582,14 +569,16 @@ describe("Board card moves", () => {
     const inboxCard = screen.getByText("Inbox idea").closest("article")!;
     const dataTransfer = fakeDataTransfer();
 
+    // in-progress is not a "triage column" in the old sense, but leaving inbox
+    // unassigned still prompts (the epic prompt fires on any inbox exit)
     fireEvent.dragStart(inboxCard, { dataTransfer });
     fireEvent.drop(column("in-progress"), { dataTransfer });
 
-    expect(onInboxStatusDrop).not.toHaveBeenCalled();
-    expect(onMove).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ id: "c010" }),
+    expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c010", epic: null }),
       "in-progress",
     );
+    expect(onMove).not.toHaveBeenCalled();
   });
 
   it("i0005: does not prompt for a milestone card dropped on ready", () => {
@@ -617,12 +606,12 @@ describe("Board card moves", () => {
     render(<Board model={MODEL} onMoveCard={onMove} />);
     const inboxCard = screen.getByText("Inbox idea").closest("article")!;
 
-    // status backlog (leftmost in this fixture); ArrowRight = next column
+    // status inbox (leftmost column); ArrowRight = next column (backlog)
     fireEvent.keyDown(inboxCard, { key: "ArrowRight" });
 
     expect(onMove).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c010" }),
-      "ready",
+      "backlog",
     );
   });
 

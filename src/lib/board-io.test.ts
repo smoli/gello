@@ -27,8 +27,8 @@ describe("loadBoardFromDisk", () => {
       if (command === "read_board_files") {
         expect(args).toEqual({ root: "/repo/.gello" });
         return [
-          { path: "board.yaml", content: "columns: [backlog, ready]\n" },
-          { path: "inbox/c001-first.md", content: CARD },
+          { path: "board.yaml", content: "columns: [inbox, backlog, ready]\n" },
+          { path: "cards/c001-first.md", content: CARD },
         ];
       }
       throw new Error(`unexpected command ${String(command)}`);
@@ -38,8 +38,8 @@ describe("loadBoardFromDisk", () => {
 
     expect(loaded).not.toBeNull();
     expect(loaded?.root).toBe("/repo/.gello");
-    expect(loaded?.model.config.columns).toEqual(["backlog", "ready"]);
-    expect(loaded?.model.inbox.map((c) => c.id)).toEqual(["c001"]);
+    expect(loaded?.model.config.columns).toEqual(["inbox", "backlog", "ready"]);
+    expect(loaded?.model.cards.map((c) => c.id)).toEqual(["c001"]);
     expect(loaded?.legacy).toBe(false);
   });
 

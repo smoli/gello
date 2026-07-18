@@ -146,7 +146,11 @@ function slugify(title: string): string {
   return slug || "idea";
 }
 
-/** Quick capture: create a new inbox card with the next free ID. */
+/**
+ * Quick capture (c0089): create a new unassigned card in `.gello/cards/` with
+ * `status: inbox` (was `inbox/` + `status: backlog`). Inbox is a status now,
+ * not a folder — the card lands in the inbox column.
+ */
 export function createCard(
   root: string,
   model: BoardModel,
@@ -158,8 +162,11 @@ export function createCard(
   // before the card existed — reuse it so the asset folder/link line up.
   const id =
     input.id ?? (input.type === "issue" ? nextIssueId(model) : nextCardId(model));
-  const path = `inbox/${id}-${slugify(input.title)}.md`;
-  const raw = newCardRaw(id, input.title, input.body, today, { type: input.type });
+  const path = `cards/${id}-${slugify(input.title)}.md`;
+  const raw = newCardRaw(id, input.title, input.body, today, {
+    type: input.type,
+    status: "inbox",
+  });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {
     // internal invariant: newCardRaw output must always parse

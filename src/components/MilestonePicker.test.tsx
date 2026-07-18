@@ -13,7 +13,6 @@ function renderPicker(
   const props = {
     options: OPTIONS,
     status: "ready",
-    fromStatus: "backlog",
     onPick: vi.fn(),
     onDismiss: vi.fn(),
     ...overrides,
@@ -39,24 +38,15 @@ describe("MilestonePicker (i0005)", () => {
     expect(onPick).toHaveBeenCalledExactlyOnceWith("m02-beta", "m02");
   });
 
-  it("labels the dismiss 'Stay in inbox' for a raw backlog card", () => {
-    const { onDismiss } = renderPicker({ fromStatus: "backlog" });
-
-    fireEvent.click(screen.getByRole("button", { name: /stay in inbox/i }));
-    expect(onDismiss).toHaveBeenCalledOnce();
-  });
-
-  it("labels the dismiss 'Move back to discuss' when the card came from discuss", () => {
-    const { onDismiss } = renderPicker({ fromStatus: "discuss", status: "ready" });
+  it("c0085: has no 'Stay in inbox' / 'Move back' dismiss button", () => {
+    renderPicker();
 
     expect(
-      screen.queryByRole("button", { name: /stay in inbox/i }),
+      screen.queryByRole("button", { name: /stay in inbox|move back/i }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /move back to discuss/i }));
-    expect(onDismiss).toHaveBeenCalledOnce();
   });
 
-  it("dismisses on Escape", () => {
+  it("c0085: dismisses (cancels) on Escape", () => {
     const { onDismiss } = renderPicker();
 
     fireEvent.keyDown(window, { key: "Escape" });

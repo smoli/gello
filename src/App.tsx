@@ -11,7 +11,7 @@ import {
   openIssuesFor,
   withCardTriaged,
   withNewEpic,
-  withNewInboxCard,
+  withNewStandaloneCard,
   withoutCard,
   withUpdatedCard,
   type BoardModel,
@@ -110,8 +110,6 @@ function findCard(
   model: BoardModel,
   path: string,
 ): { card: Card; milestoneLabel: string | null } | null {
-  const inboxCard = model.inbox.find((c) => c.path === path);
-  if (inboxCard) return { card: inboxCard, milestoneLabel: null };
   const standalone = model.cards.find((c) => c.path === path);
   if (standalone) return { card: standalone, milestoneLabel: null };
   for (const group of model.epics) {
@@ -722,7 +720,7 @@ function App() {
           { title, body, type: type === "task" ? undefined : type, id },
           todayIsoDate(),
         ),
-      withNewInboxCard,
+      withNewStandaloneCard,
     );
   };
 
@@ -847,8 +845,8 @@ function App() {
         return result;
       },
       (model, card) =>
-        card.path.startsWith("inbox/")
-          ? withNewInboxCard(model, card)
+        card.path.startsWith("cards/")
+          ? withNewStandaloneCard(model, card)
           : {
               ...model,
               epics: model.epics.map((group) =>
@@ -1065,26 +1063,27 @@ function App() {
           <MilestonePicker
             options={milestoneOptions}
             status={pendingTriage.status}
-            fromStatus={pendingTriage.card.status}
             onPick={(folder, milestoneId) => {
-              // i0015: triage into the chosen milestone at the dropped slot
-              handleTriage(
-                pendingTriage.card,
-                folder,
-                milestoneId,
-                pendingTriage.status,
-                pendingTriage.order,
-              );
+              // c0090: leaving inbox — "No epic" (milestoneId null) just applies
+              // the dropped status (the card stays standalone in cards/); an epic
+              // pick moves the file into the epic folder + applies the status.
+              if (milestoneId === null) {
+                handleMove(pendingTriage.card, pendingTriage.status, pendingTriage.order);
+              } else {
+                handleTriage(
+                  pendingTriage.card,
+                  folder,
+                  milestoneId,
+                  pendingTriage.status,
+                  pendingTriage.order,
+                );
+              }
               setPendingTriage(null);
             }}
             onDismiss={() => {
-              // Escape hatch, stay in the inbox. A raw backlog idea takes the
-              // dropped-on status (c030 flag-it-forward); a card that already
-              // carries a flag (e.g. discuss) returns to that status. Keep the
-              // dropped slot (i0015) when the status actually changes.
-              const from = pendingTriage.card.status;
-              const target = from === "backlog" ? pendingTriage.status : from;
-              handleMove(pendingTriage.card, target, pendingTriage.order);
+              // c0085: dismiss = cancel the whole drop. No status applied, the
+              // card keeps its status and stays in the inbox column; nothing is
+              // written. (The dishonest "Stay in inbox" gesture is gone.)
               setPendingTriage(null);
             }}
             onNewEpic={() => {
