@@ -1,10 +1,12 @@
 ---
 id: c0088
 title: Inbox-as-status data model
-status: backlog
+status: ready
 epic: e07
 created: 2026-07-18
 updated: 2026-07-18
+status-changed: 2026-07-18T16:52:41
+order: 15
 ---
 
 ## What
@@ -39,3 +41,4 @@ epic — decide here whether that state is allowed.
 ## Log
 
 - 2026-07-18 created from the e07 inbox reframe (c0087)
+- 2026-07-18 status → ready (app)
