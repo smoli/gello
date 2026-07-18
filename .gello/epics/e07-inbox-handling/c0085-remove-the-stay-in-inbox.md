@@ -1,12 +1,11 @@
 ---
 id: c0085
 title: remove the stay in inbox
-status: review
+status: done
 created: 2026-07-18
 updated: 2026-07-18
-status-changed: 2026-07-18T17:58:03
+status-changed: 2026-07-18T18:00:13
 epic: e07
-order: 17.5
 ---
 
 In the epic picker on drag there’s a „sta yin inbox“ option. That’s confusing because the card elaves inbox nonetheless. Remove that option
@@ -71,3 +70,4 @@ design.
   picker keeps epic / No-epic / New-epic. Removes c030 flag-forward-on-dismiss.
 - 2026-07-18 status → ready (app)
 - 2026-07-18 folded into c0090 (agent): the reframe removes the "Stay in inbox" gesture and the inbox label; implemented as part of the e07 pass.
+- 2026-07-18 status → done (app)
