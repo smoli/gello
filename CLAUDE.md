@@ -133,6 +133,31 @@ do not maintain parallel plan/TODO files.
   card falls back to `updated`/`created` and sorts imprecisely. (The app
   does this automatically; agents editing files must do it too.)
 
+## Writing style (chat, docs, cards, commits, PRs)
+
+Applies to all prose you produce — replies to the user in chat as much as
+READMEs, concept/card text, commit bodies, and PR descriptions. Write plainly.
+Cut anything that adds emphasis or reassurance but no information. Avoid these
+tells:
+
+- **No reflexive rule-of-three.** Don't expand a point into a parallel triple.
+  One precise item beats three padded ones.
+- **No trailing tack-ons.** If a clause after an em-dash, comma, or parenthesis
+  only restates, reassures, or reframes what's already said, delete it (e.g.
+  "…the task list — no parallel TODO files").
+- **No empty intensifiers.** Cut: purely, simply, just, really, seamlessly,
+  robust, powerful, in seconds, byte-for-byte, out of the box, and similar.
+- **No buzzwords when a plain verb works** ("reactive renderer" → "renders").
+- **No emphatic italics/bold for punch.** Let word choice carry emphasis.
+- **Parentheticals only for needed clarification**, not to show off detail (the
+  tech stack, an aside).
+- **State the fact, skip the sell.** Don't append the benefit or a reassurance
+  ("so you can…", "never clobbers your edits").
+
+Prefer short declarative sentences, varied length, and concrete nouns and verbs.
+When in doubt, delete the adjective. (Code comments are exempt where precision
+is the point — "surgical", exact behavior.)
+
 ## Commits
 
 - Reference the card ID: `c003: implement drag & drop persistence`.
