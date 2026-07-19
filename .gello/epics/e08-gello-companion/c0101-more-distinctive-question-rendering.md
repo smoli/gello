@@ -4,7 +4,7 @@ title: More distinctive Question rendering
 status: ready
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T21:02:47
+status-changed: 2026-07-19T21:15:29
 epic: e08
 ---
 
@@ -84,3 +84,4 @@ change the on-disk question format to a fenced block.
   leaves the card editable with an Answer affordance. Reopens the c0096 format
   contract (companion parser + agent convention c0099).
 - 2026-07-19 status → ready (app)
+- 2026-07-19 status → ready (agent triage, human's call)
