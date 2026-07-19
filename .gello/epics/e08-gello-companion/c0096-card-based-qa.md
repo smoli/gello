@@ -45,21 +45,29 @@ convention is taught to the agent (companion system prompt / a skill).
 
 ## Acceptance criteria
 
-- [ ] Documented format: an `## Open question` block (question text + answer
+- [x] Documented format: an `## Open question` block (question text + answer
       slots — checkbox list for choices, a text slot for open questions) and
-      the `awaiting: input` frontmatter marker
-- [ ] The companion parses the open turn and detects when it is **fully
-      answered** (all checkboxes resolved / text slots filled), then resumes
-      the session with the answers
-- [ ] An unanswered open turn does not resume (no spurious resume)
+      the `awaiting: input` frontmatter marker — see the header comment in
+      [companion/qa.ts](../../../companion/qa.ts)
+- [x] The companion parses the open turn (`parseOpenTurn`) and detects when it
+      is **fully answered** (`isOpenTurnAnswered`: every choice resolved / text
+      slot filled), then flags the resume via `cardsAnswered` — the runtime
+      logs the resume intent (actual session resume is the dispatch flow,
+      c0097)
+- [x] An unanswered open turn does not resume (no spurious resume) — covered
+      by `cardsAnswered` tests and the `blockAnswered` empty-blockquote case
 - [ ] Multiple turns work (park → answer → resume → archive → park …);
-      `## History` accumulates resolved turns labelled by turn
+      `## History` accumulates resolved turns labelled by turn — *archiving is
+      agent-side; the companion-side parse ignores `## History` (verified: the
+      section stops at the next `##`). End-to-end multi-turn lands with the
+      dispatch flow (c0097).*
 - [ ] On resume the answered turn is archived to `## History` and the marker
-      cleared (agent-side, per the convention)
-- [ ] The open-question / marker is exposed for the app: the open turn renders
-      prominent + editable, resolved turns collapsed (the app rendering is
-      card-detail work — may land with c0100 or a small card-detail addition;
-      the format here is the contract)
+      cleared (agent-side, per the convention) — *agent behaviour, taught via
+      the companion system prompt (c0099); not companion code.*
+- [x] The open-question / marker is exposed for the app: `cardsAwaitingInput`
+      surfaces parked turns and the companion publishes them as `waiting` in
+      the state file (status → `waiting`). *App rendering (prominent open turn,
+      collapsed history) is card-detail work — c0100.*
 
 ## Discussion
 
@@ -88,6 +96,25 @@ active steering.
 - **Open**: exact marker field name (`awaiting: input`?); `## History`
   ordering (newest-first chosen); how the agent is taught the convention
   (system prompt vs. a bundled skill).
+
+**Implementation** (companion-side parse + detection — the format contract):
+
+- [companion/qa.ts](../../../companion/qa.ts): `parseOpenTurn` (the current
+  turn's `### ` questions + answered state — checkbox `[x]` or non-empty
+  blockquote), `isOpenTurnAnswered` (present + ≥1 question + all answered),
+  `cardsAnswered(prev, next)` (answered-transition = resume trigger),
+  `cardsAwaitingInput(model)` (parked-but-unanswered = the app's "needs
+  input" set). The section stops at the next `##`, so `## History` below is
+  ignored.
+- [companion/main.ts](../../../companion/main.ts): reconcile now also logs a
+  resume intent for `cardsAnswered`; `publish` writes `waiting` ids and sets
+  status → `waiting` when any turn is parked. Actual resume run is c0097.
+- Tests: [companion/qa.test.ts](../../../companion/qa.test.ts) (12) cover
+  choice/open answered states, the History boundary, the answered transition,
+  and awaiting-input detection.
+- The **agent** still owns all card writes (open question, history archiving,
+  marker) — the companion only reads. Teaching that convention to the agent
+  is c0099's territory.
 
 ## Log
 
