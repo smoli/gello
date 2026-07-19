@@ -1,11 +1,11 @@
 ---
 id: c0093
 title: Companion scaffold + board watcher + state file
-status: ready
+status: review
 epic: e08
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:00:11
+status-changed: 2026-07-19T10:12:00
 ---
 
 ## What
@@ -41,7 +41,33 @@ entering `ready`, and publishes a companion **state file** the app reads.
 Absorbs c020 (tiny gello CLI): `ls`/`next`/`move`-style queries can layer on
 the same CLI later; this card only needs the watch + state-file base.
 
+- **Layout**: `companion/` (outside `src/`) holds the CLI — `core.ts` (pure +
+  Node-FS helpers) and `main.ts` (entry). It imports the *pure* board core
+  from `src/lib` (`loadBoard`, types) and does its own FS. Kept out of
+  `src/lib` because that dir bans direct `node:fs` (app code goes through
+  Tauri); the ban is scoped to `src/**`, so `companion/` is the right home.
+- **Core (tested, `companion/core.test.ts`, 8 tests)**: `readBoardFiles`
+  (recursive, forward-slash paths, mirrors the Rust command), `findBoardRoot`
+  (walk-up for `.gello`), `cardsEnteringReady(prev, next)` (the dispatch
+  trigger; null prev → all ready cards), and the `CompanionState` + atomic
+  `writeStateFile` (temp+rename).
+- **Runtime**: `pnpm companion [dir]` (runs via `tsx`, added as a devDep —
+  Node's ESM resolver can't follow `src/lib`'s extensionless imports).
+  `companion/` added to tsconfig `include` so it typechecks.
+- **State file** `.gello/.companion/state.json` is gitignored (per-machine
+  runtime state, not board content). `{ status, ready[], runs[], updated }`;
+  c0093 only publishes `idle` + the current `ready` ids.
+- **Verified** by running `pnpm companion .` against this repo's board: it
+  logged the dispatch intent for the card in `ready` (c0093) and wrote the
+  state file with `ready: ["c0093"]`; a probe card set to `ready` was detected
+  live. Full suite 515 green, typecheck + lint clean.
+
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-19 status → ready (app)
+- 2026-07-19 implemented TDD (agent): `companion/` CLI on the shared `src/lib`
+  board core — readBoardFiles / findBoardRoot / cardsEnteringReady / state
+  file (8 core tests), watcher + `pnpm companion` entry; verified against the
+  live board. 515 green; status → review
 - 2026-07-19 status → ready (app)

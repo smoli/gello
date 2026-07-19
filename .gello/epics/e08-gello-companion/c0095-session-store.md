@@ -1,11 +1,12 @@
 ---
 id: c0095
 title: Session store — UUID per card/epic
-status: backlog
+status: ready
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
+status-changed: 2026-07-19T10:10:49
 ---
 
 ## What
@@ -33,3 +34,4 @@ so a run resumes prior context instead of starting cold. Scope is
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-19 status → ready (app)
