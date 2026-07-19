@@ -124,3 +124,7 @@ active steering.
   (current turn, checkboxes + text slots, `awaiting` marker) pinned on top +
   `## History` (resolved turns, collapsed); agent writes / companion reads;
   app renders open turn prominent, history collapsed.
+- 2026-07-19 status → in-progress; implemented companion-side parse
+  (`companion/qa.ts`) + answered/awaiting detection, wired into the runtime
+  (`companion/main.ts`: resume-intent log + `waiting` state). 12 qa tests;
+  full suite 543 green, typecheck + lint clean. status → review.
