@@ -93,6 +93,9 @@ export interface CompanionState {
   status: "idle" | "running" | "waiting";
   /** Card ids currently sitting in `ready` (detected, awaiting dispatch). */
   ready: string[];
+  /** Card ids with a parked, unanswered `## Open question` (c0096) — the app
+   *  shows a "needs input" badge for these. */
+  waiting: string[];
   /** Active runs — empty until the dispatch flow lands (c0097). */
   runs: RunState[];
   /** ISO timestamp of the last update. */
@@ -105,7 +108,7 @@ export interface RunState {
 }
 
 export function initialState(now: string): CompanionState {
-  return { status: "idle", ready: [], runs: [], updated: now };
+  return { status: "idle", ready: [], waiting: [], runs: [], updated: now };
 }
 
 /** Absolute path of the companion state file (`<root>/.companion/state.json`). */

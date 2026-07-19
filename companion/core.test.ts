@@ -104,9 +104,11 @@ describe("findBoardRoot", () => {
 });
 
 describe("companion state file", () => {
-  it("initialState is idle with empty runs", () => {
+  it("initialState is idle with empty ready/waiting/runs", () => {
     const s = initialState("2026-07-19T10:00:00");
     expect(s.status).toBe("idle");
+    expect(s.ready).toEqual([]);
+    expect(s.waiting).toEqual([]);
     expect(s.runs).toEqual([]);
     expect(s.updated).toBe("2026-07-19T10:00:00");
   });
@@ -118,6 +120,7 @@ describe("companion state file", () => {
     const state: CompanionState = {
       status: "idle",
       ready: ["c001"],
+      waiting: [],
       runs: [],
       updated: "2026-07-19T10:00:00",
     };

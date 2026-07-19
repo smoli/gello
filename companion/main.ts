@@ -17,6 +17,7 @@ import {
   companionStatePath,
   type CompanionState,
 } from "./core.ts";
+import { cardsAnswered, cardsAwaitingInput } from "./qa.ts";
 import type { BoardModel } from "../src/lib/board.ts";
 
 function nowIso(): string {
@@ -70,7 +71,12 @@ function reconcile(
     log(`reload failed: ${(error as Error).message}`);
     return;
   }
-  for (const card of cardsEnteringReady(get(), next)) announce(card.id);
+  const prev = get();
+  for (const card of cardsEnteringReady(prev, next)) announce(card.id);
+  // A parked open turn that just became fully answered is the resume trigger
+  // (c0096). The actual session resume is the dispatch flow (c0097); here we
+  // only detect and log the intent.
+  for (const card of cardsAnswered(prev, next)) resume(card.id);
   set(next);
   publish(root, next);
 }
@@ -80,9 +86,16 @@ function announce(cardId: string): void {
   log(`${cardId} entered ready → dispatch (runner not wired yet, c0097)`);
 }
 
+/** A card's open turn was answered — resume its session (c0097 wires the run). */
+function resume(cardId: string): void {
+  log(`${cardId} open turn answered → resume (runner not wired yet, c0097)`);
+}
+
 function publish(root: string, model: BoardModel): void {
   const ready = cardsEnteringReady(null, model).map((c) => c.id);
-  const state: CompanionState = { ...initialState(nowIso()), ready };
+  const waiting = cardsAwaitingInput(model).map((c) => c.id);
+  const status: CompanionState["status"] = waiting.length ? "waiting" : "idle";
+  const state: CompanionState = { ...initialState(nowIso()), ready, waiting, status };
   try {
     writeStateFile(root, state);
   } catch (error) {
