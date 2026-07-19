@@ -1,11 +1,12 @@
 ---
 id: c0100
 title: App — title-bar runner indicator + needs-input badge
-status: backlog
+status: ready
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
+status-changed: 2026-07-19T20:45:56
 ---
 
 ## What
@@ -66,3 +67,4 @@ So c0100's open-turn rendering is not just "prominent + editable" — it is the
 
 - 2026-07-19 created from the e08 companion breakdown
 - 2026-07-19 first-use feedback captured (answer-in-display-mode; text slot)
+- 2026-07-19 status → ready (app)
