@@ -113,11 +113,29 @@ export function companionStatePath(root: string): string {
   return join(root, ".companion", "state.json");
 }
 
+/** The companion's private state dir (`<root>/.companion/`), gitignored. */
+export function companionDir(root: string): string {
+  return join(root, ".companion");
+}
+
+/** Write a JSON value into `.companion/` atomically (temp + rename). */
+export function writeJsonAtomic(path: string, value: unknown): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
+  renameSync(tmp, path);
+}
+
+/** Read a JSON file, or `fallback` when it is missing or unparseable. */
+export function readJson<T>(path: string, fallback: T): T {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Write the state file atomically (temp + rename), creating `.companion/`. */
 export function writeStateFile(root: string, state: CompanionState): void {
-  const path = companionStatePath(root);
-  mkdirSync(join(root, ".companion"), { recursive: true });
-  const tmp = `${path}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  renameSync(tmp, path);
+  writeJsonAtomic(companionStatePath(root), state);
 }
