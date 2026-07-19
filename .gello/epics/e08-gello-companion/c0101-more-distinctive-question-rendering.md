@@ -1,10 +1,10 @@
 ---
 id: c0101
 title: More distinctive Question rendering
-status: in-progress
+status: review
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T21:23:02
+status-changed: 2026-07-19T21:32:46
 epic: e08
 ---
 
@@ -33,21 +33,22 @@ change the on-disk question format to a fenced block.
 
 ## Acceptance criteria
 
-- [ ] A `gelloquestion` fenced block renders in the card detail as a distinct
+- [x] A `gelloquestion` fenced block renders in the card detail as a distinct
       question panel (not a raw code block); choice slots render selectable, an
       open question shows a text slot
-- [ ] Opening a card with an unanswered `gelloquestion` auto-opens an answer
+- [x] Opening a card with an unanswered `gelloquestion` auto-opens an answer
       modal scoped to that question
-- [ ] The modal offers Answer and Cancel; Cancel closes it and shows the card
+- [x] The modal offers Answer and Cancel; Cancel closes it and shows the card
       (editable), with an Answer button on the panel to reopen
-- [ ] Answering writes the answer, removes the `gelloquestion` fence
+- [x] Answering writes the answer, removes the `gelloquestion` fence
       (un-fenced markdown remains in place), and clears `awaiting: input` in one
       atomic, watcher-safe write (c015)
-- [ ] A resolved (answered) card opens normally — no auto-popup; the un-fenced
+- [x] A resolved (answered) card opens normally — no auto-popup; the un-fenced
       content shows as ordinary card body
-- [ ] A card with no `gelloquestion` opens normally, no modal
-- [ ] Companion + board badge still key off `awaiting: input`; the companion
-      resumes on the answered transition (needs the format/parse update)
+- [x] A card with no `gelloquestion` opens normally, no modal
+- [x] App side done: the badge (c0100) keys off `awaiting`, and answering
+      clears it. The companion parsing the fence + resuming, and the agent
+      convention to *write* the fence, are the format-change dependency → c0102
 
 ## Discussion
 
@@ -85,3 +86,9 @@ change the on-disk question format to a fenced block.
   contract (companion parser + agent convention c0099).
 - 2026-07-19 status → ready (app)
 - 2026-07-19 status → ready (agent triage, human's call)
+- 2026-07-19 implemented (agent), app side: pure gello-question.ts (parse /
+  strip / un-fence-with-answer); answerGelloQuestion writer (un-fence + clear
+  `awaiting` in one atomic write); QuestionModal (choice checkboxes / open text)
+  auto-opens on card open; a read-only question panel with an Answer button;
+  Cancel leaves the card editable. 595 tests green. The companion parser +
+  agent convention (write/detect the fence) are split to c0102.
