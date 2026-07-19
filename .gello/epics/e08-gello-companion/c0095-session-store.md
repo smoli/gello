@@ -1,12 +1,12 @@
 ---
 id: c0095
 title: Session store — UUID per card/epic
-status: in-progress
+status: review
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:15:00
+status-changed: 2026-07-19T10:20:00
 ---
 
 ## What
