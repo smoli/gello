@@ -1,12 +1,12 @@
 ---
 id: c0094
 title: Agent adapters — Claude & pi
-status: ready
+status: in-progress
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:10:47
+status-changed: 2026-07-19T10:22:00
 ---
 
 ## What
