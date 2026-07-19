@@ -250,6 +250,50 @@ describe("Runner", () => {
     expect(h.last()).toEqual(["c001:running"]);
   });
 
+  it("resumes an answered turn even with no in-memory run (companion restarted)", () => {
+    // The process that parked c001 is gone; only sessions.json survived. When
+    // the human answers, a fresh companion must still resume — not sit idle
+    // until the card is bumped back to ready.
+    const parked = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    const h = makeRunner(parked, { "card:c001": "prior-session-id" });
+    const answered = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    h.setModel(answered);
+    h.runner.sync(parked, answered);
+
+    expect(h.spawned).toHaveLength(1);
+    expect(h.spawned[0].spec.args[0]).toBe("--resume");
+    expect(h.spawned[0].spec.args[1]).toBe("prior-session-id");
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("resumes an answered-but-unarchived turn on startup (prev = null)", () => {
+    // On a cold start, a card left answered-but-not-archived is waiting on the
+    // agent, not the human — resume it.
+    const answered = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    const h = makeRunner(answered, { "card:c001": "sid-1" });
+    h.runner.sync(null, answered);
+
+    expect(h.spawned).toHaveLength(1);
+    expect(h.spawned[0].spec.args[0]).toBe("--resume");
+  });
+
+  it("does not auto-resume an answered card the companion never started (no session)", () => {
+    // A human-authored Q&A card with no session must not be spuriously
+    // dispatched — the companion only continues dialogues it owns.
+    const answered = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    const h = makeRunner(answered); // no sessions
+    h.runner.sync(null, answered);
+    expect(h.spawned).toHaveLength(0);
+  });
+
   it("a clean exit with the work finished → done, run removed", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);

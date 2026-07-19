@@ -167,12 +167,25 @@ export class Runner {
    *  dispatch ready cards up to the WIP budget (draining the queue as slots
    *  free). */
   sync(prev: BoardModel | null, next: BoardModel): void {
-    for (const card of cardsAnswered(prev, next)) {
-      if (this.active.get(card.id)?.phase === "waiting-for-input") this.start(card, true);
-    }
+    for (const card of cardsAnswered(prev, next)) this.maybeResume(card);
     const { dispatch } = planDispatch(next, [...this.active.keys()], this.opts.wipLimit);
     for (const card of dispatch) this.start(card, false);
     this.publish();
+  }
+
+  /**
+   * Resume a card whose open turn just became answered. The trigger is the card
+   * file, not an in-memory flag — answering must work even after the companion
+   * restarted (the parked run is gone but the session persists), and on a cold
+   * start for a turn left answered-but-unarchived. Guarded so it only continues
+   * a dialogue the companion actually owns (a session exists) and is not
+   * already running.
+   */
+  private maybeResume(card: Card): void {
+    if (this.active.get(card.id)?.phase === "running") return;
+    const { sessionId } = resolveSession(this.sessions, card, this.opts.scope);
+    if (sessionId === null) return; // never started by us — don't dispatch
+    this.start(card, true);
   }
 
   /** Active runs as published run states. */

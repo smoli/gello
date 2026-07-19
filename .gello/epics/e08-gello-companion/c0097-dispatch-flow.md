@@ -56,6 +56,15 @@ the c0096 Q&A park/resume.
 - **Queue drains on `sync`**: dispatch is recomputed every reconcile from
   `planDispatch(next)`, so a queued ready card starts as soon as a slot frees
   (no separate queue structure).
+- **Resume is file-driven, not memory-driven** (fixed after first real test):
+  answering a parked turn resumes whenever `cardsAnswered` sees the card's open
+  turn become answered — it does *not* require an in-memory `waiting-for-input`
+  run. So it works after a companion restart (the run is gone but the session
+  persists) and on a cold start for a turn left answered-but-unarchived.
+  Guarded to only continue a dialogue the companion owns (a session exists) and
+  isn't already running — so a human-authored Q&A card isn't spuriously
+  dispatched. Before this, answering did nothing unless the same process had
+  parked the card; the human had to bump it back to `ready` to force pickup.
 - **Injectable spawner**: the process boundary (`Spawner`) is injected, so the
   whole lifecycle — dispatch, park, resume, done, error, WIP — is unit-tested
   with a fake process; `main.ts` supplies the real `child_process.spawn`.
@@ -102,3 +111,9 @@ the c0096 Q&A park/resume.
   in-progress → review autonomously. Also noted a false-`done` classification
   (clean exit while the card is still `ready` = no-op, mis-read as done) —
   flagged as a follow-up.
+- 2026-07-19 park/resume feedback (human): answering a parked turn did not
+  auto-resume — the resume trigger required an in-memory `waiting-for-input`
+  run, so it missed a companion restart / a run parked by another process.
+  Fixed: resume is now driven by the answered-turn transition on disk (session
+  present, not already running), so editing the card to answer is enough. 3
+  new runner tests; companion suite 60 green, typecheck + lint clean.
