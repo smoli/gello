@@ -1,12 +1,12 @@
 ---
 id: c0097
 title: Dispatch flow — ready → run → write-back
-status: review
+status: done
 epic: e08
 depends: [c0093, c0094, c0095, c0096]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T15:32:00
+status-changed: 2026-07-19T20:45:17
 ---
 
 ## What
@@ -117,3 +117,4 @@ the c0096 Q&A park/resume.
   Fixed: resume is now driven by the answered-turn transition on disk (session
   present, not already running), so editing the card to answer is enough. 3
   new runner tests; companion suite 60 green, typecheck + lint clean.
+- 2026-07-19 status → done (app)

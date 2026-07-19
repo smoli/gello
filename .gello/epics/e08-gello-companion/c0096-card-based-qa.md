@@ -1,12 +1,12 @@
 ---
 id: c0096
 title: Card-based Q&A protocol (primary interaction)
-status: review
+status: done
 epic: e08
 depends: [c0094, c0095]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T15:10:00
+status-changed: 2026-07-19T20:45:15
 ---
 
 ## What
@@ -128,3 +128,4 @@ active steering.
   (`companion/qa.ts`) + answered/awaiting detection, wired into the runtime
   (`companion/main.ts`: resume-intent log + `waiting` state). 12 qa tests;
   full suite 543 green, typecheck + lint clean. status → review.
+- 2026-07-19 status → done (app)
