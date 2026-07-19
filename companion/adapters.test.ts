@@ -1,46 +1,56 @@
 import { describe, expect, it } from "vitest";
 import { getAdapter, claudeAdapter, piAdapter, ADAPTER_NAMES } from "./adapters.ts";
 
+const SID = "11111111-2222-3333-4444-555555555555";
+
 describe("agent adapters — command construction", () => {
-  const req = (mode: "print" | "interactive") => ({
-    sessionId: "11111111-2222-3333-4444-555555555555",
+  const req = (mode: "print" | "interactive", resume = false) => ({
+    sessionId: SID,
     prompt: "Work on card c0001",
     mode,
+    resume,
   });
 
-  it("claude: print run passes the caller-owned session id and -p", () => {
+  it("claude: new session uses --session-id and -p in print mode", () => {
     expect(claudeAdapter.build(req("print"))).toEqual({
       command: "claude",
-      args: [
-        "--session-id",
-        "11111111-2222-3333-4444-555555555555",
-        "-p",
-        "Work on card c0001",
-      ],
+      args: ["--session-id", SID, "-p", "Work on card c0001"],
     });
+  });
+
+  // The bug that surfaced in c0097: claude's --session-id *creates* a session
+  // and errors ("already in use") if the id exists. Resuming must use --resume.
+  it("claude: resuming an existing session uses --resume, not --session-id", () => {
+    const spec = claudeAdapter.build(req("print", true));
+    expect(spec).toEqual({
+      command: "claude",
+      args: ["--resume", SID, "-p", "Work on card c0001"],
+    });
+    expect(spec.args).not.toContain("--session-id");
   });
 
   it("claude: interactive run omits -p (session persists)", () => {
     expect(claudeAdapter.build(req("interactive"))).toEqual({
       command: "claude",
-      args: [
-        "--session-id",
-        "11111111-2222-3333-4444-555555555555",
-        "Work on card c0001",
-      ],
+      args: ["--session-id", SID, "Work on card c0001"],
     });
   });
 
-  it("pi: print run uses --session-id and -p", () => {
-    expect(piAdapter.build(req("print"))).toEqual({
-      command: "pi",
-      args: [
-        "--session-id",
-        "11111111-2222-3333-4444-555555555555",
-        "-p",
-        "Work on card c0001",
-      ],
-    });
+  // pi's --session-id is idempotent ("creating it if missing"), so both a new
+  // run and a resume use it — pi never errors on an existing id.
+  it("pi: uses --session-id for both new and resumed sessions", () => {
+    expect(piAdapter.build(req("print")).args).toEqual([
+      "--session-id",
+      SID,
+      "-p",
+      "Work on card c0001",
+    ]);
+    expect(piAdapter.build(req("print", true)).args).toEqual([
+      "--session-id",
+      SID,
+      "-p",
+      "Work on card c0001",
+    ]);
   });
 
   it("pi: interactive run omits -p", () => {
@@ -52,6 +62,7 @@ describe("agent adapters — command construction", () => {
       sessionId: "u",
       prompt: 'weird "quotes" and $vars; rm -rf',
       mode: "print",
+      resume: false,
     });
     // the prompt is one argv element — safe to hand to spawn without a shell
     expect(spec.args[spec.args.length - 1]).toBe('weird "quotes" and $vars; rm -rf');

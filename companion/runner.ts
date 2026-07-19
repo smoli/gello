@@ -177,20 +177,27 @@ export class Runner {
     return [...this.active].map(([cardId, r]) => ({ cardId, phase: r.phase }));
   }
 
-  private start(card: Card, resuming: boolean): void {
+  private start(card: Card, answered: boolean): void {
     const { key, sessionId } = resolveSession(this.sessions, card, this.opts.scope);
+    // An existing session id must be *resumed*, not recreated — some backends
+    // (claude) error on `--session-id` when the id already exists. This holds
+    // both for an answered parked turn and for a re-dispatch after the
+    // companion restarted with a persisted session map. `answered` only
+    // changes the prompt wording.
+    const resume = sessionId !== null;
     const id = sessionId ?? newSessionId();
-    if (!sessionId) {
+    if (!resume) {
       this.sessions = recordSession(this.sessions, key, id);
       this.opts.persistSessions?.(this.sessions);
     }
     const spec = this.opts.adapter.build({
       sessionId: id,
-      prompt: buildTaskPrompt(card, resuming),
+      prompt: buildTaskPrompt(card, answered),
       mode: "print",
+      resume,
     });
     this.active.set(card.id, { sessionId: id, phase: "running" });
-    this.log(`${card.id} → ${resuming ? "resume" : "run"} (session ${id})`);
+    this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);
     const proc = this.opts.spawn(spec, this.opts.root);
     proc.onExit((code) => this.handleExit(card.id, code));
   }

@@ -1,11 +1,15 @@
 // gello-companion agent adapters (c0094): a thin abstraction over an agent
 // CLI backend. The rest of the companion talks to agents only through this.
 //
-// Key simplification (verified against `claude --help` / `pi --help`): both
-// CLIs accept a *caller-provided* session id that they create if missing and
-// resume if it exists — `claude --session-id <uuid>`, `pi --session-id <id>`.
-// So the companion **owns** the UUID (see sessions.ts) and passes it on every
-// run; there is no session id to parse back out of the output.
+// The companion **owns** the session UUID (see sessions.ts) and passes it on
+// every run; there is no session id to parse back out of the output. But
+// starting a new session and resuming an existing one are not the same flag,
+// and the two CLIs differ (c0097 hit "session id already in use"):
+//   - claude: `--session-id <uuid>` *creates* (errors if the id exists);
+//     resume with `--resume <uuid>`.
+//   - pi: `--session-id <id>` is idempotent ("creating it if missing"), so it
+//     serves both new and resumed runs.
+// The adapter takes `resume` and builds the right invocation per backend.
 
 /** How a run is launched: headless (capture output) or interactive (a
  *  terminal the human can drive — the c0098 fallback). */
@@ -19,11 +23,13 @@ export interface LaunchSpec {
 }
 
 export interface RunRequest {
-  /** Caller-owned session id (created if new, resumed if it exists). */
+  /** Caller-owned session id. */
   sessionId: string;
   /** The task/prompt for this turn. */
   prompt: string;
   mode: RunMode;
+  /** Resume an existing session rather than create a new one. */
+  resume: boolean;
 }
 
 export interface AgentAdapter {
@@ -31,18 +37,34 @@ export interface AgentAdapter {
   build(req: RunRequest): LaunchSpec;
 }
 
-/** `<cmd> --session-id <uuid> [-p] <prompt>` — the shape both CLIs share. */
-function buildWith(command: string): AgentAdapter["build"] {
-  return ({ sessionId, prompt, mode }) => {
-    const args = ["--session-id", sessionId];
+/** Builds `<cmd> <sessionArgs> [-p] <prompt>`, where a backend decides how to
+ *  name a new vs. resumed session. The prompt is always a single argv element,
+ *  so it is safe to hand to `spawn` with no shell. */
+function buildWith(
+  command: string,
+  sessionArgs: (sessionId: string, resume: boolean) => string[],
+): AgentAdapter["build"] {
+  return ({ sessionId, prompt, mode, resume }) => {
+    const args = [...sessionArgs(sessionId, resume)];
     if (mode === "print") args.push("-p"); // non-interactive; interactive omits it
-    args.push(prompt); // single argv element — never shell-joined
+    args.push(prompt);
     return { command, args };
   };
 }
 
-export const claudeAdapter: AgentAdapter = { name: "claude", build: buildWith("claude") };
-export const piAdapter: AgentAdapter = { name: "pi", build: buildWith("pi") };
+export const claudeAdapter: AgentAdapter = {
+  name: "claude",
+  // --session-id creates (errors if it exists); --resume continues one.
+  build: buildWith("claude", (id, resume) =>
+    resume ? ["--resume", id] : ["--session-id", id],
+  ),
+};
+
+export const piAdapter: AgentAdapter = {
+  name: "pi",
+  // --session-id is create-or-use, so it covers both cases.
+  build: buildWith("pi", (id) => ["--session-id", id]),
+};
 
 const ADAPTERS: Record<string, AgentAdapter> = {
   claude: claudeAdapter,

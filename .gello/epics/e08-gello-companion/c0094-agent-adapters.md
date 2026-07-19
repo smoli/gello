@@ -24,15 +24,16 @@ The interface covers:
 
 ## Acceptance criteria
 
-- [x] An `AgentAdapter` interface with a `build({sessionId, prompt, mode})`
-      launch-command builder. Design shift: both CLIs accept a **caller-owned
-      session id** that creates-if-new / resumes-if-exists, so start and
-      resume collapse into one build with an owned id (companion generates it
-      — `newSessionId`, c0095) — no id to parse back
-- [x] A **Claude CLI** adapter (`claude --session-id <uuid> [-p] <prompt>`);
-      flags confirmed against `claude --help` (`--session-id`, `-p`)
-- [x] A **pi CLI** adapter (`pi --session-id <id> [-p] <prompt>`); confirmed
-      against `pi --help` (`--session-id` "creating it if missing", `-p`)
+- [x] An `AgentAdapter` interface with a `build({sessionId, prompt, mode,
+      resume})` launch-command builder. The companion owns the session id
+      (`newSessionId`, c0095) — no id to parse back. **Correction (c0097 live
+      run):** start and resume do *not* collapse into one flag — see below.
+- [x] A **Claude CLI** adapter: new session `claude --session-id <uuid> [-p]`,
+      resume `claude --resume <uuid> [-p]`. `--session-id` *creates* and errors
+      ("already in use") if the id exists, so resume must use `--resume`.
+- [x] A **pi CLI** adapter (`pi --session-id <id> [-p] <prompt>`, new *and*
+      resume); pi's `--session-id` is idempotent ("creating it if missing"), so
+      it serves both.
 - [x] Backend selectable via `getAdapter(name)` (`claude` | `pi`); the config
       *source* lands in c0099
 - [x] `getAdapter` throws a clear error for an unknown backend; the prompt is
@@ -61,4 +62,11 @@ The interface covers:
 - 2026-07-19 implemented TDD (agent): adapters.ts (claude/pi, caller-owned
   session id, getAdapter) + newSessionId; flags verified via --help, command
   construction tested (not executed). 531 green; status → review
+- 2026-07-19 **fix (c0097 live run)**: the "one flag creates-or-resumes"
+  assumption was wrong for claude — `--session-id <id>` errors "already in
+  use" on an existing id. Added `resume` to `RunRequest`; claude now uses
+  `--resume` for an existing session, pi keeps its idempotent `--session-id`.
+  The runner derives resume-vs-new from whether a session id already exists
+  (covers answered-turn resume *and* companion-restart re-dispatch).
+  Reproducing adapter test added.
 - 2026-07-19 status → done (app)

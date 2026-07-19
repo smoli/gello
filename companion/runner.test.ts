@@ -156,7 +156,7 @@ class FakeProc implements SpawnedRun {
   }
 }
 
-function makeRunner(initial: BoardModel) {
+function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
   const spawned: FakeProc[] = [];
   let model = initial;
   const published: { runs: string[] }[] = [];
@@ -172,6 +172,7 @@ function makeRunner(initial: BoardModel) {
     },
     reload: () => model,
     onRuns: (runs) => published.push({ runs: runs.map((r) => `${r.cardId}:${r.phase}`) }),
+    sessions,
   });
   return {
     runner,
@@ -184,7 +185,7 @@ function makeRunner(initial: BoardModel) {
 }
 
 describe("Runner", () => {
-  it("dispatches a ready card: one spawn with the adapter spec, running phase", () => {
+  it("dispatches a ready card: one spawn creating a new session (--session-id)", () => {
     const start = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(start);
     h.runner.sync(null, start);
@@ -192,9 +193,22 @@ describe("Runner", () => {
     expect(h.spawned).toHaveLength(1);
     const args = h.spawned[0].spec.args;
     expect(h.spawned[0].spec.command).toBe("claude");
-    expect(args).toContain("--session-id");
+    expect(args[0]).toBe("--session-id"); // brand-new session → create
     expect(args[args.length - 1]).toContain("c001"); // the prompt
     expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("re-dispatch with a persisted session resumes it (--resume), never --session-id", () => {
+    // The companion restarted: c001 is ready again and its session is already
+    // in the map. Recreating the id would error ("already in use"), so resume.
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, { "card:c001": "prior-session-id" });
+    h.runner.sync(null, start);
+
+    const args = h.spawned[0].spec.args;
+    expect(args[0]).toBe("--resume");
+    expect(args[1]).toBe("prior-session-id");
+    expect(args).not.toContain("--session-id");
   });
 
   it("a clean exit on a parked card → waiting-for-input, run stays active", () => {
@@ -212,7 +226,7 @@ describe("Runner", () => {
     expect(h.last()).toEqual(["c001:waiting-for-input"]);
   });
 
-  it("answering a parked turn resumes the SAME session, phase running", () => {
+  it("answering a parked turn resumes the SAME session via --resume", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);
     h.runner.sync(null, ready);
@@ -231,7 +245,8 @@ describe("Runner", () => {
     h.runner.sync(parked, answered);
 
     expect(h.spawned).toHaveLength(2);
-    expect(h.spawned[1].spec.args[1]).toBe(sessionId); // resumed, same id
+    expect(h.spawned[1].spec.args[0]).toBe("--resume"); // resume, not recreate
+    expect(h.spawned[1].spec.args[1]).toBe(sessionId); // same id
     expect(h.last()).toEqual(["c001:running"]);
   });
 
