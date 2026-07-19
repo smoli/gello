@@ -12,29 +12,54 @@ status-changed: 2026-07-19T10:11:07
 ## What
 
 The primary way the agent and human interact — **through the card**, async,
-no chat UI. When the agent needs the human, it parks a question into the
-card; the human answers in the card; the companion auto-resumes the session.
+no chat UI. Turn-based: the agent asks (turn 1), the human answers, the agent
+uses the answers and may ask again (turn 2), … The card layout keeps the
+*current* turn prominent and editable while preserving the conversation.
 
-- **Ask**: the agent writes its question into the card's `## Questions`
-  section and sets a **"needs input" marker** (a frontmatter field, e.g.
-  `awaiting: input`), then exits — its session UUID is stored (c0095).
-- **Watch**: the companion watches the card; when the human's **answer**
-  appears under the question (and the card is no longer "unanswered"), it
-  clears the marker and **auto-resumes** the session (c0094 resume) with the
-  answer as input.
-- The agent continues; may ask again (loop) or finish.
+**Card layout** (files-first, so it reads well in a raw editor too):
+
+- **`## Open question`** — a block pinned near the top holding **only the
+  current turn**. The agent writes its question(s) here with answer slots:
+  **checkboxes** where the question is a choice (`- [ ] option A`), a text
+  slot for open questions. While a turn is open, a frontmatter marker
+  (`awaiting: input`) is set.
+- **`## History`** — resolved turns below, each labelled (`### Turn N`) with
+  its question and the given answer, newest-first. Collapsed in the app.
+
+**Flow**:
+
+- **Ask**: the agent writes the turn into `## Open question`, sets the marker,
+  and exits (its session UUID is stored, c0095).
+- **Answer**: the human fills the answer slots in `## Open question` (checks
+  boxes / types) — in the app or a raw editor.
+- **Resume**: the companion watches the card; when the open turn is **fully
+  answered**, it resumes the session (c0094) with the answers.
+- **Archive**: on resume the agent moves the answered turn into `## History`,
+  clears the marker, and either opens a new `## Open question` (loop) or
+  finishes.
+
+**Division of labour** (epic principle — the agent owns card writes): the
+**agent writes** the open question, the history archiving, and the marker; the
+**companion only reads** to detect the answered transition and to resume. The
+convention is taught to the agent (companion system prompt / a skill).
 
 ## Acceptance criteria
 
-- [ ] A documented `## Questions` format (question + a place for the answer)
-      and a frontmatter "needs input" marker the agent sets when it parks
-- [ ] The companion detects a human answer to a parked question and resumes
-      the session with it, clearing the marker
-- [ ] Multiple question/answer rounds on one card work (park → answer →
-      resume → park …)
-- [ ] An unanswered parked card stays parked (no spurious resume) until a real
-      answer is written
-- [ ] The "needs input" marker is exposed for the board badge (c0100)
+- [ ] Documented format: an `## Open question` block (question text + answer
+      slots — checkbox list for choices, a text slot for open questions) and
+      the `awaiting: input` frontmatter marker
+- [ ] The companion parses the open turn and detects when it is **fully
+      answered** (all checkboxes resolved / text slots filled), then resumes
+      the session with the answers
+- [ ] An unanswered open turn does not resume (no spurious resume)
+- [ ] Multiple turns work (park → answer → resume → archive → park …);
+      `## History` accumulates resolved turns labelled by turn
+- [ ] On resume the answered turn is archived to `## History` and the marker
+      cleared (agent-side, per the convention)
+- [ ] The open-question / marker is exposed for the app: the open turn renders
+      prominent + editable, resolved turns collapsed (the app rendering is
+      card-detail work — may land with c0100 or a small card-detail addition;
+      the format here is the contract)
 
 ## Notes
 
