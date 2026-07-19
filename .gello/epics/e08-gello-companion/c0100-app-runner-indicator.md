@@ -46,6 +46,23 @@ parked card) — the badge must not depend on the companion process being alive.
 The **title-bar icon + runs popover** read the companion's state file
 (`waiting`, `runs`), which is the companion's aggregate view.
 
+## First-use feedback (c0097 live test)
+
+Answering the open turn should happen **in place, in display mode** — the point
+of the pinned open turn (c0096) is that the human resolves it without hunting
+through the raw file. Observed in the first real park/resume:
+
+- Checkboxes were already toggleable in display mode (good — keep that as the
+  answer gesture for choice questions).
+- An open (text) question still needed edit mode to type the answer, which is
+  the friction. The open turn's rendering should offer an inline answer slot in
+  display mode too, so a whole turn — boxes *and* text — is answerable without
+  switching to edit mode.
+
+So c0100's open-turn rendering is not just "prominent + editable" — it is the
+**answer surface**: check a box or type into the slot, save, done.
+
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-19 first-use feedback captured (answer-in-display-mode; text slot)
