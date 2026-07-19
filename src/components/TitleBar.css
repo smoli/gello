@@ -118,16 +118,26 @@
 .titlebar-runner-wrap {
   position: relative;
   display: inline-flex;
+  align-items: center;
   margin-left: 0.4em;
 }
+/* i0035: align with the c0083 dirty dot — same font-size (0.7em) so the glyphs
+   are the same size, and a centered fixed-width box so the button chrome and
+   the varying glyphs (○ / ▶ / ?) don't shift it off the dot's baseline. */
 .titlebar-runner {
   appearance: none;
   border: none;
   background: none;
-  padding: 0 0.2em;
-  font-size: 0.75em;
+  padding: 0;
+  margin: 0;
+  font-size: 0.7em;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1em;
+  vertical-align: middle;
   color: color-mix(in srgb, CanvasText 55%, transparent);
 }
 .titlebar-runner-running {
