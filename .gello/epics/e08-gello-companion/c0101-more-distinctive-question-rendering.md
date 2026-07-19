@@ -1,10 +1,10 @@
 ---
 id: c0101
 title: More distinctive Question rendering
-status: ready
+status: in-progress
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T21:15:29
+status-changed: 2026-07-19T21:23:02
 epic: e08
 ---
 
