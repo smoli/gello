@@ -1,12 +1,12 @@
 ---
 id: c0097
 title: Dispatch flow — ready → run → write-back
-status: ready
+status: in-progress
 epic: e08
 depends: [c0093, c0094, c0095, c0096]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T15:07:29
+status-changed: 2026-07-19T15:25:00
 ---
 
 ## What
