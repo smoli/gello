@@ -1,13 +1,14 @@
-// gello-companion (c0093) — a standalone Node CLI that watches a gello board
-// and, on a card entering `ready`, emits a dispatch intent. It reuses the
-// board core in `src/lib` (no re-parsing) and publishes a state file the
-// desktop app reads. Dispatch itself (running an agent) is c0097; this is the
-// scaffold: locate → watch → detect → publish.
+// gello-companion (c0093 scaffold → c0097 dispatch) — a standalone Node CLI
+// that watches a gello board and runs an agent on each card entering `ready`,
+// managing the run through the card-based Q&A park/resume (c0096). It reuses
+// the board core in `src/lib` (no re-parsing) and publishes a state file the
+// desktop app reads.
 //
-// Run with Node 24+ (native TypeScript): `node companion/main.ts [dir]`.
+// Run with tsx: `pnpm companion [dir]`.
 
 import { watch } from "node:fs";
-import { resolve } from "node:path";
+import { spawn } from "node:child_process";
+import { resolve, dirname } from "node:path";
 import {
   findBoardRoot,
   loadBoardFrom,
@@ -16,9 +17,15 @@ import {
   writeStateFile,
   companionStatePath,
   type CompanionState,
+  type RunState,
 } from "./core.ts";
-import { cardsAnswered, cardsAwaitingInput } from "./qa.ts";
+import { cardsAwaitingInput } from "./qa.ts";
+import { getAdapter } from "./adapters.ts";
+import { loadSessions, saveSessions, type SessionScope } from "./sessions.ts";
+import { Runner, type SpawnedRun, type Spawner } from "./runner.ts";
 import type { BoardModel } from "../src/lib/board.ts";
+
+const IN_PROGRESS = "in-progress";
 
 function nowIso(): string {
   const d = new Date();
@@ -33,6 +40,29 @@ function log(message: string): void {
   console.log(`[gello-companion] ${message}`);
 }
 
+/** Spawn a real agent process, inheriting stdio so its work streams to the
+ *  companion's terminal. A spawn error (e.g. command not found) surfaces as a
+ *  null exit code → classified as an error, non-fatal to the companion. */
+const nodeSpawner: Spawner = (spec, cwd): SpawnedRun => {
+  const child = spawn(spec.command, spec.args, { cwd, stdio: "inherit" });
+  return {
+    onExit(cb) {
+      let fired = false;
+      const once = (code: number | null) => {
+        if (!fired) {
+          fired = true;
+          cb(code);
+        }
+      };
+      child.on("exit", (code) => once(code));
+      child.on("error", (error) => {
+        log(`spawn ${spec.command} failed: ${(error as Error).message}`);
+        once(null);
+      });
+    },
+  };
+};
+
 function main(): void {
   const start = resolve(process.argv[2] ?? process.cwd());
   const root = findBoardRoot(start);
@@ -40,62 +70,73 @@ function main(): void {
     console.error(`no .gello board found from ${start}`);
     process.exit(1);
   }
-  log(`watching board at ${root}`);
+  const projectDir = dirname(root);
+  const agentName = process.env.GELLO_COMPANION_AGENT ?? "claude";
+  const scope: SessionScope =
+    process.env.GELLO_COMPANION_SCOPE === "epic" ? "epic" : "card";
+  log(`watching board at ${root} (agent: ${agentName}, scope: ${scope})`);
 
   let model: BoardModel = loadBoardFrom(root);
-  publish(root, model);
+  let runs: RunState[] = [];
 
-  // A dispatch intent for every card already sitting in `ready` at startup.
-  for (const card of cardsEnteringReady(null, model)) announce(card.id);
+  const runner = new Runner({
+    root: projectDir, // the agent runs in the repo, not inside .gello
+    adapter: getAdapter(agentName),
+    scope,
+    wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
+    spawn: nodeSpawner,
+    reload: () => loadBoardFrom(root),
+    sessions: loadSessions(root),
+    persistSessions: (map) => saveSessions(root, map),
+    onRuns: (next) => {
+      runs = next;
+      publish(root, model, runs);
+    },
+    log,
+  });
 
-  // Debounce watcher bursts (an atomic write is a delete+create, and a triage
-  // touches several files); reload once things settle, then diff for new
-  // `ready` cards. Ignore our own `.companion/` writes.
+  publish(root, model, runs);
+  runner.sync(null, model);
+
+  // Debounce watcher bursts (an atomic write is a delete+create; a triage
+  // touches several files); reload once things settle, then let the runner
+  // reconcile. Ignore our own `.companion/` writes.
   let timer: ReturnType<typeof setTimeout> | undefined;
   watch(root, { recursive: true }, (_event, filename) => {
     if (filename && filename.replace(/\\/g, "/").startsWith(".companion/")) return;
     clearTimeout(timer);
-    timer = setTimeout(() => reconcile(root, () => model, (m) => (model = m)), 150);
+    timer = setTimeout(() => {
+      let next: BoardModel;
+      try {
+        next = loadBoardFrom(root);
+      } catch (error) {
+        log(`reload failed: ${(error as Error).message}`);
+        return;
+      }
+      const prev = model;
+      model = next;
+      runner.sync(prev, next);
+      publish(root, next, runs);
+    }, 150);
   });
 }
 
-function reconcile(
-  root: string,
-  get: () => BoardModel,
-  set: (m: BoardModel) => void,
-): void {
-  let next: BoardModel;
-  try {
-    next = loadBoardFrom(root);
-  } catch (error) {
-    log(`reload failed: ${(error as Error).message}`);
-    return;
-  }
-  const prev = get();
-  for (const card of cardsEnteringReady(prev, next)) announce(card.id);
-  // A parked open turn that just became fully answered is the resume trigger
-  // (c0096). The actual session resume is the dispatch flow (c0097); here we
-  // only detect and log the intent.
-  for (const card of cardsAnswered(prev, next)) resume(card.id);
-  set(next);
-  publish(root, next);
+function overallStatus(runs: RunState[], waiting: string[]): CompanionState["status"] {
+  if (runs.some((r) => r.phase === "running")) return "running";
+  if (waiting.length || runs.some((r) => r.phase === "waiting-for-input")) return "waiting";
+  return "idle";
 }
 
-/** c0097 will turn this into an actual run; for now, record + log the intent. */
-function announce(cardId: string): void {
-  log(`${cardId} entered ready → dispatch (runner not wired yet, c0097)`);
-}
-
-/** A card's open turn was answered — resume its session (c0097 wires the run). */
-function resume(cardId: string): void {
-  log(`${cardId} open turn answered → resume (runner not wired yet, c0097)`);
-}
-
-function publish(root: string, model: BoardModel): void {
+function publish(root: string, model: BoardModel, runs: RunState[]): void {
   const ready = cardsEnteringReady(null, model).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
-  const status: CompanionState["status"] = waiting.length ? "waiting" : "idle";
-  const state: CompanionState = { ...initialState(nowIso()), ready, waiting, status };
+  const state: CompanionState = {
+    ...initialState(nowIso()),
+    ready,
+    waiting,
+    runs,
+    status: overallStatus(runs, waiting),
+  };
   try {
     writeStateFile(root, state);
   } catch (error) {

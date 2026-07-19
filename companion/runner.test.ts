@@ -1,0 +1,274 @@
+import { describe, expect, it } from "vitest";
+import { loadBoard } from "../src/lib/board.ts";
+import type { BoardModel } from "../src/lib/board.ts";
+import type { LaunchSpec } from "./adapters.ts";
+import { claudeAdapter } from "./adapters.ts";
+import {
+  planDispatch,
+  classifyExit,
+  occupiedSlots,
+  buildTaskPrompt,
+  Runner,
+  type SpawnedRun,
+} from "./runner.ts";
+
+// --- board fixtures ---------------------------------------------------------
+
+const BOARD =
+  "columns: [inbox, backlog, ready, in-progress, review, done]\nwip_limits:\n  in-progress: 2\n";
+
+interface CardSpec {
+  status: string;
+  depends?: string[];
+  order?: number;
+  open?: string; // an `## Open question` body, if any
+}
+
+function cardFile(id: string, s: CardSpec): string {
+  const fm = [
+    `id: ${id}`,
+    `title: Card ${id}`,
+    `status: ${s.status}`,
+    s.depends ? `depends: [${s.depends.join(", ")}]` : null,
+    s.order !== undefined ? `order: ${s.order}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const open = s.open ? `\n\n## Open question\n\n${s.open}` : "";
+  return `---\n${fm}\n---\n\n## What\n\ntask${open}\n`;
+}
+
+function board(cards: Record<string, CardSpec>): BoardModel {
+  return loadBoard([
+    { path: "board.yaml", content: BOARD },
+    ...Object.entries(cards).map(([id, s]) => ({
+      path: `cards/${id}-x.md`,
+      content: cardFile(id, s),
+    })),
+  ]);
+}
+
+const cardOf = (model: BoardModel, id: string) =>
+  model.cards.find((c) => c.id === id)!;
+
+// --- pure helpers -----------------------------------------------------------
+
+describe("occupiedSlots", () => {
+  it("counts in-progress cards and active runs as a union", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "ready" } });
+    expect(occupiedSlots(model, [])).toBe(1); // c001 in-progress
+    expect(occupiedSlots(model, ["c002"])).toBe(2); // + c002 active run
+    expect(occupiedSlots(model, ["c001"])).toBe(1); // c001 counted once (union)
+  });
+});
+
+describe("planDispatch", () => {
+  it("dispatches ready cards up to the WIP budget, queues the rest", () => {
+    const model = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+      c003: { status: "ready", order: 3 },
+    });
+    const { dispatch, queued } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("counts existing in-progress work against the budget", () => {
+    const model = board({
+      c001: { status: "in-progress" },
+      c002: { status: "ready", order: 1 },
+      c003: { status: "ready", order: 2 },
+    });
+    const { dispatch, queued } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c002"]); // one slot left
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("does not re-dispatch a card that already has an active run", () => {
+    const model = board({ c001: { status: "ready", order: 1 } });
+    expect(planDispatch(model, ["c001"], 2).dispatch).toEqual([]);
+  });
+
+  it("skips a ready card whose depends are not all done", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] }, // c009 absent → not done
+      c002: { status: "ready", order: 2, depends: ["c003"] },
+      c003: { status: "done" },
+    });
+    const { dispatch } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c002"]); // c001 blocked by c009
+  });
+});
+
+describe("classifyExit", () => {
+  it("non-zero exit is an error", () => {
+    const model = board({ c001: { status: "in-progress" } });
+    expect(classifyExit(cardOf(model, "c001"), 1)).toBe("error");
+  });
+
+  it("clean exit with a parked open turn is waiting-for-input", () => {
+    const model = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    expect(classifyExit(cardOf(model, "c001"), 0)).toBe("waiting-for-input");
+  });
+
+  it("clean exit with no open turn is done", () => {
+    const model = board({ c001: { status: "review" } });
+    expect(classifyExit(cardOf(model, "c001"), 0)).toBe("done");
+  });
+
+  it("clean exit with an answered open turn is done (not still waiting)", () => {
+    const model = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    expect(classifyExit(cardOf(model, "c001"), 0)).toBe("done");
+  });
+});
+
+describe("buildTaskPrompt", () => {
+  it("names the card and points the agent at the park convention", () => {
+    const model = board({ c001: { status: "ready" } });
+    const prompt = buildTaskPrompt(cardOf(model, "c001"), false);
+    expect(prompt).toContain("c001");
+    expect(prompt).toContain("cards/c001-x.md");
+    expect(prompt).toMatch(/Open question/i);
+  });
+
+  it("resume prompt tells the agent the question was answered", () => {
+    const model = board({ c001: { status: "in-progress" } });
+    expect(buildTaskPrompt(cardOf(model, "c001"), true)).toMatch(/answered/i);
+  });
+});
+
+// --- Runner (lifecycle with a fake spawner) ---------------------------------
+
+/** A fake process: records the spec and lets the test fire its exit. */
+class FakeProc implements SpawnedRun {
+  private cb: ((code: number | null) => void) | null = null;
+  constructor(readonly spec: LaunchSpec) {}
+  onExit(cb: (code: number | null) => void): void {
+    this.cb = cb;
+  }
+  exit(code: number | null): void {
+    this.cb?.(code);
+  }
+}
+
+function makeRunner(initial: BoardModel) {
+  const spawned: FakeProc[] = [];
+  let model = initial;
+  const published: { runs: string[] }[] = [];
+  const runner = new Runner({
+    root: "/board",
+    adapter: claudeAdapter,
+    scope: "card",
+    wipLimit: 2,
+    spawn: (spec) => {
+      const proc = new FakeProc(spec);
+      spawned.push(proc);
+      return proc;
+    },
+    reload: () => model,
+    onRuns: (runs) => published.push({ runs: runs.map((r) => `${r.cardId}:${r.phase}`) }),
+  });
+  return {
+    runner,
+    spawned,
+    published,
+    setModel: (m: BoardModel) => (model = m),
+    reloadModel: () => model,
+    last: () => published[published.length - 1]?.runs ?? [],
+  };
+}
+
+describe("Runner", () => {
+  it("dispatches a ready card: one spawn with the adapter spec, running phase", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(null, start);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(h.spawned[0].spec.command).toBe("claude");
+    expect(args).toContain("--session-id");
+    expect(args[args.length - 1]).toContain("c001"); // the prompt
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("a clean exit on a parked card → waiting-for-input, run stays active", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready);
+    h.runner.sync(null, ready);
+
+    // agent moved c001 to in-progress and parked a question, then exited 0
+    const parked = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    expect(h.last()).toEqual(["c001:waiting-for-input"]);
+  });
+
+  it("answering a parked turn resumes the SAME session, phase running", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready);
+    h.runner.sync(null, ready);
+    const sessionId = h.spawned[0].spec.args[1]; // after --session-id
+
+    const parked = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    const answered = board({
+      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    h.setModel(answered);
+    h.runner.sync(parked, answered);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[1]).toBe(sessionId); // resumed, same id
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("a clean exit with the work finished → done, run removed", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready);
+    h.runner.sync(null, ready);
+
+    const finished = board({ c001: { status: "review" } });
+    h.setModel(finished);
+    h.spawned[0].exit(0);
+
+    expect(h.last()).toEqual([]); // no active runs
+  });
+
+  it("a crashed agent → error, run removed, card left untouched (companion never edits)", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready);
+    h.runner.sync(null, ready);
+
+    const midwork = board({ c001: { status: "in-progress" } });
+    h.setModel(midwork);
+    h.spawned[0].exit(1);
+
+    expect(h.last()).toEqual([]);
+    // the card was not rewritten by the runner
+    expect(cardOf(h.reloadModel(), "c001").status).toBe("in-progress");
+  });
+
+  it("respects the WIP limit: three ready cards, only two spawn", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+      c003: { status: "ready", order: 3 },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(null, start);
+    expect(h.spawned.map((p) => p.spec.args[p.spec.args.length - 1])).toHaveLength(2);
+  });
+});
