@@ -1,13 +1,13 @@
 ---
 id: i0035
 title: Indicator alignment is off
-status: ready
+status: in-progress
 type: issue
 ref: c0100
 epic: e08
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T21:03:26
+status-changed: 2026-07-19T21:12:00
 order: 10
 ---
 
