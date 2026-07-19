@@ -30,6 +30,11 @@ export interface RunRequest {
   mode: RunMode;
   /** Resume an existing session rather than create a new one. */
   resume: boolean;
+  /** Permission posture for a headless run. A `-p` agent cannot answer an
+   *  interactive approval prompt, so autonomous writes/commands need a mode
+   *  that pre-approves them (claude: `auto`; `default` prompts and thus fails
+   *  headless). Backends without such a flag (pi) ignore it. */
+  permissionMode?: string;
 }
 
 export interface AgentAdapter {
@@ -37,33 +42,42 @@ export interface AgentAdapter {
   build(req: RunRequest): LaunchSpec;
 }
 
-/** Builds `<cmd> <sessionArgs> [-p] <prompt>`, where a backend decides how to
- *  name a new vs. resumed session. The prompt is always a single argv element,
- *  so it is safe to hand to `spawn` with no shell. */
+/** Builds `<cmd> <headArgs> [-p] <prompt>`, where a backend decides its
+ *  session + permission flags. The prompt is always a single argv element, so
+ *  it is safe to hand to `spawn` with no shell. */
 function buildWith(
   command: string,
-  sessionArgs: (sessionId: string, resume: boolean) => string[],
+  headArgs: (req: RunRequest) => string[],
 ): AgentAdapter["build"] {
-  return ({ sessionId, prompt, mode, resume }) => {
-    const args = [...sessionArgs(sessionId, resume)];
-    if (mode === "print") args.push("-p"); // non-interactive; interactive omits it
-    args.push(prompt);
+  return (req) => {
+    const args = [...headArgs(req)];
+    if (req.mode === "print") args.push("-p"); // non-interactive; interactive omits it
+    args.push(req.prompt);
     return { command, args };
   };
 }
 
 export const claudeAdapter: AgentAdapter = {
   name: "claude",
-  // --session-id creates (errors if it exists); --resume continues one.
-  build: buildWith("claude", (id, resume) =>
-    resume ? ["--resume", id] : ["--session-id", id],
-  ),
+  build: buildWith("claude", (req) => {
+    // --session-id creates (errors if it exists); --resume continues one.
+    const args = req.resume
+      ? ["--resume", req.sessionId]
+      : ["--session-id", req.sessionId];
+    // `default` is the CLI's own default (interactive prompts) — omit it so a
+    // headless run gets an explicit auto-approving mode when asked.
+    if (req.permissionMode && req.permissionMode !== "default") {
+      args.push("--permission-mode", req.permissionMode);
+    }
+    return args;
+  }),
 };
 
 export const piAdapter: AgentAdapter = {
   name: "pi",
-  // --session-id is create-or-use, so it covers both cases.
-  build: buildWith("pi", (id) => ["--session-id", id]),
+  // --session-id is create-or-use, so it covers both cases. pi's `-p` runs
+  // tools without an interactive gate, so there is no permission flag to pass.
+  build: buildWith("pi", (req) => ["--session-id", req.sessionId]),
 };
 
 const ADAPTERS: Record<string, AgentAdapter> = {

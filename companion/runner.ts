@@ -135,6 +135,9 @@ export interface RunnerOptions {
   adapter: AgentAdapter;
   scope: SessionScope;
   wipLimit: number;
+  /** Permission posture for headless agent runs (adapter-specific; see
+   *  `RunRequest.permissionMode`). Undefined → the CLI's own default. */
+  permissionMode?: string;
   spawn: Spawner;
   /** Re-read the board from disk (to classify an exit, drain the queue). */
   reload: () => BoardModel;
@@ -195,6 +198,7 @@ export class Runner {
       prompt: buildTaskPrompt(card, answered),
       mode: "print",
       resume,
+      permissionMode: this.opts.permissionMode,
     });
     this.active.set(card.id, { sessionId: id, phase: "running" });
     this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);

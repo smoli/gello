@@ -74,7 +74,14 @@ function main(): void {
   const agentName = process.env.GELLO_COMPANION_AGENT ?? "claude";
   const scope: SessionScope =
     process.env.GELLO_COMPANION_SCOPE === "epic" ? "epic" : "card";
-  log(`watching board at ${root} (agent: ${agentName}, scope: ${scope})`);
+  // Headless runs need a pre-approving permission mode or every write/command
+  // is denied (a `-p` agent can't answer an approval prompt). `auto` approves
+  // autonomously while still honoring deny-rules; override via env.
+  const permissionMode = process.env.GELLO_COMPANION_PERMISSION_MODE ?? "auto";
+  log(
+    `watching board at ${root} (agent: ${agentName}, scope: ${scope}, ` +
+      `permissions: ${permissionMode})`,
+  );
 
   let model: BoardModel = loadBoardFrom(root);
   let runs: RunState[] = [];
@@ -83,6 +90,7 @@ function main(): void {
     root: projectDir, // the agent runs in the repo, not inside .gello
     adapter: getAdapter(agentName),
     scope,
+    permissionMode,
     wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
     spawn: nodeSpawner,
     reload: () => loadBoardFrom(root),

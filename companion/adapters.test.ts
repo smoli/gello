@@ -57,6 +57,24 @@ describe("agent adapters — command construction", () => {
     expect(piAdapter.build(req("interactive")).args).not.toContain("-p");
   });
 
+  // Headless runs can't answer an interactive approval prompt, so an
+  // autonomous run passes claude a pre-approving --permission-mode (c0097).
+  it("claude: passes --permission-mode when set, omits it for default/unset", () => {
+    expect(claudeAdapter.build({ ...req("print"), permissionMode: "auto" }).args).toEqual(
+      ["--session-id", SID, "--permission-mode", "auto", "-p", "Work on card c0001"],
+    );
+    expect(claudeAdapter.build(req("print")).args).not.toContain("--permission-mode");
+    expect(
+      claudeAdapter.build({ ...req("print"), permissionMode: "default" }).args,
+    ).not.toContain("--permission-mode");
+  });
+
+  it("pi: ignores permissionMode (no such flag)", () => {
+    expect(
+      piAdapter.build({ ...req("print"), permissionMode: "auto" }).args,
+    ).not.toContain("--permission-mode");
+  });
+
   it("passes the prompt as a single arg (never shell-joined)", () => {
     const spec = claudeAdapter.build({
       sessionId: "u",

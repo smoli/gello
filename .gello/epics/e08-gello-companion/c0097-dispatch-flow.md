@@ -59,6 +59,13 @@ the c0096 Q&A park/resume.
 - **Injectable spawner**: the process boundary (`Spawner`) is injected, so the
   whole lifecycle — dispatch, park, resume, done, error, WIP — is unit-tested
   with a fake process; `main.ts` supplies the real `child_process.spawn`.
+- **Permission posture** (found in the first live run): a headless `-p` agent
+  can't answer an interactive approval prompt, so with the CLI's default mode
+  every write/command is denied and the agent no-ops. Runs launch with
+  `--permission-mode auto` (claude), which approves autonomously while still
+  honoring deny-rules; empirically it allows both edits and shell commands
+  headless. Configurable via `GELLO_COMPANION_PERMISSION_MODE` (default
+  `auto`); pi has no such flag. Config source formalizes in c0099.
 
 ## Implementation
 
@@ -88,3 +95,10 @@ the c0096 Q&A park/resume.
   resume/start via the adapter, park→answer→resume, phase publishing, crash
   handling. 17 runner tests; companion suite 53 green, full suite 560 green,
   typecheck + lint clean; smoke-tested with a fake agent. status → review.
+- 2026-07-19 first live run (real claude, sandbox board): writes were denied —
+  a headless `-p` agent can't approve permissions. Added
+  `--permission-mode auto` (configurable). Verified end to end: c001 dispatched
+  with a fresh session, created `hello.txt`, and moved itself ready →
+  in-progress → review autonomously. Also noted a false-`done` classification
+  (clean exit while the card is still `ready` = no-op, mis-read as done) —
+  flagged as a follow-up.
