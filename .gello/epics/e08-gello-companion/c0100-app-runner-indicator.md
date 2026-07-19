@@ -1,12 +1,12 @@
 ---
 id: c0100
 title: App — title-bar runner indicator + needs-input badge
-status: ready
+status: in-progress
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T20:45:56
+status-changed: 2026-07-19T20:50:00
 ---
 
 ## What
