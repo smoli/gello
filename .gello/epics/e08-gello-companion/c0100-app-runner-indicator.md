@@ -39,6 +39,13 @@ badge** for parked Q&A (c0096).
 Same title-bar surface and file-watch pattern as the c0083 dirty dot — keep
 them visually consistent.
 
+**Two signals, two sources** (don't cross them): the **per-card badge** reads
+the card's own `awaiting: input` frontmatter marker (c0096), so it works even
+when the companion isn't the one running (a raw-editor session, a manually
+parked card) — the badge must not depend on the companion process being alive.
+The **title-bar icon + runs popover** read the companion's state file
+(`waiting`, `runs`), which is the companion's aggregate view.
+
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
