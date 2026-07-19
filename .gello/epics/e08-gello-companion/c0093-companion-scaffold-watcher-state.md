@@ -25,14 +25,16 @@ entering `ready`, and publishes a companion **state file** the app reads.
 
 ## Acceptance criteria
 
-- [ ] `gello-companion` runs as a standalone Node CLI reusing `src/lib`; no
-      duplicated board parsing
-- [ ] It watches `.gello/` and detects a card entering `ready` (emitting an
-      internal dispatch intent)
-- [ ] It writes an atomic state file under `.gello/` with a documented shape
-      (status, runs[], per-card flags), starting at `idle`
-- [ ] Not-a-git-repo / no-board cases are handled gracefully
-- [ ] The state-file shape is documented for the app side (c0100) to read
+- [x] `gello-companion` runs as a standalone Node CLI reusing `src/lib`; no
+      duplicated board parsing (imports `loadBoard`/types from `src/lib`)
+- [x] It watches `.gello/` and detects a card entering `ready` (emitting an
+      internal dispatch intent — logged; run wiring is c0097)
+- [x] It writes an atomic state file under `.gello/.companion/state.json` with
+      a documented shape (status, ready[], runs[], updated), starting `idle`
+- [x] No-board case handled gracefully (walk-up finds `.gello` or exits with a
+      message); the companion needs no git repo
+- [x] The state-file shape is documented (the `CompanionState` interface in
+      `companion/core.ts`) for the app side (c0100) to read
 
 ## Notes
 
