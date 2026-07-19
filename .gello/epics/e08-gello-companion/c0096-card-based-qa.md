@@ -61,13 +61,39 @@ convention is taught to the agent (companion system prompt / a skill).
       card-detail work — may land with c0100 or a small card-detail addition;
       the format here is the contract)
 
+## Discussion
+
+- **Open-question block + separate History** (user's call): the current turn
+  is always in one prominent, editable place — great in the app *and* in a
+  raw editor (no scrolling to the bottom to find the open question). Resolved
+  turns are preserved but out of the way. (Rejected: interleaved chronological
+  turns — buries the open question at the bottom in a raw editor.)
+- **Checkboxes where the question is a choice**, free text otherwise — reuses
+  gello's checkbox convention for the common "pick one/some" case.
+- **Agent writes, companion reads**: card mutations stay with the agent (epic
+  principle). The companion only detects the answered transition and resumes,
+  so it never becomes a card editor. The agent learns the convention from the
+  companion's system prompt (or a bundled skill).
+- **App rendering is card-detail work**: the open turn prominent + editable,
+  resolved turns collapsed — lands with c0100 or a small card-detail
+  addition. This card owns the *format contract* and the companion-side
+  parse/resume.
+
 ## Notes
 
 This is the on-brand core: reuses cards + the watcher + session-resume, and
 adds no chat UI (c0073's constraint). The terminal path (c0098) is only for
 active steering.
 
+- **Open**: exact marker field name (`awaiting: input`?); `## History`
+  ordering (newest-first chosen); how the agent is taught the convention
+  (system prompt vs. a bundled skill).
+
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
 - 2026-07-19 status → ready (app)
+- 2026-07-19 discussed (human): turn-based Q&A; `## Open question` block
+  (current turn, checkboxes + text slots, `awaiting` marker) pinned on top +
+  `## History` (resolved turns, collapsed); agent writes / companion reads;
+  app renders open turn prominent, history collapsed.
