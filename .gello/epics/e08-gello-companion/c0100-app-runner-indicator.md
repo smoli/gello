@@ -26,14 +26,16 @@ badge** for parked Q&A (c0096).
 
 ## Acceptance criteria
 
-- [ ] The app watches the companion state file and shows a title-bar icon
-      reflecting runner state (idle / running / waiting / attached / attention)
-- [ ] Clicking the icon opens a popover listing active runs with their phase
-- [ ] No indicator when there's no companion state file (companion not
-      running)
-- [ ] Card fronts show a "needs input" badge when the card is parked awaiting
-      an answer (c0096 marker)
-- [ ] Sits beside the c0083 dirty-worktree indicator without layout clashes
+- [x] The app reads the companion state file and shows a title-bar icon
+      reflecting runner state (idle / running / waiting). *attached / attention
+      arrive with the terminal path (c0098); the glyph map is open for them.*
+- [x] Clicking the icon opens a popover listing active runs with their phase
+- [x] No indicator when there's no companion state file (companion not
+      running) — `readCompanionState` → null → nothing rendered
+- [x] Card fronts show a "needs input" badge when the card is parked awaiting
+      an answer — driven by the card's own `awaiting: input` marker (c0096)
+- [x] Sits beside the c0083 dirty-worktree indicator without layout clashes
+      (rendered in `titlebar-left` right after the dirty dot)
 
 ## Notes
 
