@@ -1,12 +1,12 @@
 ---
 id: c0094
 title: Agent adapters — Claude & pi
-status: in-progress
+status: review
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:22:00
+status-changed: 2026-07-19T10:30:00
 ---
 
 ## What
@@ -56,3 +56,8 @@ The interface covers:
 
 - 2026-07-19 created from the e08 companion breakdown
 - 2026-07-19 status → ready (app)
+
+- 2026-07-19 status → ready (app)
+- 2026-07-19 implemented TDD (agent): adapters.ts (claude/pi, caller-owned
+  session id, getAdapter) + newSessionId; flags verified via --help, command
+  construction tested (not executed). 531 green; status → review
