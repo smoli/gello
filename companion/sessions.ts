@@ -4,7 +4,15 @@
 // state, like the state file).
 
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { companionDir, writeJsonAtomic, readJson } from "./core.ts";
+
+/** A fresh session id. The companion owns session ids and passes them to the
+ *  agent CLI (`--session-id`), which creates the session if it's new — so we
+ *  generate here rather than parse one back out of the agent. */
+export function newSessionId(): string {
+  return randomUUID();
+}
 
 /** Whether sessions are kept per card (default) or shared per epic. */
 export type SessionScope = "card" | "epic";

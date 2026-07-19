@@ -9,6 +9,7 @@ import {
   saveSessions,
   resolveSession,
   recordSession,
+  newSessionId,
   type SessionMap,
 } from "./sessions.ts";
 
@@ -85,5 +86,12 @@ describe("resolveSession / recordSession", () => {
     const next = recordSession(map, "card:c002", "new");
     expect(next).toEqual({ "card:c001": "old", "card:c002": "new" });
     expect(map).toEqual({ "card:c001": "old" }); // original untouched
+  });
+
+  it("newSessionId returns a fresh UUID each call", () => {
+    const a = newSessionId();
+    const b = newSessionId();
+    expect(a).toMatch(/^[0-9a-f-]{36}$/);
+    expect(a).not.toBe(b);
   });
 });
