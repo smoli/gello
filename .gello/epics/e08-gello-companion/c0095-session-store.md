@@ -1,12 +1,12 @@
 ---
 id: c0095
 title: Session store — UUID per card/epic
-status: review
+status: done
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:20:00
+status-changed: 2026-07-19T14:59:32
 ---
 
 ## What
@@ -53,3 +53,4 @@ so a run resumes prior context instead of starting cold. Scope is
   file-backed map, resolve/record), atomic-JSON helpers factored into core;
   stale-UUID fallback deferred to c0097. 523 green; status → review
 - 2026-07-19 status → ready (app)
+- 2026-07-19 status → done (app)

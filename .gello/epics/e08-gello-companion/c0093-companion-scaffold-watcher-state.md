@@ -1,11 +1,11 @@
 ---
 id: c0093
 title: Companion scaffold + board watcher + state file
-status: review
+status: done
 epic: e08
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:12:00
+status-changed: 2026-07-19T14:59:31
 ---
 
 ## What
@@ -71,3 +71,4 @@ the same CLI later; this card only needs the watch + state-file base.
   file (8 core tests), watcher + `pnpm companion` entry; verified against the
   live board. 515 green; status → review
 - 2026-07-19 status → ready (app)
+- 2026-07-19 status → done (app)
