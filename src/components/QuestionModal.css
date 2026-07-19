@@ -1,0 +1,107 @@
+.question-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 35%, transparent);
+  padding: 2rem;
+}
+.question-modal {
+  width: min(460px, 94vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: 1.25rem 1.4rem;
+  border-radius: 12px;
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, #8b5cf6 45%, transparent);
+  box-shadow: 0 16px 48px color-mix(in srgb, CanvasText 30%, transparent);
+}
+.question-modal-heading {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, #8b5cf6 75%, CanvasText);
+}
+.question-modal-prompt {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.question-modal-options {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.question-modal-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.question-modal-text {
+  width: 100%;
+  margin: 0.6rem 0;
+  font: inherit;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.question-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.question-modal-actions button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+.question-modal-actions button:first-child {
+  background: #8b5cf6;
+  color: white;
+  border-color: #8b5cf6;
+}
+.question-modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* c0101: the read-only question panel in the card detail */
+.gello-question-panel {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #8b5cf6 45%, transparent);
+  background: color-mix(in srgb, #8b5cf6 8%, transparent);
+}
+.gello-question-panel-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: color-mix(in srgb, #8b5cf6 75%, CanvasText);
+}
+.gello-question-panel-answer {
+  margin-top: 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #8b5cf6;
+  background: #8b5cf6;
+  color: white;
+  cursor: pointer;
+}

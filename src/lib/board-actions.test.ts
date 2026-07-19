@@ -9,6 +9,7 @@ import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
   createIssueFor,
   createCard,
+  answerGelloQuestion,
   createEpic,
   deleteCard,
   moveCard,
@@ -43,6 +44,43 @@ function fixtureCard() {
   if (!parsed.ok) throw new Error("fixture must parse");
   return parsed.card;
 }
+
+describe("answerGelloQuestion (c0101)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  it("writes the un-fenced body and clears the awaiting marker in one write", async () => {
+    const raw =
+      "---\nid: c001\ntitle: Q\nstatus: in-progress\nawaiting: input\nupdated: 2026-07-18\n---\n" +
+      "\n```gelloquestion\nWhich?\n- [ ] a\n```\n";
+    const parsed = parseCard("cards/c001-q.md", raw);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    expect(parsed.card.awaiting).toBe("input");
+
+    // the app passes the already-un-fenced body
+    const newBody = "\nWhich?\n- [x] a\n";
+    const { card, persisted } = answerGelloQuestion(
+      "/repo/.gello",
+      parsed.card,
+      newBody,
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-19",
+    );
+
+    expect(card.awaiting).toBeNull();
+    await persisted;
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c001-q.md",
+      expect.stringContaining("- [x] a"),
+    );
+    const written = writeMock.mock.calls[0][1];
+    expect(written).not.toContain("awaiting:");
+    expect(written).not.toContain("```gelloquestion");
+    expect(written).toContain("updated: 2026-07-19");
+  });
+});
 
 describe("moveCard", () => {
   beforeEach(() => {

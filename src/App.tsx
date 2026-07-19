@@ -17,6 +17,7 @@ import {
   type BoardModel,
 } from "./lib/board";
 import {
+  answerGelloQuestion,
   createIssueFor,
   createCard,
   createEpic,
@@ -744,6 +745,16 @@ function App() {
     }
   };
 
+  // c0101: answer a parked gelloquestion — the app un-fences the body and
+  // clears `awaiting` in one write (answerGelloQuestion); the companion resumes.
+  const handleAnswerQuestion = async (card: Card, newBody: string) => {
+    if (!board) return;
+    const fresh = await rebaseOnDisk(card);
+    applyAction(() =>
+      answerGelloQuestion(board.root, fresh, newBody, board.model.config, todayIsoDate()),
+    );
+  };
+
   const handleToggleTask = async (card: Card, index: number) => {
     if (!board) return;
     // c015: toggle the checkbox on the current disk body, not a stale copy
@@ -1240,6 +1251,9 @@ function App() {
             onSaveImage={(file) => handleSaveImage(selected.card, file)}
             loadImage={(src) => handleLoadImage(selected.card, src)}
             onDelete={() => handleDelete(selected.card)}
+            onAnswerQuestion={(newBody) =>
+              void handleAnswerQuestion(selected.card, newBody)
+            }
             onReportIssue={() => setIssueSource(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);

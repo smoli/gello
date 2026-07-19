@@ -696,6 +696,38 @@ describe("App", () => {
     expect((written.match(/^status-changed:/gm) ?? []).length).toBe(1);
   });
 
+  it("c0101: answering a parked question un-fences the body and clears awaiting", async () => {
+    const raw =
+      "---\nid: c009\ntitle: Parked\nstatus: in-progress\nawaiting: input\nupdated: 2026-07-18\n---\n" +
+      "\n```gelloquestion\nWhich?\n- [ ] a\n- [ ] b\n```\n";
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [in-progress]\n" },
+        { path: "cards/c009-parked.md", content: raw },
+      ]),
+    });
+    readMock.mockResolvedValue(raw); // rebase-on-disk reads current bytes
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Parked")).closest("article")!);
+    const modal = await screen.findByRole("dialog", { name: "Question for c009" });
+    fireEvent.click(within(modal).getByLabelText("a"));
+    fireEvent.click(within(modal).getByRole("button", { name: "Answer" }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/cards/c009-parked.md",
+        expect.stringContaining("- [x] a"),
+      ),
+    );
+    const written = writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string;
+    expect(written).not.toContain("awaiting:");
+    expect(written).not.toContain("```gelloquestion");
+  });
+
   it("captures a new idea into the inbox", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

@@ -116,6 +116,25 @@ export function saveCardBody(
 }
 
 /**
+ * c0101: answer a parked `gelloquestion`. Un-fences the block in place (the
+ * resolved Q&A becomes plain markdown, `newBody`) and clears the `awaiting:
+ * input` marker — one atomic write, so the companion sees a single consistent
+ * transition to resume on.
+ */
+export function answerGelloQuestion(
+  root: string,
+  card: Card,
+  newBody: string,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  const { card: withBody } = replaceCardBody(card, newBody, today, config);
+  const { card: updated, raw } = updateCardFields(withBody, { awaiting: null }, today, config);
+  const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
+  return { card: updated, persisted };
+}
+
+/**
  * Persist an inline edit (title + body) as ONE atomic write: the title is a
  * surgical frontmatter edit, the body a replacement, composed before writing.
  */

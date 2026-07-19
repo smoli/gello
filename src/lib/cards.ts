@@ -469,7 +469,7 @@ function removeFrontmatterField(raw: string, field: string): string {
 export type CardFieldChanges = Partial<
   Pick<
     Card,
-    "status" | "epic" | "title" | "tags" | "order" | "statusChanged"
+    "status" | "epic" | "title" | "tags" | "order" | "statusChanged" | "awaiting"
   >
 >;
 

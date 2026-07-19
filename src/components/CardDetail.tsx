@@ -3,6 +3,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
 import { splitLogSection } from "../lib/markdown";
+import {
+  parseGelloQuestion,
+  stripGelloQuestion,
+  unfenceWithAnswer,
+  type GelloAnswer,
+} from "../lib/gello-question";
+import { QuestionModal } from "./QuestionModal";
 import { useImageInsert } from "./useImageInsert";
 import { AssetImage } from "./AssetImage";
 import "./CardDetail.css";
@@ -44,6 +51,7 @@ export function CardDetail({
   onSaveImage,
   loadImage,
   onDelete,
+  onAnswerQuestion,
   onClose,
 }: {
   card: Card;
@@ -66,11 +74,24 @@ export function CardDetail({
   loadImage?: (src: string) => Promise<string | null>;
   /** c0062: permanently delete this card (file + assets). */
   onDelete?: () => void;
+  /** c0101: answer a parked gelloquestion — the app writes the un-fenced body. */
+  onAnswerQuestion?: (newBody: string) => void;
   onClose: () => void;
 }) {
   // c041: the Log section is machine-managed — only the part before it is
   // editable; the log is reattached untouched on save
   const { editable: editableBody, log: logSection } = splitLogSection(card.body);
+
+  // c0101: an active gelloquestion — pop the answer modal on open (the detail
+  // remounts per card, so this initializes fresh each time), render the
+  // question in a panel, and strip the fence from the main body.
+  const question = parseGelloQuestion(card.body);
+  const [answering, setAnswering] = useState(question !== null);
+  const submitAnswer = (answer: GelloAnswer) => {
+    const newBody = unfenceWithAnswer(card.body, answer);
+    if (newBody !== null) onAnswerQuestion?.(newBody);
+    setAnswering(false);
+  };
 
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
   const [editing, setEditing] = useState(startInEdit ?? false);
@@ -365,6 +386,20 @@ export function CardDetail({
             ))}
           </div>
         )}
+        {/* c0101: the parked question in its own panel, above the body */}
+        {question && !editing && (
+          <div className="gello-question-panel">
+            <p className="gello-question-panel-label">Agent question</p>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{question.inner}</ReactMarkdown>
+            <button
+              type="button"
+              className="gello-question-panel-answer"
+              onClick={() => setAnswering(true)}
+            >
+              Answer
+            </button>
+          </div>
+        )}
         <div className="card-detail-body" hidden={editing}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
@@ -392,10 +427,18 @@ export function CardDetail({
               ),
             }}
           >
-            {card.body}
+            {question ? stripGelloQuestion(card.body) : card.body}
           </ReactMarkdown>
         </div>
       </div>
+      {question && answering && (
+        <QuestionModal
+          cardId={card.id}
+          question={question}
+          onAnswer={submitAnswer}
+          onCancel={() => setAnswering(false)}
+        />
+      )}
     </div>
   );
 }

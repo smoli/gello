@@ -146,6 +146,32 @@ describe("CardDetail", () => {
     expect(props.onTriage).toHaveBeenCalledExactlyOnceWith("m01-alpha", "m01");
   });
 
+  it("c0101: auto-opens the answer modal for a parked question and un-fences on answer", () => {
+    const raw =
+      "---\nid: c009\ntitle: Q\nstatus: backlog\nawaiting: input\n---\n" +
+      "\n```gelloquestion\nWhich?\n- [ ] a\n- [ ] b\n```\n";
+    const parsed = parseCard("cards/c009-q.md", raw);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    const onAnswerQuestion = vi.fn();
+    renderDetail({ card: parsed.card, onAnswerQuestion });
+
+    // the modal pops on open, scoped to the question
+    const modal = screen.getByRole("dialog", { name: "Question for c009" });
+    fireEvent.click(within(modal).getByLabelText("b"));
+    fireEvent.click(within(modal).getByRole("button", { name: "Answer" }));
+
+    expect(onAnswerQuestion).toHaveBeenCalledTimes(1);
+    const newBody = onAnswerQuestion.mock.calls[0][0] as string;
+    expect(newBody).not.toContain("```gelloquestion");
+    expect(newBody).toContain("- [x] b");
+    expect(newBody).toContain("- [ ] a");
+  });
+
+  it("c0101: a card with no question opens without a modal", () => {
+    renderDetail(); // fixture card has no gelloquestion
+    expect(screen.queryByRole("dialog", { name: /Question for/ })).not.toBeInTheDocument();
+  });
+
   it("switches to a markdown textarea and a prefilled title input in edit mode", () => {
     renderDetail();
 
