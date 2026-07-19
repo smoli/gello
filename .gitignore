@@ -27,3 +27,6 @@ dist-ssr
 # Machine-specific absolute path — not for commit/CI. See .cargo/config.toml header.
 .sdklib/
 .cargo/config.toml
+
+# gello-companion runtime state (per-machine, not board content)
+.gello/.companion/
