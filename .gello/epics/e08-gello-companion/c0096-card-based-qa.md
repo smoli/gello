@@ -1,12 +1,12 @@
 ---
 id: c0096
 title: Card-based Q&A protocol (primary interaction)
-status: ready
+status: in-progress
 epic: e08
 depends: [c0094, c0095]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T10:11:07
+status-changed: 2026-07-19T10:45:00
 ---
 
 ## What
