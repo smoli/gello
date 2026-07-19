@@ -30,3 +30,6 @@ dist-ssr
 
 # gello-companion runtime state (per-machine, not board content)
 .gello/.companion/
+
+# gello-companion throwaway test board — real agents run against this
+sandbox/
