@@ -58,6 +58,7 @@ import {
   writeNewFiles,
   type LoadedBoard,
 } from "./lib/board-io";
+import { readCompanionState, type CompanionState } from "./lib/companion";
 import {
   assetLinkPrefix,
   bytesToBase64,
@@ -171,6 +172,8 @@ function App() {
   const [autoCommit, setAutoCommit] = useState(false);
   const [autoCommitWindowMs, setAutoCommitWindowMs] = useState(AUTO_COMMIT_DEFAULT_MS);
   const [dirty, setDirty] = useState<WorktreeStatus | null>(null);
+  // c0100: companion runner state for the title-bar indicator (null = not running)
+  const [runner, setRunner] = useState<CompanionState | null>(null);
   // i0028: epic creation + minimal-view selection. openEpicSignal opens the
   // capture form in epic mode from the filter / create-on-triage; epicAssign is
   // the card to assign to the epic once created (create-on-triage).
@@ -437,6 +440,14 @@ function App() {
   const refreshDirtyRef = useRef(refreshDirty);
   refreshDirtyRef.current = refreshDirty;
 
+  /** c0100: refresh the title-bar companion indicator from its state file. */
+  const refreshCompanion = async () => {
+    if (!board) return;
+    setRunner(await readCompanionState(board.root));
+  };
+  const refreshCompanionRef = useRef(refreshCompanion);
+  refreshCompanionRef.current = refreshCompanion;
+
   /** c0083: commit pending `.gello/` changes with a per-card message. The Rust
    *  side skips non-repos, mid-merge states, and a clean board; failure is
    *  surfaced non-fatally and never blocks the board. */
@@ -491,6 +502,10 @@ function App() {
       // c0083: a board change → refresh the dirty indicator and (re)arm the
       // auto-commit debounce so a burst of writes collapses into one commit
       void refreshDirtyRef.current();
+      // c0100: a companion run mutates cards, so a board change is a good moment
+      // to refresh the runner indicator too (the poll below covers state-only
+      // transitions like idle → running before any card is touched)
+      void refreshCompanionRef.current();
       if (autoCommitRef.current) {
         clearTimeout(commitTimer.current);
         commitTimer.current = setTimeout(
@@ -531,6 +546,21 @@ function App() {
     return () => {
       cancelled = true;
     };
+  }, [root]);
+
+  // c0100: poll the companion state file for the title-bar runner indicator.
+  // The companion is a separate process; its state file appears when it starts
+  // and vanishes when it stops, so a light 2s poll (plus the reconcile-time
+  // refresh above) is simpler and more robust than an OS watch that would have
+  // to track the .companion dir coming and going.
+  useEffect(() => {
+    if (!board) {
+      setRunner(null);
+      return;
+    }
+    void refreshCompanionRef.current();
+    const id = setInterval(() => void refreshCompanionRef.current(), 2000);
+    return () => clearInterval(id);
   }, [root]);
 
   // c0083: flush any pending (debounced) board commit before the window closes,
@@ -1017,6 +1047,7 @@ function App() {
           root={board.root}
           branch={branch}
           dirty={dirty}
+          runner={runner}
           search={query}
           onSearch={setQuery}
         />

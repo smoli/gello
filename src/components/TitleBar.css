@@ -113,3 +113,72 @@
   color: color-mix(in srgb, orange 80%, CanvasText);
   opacity: 1;
 }
+
+/* c0100: companion runner indicator + its runs popover */
+.titlebar-runner-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: 0.4em;
+}
+.titlebar-runner {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 0.2em;
+  font-size: 0.75em;
+  line-height: 1;
+  cursor: pointer;
+  color: color-mix(in srgb, CanvasText 55%, transparent);
+}
+.titlebar-runner-running {
+  color: color-mix(in srgb, #2e9e44 85%, CanvasText);
+}
+.titlebar-runner-waiting {
+  color: color-mix(in srgb, #f5a623 85%, CanvasText);
+  font-weight: 700;
+}
+.titlebar-runner-popover {
+  position: absolute;
+  top: 1.6em;
+  left: 0;
+  z-index: 20;
+  min-width: 12rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.4rem;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 6px 20px color-mix(in srgb, CanvasText 25%, transparent);
+  font-size: 0.8rem;
+}
+.titlebar-runner-empty {
+  margin: 0;
+  opacity: 0.7;
+}
+.titlebar-runner-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.titlebar-runner-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.titlebar-runner-card {
+  font-variant-numeric: tabular-nums;
+}
+.titlebar-runner-phase {
+  opacity: 0.75;
+}
+.titlebar-runner-phase.phase-waiting-for-input {
+  color: color-mix(in srgb, #f5a623 85%, CanvasText);
+  opacity: 1;
+}
+.titlebar-runner-phase.phase-error {
+  color: #e5484d;
+  opacity: 1;
+}

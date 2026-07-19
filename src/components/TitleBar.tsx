@@ -1,9 +1,41 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { windowTitle } from "../lib/status";
 import { isMacOS } from "../lib/platform";
 import type { WorktreeStatus } from "../lib/board-io";
+import type { CompanionState } from "../lib/companion";
 import { WindowControls } from "./WindowControls";
 import "./TitleBar.css";
+
+const RUNNER_GLYPH: Record<CompanionState["status"], string> = {
+  idle: "○",
+  running: "▶",
+  waiting: "?",
+};
+
+function runnerLabel(runner: CompanionState): string {
+  if (runner.status === "running") {
+    return `Companion: running (${runner.runs.length} active)`;
+  }
+  if (runner.status === "waiting") return "Companion: waiting for input";
+  return "Companion: idle";
+}
+
+/** The click-through popover listing the companion's active runs (c0100). */
+function RunnerRuns({ runner }: { runner: CompanionState }) {
+  if (runner.runs.length === 0) {
+    return <p className="titlebar-runner-empty">No active runs</p>;
+  }
+  return (
+    <ul className="titlebar-runner-list">
+      {runner.runs.map((run) => (
+        <li key={run.cardId}>
+          <span className="titlebar-runner-card">{run.cardId}</span>
+          <span className={`titlebar-runner-phase phase-${run.phase}`}>{run.phase}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * Frameless custom top bar (c0059): a draggable window-chrome strip showing
@@ -16,6 +48,7 @@ export function TitleBar({
   root,
   branch,
   dirty,
+  runner,
   search,
   onSearch,
 }: {
@@ -23,11 +56,14 @@ export function TitleBar({
   branch: string | null;
   /** c0083: worktree dirtiness for the indicator (null = clean or non-git). */
   dirty?: WorktreeStatus | null;
+  /** c0100: companion runner state (null = companion not running → no icon). */
+  runner?: CompanionState | null;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const [runsOpen, setRunsOpen] = useState(false);
 
   // c022: Cmd/Ctrl+F focuses search, suppressing the webview's native find
   useEffect(() => {
@@ -74,6 +110,27 @@ export function TitleBar({
             }
           >
             {dirty.code_dirty ? "●" : "○"}
+          </span>
+        )}
+        {/* c0100: companion runner indicator — present only while the companion
+            is running (its state file exists). Click for the active runs. */}
+        {runner && (
+          <span className="titlebar-runner-wrap">
+            <button
+              type="button"
+              className={`titlebar-runner titlebar-runner-${runner.status}`}
+              aria-label={runnerLabel(runner)}
+              aria-expanded={runsOpen}
+              title={runnerLabel(runner)}
+              onClick={() => setRunsOpen((open) => !open)}
+            >
+              {RUNNER_GLYPH[runner.status]}
+            </button>
+            {runsOpen && (
+              <div className="titlebar-runner-popover" role="dialog" aria-label="Companion runs">
+                <RunnerRuns runner={runner} />
+              </div>
+            )}
           </span>
         )}
       </div>

@@ -43,6 +43,9 @@ export interface Card {
   order: number | null;
   /** When the current status was assigned, ISO datetime (c056). */
   statusChanged: string | null;
+  /** c0096: set to "input" by an agent parking a question in `## Open
+   *  question`; drives the card-front "needs input" badge (c0100). */
+  awaiting: string | null;
   created: string | null;
   updated: string | null;
   body: string;
@@ -224,6 +227,7 @@ export function parseCard(
       tags: tags.value,
       order,
       statusChanged: asOptionalString(data, "status-changed"),
+      awaiting: asOptionalString(data, "awaiting"),
       created: asOptionalString(data, "created"),
       updated: asOptionalString(data, "updated"),
       body: split.body,

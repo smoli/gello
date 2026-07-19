@@ -1,12 +1,12 @@
 ---
 id: c0100
 title: App — title-bar runner indicator + needs-input badge
-status: in-progress
+status: review
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T20:50:00
+status-changed: 2026-07-19T21:05:00
 ---
 
 ## What
@@ -62,11 +62,40 @@ through the raw file. Observed in the first real park/resume:
   display mode too, so a whole turn — boxes *and* text — is answerable without
   switching to edit mode.
 
-So c0100's open-turn rendering is not just "prominent + editable" — it is the
-**answer surface**: check a box or type into the slot, save, done.
+So the open turn is not just "prominent + editable" — it is the **answer
+surface**: check a box or type into the slot, save, done. **This rendering is
+split into [[c0101]]** ("More distinctive Question rendering", in discuss) —
+c0100 delivers the title-bar indicator + the card-front badge; c0101 owns the
+in-detail open-turn answer surface.
+
+## Implementation
+
+- [src/lib/companion.ts](../../../src/lib/companion.ts): `parseCompanionState`
+  (defensive JSON → `CompanionState | null`) + `readCompanionState(root)` via
+  the generic `read_file` command. Absent/garbage → null. 8 tests.
+- [src/components/TitleBar.tsx](../../../src/components/TitleBar.tsx): a runner
+  button (glyph + a11y label per status) beside the dirty dot; click → a
+  popover of active runs (cardId + phase). Rendered only when `runner` is
+  non-null. Tests in TitleBar.test.tsx.
+- [src/components/Board.tsx](../../../src/components/Board.tsx): a `card-needs-
+  input` badge on the card front when `card.awaiting === "input"`. The `Card`
+  gains an `awaiting` field ([src/lib/cards.ts](../../../src/lib/cards.ts)).
+- [src/App.tsx](../../../src/App.tsx): reads companion state on load, on each
+  board reconcile, and on a 2s poll; passes it to `TitleBar`.
+- **No Rust change**: the app's file watcher filters out `.json`, and the
+  `.companion/` dir appears/vanishes as the companion starts/stops. A light
+  poll handles that lifecycle without a watcher that would have to track the
+  dir coming and going. A dedicated `watch_companion_state` command (mirroring
+  `watch_git_head`) could replace the poll later if latency matters.
+- Not browser-verifiable (the board needs Tauri FS to load); covered by the
+  component/integration tests and the c0097 live run that wrote real state.
 
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
 - 2026-07-19 first-use feedback captured (answer-in-display-mode; text slot)
 - 2026-07-19 status → ready (app)
+- 2026-07-19 status → in-progress; built the title-bar runner indicator (reads
+  `.companion/state.json`, click → runs popover) + the card-front needs-input
+  badge (`awaiting: input` marker). Answer-surface rendering split to
+  [[c0101]]. Full suite 580 green, typecheck + lint clean. status → review.

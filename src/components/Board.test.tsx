@@ -33,6 +33,27 @@ function column(name: string) {
 }
 
 describe("Board", () => {
+  it("c0100: shows a needs-input badge on a card parked with awaiting: input", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, in-progress, done]\n"),
+      file(
+        "cards/c001-parked.md",
+        "---\nid: c001\ntitle: Parked card\nstatus: in-progress\nawaiting: input\n---\nbody\n",
+      ),
+      file(
+        "cards/c002-plain.md",
+        "---\nid: c002\ntitle: Plain card\nstatus: in-progress\n---\nbody\n",
+      ),
+    ]);
+    render(<Board model={model} />);
+
+    const parked = screen.getByText("Parked card").closest("article")!;
+    expect(within(parked).getByRole("status", { name: "Needs input" })).toBeInTheDocument();
+
+    const plain = screen.getByText("Plain card").closest("article")!;
+    expect(within(plain).queryByRole("status", { name: "Needs input" })).not.toBeInTheDocument();
+  });
+
   it("renders the configured columns in order", () => {
     const custom = loadBoard([file("board.yaml", "columns: [todo, doing, shipped]\n")]);
     render(<Board model={custom} />);

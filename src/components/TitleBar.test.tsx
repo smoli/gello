@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { TitleBar } from "./TitleBar";
 import { isMacOS } from "../lib/platform";
 
@@ -45,6 +45,59 @@ describe("TitleBar", () => {
     const codeDot = screen.getByRole("status");
     expect(codeDot).toHaveAccessibleName("Uncommitted changes (includes code)");
     expect(codeDot.className).toContain("titlebar-dirty-code");
+  });
+
+  it("c0100: shows no runner indicator when the companion isn't running", () => {
+    render(<TitleBar root="/x/.gello" branch="main" runner={null} />);
+    expect(screen.queryByRole("button", { name: /Companion/ })).not.toBeInTheDocument();
+  });
+
+  it("c0100: shows a runner indicator reflecting the companion status", () => {
+    const { rerender } = render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+      />,
+    );
+    const icon = screen.getByRole("button", { name: "Companion: running (1 active)" });
+    expect(icon.className).toContain("titlebar-runner-running");
+
+    rerender(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "waiting", ready: [], waiting: ["c002"], runs: [], updated: "" }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Companion: waiting for input" }).className,
+    ).toContain("titlebar-runner-waiting");
+  });
+
+  it("c0100: clicking the runner icon reveals the active runs", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{
+          status: "running",
+          ready: [],
+          waiting: [],
+          runs: [
+            { cardId: "c001", phase: "running" },
+            { cardId: "c002", phase: "waiting-for-input" },
+          ],
+          updated: "",
+        }}
+      />,
+    );
+    expect(screen.queryByRole("dialog", { name: "Companion runs" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    const popover = screen.getByRole("dialog", { name: "Companion runs" });
+    expect(within(popover).getByText("c001")).toBeInTheDocument();
+    expect(within(popover).getByText("waiting-for-input")).toBeInTheDocument();
   });
 
   it("is a Tauri drag region", () => {

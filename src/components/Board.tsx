@@ -533,6 +533,19 @@ function CardFront({
       <div className="card-meta">
         <span className="card-id">{card.id}</span>
         <span className="card-meta-badges">
+          {/* c0100: parked on a companion Q&A — read from the card's own
+              `awaiting: input` marker, so it shows even when the companion
+              process isn't running (title-bar aggregate reads the state file). */}
+          {card.awaiting === "input" && (
+            <span
+              className="card-needs-input"
+              role="status"
+              aria-label="Needs input"
+              title="Needs input — an open question is waiting for your answer"
+            >
+              ?
+            </span>
+          )}
           {card.type !== "task" && (
             <span className={`card-type type-${card.type}`}>{card.type}</span>
           )}

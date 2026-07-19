@@ -181,6 +181,21 @@
   color: #e5484d;
 }
 
+/* c0100: a card parked on a companion Q&A — an open question awaits an answer */
+.card-needs-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, #f5a623 22%, transparent);
+  color: #b5730a;
+}
+
 /* i0008: 3-column grid centers the search on the toolbar regardless of the
    filter widths (flex + margin:auto only centered it in the leftover space) */
 /* c0066: search moved to the top bar; the toolbar is just the filters now */
