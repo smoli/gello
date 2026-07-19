@@ -1,0 +1,18 @@
+---
+id: i0035
+title: Indicator alignment is off
+status: ready
+type: issue
+ref: c0100
+epic: e08
+created: 2026-07-19
+updated: 2026-07-19
+status-changed: 2026-07-19T21:03:26
+order: 10
+---
+
+![image](../../assets/i0035/image.png)
+
+## Log
+
+- 2026-07-19 status → ready (app)

@@ -1,10 +1,10 @@
 ---
 id: c0101
 title: More distinctive Question rendering
-status: discuss
+status: ready
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T20:54:35
+status-changed: 2026-07-19T21:02:47
 epic: e08
 ---
 
@@ -83,3 +83,4 @@ change the on-disk question format to a fenced block.
   the app un-fences + clears `awaiting` on answer (companion resumes); Cancel
   leaves the card editable with an Answer affordance. Reopens the c0096 format
   contract (companion parser + agent convention c0099).
+- 2026-07-19 status → ready (app)
