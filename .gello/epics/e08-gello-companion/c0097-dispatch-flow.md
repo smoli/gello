@@ -1,11 +1,12 @@
 ---
 id: c0097
 title: Dispatch flow — ready → run → write-back
-status: backlog
+status: ready
 epic: e08
 depends: [c0093, c0094, c0095, c0096]
 created: 2026-07-19
 updated: 2026-07-19
+status-changed: 2026-07-19T15:07:29
 ---
 
 ## What
@@ -39,3 +40,4 @@ the c0096 Q&A park/resume.
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-19 status → ready (app)
