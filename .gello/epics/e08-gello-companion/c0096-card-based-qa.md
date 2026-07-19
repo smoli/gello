@@ -1,11 +1,12 @@
 ---
 id: c0096
 title: Card-based Q&A protocol (primary interaction)
-status: backlog
+status: ready
 epic: e08
 depends: [c0094, c0095]
 created: 2026-07-19
 updated: 2026-07-19
+status-changed: 2026-07-19T10:11:07
 ---
 
 ## What
@@ -44,3 +45,4 @@ active steering.
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-19 status → ready (app)
