@@ -1,11 +1,11 @@
 ---
 id: i0034
 title: Duplicate state change YAML
-status: in-progress
+status: review
 type: issue
 created: 2026-07-19
 updated: 2026-07-19
-status-changed: 2026-07-19T07:17:38
+status-changed: 2026-07-19T08:46:00
 ---
 
 In another project I’ve got a duplicatestate change entry
@@ -41,3 +41,22 @@ lane** — it can't be loaded or fixed in the app, only by hand-editing the file
 ## Log
 
 - 2026-07-19 status → ready (app)
+
+## Resolution (human's call: keep strict + repair action)
+
+- Parsing stays strict — a duplicate-key card still lands in the needs-attention
+  lane (a duplicate key is genuinely malformed).
+- Added a **"Fix duplicate keys"** button in that lane, shown only when the file
+  has collapsible duplicates. It reads the file, collapses each repeated key to
+  its **last** value (`collapseDuplicateFrontmatterKeys`), and writes it back;
+  the watcher reloads it as a valid card.
+- Hardened the convention (creation side): CLAUDE.md and the gello-discuss skill
+  now say to *replace* `status-changed`, never append; one line per key. Bumped
+  the skill version to v4 so installs update.
+
+## Log
+
+- 2026-07-19 status → ready (app)
+- 2026-07-19 fixed (agent): collapseDuplicateFrontmatterKeys (pure, last-wins,
+  CRLF-safe) + a needs-attention "Fix duplicate keys" action; convention
+  hardened in CLAUDE.md + the shipped discuss skill (v4). 507 tests green.

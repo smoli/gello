@@ -132,6 +132,9 @@ do not maintain parallel plan/TODO files.
   The board orders the in-progress/review/done columns by it; without it a
   card falls back to `updated`/`created` and sorts imprecisely. (The app
   does this automatically; agents editing files must do it too.)
+  **Replace the existing `status-changed:` line — never add a second.** A
+  duplicate frontmatter key makes the card unparseable (it lands in the
+  needs-attention lane; i0034). Same for any other field: one line per key.
 
 ## Writing style (chat, docs, cards, commits, PRs)
 

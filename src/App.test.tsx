@@ -664,6 +664,35 @@ describe("App", () => {
     expect(screen.getByLabelText("Goal")).toBeInTheDocument();
   });
 
+  it("i0034: 'Fix duplicate keys' collapses the duplicate and writes the file", async () => {
+    const dup =
+      "---\nid: c009\ntitle: Dup card\nstatus: backlog\n" +
+      "status-changed: 2026-07-10T09:00:00\nstatus-changed: 2026-07-11T10:00:00\n---\nx\n";
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog]\n" },
+        { path: "cards/c009-dup.md", content: dup },
+      ]),
+    });
+    readMock.mockResolvedValue(dup); // handleRepairDuplicates reads disk first
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    const lane = await screen.findByRole("region", { name: "needs attention" });
+    fireEvent.click(within(lane).getByRole("button", { name: /fix duplicate keys/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/cards/c009-dup.md",
+        expect.stringContaining("status-changed: 2026-07-11T10:00:00"),
+      ),
+    );
+    const written = writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string;
+    expect((written.match(/^status-changed:/gm) ?? []).length).toBe(1);
+  });
+
   it("captures a new idea into the inbox", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

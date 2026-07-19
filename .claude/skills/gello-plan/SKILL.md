@@ -62,4 +62,4 @@ grep -rhoE "^id: [ci][0-9]+" .gello/inbox .gello/epics .gello/cards | sort -u  #
 - Two-phase always: nothing is created before the human approves the plan.
 - Ids are per-board and unique; existing ids never change.
 - Surgical frontmatter edits; only statuses from `board.yaml`.
-<!-- gello-managed v3 qlhfza -->
+<!-- gello-managed v4 qlhfza -->

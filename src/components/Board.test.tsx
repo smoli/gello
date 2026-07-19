@@ -395,6 +395,29 @@ describe("needs-attention lane", () => {
 
     expect(within(lane).getByText(/raw card text here/)).toBeInTheDocument();
   });
+
+  it("i0034: offers 'Fix duplicate keys' only for a duplicate-key card", () => {
+    const onRepairDuplicates = vi.fn();
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file(
+        "cards/c001-dup.md",
+        "---\nid: c001\ntitle: Dup\nstatus: backlog\nstatus-changed: a\nstatus-changed: b\n---\nx\n",
+      ),
+      file("cards/c002-broken.md", "---\nid: [unclosed\n---\nbody\n"),
+    ]);
+    render(<Board model={model} onRepairDuplicates={onRepairDuplicates} />);
+    const lane = screen.getByRole("region", { name: "needs attention" });
+
+    // only one entry (the dup-key one) gets a repair button
+    const repair = within(lane).getAllByRole("button", { name: /fix duplicate keys/i });
+    expect(repair).toHaveLength(1);
+
+    fireEvent.click(repair[0]);
+    expect(onRepairDuplicates).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ path: "cards/c001-dup.md" }),
+    );
+  });
 });
 
 function fakeDataTransfer() {

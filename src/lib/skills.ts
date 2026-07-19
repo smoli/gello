@@ -4,7 +4,8 @@
 
 // v2 (i0025): templates no longer mention the removed `priority` field
 // v3 (c0081/c0082): milestone→epic vocabulary; adds the gello-plan skill
-export const SKILL_VERSION = 3;
+// v4 (i0034): status-changed is set by replacing, never appending
+export const SKILL_VERSION = 4;
 
 export interface SkillTemplate {
   /** Folder name under a skills dir, e.g. `.claude/skills/<folder>/SKILL.md`. */
@@ -221,7 +222,9 @@ Moving a card between folders is a file move plus a status edit:
   asset links (\`](../assets/\` → \`](../../assets/\`).
 - inbox → standalone: move to \`.gello/cards/<card>.md\` (same depth, no link
   rewrite); leave \`epic\` unset.
-- Set \`status\` and \`status-changed\` (local ISO datetime) on any status change.
+- Set \`status\` and \`status-changed\` (local ISO datetime) on any status change,
+  **replacing** the existing lines — never add a second \`status-changed:\` (a
+  duplicate frontmatter key makes the card unparseable). One line per key.
 - Never reuse or renumber existing card IDs.
 `,
 };

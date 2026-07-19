@@ -78,4 +78,4 @@ optional `tags`. Card bodies use `## What`, `## Acceptance criteria`
   decision, not yours**.
 - Validate: every card parses, statuses are all from board.yaml, and no two
   cards share an id.
-<!-- gello-managed v3 1pvcao2 -->
+<!-- gello-managed v4 1pvcao2 -->

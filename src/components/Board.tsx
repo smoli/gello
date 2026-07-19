@@ -5,6 +5,7 @@ import {
   planManualInsert,
   type BoardModel,
 } from "../lib/board";
+import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { firstImageSrc } from "../lib/assets";
@@ -72,6 +73,7 @@ export function Board({
   onReorderCard,
   onRenumber,
   onNewEpic,
+  onRepairDuplicates,
   background,
   toolbarLeading,
   onBackgroundContextMenu,
@@ -82,6 +84,8 @@ export function Board({
   onMoveCard?: MoveCardHandler;
   /** i0028: create a new epic from the filter's "+ New epic" option. */
   onNewEpic?: () => void;
+  /** i0034: repair a needs-attention card with duplicate frontmatter keys. */
+  onRepairDuplicates?: (entry: InvalidFile) => void;
   /** c0066: fulltext filter, now owned by the top bar's search box. */
   query?: string;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
@@ -280,12 +284,20 @@ export function Board({
           );
         })}
       </div>
-      {model.invalid.length > 0 && <NeedsAttentionLane entries={model.invalid} />}
+      {model.invalid.length > 0 && (
+        <NeedsAttentionLane entries={model.invalid} onRepairDuplicates={onRepairDuplicates} />
+      )}
     </div>
   );
 }
 
-function NeedsAttentionLane({ entries }: { entries: InvalidFile[] }) {
+function NeedsAttentionLane({
+  entries,
+  onRepairDuplicates,
+}: {
+  entries: InvalidFile[];
+  onRepairDuplicates?: (entry: InvalidFile) => void;
+}) {
   return (
     <section className="needs-attention" aria-label="needs attention">
       <div className="column-header">
@@ -294,15 +306,29 @@ function NeedsAttentionLane({ entries }: { entries: InvalidFile[] }) {
       </div>
       <div className="needs-attention-entries">
         {entries.map((entry) => (
-          <InvalidFileEntry key={entry.path} entry={entry} />
+          <InvalidFileEntry
+            key={entry.path}
+            entry={entry}
+            onRepairDuplicates={onRepairDuplicates}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function InvalidFileEntry({ entry }: { entry: InvalidFile }) {
+function InvalidFileEntry({
+  entry,
+  onRepairDuplicates,
+}: {
+  entry: InvalidFile;
+  onRepairDuplicates?: (entry: InvalidFile) => void;
+}) {
   const [showRaw, setShowRaw] = useState(false);
+  // i0034: offer a one-click repair only when the file has collapsible
+  // duplicate frontmatter keys (the "Map keys must be unique" case)
+  const canRepair =
+    onRepairDuplicates != null && collapseDuplicateFrontmatterKeys(entry.raw) !== null;
   return (
     <article className="invalid-entry">
       <div className="invalid-entry-header">
@@ -310,9 +336,16 @@ function InvalidFileEntry({ entry }: { entry: InvalidFile }) {
           <p className="invalid-path">{entry.path}</p>
           <p className="invalid-reason">{entry.reason}</p>
         </div>
-        <button type="button" onClick={() => setShowRaw((v) => !v)}>
-          {showRaw ? "hide file" : "show file"}
-        </button>
+        <div className="invalid-entry-actions">
+          {canRepair && (
+            <button type="button" onClick={() => onRepairDuplicates?.(entry)}>
+              Fix duplicate keys
+            </button>
+          )}
+          <button type="button" onClick={() => setShowRaw((v) => !v)}>
+            {showRaw ? "hide file" : "show file"}
+          </button>
+        </div>
       </div>
       {showRaw && <pre className="invalid-raw">{entry.raw}</pre>}
     </article>

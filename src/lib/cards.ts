@@ -407,6 +407,49 @@ function setFrontmatterRawValue(
   return `${raw.slice(0, split.prefixLength).replace(split.block, block)}${split.body}`;
 }
 
+/** Top-level `key:` at the start of a frontmatter line (not a list item or an
+ *  indented/continuation line). */
+const FRONTMATTER_KEY_RE = /^([^:\s][^:]*):/;
+
+/**
+ * i0034: collapse duplicate top-level frontmatter keys, keeping the last value
+ * (YAML rejects duplicate keys, so such a card can't be loaded or edited in the
+ * app — this is the one-click repair from the needs-attention lane). Returns the
+ * fixed raw, or null when there is nothing to collapse.
+ */
+export function collapseDuplicateFrontmatterKeys(raw: string): string | null {
+  const split = splitFrontmatter(raw);
+  if (!split) return null;
+  const eol = detectEol(raw);
+  const lines = split.block.split(/\r?\n/);
+  const keyOf = (line: string): string | null =>
+    FRONTMATTER_KEY_RE.exec(line)?.[1] ?? null;
+
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    const key = keyOf(line);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const dupes = new Set(
+    [...counts].filter(([, n]) => n > 1).map(([key]) => key),
+  );
+  if (dupes.size === 0) return null;
+
+  // keep only the last occurrence of each duplicated key
+  const lastIndex = new Map<string, number>();
+  lines.forEach((line, i) => {
+    const key = keyOf(line);
+    if (key && dupes.has(key)) lastIndex.set(key, i);
+  });
+  const kept = lines.filter((line, i) => {
+    const key = keyOf(line);
+    return !(key && dupes.has(key)) || lastIndex.get(key) === i;
+  });
+
+  const newBlock = kept.join(eol);
+  return raw.slice(0, split.prefixLength).replace(split.block, newBlock) + split.body;
+}
+
 /** Remove one `field: …` line from the frontmatter block, if present. */
 function removeFrontmatterField(raw: string, field: string): string {
   const split = splitFrontmatter(raw);

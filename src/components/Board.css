@@ -333,3 +333,10 @@
   outline: 2px dashed color-mix(in srgb, #4c8bf5 60%, transparent);
   outline-offset: -2px;
 }
+
+/* i0034: repair + show-file buttons in a needs-attention entry */
+.invalid-entry-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}

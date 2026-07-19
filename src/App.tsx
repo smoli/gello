@@ -98,7 +98,14 @@ const autoCommitWindowKey = (projectPath: string) => `auto-commit-window:${proje
 const AUTO_COMMIT_DEFAULT_MS = 30_000;
 
 type Theme = "system" | "light" | "dark";
-import { parseCard, type Card, type CardFieldChanges } from "./lib/cards";
+import {
+  collapseDuplicateFrontmatterKeys,
+  parseCard,
+  type Card,
+  type CardFieldChanges,
+} from "./lib/cards";
+import { writeFileAtomic } from "./lib/fs";
+import type { InvalidFile } from "./lib/cards";
 import { rebaseCard } from "./lib/conflict";
 import { buildCommitMessage, type BoardChange } from "./lib/commit-message";
 import { toggleTaskItem } from "./lib/markdown";
@@ -690,6 +697,23 @@ function App() {
     return "saved";
   };
 
+  // i0034: repair a needs-attention card with duplicate frontmatter keys —
+  // collapse them (last value wins) and write the file back; the watcher then
+  // reloads it as a valid card. Reads current disk bytes so the fix is exact.
+  const handleRepairDuplicates = async (entry: InvalidFile) => {
+    if (!board) return;
+    const path = `${board.root}/${entry.path}`;
+    const current = await readFileRaw(path).catch(() => entry.raw);
+    const fixed = collapseDuplicateFrontmatterKeys(current);
+    if (fixed === null) return;
+    try {
+      await writeFileAtomic(path, fixed);
+      setError(null);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   const handleToggleTask = async (card: Card, index: number) => {
     if (!board) return;
     // c015: toggle the checkbox on the current disk body, not a stale copy
@@ -1028,6 +1052,7 @@ function App() {
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
+          onRepairDuplicates={(entry) => void handleRepairDuplicates(entry)}
           toolbarLeading={
             <ProjectMenu
               currentPath={projectFolder(board.root).path}

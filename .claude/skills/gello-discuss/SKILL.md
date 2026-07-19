@@ -41,6 +41,8 @@ Moving a card between folders is a file move plus a status edit:
   asset links (`](../assets/` → `](../../assets/`).
 - inbox → standalone: move to `.gello/cards/<card>.md` (same depth, no link
   rewrite); leave `epic` unset.
-- Set `status` and `status-changed` (local ISO datetime) on any status change.
+- Set `status` and `status-changed` (local ISO datetime) on any status change,
+  **replacing** the existing lines — never add a second `status-changed:` (a
+  duplicate frontmatter key makes the card unparseable). One line per key.
 - Never reuse or renumber existing card IDs.
-<!-- gello-managed v3 17co32q -->
+<!-- gello-managed v4 79i187 -->

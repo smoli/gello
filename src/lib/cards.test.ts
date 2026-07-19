@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BOARD_CONFIG,
+  collapseDuplicateFrontmatterKeys,
   newCardRaw,
   newEpicRaw,
   parseBoardConfig,
@@ -571,6 +572,48 @@ Kanban.
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.invalid.reason).toContain("title");
+  });
+});
+
+describe("collapseDuplicateFrontmatterKeys (i0034)", () => {
+  it("collapses a duplicate status-changed to the last value, and the card then parses", () => {
+    const dup =
+      "---\nid: c001\ntitle: X\nstatus: backlog\n" +
+      "status-changed: 2026-07-10T09:00:00\n" +
+      "status-changed: 2026-07-11T10:00:00\n" +
+      "updated: 2026-07-10\n---\nbody\n";
+    // it doesn't parse before the repair
+    expect(parseCard("cards/c001.md", dup).ok).toBe(false);
+
+    const fixed = collapseDuplicateFrontmatterKeys(dup);
+    expect(fixed).not.toBeNull();
+    expect((fixed!.match(/^status-changed:/gm) ?? []).length).toBe(1);
+    expect(fixed).toContain("status-changed: 2026-07-11T10:00:00"); // last wins
+    expect(fixed).not.toContain("2026-07-10T09:00:00");
+
+    const parsed = parseCard("cards/c001.md", fixed!);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.card.statusChanged).toBe("2026-07-11T10:00:00");
+    // the body is untouched
+    expect(fixed!.endsWith("---\nbody\n")).toBe(true);
+  });
+
+  it("returns null when there are no duplicate keys", () => {
+    const clean = "---\nid: c001\ntitle: X\nstatus: backlog\n---\nbody\n";
+    expect(collapseDuplicateFrontmatterKeys(clean)).toBeNull();
+  });
+
+  it("returns null when there is no frontmatter", () => {
+    expect(collapseDuplicateFrontmatterKeys("just a body, no frontmatter")).toBeNull();
+  });
+
+  it("preserves CRLF line endings", () => {
+    const dup =
+      "---\r\nid: c001\r\ntitle: X\r\nstatus: backlog\r\n" +
+      "status-changed: a\r\nstatus-changed: b\r\n---\r\nbody\r\n";
+    const fixed = collapseDuplicateFrontmatterKeys(dup)!;
+    expect(fixed).toContain("\r\n");
+    expect((fixed.match(/^status-changed:/gm) ?? []).length).toBe(1);
   });
 });
 
