@@ -42,23 +42,23 @@ scrollback.
 
 ## Acceptance criteria
 
-- [ ] Three levels `quiet | normal | verbose`, default `normal` (selection
+- [x] Three levels `quiet | normal | verbose`, default `normal` (selection
       source formalized in c0099)
-- [ ] The agent's stdout is piped rather than inherited, and every rendered
+- [x] The agent's stdout is piped rather than inherited, and every rendered
       line carries its card id — two concurrent runs at `wip_limits: 2` stay
       readable instead of interleaving
-- [ ] claude runs pass `--output-format stream-json --verbose`; the companion
+- [x] claude runs pass `--output-format stream-json --verbose`; the companion
       parses the NDJSON into a backend-neutral event stream
-- [ ] `normal` prints one line per agent tool call and a token/cost summary at
+- [x] `normal` prints one line per agent tool call and a token/cost summary at
       run end
-- [ ] `verbose` additionally prints the agent's assistant text as it arrives
-- [ ] `quiet` prints only the lifecycle lines the companion prints today
-- [ ] An adapter declares its stream capability and supplies its parser; pi
+- [x] `verbose` additionally prints the agent's assistant text as it arrives
+- [x] `quiet` prints only the lifecycle lines the companion prints today
+- [x] An adapter declares its stream capability and supplies its parser; pi
       degrades to prefixed plain text without erroring
-- [ ] Per-run token/cost appears in the `runs` entries of
+- [x] Per-run token/cost appears in the `runs` entries of
       `.companion/state.json`
-- [ ] Each run's events are appended to `.companion/runs.log` (gitignored)
-- [ ] An unknown or malformed stream event is skipped, never fatal to the run
+- [x] Each run's events are appended to `.companion/runs.log` (gitignored)
+- [x] An unknown or malformed stream event is skipped, never fatal to the run
 
 ## Discussion
 
