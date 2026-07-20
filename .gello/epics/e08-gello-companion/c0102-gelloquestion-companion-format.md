@@ -133,3 +133,10 @@ Still open:
   principle refined: agent owns work writes, app/companion own Q&A protocol
   writes.
 - 2026-07-20 status → ready (app)
+- 2026-07-20 implemented (agent): shared pure composers in gello-question.ts;
+  companion-side node:fs card writer; `awaiting: answered` as the durable resume
+  trigger (Runner.sync no longer diffs models); `askQuestion` core; MCP stdio
+  server (`add_question`) wired per run via --mcp-config + --allowed-tools;
+  `pnpm companion ask` for pi; prompt slimmed to protocol; companion/README.md.
+  624 tests green, typecheck and lint clean.
+- 2026-07-20 status → review (agent)
