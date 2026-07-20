@@ -1,12 +1,13 @@
 ---
 id: c0102
 title: Deterministic add-question tool + gelloquestion parse
-status: backlog
+status: ready
 type: task
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
 epic: e08
 depends: [c0101]
+status-changed: 2026-07-20T07:35:47
 ---
 
 ## What
@@ -94,3 +95,4 @@ parse to the new format.
   run's card; qa.ts moves to the fence; prompt keeps protocol only. Epic
   principle refined: agent owns work writes, app/companion own Q&A protocol
   writes.
+- 2026-07-20 status → ready (app)
