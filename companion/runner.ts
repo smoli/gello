@@ -16,6 +16,7 @@ import { todayIsoDate } from "../src/lib/dates.ts";
 import { withAwaitingCleared } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
 import { writeCardAtomic, type RunState } from "./core.ts";
+import { StreamSink, type AgentEvent, type Level, type RunUsage } from "./stream.ts";
 import {
   resolveSession,
   recordSession,
@@ -145,9 +146,12 @@ export function buildTaskPrompt(card: Card, resuming: boolean): string {
 
 // --- the runner -------------------------------------------------------------
 
-/** A spawned agent process, reduced to what the runner needs: an exit hook. */
+/** A spawned agent process, reduced to what the runner needs: an exit hook and
+ *  (c0104) its piped stdout, delivered in arbitrary chunks. `onStdout` is
+ *  optional so an interactive run — which has no piped stream — can omit it. */
 export interface SpawnedRun {
   onExit(cb: (code: number | null) => void): void;
+  onStdout?(cb: (chunk: string) => void): void;
 }
 
 /** Launches an agent process from a spec. Real impl wraps `child_process`;
@@ -189,11 +193,20 @@ export interface RunnerOptions {
   /** Persist the session map after a new session is recorded. */
   persistSessions?: (map: SessionMap) => void;
   log?: (message: string) => void;
+  /** c0104: terminal verbosity for rendered agent output (default `normal`). */
+  level?: Level;
+  /** c0104: where a rendered stream line goes (default `console.log`). */
+  emit?: (line: string) => void;
+  /** c0104: persist one parsed event to the runs.log transcript. No-op if
+   *  unset (tests that don't care about the transcript). */
+  appendRunLog?: (cardId: string, event: AgentEvent) => void;
 }
 
 interface ActiveRun {
   sessionId: string;
   phase: RunPhase;
+  /** Latest per-run usage from the piped stream (c0104), once reported. */
+  usage?: RunUsage;
 }
 
 export class Runner {
@@ -256,7 +269,11 @@ export class Runner {
 
   /** Active runs as published run states. */
   runs(): RunState[] {
-    return [...this.active].map(([cardId, r]) => ({ cardId, phase: r.phase }));
+    return [...this.active].map(([cardId, r]) => ({
+      cardId,
+      phase: r.phase,
+      ...(r.usage ? { usage: r.usage } : {}),
+    }));
   }
 
   private start(card: Card, answered: boolean): void {
@@ -288,10 +305,24 @@ export class Runner {
     // The ask surfaces (`add_question`, `gello ask`) read the card from here —
     // it is what stops an agent parking a question on an unrelated card (c0102).
     const proc = this.opts.spawn(spec, this.opts.cwd, { GELLO_CARD_ID: card.id });
-    proc.onExit((code) => this.handleExit(card.id, code));
+    // c0104: parse the piped stdout into neutral events — render per the level,
+    // record every event to the transcript, and keep the latest usage so the
+    // run's state entry can carry its tokens/cost.
+    const sink = new StreamSink(
+      card.id,
+      this.opts.level ?? "normal",
+      this.opts.adapter.stream.parse,
+      this.opts.emit ?? ((line) => console.log(line)),
+      this.opts.appendRunLog ?? (() => {}),
+    );
+    proc.onStdout?.((chunk) => sink.feed(chunk));
+    proc.onExit((code) => {
+      sink.end();
+      this.handleExit(card.id, code, sink.usage());
+    });
   }
 
-  private handleExit(cardId: string, code: number | null): void {
+  private handleExit(cardId: string, code: number | null, usage?: RunUsage): void {
     const run = this.active.get(cardId);
     if (!run) return;
 
@@ -304,7 +335,9 @@ export class Runner {
     const phase = classifyExit(card, code);
 
     if (phase === "waiting-for-input") {
-      this.active.set(cardId, { ...run, phase });
+      // A parked run stays in the state file — carry its usage so the popover
+      // can show what the turn cost while it waits on the human.
+      this.active.set(cardId, { ...run, phase, usage: usage ?? run.usage });
       this.log(`${cardId} parked → waiting for input`);
     } else {
       this.active.delete(cardId);

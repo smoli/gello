@@ -11,9 +11,23 @@ import { readFileRaw } from "./board-io";
 
 export type RunPhase = "running" | "waiting-for-input" | "done" | "error";
 
+/** Per-run token/cost the companion reports (c0104); the c0100 popover shows
+ *  it. All fields optional — a backend without a figure omits it. */
+export interface RunUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+  totalCostUsd?: number;
+  numTurns?: number;
+  durationMs?: number;
+  permissionDenials?: number;
+}
+
 export interface RunState {
   cardId: string;
   phase: RunPhase;
+  usage?: RunUsage;
 }
 
 export type RunnerStatus = "idle" | "running" | "waiting";
@@ -33,6 +47,31 @@ const PHASES: RunPhase[] = ["running", "waiting-for-input", "done", "error"];
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+const USAGE_KEYS = [
+  "cacheReadTokens",
+  "cacheCreationTokens",
+  "totalCostUsd",
+  "numTurns",
+  "durationMs",
+  "permissionDenials",
+] as const;
+
+/** A run's usage, or undefined when absent/garbage. Requires numeric token
+ *  counts; other figures are copied only when numeric (a partial file degrades
+ *  to the subset it can trust rather than blanking the run). */
+function parseUsage(value: unknown): RunUsage | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const r = value as Record<string, unknown>;
+  if (typeof r.inputTokens !== "number" || typeof r.outputTokens !== "number") {
+    return undefined;
+  }
+  const usage: RunUsage = { inputTokens: r.inputTokens, outputTokens: r.outputTokens };
+  for (const key of USAGE_KEYS) {
+    if (typeof r[key] === "number") usage[key] = r[key] as number;
+  }
+  return usage;
 }
 
 /**
@@ -56,7 +95,14 @@ export function parseCompanionState(raw: string): CompanionState | null {
     ? record.runs
         .filter((r): r is Record<string, unknown> => typeof r === "object" && r !== null)
         .filter((r) => typeof r.cardId === "string" && PHASES.includes(r.phase as RunPhase))
-        .map((r) => ({ cardId: r.cardId as string, phase: r.phase as RunPhase }))
+        .map((r) => {
+          const usage = parseUsage(r.usage);
+          return {
+            cardId: r.cardId as string,
+            phase: r.phase as RunPhase,
+            ...(usage ? { usage } : {}),
+          };
+        })
     : [];
 
   return {

@@ -3,6 +3,8 @@ import { loadBoard } from "../src/lib/board.ts";
 import type { BoardModel } from "../src/lib/board.ts";
 import type { LaunchSpec } from "./adapters.ts";
 import { claudeAdapter } from "./adapters.ts";
+import type { AgentEvent, Level } from "./stream.ts";
+import type { RunState } from "./core.ts";
 import {
   planDispatch,
   classifyExit,
@@ -11,6 +13,27 @@ import {
   Runner,
   type SpawnedRun,
 } from "./runner.ts";
+
+/** A claude `stream-json` line for an assistant tool_use. */
+function toolLine(name: string, input: Record<string, unknown>): string {
+  return `${JSON.stringify({
+    type: "assistant",
+    message: { content: [{ type: "tool_use", name, input }] },
+  })}\n`;
+}
+
+/** A claude `stream-json` line for assistant text. */
+function textLine(text: string): string {
+  return `${JSON.stringify({
+    type: "assistant",
+    message: { content: [{ type: "text", text }] },
+  })}\n`;
+}
+
+/** A claude `stream-json` final `result` line carrying usage. */
+function resultLine(usage: Record<string, unknown>, extra: Record<string, unknown> = {}): string {
+  return `${JSON.stringify({ type: "result", usage, ...extra })}\n`;
+}
 
 // --- board fixtures ---------------------------------------------------------
 
@@ -208,9 +231,10 @@ describe("buildTaskPrompt", () => {
 
 // --- Runner (lifecycle with a fake spawner) ---------------------------------
 
-/** A fake process: records the spec and lets the test fire its exit. */
+/** A fake process: records the spec and lets the test fire stdout and exit. */
 class FakeProc implements SpawnedRun {
   private cb: ((code: number | null) => void) | null = null;
+  private stdoutCb: ((chunk: string) => void) | null = null;
   constructor(
     readonly spec: LaunchSpec,
     readonly env?: Record<string, string>,
@@ -218,16 +242,29 @@ class FakeProc implements SpawnedRun {
   onExit(cb: (code: number | null) => void): void {
     this.cb = cb;
   }
+  onStdout(cb: (chunk: string) => void): void {
+    this.stdoutCb = cb;
+  }
+  stdout(chunk: string): void {
+    this.stdoutCb?.(chunk);
+  }
   exit(code: number | null): void {
     this.cb?.(code);
   }
 }
 
-function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
+function makeRunner(
+  initial: BoardModel,
+  sessions?: Record<string, string>,
+  level: Level = "normal",
+) {
   const spawned: FakeProc[] = [];
   const writes: { path: string; raw: string }[] = [];
   let model = initial;
   const published: { runs: string[] }[] = [];
+  const publishedRaw: RunState[][] = [];
+  const emitted: string[] = [];
+  const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
   const runner = new Runner({
     // the agent runs in the repo; card paths resolve against .gello
@@ -238,6 +275,9 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
     adapter: claudeAdapter,
     scope: "card",
     wipLimit: 2,
+    level,
+    emit: (line) => emitted.push(line),
+    appendRunLog: (cardId, event) => runLog.push({ cardId, event }),
     spawn: (spec, cwd, env) => {
       cwds.push(cwd);
       const proc = new FakeProc(spec, env);
@@ -245,7 +285,10 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
       return proc;
     },
     reload: () => model,
-    onRuns: (runs) => published.push({ runs: runs.map((r) => `${r.cardId}:${r.phase}`) }),
+    onRuns: (runs) => {
+      published.push({ runs: runs.map((r) => `${r.cardId}:${r.phase}`) });
+      publishedRaw.push(runs);
+    },
     sessions,
   });
   return {
@@ -254,9 +297,13 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
     writes,
     cwds,
     published,
+    publishedRaw,
+    emitted,
+    runLog,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
     last: () => published[published.length - 1]?.runs ?? [],
+    lastRaw: () => publishedRaw[publishedRaw.length - 1] ?? [],
   };
 }
 
@@ -462,5 +509,113 @@ describe("Runner", () => {
     const h = makeRunner(start);
     h.runner.sync(start);
     expect(h.spawned.map((p) => p.spec.args[p.spec.args.length - 1])).toHaveLength(2);
+  });
+});
+
+// c0104 — the agent's stdout is piped and parsed, not inherited.
+describe("Runner — run observability (c0104)", () => {
+  it("renders piped tool calls at `normal`, each prefixed with the card id", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Bash", { command: "ls -la" }));
+    h.spawned[0].stdout(textLine("some assistant thinking"));
+
+    expect(h.emitted).toContain("[c001] → Bash(ls -la)");
+    // assistant text is verbose-only — hidden at normal
+    expect(h.emitted.some((l) => l.includes("thinking"))).toBe(false);
+  });
+
+  it("shows the agent's assistant text at `verbose`", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "verbose");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(textLine("weighing the options"));
+    expect(h.emitted).toContain("[c001] weighing the options");
+  });
+
+  it("prints nothing from the stream at `quiet`", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "quiet");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Bash", { command: "ls" }));
+    h.spawned[0].stdout(resultLine({ input_tokens: 1, output_tokens: 2 }));
+    expect(h.emitted).toEqual([]);
+  });
+
+  it("keeps two concurrent runs readable — every line names its own card", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Read", { file_path: "a.ts" }));
+    h.spawned[1].stdout(toolLine("Read", { file_path: "b.ts" }));
+
+    expect(h.emitted).toContain("[c001] → Read(a.ts)");
+    expect(h.emitted).toContain("[c002] → Read(b.ts)");
+    for (const line of h.emitted) expect(line).toMatch(/^\[c00[12]\] /);
+  });
+
+  it("appends every parsed event to the runs.log transcript, regardless of level", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "quiet");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(textLine("thinking"));
+    h.spawned[0].stdout(toolLine("Bash", { command: "ls" }));
+
+    expect(h.runLog.map((e) => `${e.cardId}:${e.event.kind}`)).toEqual([
+      "c001:text",
+      "c001:tool",
+    ]);
+  });
+
+  it("publishes a parked run's token/cost into its state entry", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready, undefined, "normal");
+    h.runner.sync(ready);
+
+    // the agent emits its final usage, then parks a question and exits clean
+    h.spawned[0].stdout(
+      resultLine(
+        { input_tokens: 120, output_tokens: 340 },
+        { total_cost_usd: 0.0123 },
+      ),
+    );
+    const parked = board({
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    const run = h.lastRaw().find((r) => r.cardId === "c001");
+    expect(run?.phase).toBe("waiting-for-input");
+    expect(run?.usage).toEqual({
+      inputTokens: 120,
+      outputTokens: 340,
+      totalCostUsd: 0.0123,
+    });
+  });
+
+  it("a malformed stream line is skipped, never fatal to the run", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    expect(() => h.spawned[0].stdout("this is not json\n")).not.toThrow();
+    // a good line after the bad one still renders
+    h.spawned[0].stdout(toolLine("Bash", { command: "echo ok" }));
+    expect(h.emitted).toContain("[c001] → Bash(echo ok)");
+
+    // and the run still finishes normally
+    h.setModel(board({ c001: { status: "review" } }));
+    h.spawned[0].exit(0);
+    expect(h.last()).toEqual([]);
   });
 });

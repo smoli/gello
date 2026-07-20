@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   writeFileSync,
+  appendFileSync,
   renameSync,
   mkdirSync,
   statSync,
@@ -14,6 +15,7 @@ import {
 import { join, relative, sep, dirname } from "node:path";
 import { loadBoard, type BoardFile, type BoardModel } from "../src/lib/board.ts";
 import type { Card } from "../src/lib/cards.ts";
+import type { RunUsage } from "./stream.ts";
 
 /**
  * Walk up from `start` looking for a `.gello/` directory; returns its absolute
@@ -107,6 +109,10 @@ export interface CompanionState {
 export interface RunState {
   cardId: string;
   phase: "running" | "waiting-for-input" | "done" | "error";
+  /** Per-run token/cost once the backend has reported it (c0104). Absent until
+   *  the run's final usage event arrives — for claude, near the end. The c0100
+   *  popover reads this to show a run's tokens and cost. */
+  usage?: RunUsage;
 }
 
 export function initialState(now: string): CompanionState {
@@ -143,6 +149,20 @@ export function readJson<T>(path: string, fallback: T): T {
 /** Write the state file atomically (temp + rename), creating `.companion/`. */
 export function writeStateFile(root: string, state: CompanionState): void {
   writeJsonAtomic(companionStatePath(root), state);
+}
+
+/** Absolute path of the persisted run transcript (`.companion/runs.log`). */
+export function companionRunsLogPath(root: string): string {
+  return join(root, ".companion", "runs.log");
+}
+
+/** Append one line to `.companion/runs.log` (c0104), creating the dir. A plain
+ *  append, not an atomic rewrite — it is a growing transcript for inspecting a
+ *  finished run without scrollback, gitignored with the rest of `.companion/`. */
+export function appendRunsLog(root: string, line: string): void {
+  const path = companionRunsLogPath(root);
+  mkdirSync(dirname(path), { recursive: true });
+  appendFileSync(path, `${line}\n`);
 }
 
 /** c0102: write a card file atomically (temp + rename), Node-side. The app

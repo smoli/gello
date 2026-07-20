@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { ADAPTER_NAMES } from "./adapters.ts";
+import { LEVELS, type Level } from "./stream.ts";
 import type { SessionScope } from "./sessions.ts";
 
 export interface CompanionConfig {
@@ -24,6 +25,10 @@ export interface CompanionConfig {
   trigger: string;
   /** Headless permission posture handed to the backend (adapter-specific). */
   permissionMode: string;
+  /** Terminal verbosity for a run (c0104): `quiet` (lifecycle lines only),
+   *  `normal` (plus tool calls and a token/cost summary), or `verbose` (plus
+   *  the agent's assistant text). */
+  level: Level;
 }
 
 export const DEFAULT_CONFIG: CompanionConfig = {
@@ -31,6 +36,7 @@ export const DEFAULT_CONFIG: CompanionConfig = {
   scope: "card",
   trigger: "ready",
   permissionMode: "auto",
+  level: "normal",
 };
 
 /** Absolute path of the per-project config file (`<root>/companion.yaml`). */
@@ -40,6 +46,10 @@ export function companionConfigPath(root: string): string {
 
 function coerceScope(value: unknown, fallback: SessionScope): SessionScope {
   return value === "card" || value === "epic" ? value : fallback;
+}
+
+function coerceLevel(value: unknown, fallback: Level): Level {
+  return LEVELS.includes(value as Level) ? (value as Level) : fallback;
 }
 
 function asString(value: unknown): string | undefined {
@@ -100,6 +110,10 @@ export function loadConfig(
     env.GELLO_COMPANION_PERMISSION_MODE ??
     asString(file.permissionMode) ??
     DEFAULT_CONFIG.permissionMode;
+  const level = coerceLevel(
+    env.GELLO_COMPANION_LEVEL ?? file.level,
+    DEFAULT_CONFIG.level,
+  );
 
-  return { agent, scope, trigger, permissionMode };
+  return { agent, scope, trigger, permissionMode, level };
 }

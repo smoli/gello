@@ -24,17 +24,18 @@ describe("loadConfig", () => {
     expect(loadConfig(root, {})).toEqual(DEFAULT_CONFIG);
   });
 
-  it("reads backend, scope, trigger and permission mode from companion.yaml", () => {
+  it("reads backend, scope, trigger, permission mode and level from companion.yaml", () => {
     const root = tempGello();
     writeConfig(
       root,
-      "agent: pi\nscope: epic\ntrigger: backlog\npermissionMode: default\n",
+      "agent: pi\nscope: epic\ntrigger: backlog\npermissionMode: default\nlevel: verbose\n",
     );
     expect(loadConfig(root, {})).toEqual({
       agent: "pi",
       scope: "epic",
       trigger: "backlog",
       permissionMode: "default",
+      level: "verbose",
     });
   });
 
@@ -52,13 +53,34 @@ describe("loadConfig", () => {
       GELLO_COMPANION_SCOPE: "card",
       GELLO_COMPANION_TRIGGER: "ready",
       GELLO_COMPANION_PERMISSION_MODE: "auto",
+      GELLO_COMPANION_LEVEL: "quiet",
     });
     expect(cfg).toEqual({
       agent: "claude",
       scope: "card",
       trigger: "ready",
       permissionMode: "auto",
+      level: "quiet",
     });
+  });
+
+  it("defaults the verbosity level to normal", () => {
+    const root = tempGello();
+    expect(loadConfig(root, {}).level).toBe("normal");
+    expect(DEFAULT_CONFIG.level).toBe("normal");
+  });
+
+  it("reads the level from companion.yaml and lets the env override it", () => {
+    const root = tempGello();
+    writeConfig(root, "level: verbose\n");
+    expect(loadConfig(root, {}).level).toBe("verbose");
+    expect(loadConfig(root, { GELLO_COMPANION_LEVEL: "quiet" }).level).toBe("quiet");
+  });
+
+  it("coerces an unknown level back to the default", () => {
+    const root = tempGello();
+    writeConfig(root, "level: chatty\n");
+    expect(loadConfig(root, {}).level).toBe(DEFAULT_CONFIG.level);
   });
 
   it("honours env vars with no file (env-only, back-compat)", () => {

@@ -18,9 +18,11 @@ import {
   initialState,
   writeStateFile,
   companionStatePath,
+  appendRunsLog,
   type CompanionState,
   type RunState,
 } from "./core.ts";
+import { renderEvent, type AgentEvent } from "./stream.ts";
 import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
@@ -44,16 +46,23 @@ function log(message: string): void {
   console.log(`[gello-companion] ${message}`);
 }
 
-/** Spawn a real agent process, inheriting stdio so its work streams to the
- *  companion's terminal. A spawn error (e.g. command not found) surfaces as a
- *  null exit code → classified as an error, non-fatal to the companion. */
+/** Spawn a real agent process (c0104). stdout is **piped** — the runner parses
+ *  it for tool calls, tokens and cost; inheriting it would forgo the counts and
+ *  leave concurrent runs interleaving unlabelled. stderr is still inherited so
+ *  the agent's own errors surface; stdin is closed (a `-p` run reads its prompt
+ *  from argv). A spawn error (e.g. command not found) surfaces as a null exit
+ *  code → classified as an error, non-fatal to the companion. */
 const nodeSpawner: Spawner = (spec, cwd, env): SpawnedRun => {
   const child = spawn(spec.command, spec.args, {
     cwd,
-    stdio: "inherit",
+    stdio: ["ignore", "pipe", "inherit"],
     env: { ...process.env, ...env },
   });
+  child.stdout?.setEncoding("utf8");
   return {
+    onStdout(cb) {
+      child.stdout?.on("data", (chunk: string) => cb(chunk));
+    },
     onExit(cb) {
       let fired = false;
       const once = (code: number | null) => {
@@ -104,11 +113,23 @@ function main(): void {
   // is denied (a `-p` agent can't answer an approval prompt); the `auto`
   // default approves autonomously while still honoring deny-rules.
   const config = loadConfig(root);
-  const { agent: agentName, scope, trigger, permissionMode } = config;
+  const { agent: agentName, scope, trigger, permissionMode, level } = config;
   log(
     `watching board at ${root} (agent: ${agentName}, scope: ${scope}, ` +
-      `trigger: ${trigger}, permissions: ${permissionMode})`,
+      `trigger: ${trigger}, permissions: ${permissionMode}, level: ${level})`,
   );
+
+  // c0104: a run's parsed events go to two persistent surfaces. The terminal
+  // gets a level-gated, card-id-prefixed line (`emit`); runs.log gets the full
+  // verbose transcript of every event, for inspecting a finished run later.
+  const emit = (line: string) => console.log(line);
+  const appendRunLog = (cardId: string, event: AgentEvent) => {
+    try {
+      for (const line of renderEvent("verbose", cardId, event)) appendRunsLog(root, line);
+    } catch (error) {
+      log(`could not append to runs.log: ${(error as Error).message}`);
+    }
+  };
 
   let model: BoardModel = loadBoardFrom(root);
   let runs: RunState[] = [];
@@ -121,6 +142,9 @@ function main(): void {
     trigger,
     permissionMode,
     wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
+    level,
+    emit,
+    appendRunLog,
     spawn: nodeSpawner,
     askServer: askServerSpec(root),
     reload: () => loadBoardFrom(root),

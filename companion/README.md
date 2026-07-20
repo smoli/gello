@@ -45,6 +45,7 @@ agent: claude          # backend: claude | pi
 scope: card            # one agent session per card, or per epic
 trigger: ready         # the status whose entry dispatches a run
 permissionMode: auto   # headless permission posture for the backend
+level: normal          # run output verbosity: quiet | normal | verbose
 ```
 
 | Key | Default | Meaning |
@@ -53,6 +54,7 @@ permissionMode: auto   # headless permission posture for the backend
 | `scope` | `card` | One resumable session per `card`, or shared per `epic`. |
 | `trigger` | `ready` | The status a card enters to dispatch a run. |
 | `permissionMode` | `auto` | Claude's `--permission-mode`. A headless run cannot answer an approval prompt, so `default` makes every write fail; `auto` pre-approves while honoring deny-rules. pi ignores it. |
+| `level` | `normal` | Terminal verbosity for a run (see [Run output](#run-output)). |
 
 Each key has an environment-variable override that beats the file, for
 per-machine settings (e.g. which agent CLI is installed):
@@ -63,6 +65,7 @@ per-machine settings (e.g. which agent CLI is installed):
 | `GELLO_COMPANION_SCOPE` | `scope` |
 | `GELLO_COMPANION_TRIGGER` | `trigger` |
 | `GELLO_COMPANION_PERMISSION_MODE` | `permissionMode` |
+| `GELLO_COMPANION_LEVEL` | `level` |
 
 Precedence is env var > `companion.yaml` > default. A malformed config file
 stops startup with its path rather than falling back to a surprise backend.
@@ -88,7 +91,34 @@ board change. The desktop app watches this file and renders a runner indicator
 }
 ```
 
-A run's `phase` is `running`, `waiting-for-input`, `done`, or `error`.
+A run's `phase` is `running`, `waiting-for-input`, `done`, or `error`. A run
+also carries `usage` (input/output/cache tokens, `totalCostUsd`, `numTurns`,
+`durationMs`, `permissionDenials`) once the backend reports it — see below.
+
+## Run output
+
+The companion pipes the agent's stdout and parses it, rather than letting it
+print raw. That gives three things at once: token and cost counts (only
+available from the parsed stream), a card-id prefix on every line so two
+concurrent runs stay readable, and denials made visible. The `level` setting
+decides how much reaches the terminal:
+
+| Level | Shows |
+| --- | --- |
+| `quiet` | The companion's own lifecycle lines only. |
+| `normal` (default) | Plus one line per agent tool call and a token/cost summary when the run ends. |
+| `verbose` | Plus the agent's assistant text as it streams. |
+
+Each stream line is prefixed with its card, e.g. `[c0042] → Bash(pnpm test)`.
+Parsing is owned by each backend's adapter: claude runs with
+`--output-format stream-json --verbose` and its NDJSON is mapped to a
+backend-neutral event stream; pi, which has no structured stream, degrades to
+prefixed plain text (assistant text at `verbose`, no tool or token lines).
+
+Independent of the level, two surfaces are always written: a run's `usage` in
+`state.json` (so the app can show tokens and cost), and the full event
+transcript appended to `.gello/.companion/runs.log`, for inspecting a finished
+run without scrollback. Both are under the gitignored `.companion/` dir.
 
 ## Moving the card
 

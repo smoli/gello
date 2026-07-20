@@ -59,6 +59,32 @@ describe("parseCompanionState", () => {
     expect(s?.ready).toEqual(["c001"]);
     expect(s?.waiting).toEqual([]);
   });
+
+  // c0104: a run may carry per-run token/cost, which the c0100 popover shows.
+  it("keeps a run's usage when present and well-formed", () => {
+    const raw = JSON.stringify({
+      status: "waiting",
+      runs: [
+        {
+          cardId: "c001",
+          phase: "waiting-for-input",
+          usage: { inputTokens: 120, outputTokens: 340, totalCostUsd: 0.0123 },
+        },
+      ],
+    });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({
+      cardId: "c001",
+      phase: "waiting-for-input",
+      usage: { inputTokens: 120, outputTokens: 340, totalCostUsd: 0.0123 },
+    });
+  });
+
+  it("drops a run's usage when it is not an object, keeping the run", () => {
+    const raw = JSON.stringify({
+      runs: [{ cardId: "c001", phase: "running", usage: "lots" }],
+    });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({ cardId: "c001", phase: "running" });
+  });
 });
 
 describe("companionStatePath", () => {
