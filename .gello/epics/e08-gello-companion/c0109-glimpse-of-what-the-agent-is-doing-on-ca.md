@@ -107,3 +107,11 @@ it, and render it.
   marks the line stale when the state file ages out.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
+- 2026-07-20 (agent) Implemented in three commits: companion transport
+  (`Activity` on the StreamSink + `RunState`, a leading+trailing `Throttle`
+  coalescing publishes to ~1s), app parse (`activity` defensive), app phrasing
+  + render (`activity.ts`, card-front line, stale flag). All nine acceptance
+  criteria have tests; scoped to the board card front (epic/detail views left
+  for a follow-up). Note: `src/lib/tags.test.ts` (i0114 dark shade) fails on
+  `main` independently of this card — pre-existing, not touched here.
+- 2026-07-20 status → review (agent)
