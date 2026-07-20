@@ -1,10 +1,10 @@
 ---
 id: c0105
 title: MCP for status update and earlier in process
-status: review
+status: done
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T09:02:53
+status-changed: 2026-07-20T17:43:40
 epic: e08
 ---
 
@@ -45,3 +45,4 @@ Also add an MCP tool for status change of the active card.
   claude adapter now allows both gello tools; task prompt directs an early
   `in-progress` move; renamed `createAskServer` → `createGelloServer`. All
   companion tests green, typecheck + lint clean. status → review (agent)
+- 2026-07-20 status → done (app)
