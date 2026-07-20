@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { windowTitle } from "../lib/status";
 import { isMacOS } from "../lib/platform";
 import type { WorktreeStatus } from "../lib/board-io";
@@ -63,7 +64,22 @@ export function TitleBar({
   onSearch?: (query: string) => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
+  const runnerRef = useRef<HTMLButtonElement>(null);
   const [runsOpen, setRunsOpen] = useState(false);
+  // i0037: fixed-position anchor for the portaled popover (below the glyph).
+  const [runsPos, setRunsPos] = useState({ top: 0, left: 0 });
+
+  // i0037: the popover renders in a portal (below), so `.titlebar-left`'s
+  // overflow:hidden caption clip can't hide it. Anchor it under the glyph.
+  const toggleRuns = () => {
+    setRunsOpen((open) => {
+      if (!open && runnerRef.current) {
+        const rect = runnerRef.current.getBoundingClientRect();
+        setRunsPos({ top: rect.bottom + 4, left: rect.left });
+      }
+      return !open;
+    });
+  };
 
   // c022: Cmd/Ctrl+F focuses search, suppressing the webview's native find
   useEffect(() => {
@@ -117,20 +133,28 @@ export function TitleBar({
         {runner && (
           <span className="titlebar-runner-wrap">
             <button
+              ref={runnerRef}
               type="button"
               className={`titlebar-runner titlebar-runner-${runner.status}`}
               aria-label={runnerLabel(runner)}
               aria-expanded={runsOpen}
               title={runnerLabel(runner)}
-              onClick={() => setRunsOpen((open) => !open)}
+              onClick={toggleRuns}
             >
               {RUNNER_GLYPH[runner.status]}
             </button>
-            {runsOpen && (
-              <div className="titlebar-runner-popover" role="dialog" aria-label="Companion runs">
-                <RunnerRuns runner={runner} />
-              </div>
-            )}
+            {runsOpen &&
+              createPortal(
+                <div
+                  className="titlebar-runner-popover"
+                  role="dialog"
+                  aria-label="Companion runs"
+                  style={{ top: runsPos.top, left: runsPos.left }}
+                >
+                  <RunnerRuns runner={runner} />
+                </div>,
+                document.body,
+              )}
           </span>
         )}
       </div>

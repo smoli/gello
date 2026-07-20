@@ -147,10 +147,10 @@
   color: color-mix(in srgb, #f5a623 85%, CanvasText);
   font-weight: 700;
 }
+/* i0037: portaled to <body> and anchored under the glyph via inline top/left,
+   so no title-bar ancestor's overflow:hidden can clip it. */
 .titlebar-runner-popover {
-  position: absolute;
-  top: 1.6em;
-  left: 0;
+  position: fixed;
   z-index: 20;
   min-width: 12rem;
   padding: 0.4rem 0.5rem;
