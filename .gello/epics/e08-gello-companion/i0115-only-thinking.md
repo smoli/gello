@@ -8,7 +8,38 @@ epic: e08
 created: 2026-07-20
 updated: 2026-07-21
 status-changed: 2026-07-21T00:09:55
+awaiting: input
 ---
+
+```gelloquestion
+## Diagnosis: not a code bug — a stale companion process
+
+I traced the whole pipeline and the current build is correct:
+
+- The **live** `.companion/state.json` carries a proper `activity` field, and a
+  reproduction feeding real state data through the app parses + phrases it as
+  e.g. "Updating status" — **not** "Thinking…".
+- **Timing**: c0109's transport (writing `activity` to `state.json`) landed
+  22:56 on 07-20. The companion that worked c0110 (~23:16) was an **earlier
+  process** — the current `gello-companion` PID only started 00:09 on 07-21.
+  That old process still printed tool lines to the *terminal* (the pre-c0109
+  c0104 path) but never wrote the new `activity` field, so the card fell back
+  to "Thinking…" the whole run.
+
+In short: the companion was running code from before the feature existed. A
+restart fixes it (and the current one already emits activity). I've added an
+end-to-end **regression test** across the companion→state.json→app seam (each
+layer was unit-tested, but not the contract between them).
+
+**How do you want to dispose this?**
+
+- [ ] Close it — accept it was a stale process; the seam test is enough. (Tip:
+      restart the companion after updating its code.)
+- [ ] Build robustness — have the app distinguish "companion running but
+      reporting no activity / stale" from genuine "Thinking…" (e.g. a companion
+      version/heartbeat in `state.json`). I'd scope this as its own change.
+- [ ] Something else — say what you'd like.
+```
 
 It only shows thinking although the agent did:
 
