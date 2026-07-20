@@ -1,12 +1,12 @@
 ---
 id: c0099
 title: Config & docs / packaging
-status: in-progress
+status: review
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-20
-status-changed: 2026-07-20T09:30:00
+status-changed: 2026-07-20T09:35:00
 ---
 
 ## What
@@ -24,12 +24,12 @@ Per-project companion configuration, docs, and an install/run path.
 
 ## Acceptance criteria
 
-- [ ] Per-project config selects backend, session scope, and trigger; sane
+- [x] Per-project config selects backend, session scope, and trigger; sane
       defaults when absent
-- [ ] README documents install, run, config, the state-file shape, and the
+- [x] README documents install, run, config, the state-file shape, and the
       card Q&A convention
-- [ ] The CLI is installable/runnable standalone (headless)
-- [ ] The app-launch bridge (one-click "start companion") is documented (its
+- [x] The CLI is installable/runnable standalone (headless)
+- [x] The app-launch bridge (one-click "start companion") is documented (its
       implementation may be a small app-side follow-up)
 
 ## Notes
@@ -72,3 +72,10 @@ dedicated prompt file is a possible follow-up, not required by the criteria.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress; config→`.gello/companion.yaml` + env
   overrides; wiring trigger; expanding README; adding `bin` packaging.
+- 2026-07-20 config module (`companion/config.ts`, 8 tests), trigger threaded
+  through `cardsEnteringReady`/`planDispatch`/Runner (2 tests), `bin`
+  `gello-companion` + tsx shebang (packaging test), README rewritten
+  (install/run/config/state-file/Q&A/app-bridge). Verified the standalone bin
+  boots headless and reads `companion.yaml`. All criteria met → review.
+  Suite green (643 pass; the 2 App.tsx timer unhandled-rejections are
+  pre-existing, unrelated). Typecheck + lint clean.
