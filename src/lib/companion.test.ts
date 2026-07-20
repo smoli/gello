@@ -85,6 +85,50 @@ describe("parseCompanionState", () => {
     });
     expect(parseCompanionState(raw)?.runs[0]).toEqual({ cardId: "c001", phase: "running" });
   });
+
+  // c0109: a running run may carry the agent's latest tool call as `activity`.
+  it("keeps a run's activity when present and well-formed", () => {
+    const raw = JSON.stringify({
+      status: "running",
+      runs: [{ cardId: "c001", phase: "running", activity: { name: "Edit", arg: "runner.ts" } }],
+    });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({
+      cardId: "c001",
+      phase: "running",
+      activity: { name: "Edit", arg: "runner.ts" },
+    });
+  });
+
+  it("keeps an activity with no arg (a tool that takes none)", () => {
+    const raw = JSON.stringify({
+      runs: [{ cardId: "c001", phase: "running", activity: { name: "TodoWrite" } }],
+    });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({
+      cardId: "c001",
+      phase: "running",
+      activity: { name: "TodoWrite" },
+    });
+  });
+
+  it("drops garbage activity but keeps the run (same contract as usage)", () => {
+    for (const activity of [42, "editing", {}, { name: 5 }, { arg: "x" }, null]) {
+      const raw = JSON.stringify({
+        runs: [{ cardId: "c001", phase: "running", activity }],
+      });
+      expect(parseCompanionState(raw)?.runs[0]).toEqual({ cardId: "c001", phase: "running" });
+    }
+  });
+
+  it("drops a non-string arg but keeps the activity name", () => {
+    const raw = JSON.stringify({
+      runs: [{ cardId: "c001", phase: "running", activity: { name: "Read", arg: 7 } }],
+    });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({
+      cardId: "c001",
+      phase: "running",
+      activity: { name: "Read" },
+    });
+  });
 });
 
 describe("companionStatePath", () => {

@@ -24,10 +24,19 @@ export interface RunUsage {
   permissionDenials?: number;
 }
 
+/** The agent's latest tool call (c0109), published while a run is running. The
+ *  app phrases it into a card line — the companion sends only the structured
+ *  pair. */
+export interface Activity {
+  name: string;
+  arg?: string;
+}
+
 export interface RunState {
   cardId: string;
   phase: RunPhase;
   usage?: RunUsage;
+  activity?: Activity;
 }
 
 export type RunnerStatus = "idle" | "running" | "waiting";
@@ -74,6 +83,18 @@ function parseUsage(value: unknown): RunUsage | undefined {
   return usage;
 }
 
+/** A run's activity, or undefined when absent/garbage. Requires a non-empty
+ *  `name`; `arg` is copied only when a string (a partial value degrades to just
+ *  the name rather than blanking the field). */
+function parseActivity(value: unknown): Activity | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const r = value as Record<string, unknown>;
+  if (typeof r.name !== "string" || r.name === "") return undefined;
+  const activity: Activity = { name: r.name };
+  if (typeof r.arg === "string") activity.arg = r.arg;
+  return activity;
+}
+
 /**
  * Parse the state file's raw JSON into a CompanionState, or null when the
  * content is missing or not a recognizable state object (treated as "no
@@ -97,10 +118,12 @@ export function parseCompanionState(raw: string): CompanionState | null {
         .filter((r) => typeof r.cardId === "string" && PHASES.includes(r.phase as RunPhase))
         .map((r) => {
           const usage = parseUsage(r.usage);
+          const activity = parseActivity(r.activity);
           return {
             cardId: r.cardId as string,
             phase: r.phase as RunPhase,
             ...(usage ? { usage } : {}),
+            ...(activity ? { activity } : {}),
           };
         })
     : [];
