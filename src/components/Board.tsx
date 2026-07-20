@@ -77,6 +77,7 @@ export function Board({
   onRepairDuplicates,
   onManageTags,
   background,
+  darkChips = false,
   toolbarLeading,
   onBackgroundContextMenu,
   loadImage,
@@ -111,6 +112,8 @@ export function Board({
   /** Data URL of the board background (c047). */
   /** c0060: full CSS background value (url(...), #hex, or gradient). */
   background?: string;
+  /** i0114: shade chip fills dark when the effective scheme is dark. */
+  darkChips?: boolean;
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -292,7 +295,7 @@ export function Board({
                 // opaque so the label stays legible over any board background.
                 const style = selected
                   ? { backgroundColor: colour, borderColor: colour, color: readableTextColor(colour) }
-                  : tagChipStyle(colour);
+                  : tagChipStyle(colour, darkChips);
                 return (
                   <button
                     key={tag}
@@ -350,6 +353,7 @@ export function Board({
               loadImage={loadImage}
               tagColors={tagColors}
               showTags={showTags}
+              darkChips={darkChips}
             />
           );
         })}
@@ -438,6 +442,7 @@ function Column({
   loadImage,
   tagColors,
   showTags,
+  darkChips,
 }: {
   name: string;
   cards: BoardCard[];
@@ -447,6 +452,8 @@ function Column({
   tagColors: Record<string, string>;
   /** c0111: render card-front tag chips only when tag surfacing is on. */
   showTags: boolean;
+  /** i0114: shade chip fills dark in dark mode, forwarded to each card front. */
+  darkChips: boolean;
   /** Path of the card currently being dragged, for origin marking (i0004). */
   draggingPath: string | null;
   /** c0108: the pointer is over this column during a drag — stronger highlight. */
@@ -519,6 +526,7 @@ function Column({
                 loadImage={loadImage}
                 tagColors={tagColors}
                 showTags={showTags}
+                darkChips={darkChips}
               />
             </Fragment>
           ))}
@@ -590,6 +598,7 @@ function CardFront({
   loadImage,
   tagColors,
   showTags,
+  darkChips,
 }: {
   entry: BoardCard;
   /** True while this card is the one being dragged (i0004 origin marker). */
@@ -603,6 +612,8 @@ function CardFront({
   tagColors: Record<string, string>;
   /** c0111: hide the chips when tag surfacing is off for the project. */
   showTags: boolean;
+  /** i0114: shade the chip fills dark in dark mode. */
+  darkChips: boolean;
 }) {
   const { card, epicLabel } = entry;
   // c012: thumbnail from the first body image (if any)
@@ -662,7 +673,7 @@ function CardFront({
         <div className="card-tags">
           {card.tags.map((tag) => (
             // i0113: the shared resting chip look, identical across every surface
-            <span key={tag} className="tag-chip" style={tagChipStyle(tagColor(tag, tagColors))}>
+            <span key={tag} className="tag-chip" style={tagChipStyle(tagColor(tag, tagColors), darkChips)}>
               {tag}
             </span>
           ))}

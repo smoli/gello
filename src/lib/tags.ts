@@ -93,19 +93,42 @@ export function tintColor(hex: string, amount: number): string {
   return toHex(mix(r), mix(g), mix(b));
 }
 
+/** The dark base an in-dark-mode chip fill is mixed toward (i0114): a near-black
+ *  slate, not pure black, so the tag hue still reads through the shaded fill. */
+const CHIP_DARK_BASE = "#16181d";
+
+/** Mix a hex colour toward the dark chip base by `amount` (0 = unchanged,
+ *  1 = the base). The dark-mode counterpart of `tintColor`: a light tint reads
+ *  as a glaring pale pill over a dark UI, so dark mode shades the same hue down
+ *  to a muted fill that takes light text (i0114). */
+export function shadeColor(hex: string, amount: number): string {
+  const [r, g, b] = parseHex(hex);
+  const [br, bg, bb] = parseHex(CHIP_DARK_BASE);
+  const mix = (c: number, base: number) => c + (base - c) * amount;
+  return toHex(mix(r, br), mix(g, bg), mix(b, bb));
+}
+
 /** How far an unselected/resting chip's fill is mixed toward white (i0110). */
 const CHIP_TINT = 0.82;
 
+/** How far a dark-mode chip's fill is mixed toward the dark base (i0114). */
+const CHIP_SHADE = 0.72;
+
 /** Inline style for a tag chip's resting look, shared by every tag surface
- *  (i0113): a pale tinted fill, the tag colour as the border for identity, and
- *  contrast-picked text. The board toolbar reuses it for unselected filter
- *  chips; a selected filter chip overrides the fill with the full tag colour. */
-export function tagChipStyle(colour: string): {
+ *  (i0113): a tinted fill, the tag colour as the border for identity, and
+ *  contrast-picked text. Light mode tints the hue up toward white; dark mode
+ *  shades it down toward a dark base so the chip is not a glaring pale pill
+ *  (i0114). The board toolbar reuses it for unselected filter chips; a selected
+ *  filter chip overrides the fill with the full tag colour. */
+export function tagChipStyle(
+  colour: string,
+  dark = false,
+): {
   backgroundColor: string;
   borderColor: string;
   color: string;
 } {
-  const fill = tintColor(colour, CHIP_TINT);
+  const fill = dark ? shadeColor(colour, CHIP_SHADE) : tintColor(colour, CHIP_TINT);
   return {
     backgroundColor: fill,
     borderColor: colour,

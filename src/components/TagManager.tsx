@@ -11,12 +11,15 @@ import "./TagManager.css";
 export function TagManager({
   tags,
   tagColors,
+  darkChips = false,
   onSetColor,
   onRename,
   onClose,
 }: {
   tags: TagCount[];
   tagColors: Record<string, string>;
+  /** i0114: shade the preview chip's fill dark in dark mode. */
+  darkChips?: boolean;
   onSetColor: (tag: string, colour: string) => void;
   onRename: (from: string, to: string) => void;
   onClose: () => void;
@@ -53,6 +56,7 @@ export function TagManager({
                 tag={tag}
                 count={count}
                 colour={tagColor(tag, tagColors)}
+                darkChips={darkChips}
                 onSetColor={onSetColor}
                 onRename={onRename}
               />
@@ -68,12 +72,14 @@ function TagRow({
   tag,
   count,
   colour,
+  darkChips,
   onSetColor,
   onRename,
 }: {
   tag: string;
   count: number;
   colour: string;
+  darkChips: boolean;
   onSetColor: (tag: string, colour: string) => void;
   onRename: (from: string, to: string) => void;
 }) {
@@ -86,7 +92,7 @@ function TagRow({
 
   return (
     <li role="listitem" aria-label={tag} className="tag-manager-row">
-      <span className="tag-chip" style={tagChipStyle(colour)}>
+      <span className="tag-chip" style={tagChipStyle(colour, darkChips)}>
         {tag}
       </span>
       <span className="tag-manager-count">{count}</span>

@@ -172,6 +172,11 @@ function App() {
   const [showThumbnails, setShowThumbnails] = useState(true);
   // c0068: theme override — "system" follows the OS (default), else forced
   const [theme, setTheme] = useState<Theme>("system");
+  // i0114: track the OS scheme so chip fills (computed in JS, not CSS) can shade
+  // dark when "system" resolves to dark — the media query drives no CSS here.
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false,
+  );
   // c0083: per-project auto-commit of board changes (off by default) + window
   const [autoCommit, setAutoCommit] = useState(false);
   const [autoCommitWindowMs, setAutoCommitWindowMs] = useState(AUTO_COMMIT_DEFAULT_MS);
@@ -248,6 +253,19 @@ function App() {
     document.documentElement.style.colorScheme =
       theme === "system" ? "light dark" : theme;
   }, [theme]);
+
+  // i0114: keep systemDark in step with the OS while "system" is selected
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mq) return;
+    const onChange = () => setSystemDark(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // i0114: the effective scheme chip fills key off (an override wins over the OS)
+  const darkChips = theme === "dark" || (theme === "system" && systemDark);
 
   // c016: open a different project (folder picker or a recent entry). A folder
   // without .gello yields null → the "no board" placeholder (init = c017).
@@ -1142,6 +1160,7 @@ function App() {
         />
         <Board
           background={effectiveBackground}
+          darkChips={darkChips}
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
@@ -1169,6 +1188,7 @@ function App() {
           <TagManager
             tags={collectTags(board.model)}
             tagColors={board.model.config.tagColors}
+            darkChips={darkChips}
             onSetColor={handleSetTagColor}
             onRename={handleRenameTag}
             onClose={() => setManagingTags(false)}

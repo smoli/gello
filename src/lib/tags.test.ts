@@ -6,11 +6,19 @@ import {
   planTagRename,
   readableTextColor,
   renameTagInList,
+  shadeColor,
   tagChipStyle,
   tagColor,
   tintColor,
   TAG_PALETTE,
 } from "./tags";
+
+/** Perceived luminance (0–255) of a "#rrggbb" hex — for ordering fills. */
+function luminance(hex: string): number {
+  const h = hex.replace(/^#/, "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
 
 function file(path: string, content: string): BoardFile {
   return { path, content };
@@ -108,6 +116,27 @@ describe("tintColor", () => {
   });
 });
 
+describe("shadeColor", () => {
+  it("mixes a colour toward a dark base by the given amount", () => {
+    expect(shadeColor("#ffffff", 0)).toBe("#ffffff");
+    // full mix lands on the dark base, whatever the input hue
+    expect(shadeColor("#ffffff", 1)).toBe(shadeColor("#000000", 1));
+  });
+
+  it("keeps a dark fill that takes light text (i0114)", () => {
+    // the same bright tags that read pale over a light board go dark here
+    for (const colour of ["#65a30d", "#0ea5e9", "#ca8a04"]) {
+      const fill = shadeColor(colour, 0.72);
+      expect(readableTextColor(fill)).toBe("#ffffff");
+    }
+  });
+
+  it("tolerates a 3-digit hex or a missing hash", () => {
+    expect(shadeColor("fff", 0)).toBe("#ffffff");
+    expect(shadeColor("#000", 0)).toBe("#000000");
+  });
+});
+
 describe("tagChipStyle", () => {
   it("is the resting chip look: pale tinted fill, tag-colour border, legible text (i0113)", () => {
     const style = tagChipStyle("#65a30d");
@@ -119,6 +148,25 @@ describe("tagChipStyle", () => {
   it("picks dark text for the pale fill of any bright tag", () => {
     for (const colour of ["#65a30d", "#0ea5e9", "#ca8a04"]) {
       expect(tagChipStyle(colour).color).toBe("#111111");
+    }
+  });
+
+  it("shades the fill dark and text light in dark mode, keeping the tag-colour border (i0114)", () => {
+    const style = tagChipStyle("#65a30d", true);
+    expect(style.backgroundColor).toBe(shadeColor("#65a30d", 0.72));
+    expect(style.borderColor).toBe("#65a30d");
+    expect(style.color).toBe(readableTextColor(style.backgroundColor));
+  });
+
+  it("gives every palette tag a dark fill with light text in dark mode (i0114)", () => {
+    for (const colour of TAG_PALETTE) {
+      const style = tagChipStyle(colour, true);
+      // darker than the light-mode fill for the same tag…
+      expect(luminance(style.backgroundColor)).toBeLessThan(
+        luminance(tagChipStyle(colour).backgroundColor),
+      );
+      // …and legible with light text
+      expect(style.color).toBe("#ffffff");
     }
   });
 });
