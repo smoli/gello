@@ -1,10 +1,10 @@
 ---
 id: c0108
 title: When dragging highlight the column that the mouse is over
-status: in-progress
+status: review
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T17:49:15
+status-changed: 2026-07-20T18:06:33
 epic: e02
 ---
 
@@ -33,18 +33,17 @@ highlight that follows the pointer across lanes.
 - Tests (Board.test.tsx, both green): highlight follows the pointer across
   columns; clears on drag end; clears after a drop.
 
-### Blocked on commit — concurrent c0058 work in the same files
+### Commit — resolved
 
-The working tree has live, unfinished **c0058** (tag chips + tag filter) work
-interleaved with my c0108 changes across all three shared files: `Board.tsx`,
-`Board.css`, `Board.test.tsx` (plus its own `lib/tags.ts`). The c0058 tests are
-currently red (tag rendering/filter not yet implemented) and its unused import
-fails `pnpm typecheck`, so the full suite is not green and I can't commit c0108
-cleanly without either committing that unfinished work or surgically splitting
-it out of shared files. See the question below.
+c0108 shared `Board.tsx`/`Board.css`/`Board.test.tsx` with concurrent c0058
+(tag chips + filter) work. Per the human's call, c0058 landed first
+(`25be69e`); the c0108 changes are self-contained and were then committed on
+top on their own, leaving the c0058 follow-up (tag rename / manager) untouched.
 
 ## Log
 
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
-- 2026-07-20 c0108 implemented + tests green; commit blocked by concurrent c0058 work in shared board files — asking human (agent)
+- 2026-07-20 c0108 implemented + tests green; commit blocked by concurrent c0058 work in shared board files — asked human (agent)
+- 2026-07-20 c0058 landed first (25be69e); committed c0108 on the clean base as 950cb6a; → review (agent)
+- 2026-07-20 status → review (agent)
