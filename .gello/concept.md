@@ -82,7 +82,14 @@ and status (workflow stage) are orthogonal, so an epic-assigned card can still b
 model, but named for what it is — an effort broken into steps, not a deadline.
 **Tags** (`tags:` on a card) are the separate, cross-cutting axis — a card has
 at most one epic but any number of tags, so a theme like `ui` or `perf` can span
-epics and standalone cards alike.
+epics and standalone cards alike. Epics are the *container* axis (one per card,
+with a charter in `epic.md`); tags are the *label* axis (many per card, no
+charter). On the board each tag shows as a coloured chip on the card front, a
+multi-select tag filter narrows to cards carrying any selected tag (composing
+with the epic, type, and search filters), and a tag manager assigns a tag's
+colour and renames it everywhere it appears. Colours are per-tag overrides in
+`board.yaml` (`tag_colors:`); a tag with no override gets a stable colour from
+its name.
 
 Notes:
 
