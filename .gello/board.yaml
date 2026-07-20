@@ -2,4 +2,3 @@ columns: [inbox, discuss, backlog, ready, in-progress, review, done]
 wip_limits:
   in-progress: 2
 background: assets/board/background.jpg
-show_tags: false
