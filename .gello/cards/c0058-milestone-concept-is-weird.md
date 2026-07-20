@@ -35,19 +35,19 @@ swimlanes-by-tag (spun out to [[c0075]]).
 
 ## Acceptance criteria
 
-- [ ] Card fronts render each of a card's tags as a chip; a card with no tags
+- [x] Card fronts render each of a card's tags as a chip; a card with no tags
       shows none
-- [ ] Toolbar multi-select tag filter lists the tags in use; selecting tags
+- [x] Toolbar multi-select tag filter lists the tags in use; selecting tags
       shows only cards carrying any selected tag; composes with the epic +
       type filters and search (all AND); clearing restores all
-- [ ] Each tag has a stable colour reflected by its chips and its filter
+- [x] Each tag has a stable colour reflected by its chips and its filter
       entry; a management surface lets the user set/change a tag's colour
-- [ ] Tag management lists all tags in use with a per-tag card count
-- [ ] Rename-a-tag updates every card carrying it — surgical `tags:` edits,
+- [x] Tag management lists all tags in use with a per-tag card count
+- [x] Rename-a-tag updates every card carrying it — surgical `tags:` edits,
       atomic per file — and the board reflects the change live
-- [ ] Existing tag editing in card detail is unchanged; every new surface
+- [x] Existing tag editing in card detail is unchanged; every new surface
       reuses the same `tags:` field (no new field, no schema change)
-- [ ] concept.md / CLAUDE.md note tags as the cross-cutting label axis,
+- [x] concept.md / CLAUDE.md note tags as the cross-cutting label axis,
       distinct from epics (the container axis)
 
 ## Discussion
