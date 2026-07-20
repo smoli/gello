@@ -1,13 +1,13 @@
 ---
 id: i0037
 title: The companion popup is not visible
-status: in-progress
+status: review
 type: issue
 ref: c0100
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T08:42:26
+status-changed: 2026-07-20T08:44:30
 ---
 
 ![image](../../assets/i0037/image.png)
@@ -32,10 +32,24 @@ glyph, so no title-bar ancestor can clip it.
 
 ## Acceptance criteria
 
-- [ ] The runs popover is rendered outside the `.titlebar-left` clipping area.
-- [ ] Clicking the runner glyph still reveals the active runs.
+- [x] The runs popover is rendered outside the `.titlebar-left` clipping area.
+- [x] Clicking the runner glyph still reveals the active runs.
+
+## Notes
+
+- `TitleBar` now portals the popover to `document.body` (`createPortal`) and
+  positions it under the glyph via inline `top`/`left` from the button's
+  `getBoundingClientRect()`. CSS changed from `position: absolute` (clipped by
+  the caption's `overflow: hidden` ancestor) to `position: fixed`.
+- New test `i0037: renders the runs popover outside the clipping title area`
+  asserts the open dialog is not a descendant of `.titlebar-left` — red before
+  the portal, green after. The existing click-reveals-runs test still passes
+  (RTL `screen` queries reach the portaled node).
+- Two unhandled errors in `App.test.tsx` (`readFileRaw` mock under fake timers)
+  are pre-existing — present with these changes stashed — and unrelated.
 
 ## Log
 
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress; diagnosed overflow-clip, fixing via portal
+- 2026-07-20 portal fix + test; typecheck/lint/tests green; status → review
