@@ -1,7 +1,6 @@
 // Body-text utilities for task list items ("- [ ]" / "- [x]").
 //
-// Indexing matches GFM rendering document order. Toggling is a surgical
-// single-line edit — same philosophy as frontmatter writes in cards.ts.
+// Counting matches GFM rendering document order.
 
 /** List marker (bullet or ordered) followed by a checkbox. */
 const CHECKBOX_RE = /^(\s*(?:[-*+]|\d+\.) +)\[( |x|X)\]/;
@@ -74,23 +73,4 @@ export function retargetAssetLinks(
 ): string {
   const re = new RegExp(`\\]\\(${escapeRegExp(fromPrefix)}`, "g");
   return raw.replace(re, `](${toPrefix}`);
-}
-
-/**
- * Flip the checkbox of the `index`-th task item (document order).
- * Only that line changes; everything else is preserved byte-for-byte.
- */
-export function toggleTaskItem(body: string, index: number): string {
-  const numbers = taskLineNumbers(body);
-  if (index < 0 || index >= numbers.length) {
-    throw new Error(`task index ${index} out of range (${numbers.length} tasks)`);
-  }
-  const lines = body.split("\n");
-  const lineNo = numbers[index];
-  lines[lineNo] = lines[lineNo].replace(
-    CHECKBOX_RE,
-    (_, prefix: string, state: string) =>
-      `${prefix}[${state === " " ? "x" : " "}]`,
-  );
-  return lines.join("\n");
 }

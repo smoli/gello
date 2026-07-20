@@ -40,7 +40,6 @@ export function CardDetail({
   columns,
   milestoneOptions,
   onChangeFields,
-  onToggleTask,
   onSaveEdit,
   onTriage,
   onReportIssue,
@@ -59,7 +58,6 @@ export function CardDetail({
   columns: string[];
   milestoneOptions: MilestoneOption[];
   onChangeFields: (changes: CardFieldChanges) => void;
-  onToggleTask: (index: number) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, epicId: string | null) => void;
   onReportIssue: () => void;
@@ -156,10 +154,6 @@ export function CardDetail({
       void save(false);
     }
   };
-
-  // assigns document-order indices to task checkboxes during the single
-  // synchronous markdown render pass
-  const taskCounter = { current: -1 };
 
   const commitTags = () => {
     const tags = tagsDraft
@@ -404,18 +398,6 @@ export function CardDetail({
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              input: (props) => {
-                if (props.type !== "checkbox") return <input {...props} />;
-                taskCounter.current += 1;
-                const index = taskCounter.current;
-                return (
-                  <input
-                    type="checkbox"
-                    checked={props.checked === true}
-                    onChange={() => onToggleTask(index)}
-                  />
-                );
-              },
               // c011: local asset links can't load from the webview origin —
               // resolve them to a data URL via loadImage
               img: ({ src, alt }) => (

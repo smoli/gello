@@ -39,7 +39,6 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     milestoneLabel: "Card detail & capture",
     columns: ["backlog", "ready", "in-progress", "review", "done"],
     onChangeFields: vi.fn(),
-    onToggleTask: vi.fn(),
     onSaveEdit: vi.fn().mockResolvedValue("saved" as const),
     onTriage: vi.fn(),
     onReportIssue: vi.fn(),
@@ -78,22 +77,18 @@ describe("CardDetail", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders enabled checkboxes reflecting the task states", () => {
+  // i0107: checkboxes in the rendered display are read-only — a task's state
+  // is changed by editing the body, not by clicking the disabled box.
+  it("renders read-only checkboxes reflecting the task states", () => {
     renderDetail();
 
     const boxes = screen.getAllByRole("checkbox");
     expect(boxes).toHaveLength(3);
     expect(boxes[0]).not.toBeChecked();
     expect(boxes[1]).toBeChecked();
-    expect(boxes[0]).toBeEnabled();
-  });
-
-  it("reports checkbox toggles with the document-order index", () => {
-    const props = renderDetail();
-
-    fireEvent.click(screen.getAllByRole("checkbox")[2]);
-
-    expect(props.onToggleTask).toHaveBeenCalledExactlyOnceWith(2);
+    expect(boxes[0]).toBeDisabled();
+    expect(boxes[1]).toBeDisabled();
+    expect(boxes[2]).toBeDisabled();
   });
 
   it("edits status via the select", () => {

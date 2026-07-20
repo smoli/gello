@@ -514,23 +514,17 @@ describe("App", () => {
     );
   });
 
-  it("persists a checkbox toggle from the detail view", async () => {
+  it("renders display-view checkboxes read-only — clicking writes nothing (i0107)", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
-    writeMock.mockResolvedValueOnce(undefined);
 
     render(<App />);
     fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
-    fireEvent.click(screen.getByRole("checkbox"));
 
-    // c015: rebase-on-disk makes the write async
-    await waitFor(() =>
-      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
-        "/repo/.gello/cards/c001-hello.md",
-        expect.stringContaining("- [x] a first task"),
-      ),
-    );
-    // and the dialog reflects the optimistic update
-    expect(screen.getByRole("checkbox")).toBeChecked();
+    const box = screen.getByRole("checkbox");
+    expect(box).toBeDisabled();
+    fireEvent.click(box);
+
+    expect(writeMock).not.toHaveBeenCalled();
   });
 
   it("saves an edited body when the disk is unchanged", async () => {

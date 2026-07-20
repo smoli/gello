@@ -27,7 +27,6 @@ import {
   renameTag,
   renumberCards,
   reorderCard,
-  saveCardBody,
   saveCardEdit,
   saveCardFields,
   todayIsoDate,
@@ -113,7 +112,6 @@ import { writeFileAtomic } from "./lib/fs";
 import type { InvalidFile } from "./lib/cards";
 import { rebaseCard } from "./lib/conflict";
 import { buildCommitMessage, type BoardChange } from "./lib/commit-message";
-import { toggleTaskItem } from "./lib/markdown";
 import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
 
@@ -814,22 +812,7 @@ function App() {
     );
   };
 
-  const handleToggleTask = async (card: Card, index: number) => {
-    if (!board) return;
-    // c015: toggle the checkbox on the current disk body, not a stale copy
-    const fresh = await rebaseOnDisk(card);
-    applyAction(() =>
-      saveCardBody(
-        board.root,
-        fresh,
-        toggleTaskItem(fresh.body, index),
-        board.model.config,
-        todayIsoDate(),
-      ),
-    );
-  };
-
-  const handleCreate = (title: string, body: string, type: "task" | "issue") => {
+  const handleCreate =(title: string, body: string, type: "task" | "issue") => {
     if (!board) return;
     // i0013: if an image was pasted into this draft, an id was already reserved
     // for it — create the card under that same id so the asset link resolves.
@@ -1312,7 +1295,6 @@ function App() {
             columns={board.model.config.columns}
             milestoneOptions={milestoneOptions}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}
-            onToggleTask={(index) => handleToggleTask(selected.card, index)}
             onSaveEdit={(edit, force) => handleSaveEdit(selected.card, edit, force)}
             onTriage={(folder, milestoneId) =>
               handleTriage(selected.card, folder, milestoneId)
