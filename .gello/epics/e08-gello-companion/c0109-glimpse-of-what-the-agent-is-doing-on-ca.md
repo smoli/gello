@@ -54,6 +54,28 @@ it, and render it.
       line is marked stale rather than presented as current
 - [ ] The activity never appears in the card's markdown
 
+## Notes
+
+- 2026-07-20 (agent) Plan: three layers.
+  - **Transport** (companion): `stream.ts` gains an `Activity` type and the
+    `StreamSink` tracks the latest tool event (callback + getter); `core.ts`
+    `RunState` gains `activity?`; a new `throttle.ts` (leading+trailing, ~1s)
+    coalesces publishes; the `Runner` records each tool event onto its active
+    run and publishes through the throttle. Activity is emitted into
+    `state.json` only while a run is `running` (parked/done runs drop it).
+  - **Parse** (app): `companion.ts` parses `activity` defensively — a `name`
+    string is required, `arg` copied only when a string; garbage drops the
+    field, keeps the run (same contract as `usage`).
+  - **Phrasing + render** (app): new `activity.ts` maps tool→verb, prefers a
+    path basename, truncates; `cardActivity()` returns the line + a stale flag
+    (`updated` older than ~30s). The card front renders it; a `running` run
+    with no tool yet shows "Thinking…"; a parked run shows nothing.
+- **Open questions resolved from the card body, not asked**: phrasing stays
+  app-side presentation (the "What" says so — not shared with the CLI's
+  `renderEvent`). Scope is the board **card front** (the "glance at the board"
+  use); the epic/detail views are left for a follow-up — the acceptance
+  criteria are all about the card.
+
 ## Discussion
 
 - **Depends on c0104** (human's call): c0104 delivers the pipe, the
