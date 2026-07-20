@@ -245,7 +245,8 @@ of the file tree:
 - Kanban view: columns from `board.yaml`, cards grouped by status,
   swimlanes or filter by epic.
 - Drag & drop → atomic frontmatter write.
-- Card detail: rendered Markdown, inline editing, checkbox toggling.
+- Card detail: rendered Markdown, inline editing. Task-list checkboxes render
+  read-only (i0107); a task's state is changed by editing the body.
 - **Screenshots from day one**: paste an image from the clipboard (or drag a
   file) into a card → app saves it to `.gello/assets/<card-id>/` and inserts
   the Markdown link; images render inline in the card detail, and cards with
@@ -281,7 +282,7 @@ of the file tree:
   same file). Policy (c015): app state is always derived from disk; the only
   transient state is the active field edit. No edit silently overwrites newer
   disk content, in either direction:
-  - **Surgical edits** (drag/status/field/checkbox — one field or one task line)
+  - **Surgical edits** (drag/status/field — one field)
     are *rebased on the current disk bytes before writing*, so an unrelated
     external change survives: the status comes from the app, the body from disk
     (field-level last-write-wins). No path lets a stale in-memory card clobber
