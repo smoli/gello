@@ -1,10 +1,10 @@
 ---
 id: c0104
 title: companion being more verbose
-status: ready
+status: in-progress
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T17:58:29
+status-changed: 2026-07-20T18:12:16
 epic: e08
 ---
 
@@ -98,3 +98,4 @@ scrollback.
   adapter; three surfaces (terminal, state.json usage, runs.log). Verified the
   claude event shape and that `--print` + `stream-json` requires `--verbose`.
 - 2026-07-20 status → ready (app)
+- 2026-07-20 status → in-progress (agent)
