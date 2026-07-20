@@ -1,12 +1,12 @@
 ---
 id: i0110
 title: Tags in the toolbar can be hard to read
-status: review
+status: done
 type: issue
 ref: c0058
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:41:26
+status-changed: 2026-07-20T18:44:42
 ---
 
 ![image](../assets/i0110/image.png)
@@ -50,3 +50,4 @@ Bright tags (green, sky, amber) had poor contrast and were hard to read.
 - 2026-07-20 fixed unselected toolbar chip contrast (opaque tinted fill +
   readable text); added `tintColor` helper with tests (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)

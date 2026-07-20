@@ -1,12 +1,12 @@
 ---
 id: i0112
 title: Rename button in tag management dos not follow UI styling
-status: review
+status: done
 type: issue
 ref: c0058
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:44:27
+status-changed: 2026-07-20T18:44:33
 ---
 
 ![image](../assets/i0112/image.png)
@@ -38,3 +38,4 @@ bug as i0111 for the Manage tags button.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
