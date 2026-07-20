@@ -65,15 +65,12 @@ ignore that signal.
 
 ## Log
 
-- 2026-07-21 fixed (agent): extracted readRawOrNull, wired reconcile through
-  it, added safe-read.test.ts. Full suite exits 0 (808 passed). Also aligned a
-  stale i0114 tags-shade assertion (separate commit) that independently redded
-  the suite.
-
-## Log
-
 - 2026-07-20 created (agent): found while finishing c0102; confirmed
   pre-existing by stashing and re-running `src/App.test.tsx`.
 - 2026-07-20 status → backlog (app)
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 fixed (agent): extracted readRawOrNull, wired reconcile through
+  it, added safe-read.test.ts. Full suite exits 0 (808 passed). Also aligned a
+  stale i0114 tags-shade assertion (separate commit) that independently redded
+  the suite.
