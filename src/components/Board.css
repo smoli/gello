@@ -207,10 +207,10 @@
   white-space: nowrap;
 }
 
-/* the filter renders chips as toggle buttons */
+/* the filter renders chips as toggle buttons; the fill is set inline per tag
+   (i0110) — an opaque backing keeps the label legible over any board photo */
 button.tag-chip {
   cursor: pointer;
-  background: transparent;
 }
 
 /* c0100: a card parked on a companion Q&A — an open question awaits an answer */
@@ -251,9 +251,22 @@ button.tag-chip {
   align-items: center;
 }
 
+/* i0111: the manage-tags button shares the toolbar pill language (c051)
+   instead of rendering as a native OS button */
 .tag-manage-button {
-  font-size: 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
   cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
+}
+
+.board-with-bg .tag-manage-button {
+  background: color-mix(in srgb, Canvas 85%, transparent);
 }
 
 .needs-attention {
