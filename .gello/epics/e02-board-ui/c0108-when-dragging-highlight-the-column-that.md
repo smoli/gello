@@ -1,10 +1,10 @@
 ---
 id: c0108
 title: When dragging highlight the column that the mouse is over
-status: review
+status: done
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:06:33
+status-changed: 2026-07-20T18:32:57
 epic: e02
 ---
 
@@ -47,3 +47,4 @@ top on their own, leaving the c0058 follow-up (tag rename / manager) untouched.
 - 2026-07-20 c0108 implemented + tests green; commit blocked by concurrent c0058 work in shared board files — asked human (agent)
 - 2026-07-20 c0058 landed first (25be69e); committed c0108 on the clean base as 950cb6a; → review (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
