@@ -1,10 +1,10 @@
 ---
 id: c0105
 title: MCP for status update and earlier in process
-status: ready
+status: in-progress
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T08:55:35
+status-changed: 2026-07-20T08:58:04
 epic: e08
 ---
 
