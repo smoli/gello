@@ -8,18 +8,6 @@ status-changed: 2026-07-20T17:49:15
 epic: e02
 ---
 
-**c0108 is implemented and its tests pass, but I can't commit cleanly.**
-
-The working tree also holds live, unfinished **c0058** (tag chips + tag filter) work, interleaved with my c0108 changes across the same shared files — `Board.tsx`, `Board.css`, `Board.test.tsx` (plus its own `lib/tags.ts`). The c0058 tests are red and its unused import fails `pnpm typecheck`, so the full suite isn't green. Looks like another agent/session is mid-c0058 in this same tree.
-
-How should I commit c0108?
-
-- [x] Wait — let c0058 land first (or you'll commit it), then I commit c0108 on top with a green suite. I'll exit now and you resume me.
-- [ ] Commit only my c0108 hunks now via a non-destructive staged patch (`git apply --cached`), leaving all c0058 edits untouched on disk. My commit would be scoped and green; c0058 stays uncommitted for the other agent.
-- [ ] Something else (tell me on the card).
-
-For context, my c0108 changes are self-contained: `overColumn`/`setDragState` state in `Board`, `isOver`/`onOver` on `Column`, the `column-track-over` class, its CSS rule, and two Board tests. They don't depend on c0058.
-
 ## What
 
 During a card drag, highlight the column the pointer is currently over so the
