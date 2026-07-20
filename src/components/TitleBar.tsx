@@ -65,6 +65,7 @@ export function TitleBar({
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const runnerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const [runsOpen, setRunsOpen] = useState(false);
   // i0037: fixed-position anchor for the portaled popover (below the glyph).
   const [runsPos, setRunsPos] = useState({ top: 0, left: 0 });
@@ -80,6 +81,21 @@ export function TitleBar({
       return !open;
     });
   };
+
+  // i0108: dismiss the runs popover on a click anywhere outside it or its
+  // toggle button. The popover is portaled to <body>, so a plain onBlur or an
+  // ancestor click won't catch it — listen on the document while it's open.
+  useEffect(() => {
+    if (!runsOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (runnerRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      setRunsOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [runsOpen]);
 
   // c022: Cmd/Ctrl+F focuses search, suppressing the webview's native find
   useEffect(() => {
@@ -146,6 +162,7 @@ export function TitleBar({
             {runsOpen &&
               createPortal(
                 <div
+                  ref={popoverRef}
                   className="titlebar-runner-popover"
                   role="dialog"
                   aria-label="Companion runs"

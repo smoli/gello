@@ -100,6 +100,36 @@ describe("TitleBar", () => {
     expect(within(popover).getByText("waiting-for-input")).toBeInTheDocument();
   });
 
+  it("i0108: closes the runs popover when clicking outside it", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    expect(screen.getByRole("dialog", { name: "Companion runs" })).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("dialog", { name: "Companion runs" })).not.toBeInTheDocument();
+  });
+
+  it("i0108: keeps the runs popover open when clicking inside it", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    const popover = screen.getByRole("dialog", { name: "Companion runs" });
+
+    fireEvent.mouseDown(popover);
+    expect(screen.getByRole("dialog", { name: "Companion runs" })).toBeInTheDocument();
+  });
+
   it("i0037: renders the runs popover outside the clipping title area", () => {
     const { container } = render(
       <TitleBar
