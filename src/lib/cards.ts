@@ -15,6 +15,9 @@ export interface BoardConfig {
   types: string[];
   /** Board background image (c047), path relative to the .gello root. */
   background: string | null;
+  /** c0058: user colour overrides per tag; a tag not listed uses its auto
+   *  colour. Chips and the tag filter reflect this. */
+  tagColors: Record<string, string>;
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
@@ -25,6 +28,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   wipLimits: {},
   types: ["task", "issue"],
   background: null,
+  tagColors: {},
 };
 
 export interface Card {
@@ -280,6 +284,7 @@ export function parseBoardConfig(raw: string): {
     wipLimits: {},
     types: [...DEFAULT_BOARD_CONFIG.types],
     background: null,
+    tagColors: {},
   });
 
   let data: unknown;
@@ -318,6 +323,14 @@ export function parseBoardConfig(raw: string): {
   if (wipLimits !== null && typeof wipLimits === "object" && !Array.isArray(wipLimits)) {
     for (const [column, limit] of Object.entries(wipLimits)) {
       if (typeof limit === "number") config.wipLimits[column] = limit;
+    }
+  }
+
+  // c0058: per-tag colour overrides — a { tag: "#hex" } mapping.
+  const tagColors = record["tag_colors"];
+  if (tagColors !== null && typeof tagColors === "object" && !Array.isArray(tagColors)) {
+    for (const [tag, colour] of Object.entries(tagColors)) {
+      if (typeof colour === "string") config.tagColors[tag] = colour;
     }
   }
 

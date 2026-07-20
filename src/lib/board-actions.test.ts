@@ -287,6 +287,7 @@ describe("custom-column statuses (c033)", () => {
     wipLimits: {},
     types: ["task", "issue"],
     background: null,
+    tagColors: {},
   };
 
   function discussCard() {

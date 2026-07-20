@@ -116,7 +116,13 @@ describe("parseCard", () => {
 
   it("accepts a custom status when the board config allows it", () => {
     const raw = MINIMAL_CARD.replace("status: backlog", "status: doing");
-    const config = { columns: ["todo", "doing"], wipLimits: {}, types: ["task"], background: null };
+    const config = {
+      columns: ["todo", "doing"],
+      wipLimits: {},
+      types: ["task"],
+      background: null,
+      tagColors: {},
+    };
     const result = parseCard("x.md", raw, config);
 
     expect(result.ok).toBe(true);
@@ -355,6 +361,7 @@ describe("card types and refs (c024)", () => {
       wipLimits: {},
       types: ["task", "issue", "chore"],
       background: null,
+      tagColors: {},
     };
     const result = parseCard("x.md", raw, config);
 
@@ -678,6 +685,14 @@ describe("parseBoardConfig", () => {
       parseBoardConfig("background: assets/board/bg.jpg\n").config.background,
     ).toBe("assets/board/bg.jpg");
     expect(parseBoardConfig("columns: [a]\n").config.background).toBeNull();
+  });
+
+  it("c0058: parses per-tag colour overrides, defaulting to {}", () => {
+    const { config } = parseBoardConfig(
+      `columns: [a]\ntag_colors:\n  ui: "#123456"\n  agent-dx: "#abcdef"\n`,
+    );
+    expect(config.tagColors).toEqual({ ui: "#123456", "agent-dx": "#abcdef" });
+    expect(parseBoardConfig("columns: [a]\n").config.tagColors).toEqual({});
   });
 });
 
