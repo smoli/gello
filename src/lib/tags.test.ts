@@ -153,7 +153,7 @@ describe("tagChipStyle", () => {
 
   it("shades the fill dark and text light in dark mode, keeping the tag-colour border (i0114)", () => {
     const style = tagChipStyle("#65a30d", true);
-    expect(style.backgroundColor).toBe(shadeColor("#65a30d", 0.72));
+    expect(style.backgroundColor).toBe(shadeColor("#65a30d", 0.55));
     expect(style.borderColor).toBe("#65a30d");
     expect(style.color).toBe(readableTextColor(style.backgroundColor));
   });
