@@ -54,6 +54,66 @@ describe("Board", () => {
     expect(within(plain).queryByRole("status", { name: "Needs input" })).not.toBeInTheDocument();
   });
 
+  it("c0109: shows a running card's live activity line, phrased from the tool", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [in-progress, done]\n"),
+      file("cards/c001-run.md", card("c001", "Running card", "in-progress")),
+      file("cards/c002-idle.md", card("c002", "Idle card", "in-progress")),
+    ]);
+    const runner = {
+      status: "running" as const,
+      ready: [],
+      waiting: [],
+      runs: [{ cardId: "c001", phase: "running" as const, activity: { name: "Edit", arg: "src/runner.ts" } }],
+      updated: new Date().toISOString().slice(0, 19),
+    };
+    render(<Board model={model} runner={runner} />);
+
+    const running = screen.getByText("Running card").closest("article")!;
+    expect(within(running).getByText("Editing runner.ts")).toBeInTheDocument();
+
+    // a card with no run shows no activity line
+    const idle = screen.getByText("Idle card").closest("article")!;
+    expect(within(idle).queryByText(/Editing|Thinking/)).not.toBeInTheDocument();
+  });
+
+  it("c0109: shows Thinking… for a running run with no tool call yet", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [in-progress]\n"),
+      file("cards/c001-run.md", card("c001", "Thinking card", "in-progress")),
+    ]);
+    const runner = {
+      status: "running" as const,
+      ready: [],
+      waiting: [],
+      runs: [{ cardId: "c001", phase: "running" as const }],
+      updated: new Date().toISOString().slice(0, 19),
+    };
+    render(<Board model={model} runner={runner} />);
+    const card1 = screen.getByText("Thinking card").closest("article")!;
+    expect(within(card1).getByText("Thinking…")).toBeInTheDocument();
+  });
+
+  it("c0109: a parked run shows no activity line (the needs-input badge covers it)", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [in-progress]\n"),
+      file(
+        "cards/c001-parked.md",
+        "---\nid: c001\ntitle: Parked card\nstatus: in-progress\nawaiting: input\n---\nbody\n",
+      ),
+    ]);
+    const runner = {
+      status: "waiting" as const,
+      ready: [],
+      waiting: ["c001"],
+      runs: [{ cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Bash", arg: "x" } }],
+      updated: new Date().toISOString().slice(0, 19),
+    };
+    render(<Board model={model} runner={runner} />);
+    const parked = screen.getByText("Parked card").closest("article")!;
+    expect(within(parked).queryByText(/Running|Thinking/)).not.toBeInTheDocument();
+  });
+
   it("renders the configured columns in order", () => {
     const custom = loadBoard([file("board.yaml", "columns: [todo, doing, shipped]\n")]);
     render(<Board model={custom} />);

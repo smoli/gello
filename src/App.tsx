@@ -1183,6 +1183,7 @@ function App() {
           }
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
+          runner={runner}
         />
         {managingTags && (
           <TagManager

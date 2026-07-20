@@ -141,6 +141,26 @@
   line-height: 1.3;
 }
 
+/* c0109: the running agent's live activity — one truncated line under the
+   title. The monospace hints "machine is working"; the ellipsis keeps it to
+   the card width whatever the tool argument. */
+.card-activity {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* a stale state file (companion crashed/wedged) — the line is suspect, so mute
+   it further and flag it rather than presenting it as current. */
+.card-activity-stale {
+  opacity: 0.45;
+  font-style: italic;
+}
+
 /* c012: first-image thumbnail on the card front */
 .card-thumb {
   display: block;

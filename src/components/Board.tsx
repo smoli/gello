@@ -8,6 +8,8 @@ import {
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
+import { cardActivity } from "../lib/activity";
+import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
 import { AssetImage } from "./AssetImage";
@@ -82,8 +84,12 @@ export function Board({
   onBackgroundContextMenu,
   loadImage,
   query = "",
+  runner,
 }: {
   model: BoardModel;
+  /** c0109: companion state, for a running card's live activity line. Null when
+   *  the companion isn't running → no line. */
+  runner?: CompanionState | null;
   onMoveCard?: MoveCardHandler;
   /** i0028: create a new epic from the filter's "+ New epic" option. */
   onNewEpic?: () => void;
@@ -354,6 +360,7 @@ export function Board({
               tagColors={tagColors}
               showTags={showTags}
               darkChips={darkChips}
+              runner={runner}
             />
           );
         })}
@@ -443,9 +450,12 @@ function Column({
   tagColors,
   showTags,
   darkChips,
+  runner,
 }: {
   name: string;
   cards: BoardCard[];
+  /** c0109: companion state, forwarded to each card front for its activity line. */
+  runner?: CompanionState | null;
   /** c012: passed through to each card front for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c0058: per-tag colour overrides, forwarded to each card front's chips. */
@@ -527,6 +537,7 @@ function Column({
                 tagColors={tagColors}
                 showTags={showTags}
                 darkChips={darkChips}
+                runner={runner}
               />
             </Fragment>
           ))}
@@ -599,8 +610,11 @@ function CardFront({
   tagColors,
   showTags,
   darkChips,
+  runner,
 }: {
   entry: BoardCard;
+  /** c0109: companion state, for this card's live activity line (null → none). */
+  runner?: CompanionState | null;
   /** True while this card is the one being dragged (i0004 origin marker). */
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
@@ -618,6 +632,8 @@ function CardFront({
   const { card, epicLabel } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
+  // c0109: a live one-liner of what the agent is doing, while a run is running.
+  const activity = cardActivity(runner ?? null, card.id, Date.now());
   return (
     <article
       className={isOrigin ? "card-front card-origin" : "card-front"}
@@ -659,6 +675,22 @@ function CardFront({
         </span>
       </div>
       <p className="card-title">{card.title}</p>
+      {/* c0109: the running agent's latest action, phrased app-side. A stale
+          state file (companion crashed/wedged) marks the line rather than
+          hiding it, so it doesn't stay pinned as if current. */}
+      {activity && (
+        <p
+          className={activity.stale ? "card-activity card-activity-stale" : "card-activity"}
+          role="status"
+          title={
+            activity.stale
+              ? "Companion may be stalled — its state file is over 30s old"
+              : undefined
+          }
+        >
+          {activity.label}
+        </p>
+      )}
       {thumbSrc && loadImage && (
         <AssetImage
           src={thumbSrc}
