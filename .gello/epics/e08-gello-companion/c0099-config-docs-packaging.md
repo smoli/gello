@@ -1,12 +1,12 @@
 ---
 id: c0099
 title: Config & docs / packaging
-status: ready
+status: in-progress
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-20
-status-changed: 2026-07-20T08:19:09
+status-changed: 2026-07-20T09:30:00
 ---
 
 ## What
