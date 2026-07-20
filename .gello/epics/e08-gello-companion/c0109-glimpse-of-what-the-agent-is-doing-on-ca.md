@@ -114,4 +114,3 @@ it, and render it.
   criteria have tests; scoped to the board card front (epic/detail views left
   for a follow-up). Note: `src/lib/tags.test.ts` (i0114 dark shade) fails on
   `main` independently of this card — pre-existing, not touched here.
-- 2026-07-20 status → review (agent)

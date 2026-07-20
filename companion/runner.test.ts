@@ -711,6 +711,17 @@ describe("Runner — live activity (c0109)", () => {
     expect(run?.activity).toBeUndefined(); // the needs-input badge covers a parked run
   });
 
+  it("never writes the activity to the card file (runtime state only)", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Edit", { file_path: "src/x.ts" }));
+    h.advance(1000);
+
+    expect(h.writes).toEqual([]); // published only in state.json, never the card
+  });
+
   it("keeps each concurrent run's activity attributed to its own card", () => {
     const start = board({
       c001: { status: "ready", order: 1 },
