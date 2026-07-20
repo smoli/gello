@@ -51,6 +51,34 @@ companion source — needs a bundled companion binary and is its own card.
 - [x] The app does not track or terminate the companion process (the terminal
       owns its lifetime)
 
+## Notes
+
+- 2026-07-20 (agent) Implemented in three commits.
+  - **Rust seam** (`src-tauri/src/companion.rs`): pure `terminal_command(dir)`
+    builds the macOS `osascript` "do script" that runs `gello-companion <dir>`
+    in Terminal.app (POSIX single-quoting the dir, escaping for the AppleScript
+    literal); `start()` spawns it and returns an error string on failure. A
+    thin `start_companion` Tauri command wires it. Opening a **login-shell
+    terminal** (not spawning the process directly) is also what gives
+    `gello-companion` the user's `PATH`. Non-macOS returns an error (dev-checkout
+    scope). Unit-tested via `cargo test` (quoting/escaping edge cases).
+  - **Liveness** (`companion.ts`): `isCompanionLive(state, now)` = state file
+    present and not stale (shared ~30s threshold, now the single `STALE_MS` that
+    `activity.ts` also imports). Unparseable `updated` counts as live — only a
+    corrupt file hits that, and hiding a running companion behind Start is worse.
+  - **UI** (`TitleBar`): the runner corner is Start when not live, the c0100
+    indicator when live — never both. App's `handleStartCompanion` invokes the
+    command and surfaces a failure via the error banner; it keeps no handle.
+- **Criterion 5 left for the human**: the live end-to-end click isn't
+  auto-triggered — a started companion begins **dispatching agent runs** on any
+  `ready` cards, so firing it unattended from here would kick off real work. All
+  its pieces are tested (command construction, spawn wiring, poll→indicator);
+  clicking Start in the running app is the last manual confirmation.
+- **Open questions**: only macOS is wired (the card's "macOS first"); the
+  command is hard-coded to `gello-companion` (companion.yaml override not done);
+  Start is only on the title-bar corner (not the ProjectMenu). All three are
+  the deferred paths the card names, not gaps.
+
 ## Discussion
 
 - **Open a terminal, not a managed process** (human's call): the terminal is a
@@ -84,3 +112,9 @@ companion source — needs a bundled companion binary and is its own card.
 - 2026-07-20 status → backlog (app)
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
+- 2026-07-20 (agent) Implemented: Rust `companion.rs` (osascript terminal
+  launch, unit-tested) + `start_companion` command; `isCompanionLive`;
+  title-bar Start action replacing/replaced-by the c0100 indicator; error
+  surfaced via the banner. 8 of 9 criteria pass with tests; criterion 5 (live
+  macOS click) left for the human — a started companion dispatches agent runs,
+  so it isn't auto-fired.
