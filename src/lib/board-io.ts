@@ -36,6 +36,13 @@ export async function removeDir(path: string): Promise<void> {
   await invoke("remove_dir", { path });
 }
 
+/** c0110: open the OS terminal running `gello-companion <projectDir>`. The app
+ *  does not manage the process — the terminal owns it (Ctrl-C stops it). Rejects
+ *  when the terminal/command cannot be launched, so the caller can surface it. */
+export async function startCompanion(projectDir: string): Promise<void> {
+  await invoke("start_companion", { projectDir });
+}
+
 /** c032: existing agent-skill directories under the project root. */
 export async function detectSkillDirs(projectRoot: string): Promise<string[]> {
   try {

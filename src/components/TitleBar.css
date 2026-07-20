@@ -140,6 +140,16 @@
   vertical-align: middle;
   color: color-mix(in srgb, CanvasText 55%, transparent);
 }
+/* c0110: the Start-companion action sits in the same corner as the indicator
+   (never both). It's not inside .titlebar-runner-wrap, so it carries its own
+   left margin; muted until hovered, since it's an offer, not a live signal. */
+.titlebar-runner-start {
+  margin-left: 0.4em;
+  color: color-mix(in srgb, CanvasText 45%, transparent);
+}
+.titlebar-runner-start:hover {
+  color: color-mix(in srgb, #2e9e44 85%, CanvasText);
+}
 .titlebar-runner-running {
   color: color-mix(in srgb, #2e9e44 85%, CanvasText);
 }

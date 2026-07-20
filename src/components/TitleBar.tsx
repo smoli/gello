@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { windowTitle } from "../lib/status";
 import { isMacOS } from "../lib/platform";
 import type { WorktreeStatus } from "../lib/board-io";
-import type { CompanionState } from "../lib/companion";
+import { isCompanionLive, type CompanionState } from "../lib/companion";
 import { WindowControls } from "./WindowControls";
 import "./TitleBar.css";
 
@@ -50,6 +50,7 @@ export function TitleBar({
   branch,
   dirty,
   runner,
+  onStartCompanion,
   search,
   onSearch,
 }: {
@@ -59,6 +60,8 @@ export function TitleBar({
   dirty?: WorktreeStatus | null;
   /** c0100: companion runner state (null = companion not running → no icon). */
   runner?: CompanionState | null;
+  /** c0110: launch the companion for the open board. Omitted → no Start action. */
+  onStartCompanion?: () => void;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
@@ -114,6 +117,10 @@ export function TitleBar({
   // Windows/Linux run frameless with our own controls on the right.
   const mac = isMacOS();
 
+  // c0110: the runner corner is "status" when a companion is live, "start"
+  // otherwise (no state file, or a stale one) — one place, never both.
+  const live = isCompanionLive(runner ?? null, Date.now());
+
   return (
     // grid: [title | search | filler] — search sits in the bar's true centre;
     // the title keeps its own column and truncates rather than crowding it
@@ -144,9 +151,22 @@ export function TitleBar({
             {dirty.code_dirty ? "●" : "○"}
           </span>
         )}
+        {/* c0110: no live companion → offer Start (the same corner as the
+            c0100 indicator, so it is start or status, never both). */}
+        {!live && onStartCompanion && (
+          <button
+            type="button"
+            className="titlebar-runner titlebar-runner-start"
+            aria-label="Start companion"
+            title="Start companion — opens a terminal running gello-companion"
+            onClick={onStartCompanion}
+          >
+            ▷
+          </button>
+        )}
         {/* c0100: companion runner indicator — present only while the companion
-            is running (its state file exists). Click for the active runs. */}
-        {runner && (
+            is running (its state file is fresh). Click for the active runs. */}
+        {live && runner && (
           <span className="titlebar-runner-wrap">
             <button
               ref={runnerRef}

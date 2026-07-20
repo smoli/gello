@@ -4,11 +4,7 @@
 // concern. `cardActivity` turns the companion state into the one line a card
 // shows — or null when there should be none.
 
-import type { Activity, CompanionState } from "./companion";
-
-/** A running run older than this (by the state file's `updated`) is treated as
- *  stale: a crashed or wedged companion would otherwise pin a line forever. */
-const STALE_MS = 30_000;
+import { STALE_MS, type Activity, type CompanionState } from "./companion";
 
 /** Cap the phrased line; the card also truncates visually (one line, ellipsis). */
 const MAX = 60;

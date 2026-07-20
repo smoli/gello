@@ -52,6 +52,62 @@ describe("TitleBar", () => {
     expect(screen.queryByRole("button", { name: /Companion/ })).not.toBeInTheDocument();
   });
 
+  // c0110: the runner corner offers Start when nothing is running. `updated` is
+  // local time (the companion writes local, the app parses it as local), so the
+  // fixture must be local — not the UTC of toISOString().
+  function localNow(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    );
+  }
+  const freshRunner = {
+    status: "running" as const,
+    ready: [],
+    waiting: [],
+    runs: [{ cardId: "c001", phase: "running" as const }],
+    updated: localNow(),
+  };
+
+  it("c0110: offers Start companion when no companion is running", () => {
+    const onStartCompanion = vi.fn();
+    render(
+      <TitleBar root="/x/proj/.gello" branch="main" runner={null} onStartCompanion={onStartCompanion} />,
+    );
+    const start = screen.getByRole("button", { name: "Start companion" });
+    fireEvent.click(start);
+    expect(onStartCompanion).toHaveBeenCalledOnce();
+    // and no status indicator alongside it
+    expect(screen.queryByRole("button", { name: /Companion:/ })).not.toBeInTheDocument();
+  });
+
+  it("c0110: shows the indicator (not Start) while a companion is running — never both", () => {
+    render(
+      <TitleBar root="/x/.gello" branch="main" runner={freshRunner} onStartCompanion={vi.fn()} />,
+    );
+    expect(screen.getByRole("button", { name: /Companion:/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start companion" })).not.toBeInTheDocument();
+  });
+
+  it("c0110: offers Start again when the state file has gone stale", () => {
+    const stale = {
+      ...freshRunner,
+      updated: "2000-01-01T00:00:00", // long past the stale window
+    };
+    render(
+      <TitleBar root="/x/.gello" branch="main" runner={stale} onStartCompanion={vi.fn()} />,
+    );
+    expect(screen.getByRole("button", { name: "Start companion" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Companion:/ })).not.toBeInTheDocument();
+  });
+
+  it("c0110: shows no Start action without an onStartCompanion handler", () => {
+    render(<TitleBar root="/x/.gello" branch="main" runner={null} />);
+    expect(screen.queryByRole("button", { name: "Start companion" })).not.toBeInTheDocument();
+  });
+
   it("c0100: shows a runner indicator reflecting the companion status", () => {
     const { rerender } = render(
       <TitleBar

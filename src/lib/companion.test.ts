@@ -3,6 +3,9 @@ import {
   parseCompanionState,
   companionStatePath,
   readCompanionState,
+  isCompanionLive,
+  STALE_MS,
+  type CompanionState,
 } from "./companion";
 import { readFileRaw } from "./board-io";
 
@@ -128,6 +131,32 @@ describe("parseCompanionState", () => {
       phase: "running",
       activity: { name: "Read" },
     });
+  });
+});
+
+describe("isCompanionLive", () => {
+  function state(updated: string): CompanionState {
+    return { status: "running", ready: [], waiting: [], runs: [], updated };
+  }
+  const now = Date.parse("2026-07-20T12:00:30");
+
+  it("is false when there is no state (companion not running)", () => {
+    expect(isCompanionLive(null, now)).toBe(false);
+  });
+
+  it("is true for a fresh state file", () => {
+    expect(isCompanionLive(state("2026-07-20T12:00:20"), now)).toBe(true); // 10s old
+  });
+
+  it("is false when the state file has gone stale", () => {
+    const stale = now + STALE_MS + 1_000; // well past the window
+    expect(isCompanionLive(state("2026-07-20T12:00:30"), stale)).toBe(false);
+  });
+
+  it("treats an unparseable timestamp as live (can't confirm death)", () => {
+    // real companions always write a parseable timestamp; only a corrupt file
+    // hits this — keep showing status rather than hiding it behind Start.
+    expect(isCompanionLive(state(""), now)).toBe(true);
   });
 });
 

@@ -54,6 +54,24 @@ export interface CompanionState {
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
 const PHASES: RunPhase[] = ["running", "waiting-for-input", "done", "error"];
 
+/** A companion state file older than this (by its `updated`) is treated as
+ *  stale — the process likely died without cleaning up. Shared by the
+ *  title-bar liveness check and the per-card activity line (activity.ts). */
+export const STALE_MS = 30_000;
+
+/**
+ * Whether a companion is actually running for the open board: a state file
+ * present and not stale. Null (no file) or a stale timestamp → not live (the
+ * title bar offers "Start companion" instead of the indicator). An unparseable
+ * timestamp is treated as live — only a corrupt file hits that, and hiding a
+ * possibly-running companion's status behind Start is worse than the reverse.
+ */
+export function isCompanionLive(state: CompanionState | null, now: number): boolean {
+  if (!state) return false;
+  const t = Date.parse(state.updated);
+  return Number.isNaN(t) || now - t <= STALE_MS;
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }

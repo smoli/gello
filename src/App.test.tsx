@@ -51,7 +51,11 @@ vi.mock("./lib/board-io", () => ({
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 // c0100: the title-bar companion poll reads its own state file; stub it at the
 // boundary so it doesn't add readFileRaw calls these tests don't expect.
-vi.mock("./lib/companion", () => ({ readCompanionState: vi.fn().mockResolvedValue(null) }));
+// only stub the disk read; isCompanionLive (used by TitleBar) stays real
+vi.mock("./lib/companion", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./lib/companion")>()),
+  readCompanionState: vi.fn().mockResolvedValue(null),
+}));
 const loadMock = vi.mocked(loadBoardFromDisk);
 const readMock = vi.mocked(readFileRaw);
 const writeMock = vi.mocked(writeFileAtomic);

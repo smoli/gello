@@ -53,6 +53,7 @@ import {
   readFileRaw,
   removeFile,
   setBoardImage,
+  startCompanion,
   watchBoard,
   watchGitHead,
   writeAsset,
@@ -478,6 +479,22 @@ function App() {
   };
   const refreshCompanionRef = useRef(refreshCompanion);
   refreshCompanionRef.current = refreshCompanion;
+
+  /** c0110: open a terminal running the companion for the open board. The app
+   *  does not manage the process (the terminal owns it); the 2s poll then
+   *  detects it and flips the corner to the c0100 indicator. A launch failure
+   *  is surfaced, not swallowed. */
+  const handleStartCompanion = async () => {
+    if (!board) return;
+    setError(null);
+    try {
+      await startCompanion(projectFolder(board.root).path);
+    } catch (failure) {
+      setError(
+        `could not start the companion: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+    }
+  };
 
   /** c0083: commit pending `.gello/` changes with a per-card message. The Rust
    *  side skips non-repos, mid-merge states, and a clean board; failure is
@@ -1128,6 +1145,7 @@ function App() {
           branch={branch}
           dirty={dirty}
           runner={runner}
+          onStartCompanion={() => void handleStartCompanion()}
           search={query}
           onSearch={setQuery}
         />
