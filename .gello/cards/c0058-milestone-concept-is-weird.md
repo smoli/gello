@@ -76,6 +76,37 @@ swimlanes-by-tag (spun out to [[c0075]]).
   user-picked, vs both); whether rename into an existing tag *merges*;
   tag-name validation (kebab-case vs free text — currently free strings).
 
+## Notes
+
+Decisions taken on the three open questions (AC gave enough to proceed without
+blocking):
+
+- **Colour = auto default + optional user override.** Every tag gets a stable
+  colour from a fixed palette, picked by hashing the tag name (deterministic, so
+  a tag looks the same everywhere without any config). The management surface
+  lets the user override it; overrides persist in `board.yaml` under a
+  `tag_colors:` mapping (surgical nested edit, never dumped). Chips and the
+  filter entry use the override if set, else the auto colour.
+- **Rename merges (dedups).** Renaming `a`→`b` on a card that already carries
+  `b` yields one `b`, not two. Order is preserved (first occurrence wins). The
+  colour key follows the rename; on a merge the destination keeps its own colour
+  if it has one, else inherits the source's.
+- **Tag names stay free strings.** Trimmed, empty rejected, commas disallowed
+  (they split) — same permissiveness as the existing card-detail tag input. No
+  kebab-case enforcement.
+
+Implementation plan (test-first, small green commits):
+
+1. `src/lib/tags.ts` (pure): `collectTags`, `autoTagColor`, `tagColor`,
+   `renameTagInList`, `planTagRename`.
+2. `board.yaml` `tag_colors`: parse into `BoardConfig.tagColors`; surgical
+   `setTagColor`/`removeTagColor` in `boardyaml.ts`.
+3. Tag chips on card fronts (`Board.tsx` `CardFront`).
+4. Multi-select tag filter in the toolbar (AND with epic + type + search).
+5. Tag management surface (counts, colour picker, rename-everywhere) + App
+   wiring (`renameTag` board-action: one atomic `tags:` edit per card).
+6. Docs: tags as the cross-cutting axis in concept.md + CLAUDE.md.
+
 ## Log
 
 - 2026-07-17 status → discuss (app)
