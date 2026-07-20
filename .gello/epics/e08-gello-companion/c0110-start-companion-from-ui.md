@@ -1,10 +1,10 @@
 ---
 id: c0110
 title: Start companion from UI
-status: in-progress
+status: review
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T23:16:50
+status-changed: 2026-07-20T23:31:27
 epic: e08
 ---
 
@@ -118,3 +118,4 @@ companion source — needs a bundled companion binary and is its own card.
   surfaced via the banner. 8 of 9 criteria pass with tests; criterion 5 (live
   macOS click) left for the human — a started companion dispatches agent runs,
   so it isn't auto-fired.
+- 2026-07-20 status → review (agent)
