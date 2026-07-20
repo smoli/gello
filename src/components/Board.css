@@ -71,6 +71,13 @@
   background: color-mix(in srgb, #4c8bf5 14%, transparent);
 }
 
+/* c0108: the lane the pointer is over reads as the active drop target — a
+   solid stroke and a stronger fill set it apart from the dashed idle lanes. */
+.board-dragging .column-track-over:not(.column-track-inbox) {
+  outline-style: solid;
+  background: color-mix(in srgb, #4c8bf5 26%, transparent);
+}
+
 .column {
   background: color-mix(in srgb, CanvasText 6%, transparent);
   border-radius: 10px;

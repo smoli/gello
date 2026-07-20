@@ -682,6 +682,40 @@ describe("Board card moves", () => {
     expect(container.querySelector(".board")).not.toHaveClass("board-dragging");
   });
 
+  it("c0108: highlights the column the pointer is over during a drag", () => {
+    const { container } = render(<Board model={MODEL} onMoveCard={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    const track = (name: string) => column(name).closest(".column-track")!;
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(track("done"), { dataTransfer });
+    expect(track("done")).toHaveClass("column-track-over");
+    expect(track("ready")).not.toHaveClass("column-track-over");
+
+    // moving to another column moves the highlight with the pointer
+    fireEvent.dragOver(track("in-progress"), { dataTransfer });
+    expect(track("in-progress")).toHaveClass("column-track-over");
+    expect(track("done")).not.toHaveClass("column-track-over");
+
+    // the highlight clears when the drag ends
+    fireEvent.dragEnd(card);
+    expect(container.querySelector(".column-track-over")).toBeNull();
+  });
+
+  it("c0108: clears the over-column highlight after a drop", () => {
+    const { container } = render(<Board model={MODEL} onMoveCard={vi.fn()} />);
+    const card = screen.getByText("First card").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    const track = column("done").closest(".column-track")!;
+
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.dragOver(track, { dataTransfer });
+    expect(track).toHaveClass("column-track-over");
+    fireEvent.drop(track, { dataTransfer });
+    expect(container.querySelector(".column-track-over")).toBeNull();
+  });
+
   it("accepts drops on the full-height track below a short column (c052)", () => {
     const onMove = vi.fn();
     const { container } = render(<Board model={MODEL} onMoveCard={onMove} />);

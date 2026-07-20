@@ -120,6 +120,14 @@ export function Board({
     () => new Set(),
   );
   const [dragging, setDragging] = useState<Card | null>(null);
+  // c0108: name of the column the pointer is over during a drag, for its
+  // stronger highlight. Cleared when the drag ends (setDragState(null)).
+  const [overColumn, setOverColumn] = useState<string | null>(null);
+
+  const setDragState = (card: Card | null) => {
+    setDragging(card);
+    if (!card) setOverColumn(null);
+  };
 
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const tagsInUse = useMemo(() => collectTags(model), [model]);
@@ -324,6 +332,8 @@ export function Board({
               name={column}
               cards={entries}
               draggingPath={dragging?.path ?? null}
+              isOver={dragging != null && overColumn === column}
+              onOver={() => setOverColumn(column)}
               showInsertZones={MANUAL_COLUMNS.has(column)}
               onDropCard={(path) => dropOnColumn(column, path)}
               onDropAt={(path, zoneIndex) =>
@@ -331,7 +341,7 @@ export function Board({
               }
               onMoveByKey={moveByKey}
               onSelect={onSelectCard}
-              onDragState={setDragging}
+              onDragState={setDragState}
               onBgContextMenu={bgContext}
               loadImage={loadImage}
               tagColors={tagColors}
@@ -411,6 +421,8 @@ function Column({
   name,
   cards,
   draggingPath,
+  isOver,
+  onOver,
   showInsertZones,
   onDropCard,
   onDropAt,
@@ -429,6 +441,10 @@ function Column({
   tagColors: Record<string, string>;
   /** Path of the card currently being dragged, for origin marking (i0004). */
   draggingPath: string | null;
+  /** c0108: the pointer is over this column during a drag — stronger highlight. */
+  isOver: boolean;
+  /** c0108: the pointer entered this column's track during a drag. */
+  onOver: () => void;
   /** c056: render positioned drop targets (manual columns during a drag). */
   /** c056: render positioned drop targets for manual columns. Always mounted
    *  (i0003) — inert until a drag; appearance driven by the board-dragging
@@ -455,10 +471,16 @@ function Column({
     // c052: the invisible full-height track is the drop target, so short
     // content-height columns (c049) still catch drops anywhere in the lane
     <div
-      className="column-track"
+      className={isOver ? "column-track column-track-over" : "column-track"}
       onMouseDown={backgroundDrag}
       onContextMenu={onBgContextMenu}
-      onDragOver={(event) => event.preventDefault()}
+      onDragOver={(event) => {
+        event.preventDefault();
+        // c0108: dragover fires on whichever track is under the pointer, so
+        // setting the over-column here keeps a single column highlighted and
+        // moves it as the pointer crosses lanes.
+        onOver();
+      }}
       onDrop={(event) => {
         event.preventDefault();
         const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
