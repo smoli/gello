@@ -1,11 +1,12 @@
 ---
 id: c0110
 title: Start companion from UI
-status: discuss
+status: backlog
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T20:23:25
+status-changed: 2026-07-20T22:54:26
 epic: e08
+order: 0
 ---
 
 ## What
@@ -80,3 +81,4 @@ companion source — needs a bundled companion binary and is its own card.
   c0100 runner-indicator corner when nothing is running; the terminal owns the
   process lifetime; scope is the dev checkout (`gello-companion` on PATH),
   distributed launching deferred.
+- 2026-07-20 status → backlog (app)
