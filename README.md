@@ -182,6 +182,18 @@ or out-of-date:
   human, draft a stepwise plan + dependency graph into `epic.md`, then create
   the wired child cards only after you approve (plan → approve → create).
 
+## Companion (agent runner)
+
+The **gello-companion** is a Node CLI that watches the board and runs an agent on
+each card entering `ready`. It runs headless, so agents work with the app closed,
+on a server or over SSH. When an agent needs a decision it parks a question on
+the card and exits; the human answers in the app and the companion resumes the
+same session. It publishes a state file the desktop app reads to show a runner
+indicator.
+
+See [companion/README.md](companion/README.md) for install, configuration, and
+the question/resume protocol.
+
 ## Development
 
 ```bash
