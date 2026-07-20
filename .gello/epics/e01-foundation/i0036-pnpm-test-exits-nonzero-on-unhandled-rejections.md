@@ -1,11 +1,13 @@
 ---
 id: i0036
 title: pnpm test exits non-zero on unhandled rejections in App.test.tsx
-status: inbox
+status: backlog
 type: issue
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T07:59:30
+status-changed: 2026-07-20T23:25:51
+epic: e01
+order: 0
 ---
 
 ## What
@@ -48,3 +50,4 @@ ignore that signal.
 
 - 2026-07-20 created (agent): found while finishing c0102; confirmed
   pre-existing by stashing and re-running `src/App.test.tsx`.
+- 2026-07-20 status → backlog (app)
