@@ -1,10 +1,10 @@
 ---
 id: c0087
 title: Inbox is a status, not a folder
-status: discuss
+status: inbox
 created: 2026-07-18
-updated: 2026-07-18
-status-changed: 2026-07-18T16:34:44
+updated: 2026-07-20
+status-changed: 2026-07-20T17:49:51
 ---
 
 Cards could be moved out of inbox by accident. Allow to move cards back to inbox from ready, backlog and discuss
@@ -93,3 +93,4 @@ model to "drop = status, with one epic prompt on inbox-exit".
 - 2026-07-18 planned into e07 (agent): this reframe is now e07's goal, broken
   into c0088–c0092 (c0088 root). This card is the design record; close when
   e07 lands.
+- 2026-07-20 status → inbox (app)

@@ -1,10 +1,10 @@
 ---
 id: c026
 title: Have the app spin up an mcp server
-status: discuss
+status: inbox
 created: 2026-07-16
-updated: 2026-07-17
-status-changed: 2026-07-17T23:44:54
+updated: 2026-07-20
+status-changed: 2026-07-20T17:49:47
 epic: e01
 ---
 
@@ -109,3 +109,4 @@ The selection reflects the live board the human sees (the app's model over
   agent; tools return raw Markdown (agent parses), server only selects using
   the app's ordered model; first tools = get_highest_priority_issue /
   get_highest_priority_card (top of ready by type)
+- 2026-07-20 status → inbox (app)
