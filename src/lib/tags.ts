@@ -57,6 +57,19 @@ export function tagColor(tag: string, overrides: Record<string, string>): string
   return overrides[tag] ?? autoTagColor(tag);
 }
 
+/** A legible text colour ("#111111" or "#ffffff") for a chip filled with the
+ *  given hex background, chosen by perceived luminance. */
+export function readableTextColor(hex: string): string {
+  let h = hex.replace(/^#/, "");
+  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  // perceived luminance (0–255); above the threshold reads as a light fill
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 140 ? "#111111" : "#ffffff";
+}
+
 /** Replace `from` with `to` in a tag list, preserving order and deduping. */
 export function renameTagInList(tags: string[], from: string, to: string): string[] {
   if (!tags.includes(from)) return tags;

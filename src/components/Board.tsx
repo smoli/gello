@@ -8,6 +8,7 @@ import {
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
+import { collectTags, readableTextColor, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
 import { AssetImage } from "./AssetImage";
 import { startWindowDrag } from "../lib/window";
@@ -74,6 +75,7 @@ export function Board({
   onRenumber,
   onNewEpic,
   onRepairDuplicates,
+  onManageTags,
   background,
   toolbarLeading,
   onBackgroundContextMenu,
@@ -86,6 +88,8 @@ export function Board({
   onNewEpic?: () => void;
   /** i0034: repair a needs-attention card with duplicate frontmatter keys. */
   onRepairDuplicates?: (entry: InvalidFile) => void;
+  /** c0058: open the tag management surface (colours + rename). */
+  onManageTags?: () => void;
   /** c0066: fulltext filter, now owned by the top bar's search box. */
   query?: string;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
@@ -110,9 +114,16 @@ export function Board({
 }) {
   const [filter, setFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  // c0058: multi-select tag filter — a card matches if it carries any selected
+  // tag (empty selection matches all), AND-composed with the other filters.
+  const [selectedTags, setSelectedTags] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const [dragging, setDragging] = useState<Card | null>(null);
 
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
+  const tagsInUse = useMemo(() => collectTags(model), [model]);
+  const tagColors = model.config.tagColors;
   // c0088: epic filter — "all", a specific epic folder, or "no-epic" (standalone)
   const byEpic =
     filter === "all"
@@ -121,8 +132,18 @@ export function Board({
   const visible = byEpic.filter(
     (c) =>
       (typeFilter === "all" || c.card.type === typeFilter) &&
+      (selectedTags.size === 0 ||
+        c.card.tags.some((tag) => selectedTags.has(tag))) &&
       cardMatchesQuery(c.card, query),
   );
+
+  const toggleTag = (tag: string) =>
+    setSelectedTags((current) => {
+      const next = new Set(current);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
 
   const columns = model.config.columns;
   const allCards = statusCards;
@@ -251,6 +272,39 @@ export function Board({
               </option>
             ))}
           </select>
+          {tagsInUse.length > 0 && (
+            <div className="tag-filter" role="group" aria-label="Tag filter">
+              {tagsInUse.map(({ tag }) => {
+                const colour = tagColor(tag, tagColors);
+                const selected = selectedTags.has(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={selected ? "tag-chip tag-chip-on" : "tag-chip"}
+                    aria-pressed={selected}
+                    style={
+                      selected
+                        ? { backgroundColor: colour, color: readableTextColor(colour) }
+                        : { borderColor: colour, color: colour }
+                    }
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {onManageTags && tagsInUse.length > 0 && (
+            <button
+              type="button"
+              className="tag-manage-button"
+              onClick={onManageTags}
+            >
+              Manage tags…
+            </button>
+          )}
         </div>
       </header>
       <div
@@ -280,6 +334,7 @@ export function Board({
               onDragState={setDragging}
               onBgContextMenu={bgContext}
               loadImage={loadImage}
+              tagColors={tagColors}
             />
           );
         })}
@@ -364,11 +419,14 @@ function Column({
   onDragState,
   onBgContextMenu,
   loadImage,
+  tagColors,
 }: {
   name: string;
   cards: BoardCard[];
   /** c012: passed through to each card front for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
+  /** c0058: per-tag colour overrides, forwarded to each card front's chips. */
+  tagColors: Record<string, string>;
   /** Path of the card currently being dragged, for origin marking (i0004). */
   draggingPath: string | null;
   /** c056: render positioned drop targets (manual columns during a drag). */
@@ -429,6 +487,7 @@ function Column({
                 onSelect={onSelect}
                 onDragState={onDragState}
                 loadImage={loadImage}
+                tagColors={tagColors}
               />
             </Fragment>
           ))}
@@ -498,6 +557,7 @@ function CardFront({
   onSelect,
   onDragState,
   loadImage,
+  tagColors,
 }: {
   entry: BoardCard;
   /** True while this card is the one being dragged (i0004 origin marker). */
@@ -507,6 +567,8 @@ function CardFront({
   onDragState: (card: Card | null) => void;
   /** c012: resolve this card's first image to a data URL for the thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
+  /** c0058: per-tag colour overrides for the chips. */
+  tagColors: Record<string, string>;
 }) {
   const { card, epicLabel } = entry;
   // c012: thumbnail from the first body image (if any)
@@ -559,6 +621,23 @@ function CardFront({
           loadImage={(src) => loadImage(card, src)}
           className="card-thumb"
         />
+      )}
+      {/* c0058: the card's tags as coloured chips, in the card's own order */}
+      {card.tags.length > 0 && (
+        <div className="card-tags">
+          {card.tags.map((tag) => {
+            const colour = tagColor(tag, tagColors);
+            return (
+              <span
+                key={tag}
+                className="tag-chip"
+                style={{ backgroundColor: colour, color: readableTextColor(colour) }}
+              >
+                {tag}
+              </span>
+            );
+          })}
+        </div>
       )}
       {/* c0086: epic → its title; standalone (incl. inbox status) → no meta row */}
       {epicLabel && (

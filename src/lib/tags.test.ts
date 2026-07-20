@@ -4,6 +4,7 @@ import {
   autoTagColor,
   collectTags,
   planTagRename,
+  readableTextColor,
   renameTagInList,
   tagColor,
   TAG_PALETTE,
@@ -67,6 +68,20 @@ describe("tagColor", () => {
   it("falls back to the auto colour when there is no override", () => {
     expect(tagColor("ui", {})).toBe(autoTagColor("ui"));
     expect(tagColor("ui", { other: "#000000" })).toBe(autoTagColor("ui"));
+  });
+});
+
+describe("readableTextColor", () => {
+  it("picks dark text on light backgrounds and light text on dark ones", () => {
+    expect(readableTextColor("#ffffff")).toBe("#111111");
+    expect(readableTextColor("#000000")).toBe("#ffffff");
+    expect(readableTextColor("#ca8a04")).toBe("#111111"); // amber → dark text
+    expect(readableTextColor("#4f46e5")).toBe("#ffffff"); // indigo → light text
+  });
+
+  it("tolerates a 3-digit hex or a missing hash", () => {
+    expect(readableTextColor("#fff")).toBe("#111111");
+    expect(readableTextColor("000")).toBe("#ffffff");
   });
 });
 

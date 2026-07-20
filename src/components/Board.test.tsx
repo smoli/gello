@@ -885,3 +885,133 @@ describe("manual column insertion (c056)", () => {
     expect(order).toBe(25); // midpoint of 20 and 30, dragged card's slot excluded
   });
 });
+
+describe("c0058: tags on the board", () => {
+  const TAG_MODEL = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\ntag_colors:\n  ui: \"#123456\"\n"),
+    file(
+      "cards/c001-a.md",
+      "---\nid: c001\ntitle: Tagged card\nstatus: backlog\ntags: [ui, agent-dx]\n---\nbody\n",
+    ),
+    file(
+      "cards/c002-b.md",
+      "---\nid: c002\ntitle: Bare card\nstatus: backlog\n---\nbody\n",
+    ),
+    file(
+      "cards/c003-c.md",
+      "---\nid: c003\ntitle: Ui only\nstatus: done\ntags: [ui]\n---\nbody\n",
+    ),
+  ]);
+
+  it("renders each of a card's tags as a chip", () => {
+    render(<Board model={TAG_MODEL} />);
+    const front = screen.getByText("Tagged card").closest("article")!;
+    const chips = within(front).getAllByText(/ui|agent-dx/);
+    expect(chips.map((c) => c.textContent)).toEqual(["ui", "agent-dx"]);
+    chips.forEach((chip) => expect(chip).toHaveClass("tag-chip"));
+  });
+
+  it("shows no chips on a card without tags", () => {
+    render(<Board model={TAG_MODEL} />);
+    const front = screen.getByText("Bare card").closest("article")!;
+    expect(front.querySelector(".tag-chip")).toBeNull();
+  });
+
+  it("colours a chip from the tag_colors override", () => {
+    render(<Board model={TAG_MODEL} />);
+    const front = screen.getByText("Ui only").closest("article")!;
+    const chip = within(front).getByText("ui") as HTMLElement;
+    expect(chip.style.backgroundColor).toBe("rgb(18, 52, 86)"); // #123456
+  });
+});
+
+describe("c0058: tag filter", () => {
+  const TAG_MODEL = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\n"),
+    file(
+      "cards/c001-a.md",
+      "---\nid: c001\ntitle: UI card\nstatus: backlog\ntags: [ui]\n---\nbody\n",
+    ),
+    file(
+      "cards/c002-b.md",
+      "---\nid: c002\ntitle: DX card\nstatus: backlog\ntags: [agent-dx]\n---\nbody\n",
+    ),
+    file(
+      "cards/c003-c.md",
+      "---\nid: c003\ntitle: Both card\nstatus: backlog\ntags: [ui, agent-dx]\n---\nbody\n",
+    ),
+    file(
+      "cards/c004-d.md",
+      "---\nid: c004\ntitle: Untagged card\nstatus: backlog\n---\nbody\n",
+    ),
+  ]);
+
+  function tagFilter() {
+    return screen.getByRole("group", { name: "Tag filter" });
+  }
+
+  it("lists every tag in use", () => {
+    render(<Board model={TAG_MODEL} />);
+    const buttons = within(tagFilter())
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(buttons).toEqual(["agent-dx", "ui"]); // collectTags sorts by name
+  });
+
+  it("shows only cards carrying any selected tag (OR within tags)", () => {
+    render(<Board model={TAG_MODEL} />);
+    fireEvent.click(within(tagFilter()).getByRole("button", { name: "ui" }));
+
+    expect(screen.getByText("UI card")).toBeInTheDocument();
+    expect(screen.getByText("Both card")).toBeInTheDocument();
+    expect(screen.queryByText("DX card")).not.toBeInTheDocument();
+    expect(screen.queryByText("Untagged card")).not.toBeInTheDocument();
+
+    // add agent-dx → union
+    fireEvent.click(within(tagFilter()).getByRole("button", { name: "agent-dx" }));
+    expect(screen.getByText("DX card")).toBeInTheDocument();
+    expect(screen.queryByText("Untagged card")).not.toBeInTheDocument();
+  });
+
+  it("clearing the selection restores all cards", () => {
+    render(<Board model={TAG_MODEL} />);
+    const ui = within(tagFilter()).getByRole("button", { name: "ui" });
+    fireEvent.click(ui);
+    expect(screen.queryByText("Untagged card")).not.toBeInTheDocument();
+    fireEvent.click(ui); // toggle off
+    expect(screen.getByText("Untagged card")).toBeInTheDocument();
+  });
+
+  it("composes with the type and search filters (all AND)", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\ntypes: [task, issue]\n"),
+      file(
+        "cards/c001-a.md",
+        "---\nid: c001\ntitle: UI task alpha\nstatus: backlog\ntags: [ui]\n---\nbody\n",
+      ),
+      file(
+        "cards/c002-b.md",
+        "---\nid: c002\ntitle: UI issue beta\nstatus: backlog\ntype: issue\ntags: [ui]\n---\nbody\n",
+      ),
+    ]);
+    render(<Board model={model} query="alpha" />);
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Tag filter" })).getByRole(
+        "button",
+        { name: "ui" },
+      ),
+    );
+    // both carry ui, but only the alpha task matches the query
+    expect(screen.getByText("UI task alpha")).toBeInTheDocument();
+    expect(screen.queryByText("UI issue beta")).not.toBeInTheDocument();
+  });
+
+  it("renders no tag filter group when the board has no tags", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/c001-a.md", "---\nid: c001\ntitle: Bare\nstatus: backlog\n---\nb\n"),
+    ]);
+    render(<Board model={model} />);
+    expect(screen.queryByRole("group", { name: "Tag filter" })).not.toBeInTheDocument();
+  });
+});

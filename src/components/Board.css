@@ -184,6 +184,28 @@
   color: #e5484d;
 }
 
+/* c0058: tag chips — on card fronts, in the filter, and in the manager */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.tag-chip {
+  font-size: 0.65rem;
+  line-height: 1.2;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* the filter renders chips as toggle buttons */
+button.tag-chip {
+  cursor: pointer;
+  background: transparent;
+}
+
 /* c0100: a card parked on a companion Q&A — an open question awaits an answer */
 .card-needs-input {
   display: inline-flex;
@@ -211,6 +233,20 @@
 .toolbar-filters {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag-filter {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tag-manage-button {
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
 .needs-attention {
