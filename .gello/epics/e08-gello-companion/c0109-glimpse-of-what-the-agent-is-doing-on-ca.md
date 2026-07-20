@@ -1,10 +1,10 @@
 ---
 id: c0109
 title: Glimpse of what the agent is doing on cards
-status: in-progress
+status: review
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T22:46:22
+status-changed: 2026-07-20T23:01:53
 epic: e08
 depends: [c0104]
 ---
@@ -114,3 +114,4 @@ it, and render it.
   criteria have tests; scoped to the board card front (epic/detail views left
   for a follow-up). Note: `src/lib/tags.test.ts` (i0114 dark shade) fails on
   `main` independently of this card — pre-existing, not touched here.
+- 2026-07-20 status → review (agent)
