@@ -1,3 +1,4 @@
+#!/usr/bin/env -S npx tsx
 // gello-companion (c0093 scaffold → c0097 dispatch) — a standalone Node CLI
 // that watches a gello board and runs an agent on each card entering `ready`,
 // managing the run through the card-based Q&A park/resume (c0096). It reuses
@@ -23,7 +24,8 @@ import {
 import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
-import { loadSessions, saveSessions, type SessionScope } from "./sessions.ts";
+import { loadSessions, saveSessions } from "./sessions.ts";
+import { loadConfig } from "./config.ts";
 import { Runner, type SpawnedRun, type Spawner } from "./runner.ts";
 import type { BoardModel } from "../src/lib/board.ts";
 
@@ -97,16 +99,15 @@ function main(): void {
     process.exit(1);
   }
   const projectDir = dirname(root);
-  const agentName = process.env.GELLO_COMPANION_AGENT ?? "claude";
-  const scope: SessionScope =
-    process.env.GELLO_COMPANION_SCOPE === "epic" ? "epic" : "card";
+  // Per-project config (`.gello/companion.yaml`) with env overrides (c0099).
   // Headless runs need a pre-approving permission mode or every write/command
-  // is denied (a `-p` agent can't answer an approval prompt). `auto` approves
-  // autonomously while still honoring deny-rules; override via env.
-  const permissionMode = process.env.GELLO_COMPANION_PERMISSION_MODE ?? "auto";
+  // is denied (a `-p` agent can't answer an approval prompt); the `auto`
+  // default approves autonomously while still honoring deny-rules.
+  const config = loadConfig(root);
+  const { agent: agentName, scope, trigger, permissionMode } = config;
   log(
     `watching board at ${root} (agent: ${agentName}, scope: ${scope}, ` +
-      `permissions: ${permissionMode})`,
+      `trigger: ${trigger}, permissions: ${permissionMode})`,
   );
 
   let model: BoardModel = loadBoardFrom(root);
@@ -116,6 +117,7 @@ function main(): void {
     root: projectDir, // the agent runs in the repo, not inside .gello
     adapter: getAdapter(agentName),
     scope,
+    trigger,
     permissionMode,
     wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
     spawn: nodeSpawner,
@@ -125,12 +127,12 @@ function main(): void {
     persistSessions: (map) => saveSessions(root, map),
     onRuns: (next) => {
       runs = next;
-      publish(root, model, runs);
+      publish(root, model, runs, trigger);
     },
     log,
   });
 
-  publish(root, model, runs);
+  publish(root, model, runs, trigger);
   runner.sync(model);
 
   // Debounce watcher bursts (an atomic write is a delete+create; a triage
@@ -150,7 +152,7 @@ function main(): void {
       }
       model = next;
       runner.sync(next);
-      publish(root, next, runs);
+      publish(root, next, runs, trigger);
     }, 150);
   });
 }
@@ -161,8 +163,13 @@ function overallStatus(runs: RunState[], waiting: string[]): CompanionState["sta
   return "idle";
 }
 
-function publish(root: string, model: BoardModel, runs: RunState[]): void {
-  const ready = cardsEnteringReady(null, model).map((c) => c.id);
+function publish(
+  root: string,
+  model: BoardModel,
+  runs: RunState[],
+  trigger: string,
+): void {
+  const ready = cardsEnteringReady(null, model, trigger).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
   const state: CompanionState = {
     ...initialState(nowIso()),

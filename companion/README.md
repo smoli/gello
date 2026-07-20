@@ -2,19 +2,108 @@
 
 A Node CLI that watches a gello board and runs an agent on each card entering
 `ready`. It reuses the board core in `src/lib` and publishes a state file the
-desktop app reads.
+desktop app reads. It runs headless — agents work with the GUI closed, on a
+server or over SSH.
+
+## Install
+
+The companion ships in the gello repo and runs on [`tsx`](https://tsx.is) (a
+dependency, no build step).
 
 ```bash
-pnpm companion [dir]     # watch the board found from dir (default: cwd)
+git clone <gello repo> && cd gello
+pnpm install
 ```
 
-Configuration is environment-only:
+Run it from the checkout, or link it as a global `gello-companion` command:
 
-| Variable | Default | Meaning |
+```bash
+pnpm link --global      # then `gello-companion` is on PATH
+```
+
+## Run
+
+```bash
+pnpm companion [dir]              # from the checkout (default dir: cwd)
+npx tsx companion/main.ts [dir]   # standalone, no global link
+gello-companion [dir]             # after `pnpm link --global`
+```
+
+`dir` is any path inside the project; the companion walks up to find `.gello/`,
+the same way the app does. With no argument it starts from the current
+directory.
+
+## Configuration
+
+Per-project settings live in `.gello/companion.yaml` — committed, so the
+board-level workflow travels with the board. All keys are optional; an absent
+file means the defaults below.
+
+```yaml
+# .gello/companion.yaml
+agent: claude          # backend: claude | pi
+scope: card            # one agent session per card, or per epic
+trigger: ready         # the status whose entry dispatches a run
+permissionMode: auto   # headless permission posture for the backend
+```
+
+| Key | Default | Meaning |
 | --- | --- | --- |
-| `GELLO_COMPANION_AGENT` | `claude` | Backend: `claude` or `pi`. |
-| `GELLO_COMPANION_SCOPE` | `card` | One session per `card` or per `epic`. |
-| `GELLO_COMPANION_PERMISSION_MODE` | `auto` | Claude's `--permission-mode`. A headless run cannot answer an approval prompt, so `default` makes every write fail. |
+| `agent` | `claude` | Agent backend: `claude` or `pi`. |
+| `scope` | `card` | One resumable session per `card`, or shared per `epic`. |
+| `trigger` | `ready` | The status a card enters to dispatch a run. |
+| `permissionMode` | `auto` | Claude's `--permission-mode`. A headless run cannot answer an approval prompt, so `default` makes every write fail; `auto` pre-approves while honoring deny-rules. pi ignores it. |
+
+Each key has an environment-variable override that beats the file, for
+per-machine settings (e.g. which agent CLI is installed):
+
+| Variable | Overrides |
+| --- | --- |
+| `GELLO_COMPANION_AGENT` | `agent` |
+| `GELLO_COMPANION_SCOPE` | `scope` |
+| `GELLO_COMPANION_TRIGGER` | `trigger` |
+| `GELLO_COMPANION_PERMISSION_MODE` | `permissionMode` |
+
+Precedence is env var > `companion.yaml` > default. A malformed config file
+stops startup with its path rather than falling back to a surprise backend.
+
+Runtime state (the state file, session UUIDs) is separate and per-machine: it
+lives under `.gello/.companion/`, which is gitignored.
+
+## State file
+
+The companion publishes its state to `.gello/.companion/state.json` after every
+board change. The desktop app watches this file and renders a runner indicator
+(c0100); it never talks to the companion process directly.
+
+```json
+{
+  "status": "idle",        // idle | running | waiting
+  "ready": ["c0042"],      // card ids sitting in the trigger status
+  "waiting": ["c0031"],    // card ids parked on an unanswered question
+  "runs": [                // active runs
+    { "cardId": "c0042", "phase": "running" }
+  ],
+  "updated": "2026-07-20T09:30:00"
+}
+```
+
+A run's `phase` is `running`, `waiting-for-input`, `done`, or `error`.
+
+## Moving the card
+
+The agent moves its own card between statuses — the companion process never
+edits cards. On claude that goes through the MCP tool `set_status`, taking one
+`status` argument (a board column). It stamps `status-changed`, drops a stale
+manual `order`, and adds a `## Log` line, so an agent move lands on disk the
+same shape as a drag-drop in the app. Like `add_question`, the tool is scoped to
+the run's card via `GELLO_CARD_ID`, so an agent cannot move an unrelated card;
+an unknown status is refused. pi has no MCP, so a pi agent edits the frontmatter
+directly per the gello workflow.
+
+The prompt directs the agent to call `set_status` with `in-progress` as its
+first action, before any analysis — otherwise the human watches a card sit in
+`ready` while the agent thinks, unsure it was picked up.
 
 ## Asking the human a question
 
@@ -48,11 +137,11 @@ there — an agent cannot park a question on an unrelated card.
 Only one question can be open at a time. Asking again while one is unanswered
 is refused rather than silently replacing a question the human has not seen.
 
-## The resume protocol
+### The resume protocol
 
-The `awaiting` frontmatter field carries the whole protocol, and it lives on
-disk, so a companion that was not running when the human answered still picks
-it up on its next start:
+The `awaiting` frontmatter field carries the whole protocol, and it is on disk,
+so a companion that was not running when the human answered still picks it up on
+its next start:
 
 | Value | Meaning |
 | --- | --- |
@@ -62,3 +151,22 @@ it up on its next start:
 
 Answering un-fences the block in place, so the resolved exchange stays on the
 card as ordinary markdown.
+
+## Launching from the app
+
+The desktop app can offer a one-click "start companion" toggle that spawns the
+CLI as a child process, for users who don't want a separate terminal. The app
+and companion still coordinate only through `.gello/` files; the child process
+is a convenience, not a link.
+
+The toggle spawns the bin resolved above with the project directory as its
+argument, inheriting the config from `.gello/companion.yaml`:
+
+```
+gello-companion <project-dir>
+```
+
+The app reads `.gello/.companion/state.json` to show whether a companion is
+running, and stopping the toggle kills the child. The spawn itself is a small
+app-side follow-up (see c0100 for the runner indicator that consumes the state
+file).

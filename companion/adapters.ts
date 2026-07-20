@@ -35,8 +35,9 @@ export interface RunRequest {
    *  that pre-approves them (claude: `auto`; `default` prompts and thus fails
    *  headless). Backends without such a flag (pi) ignore it. */
   permissionMode?: string;
-  /** c0102: an MCP stdio server to wire into the run (the `add_question` tool).
-   *  Backends without MCP (pi) ignore it and use the `gello ask` CLI instead. */
+  /** c0102/c0105: an MCP stdio server to wire into the run (the `add_question`
+   *  and `set_status` tools). Backends without MCP (pi) ignore it and use the
+   *  `gello ask` CLI instead. */
   askServer?: AskServerSpec;
 }
 
@@ -47,8 +48,11 @@ export interface AskServerSpec {
   env: Record<string, string>;
 }
 
-/** The tool name the agent must be allowed to call, per MCP's `mcp__<server>__<tool>`. */
+/** The tool names the agent must be allowed to call, per MCP's
+ *  `mcp__<server>__<tool>` (c0102 add_question, c0105 set_status). */
 export const ASK_TOOL = "mcp__gello__add_question";
+export const SET_STATUS_TOOL = "mcp__gello__set_status";
+export const GELLO_TOOLS = [ASK_TOOL, SET_STATUS_TOOL];
 
 export interface AgentAdapter {
   readonly name: string;
@@ -93,7 +97,7 @@ export const claudeAdapter: AgentAdapter = {
           mcpServers: { gello: { command, args: serverArgs, env } },
         }),
         "--allowed-tools",
-        ASK_TOOL,
+        GELLO_TOOLS.join(","),
       );
     }
     return args;

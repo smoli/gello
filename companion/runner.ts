@@ -64,20 +64,22 @@ export interface DispatchPlan {
 }
 
 /**
- * Decide which ready cards to run now. Candidates are `ready`, not already
- * active, and dependency-satisfied, taken in the board's manual order (c056);
- * the WIP budget (limit minus occupied slots) caps how many start — the rest
- * queue and drain on a later sync as slots free.
+ * Decide which cards to run now. Candidates are in the `trigger` status
+ * (default `ready`; c0099 config can override), not already active, and
+ * dependency-satisfied, taken in the board's manual order (c056); the WIP
+ * budget (limit minus occupied slots) caps how many start — the rest queue and
+ * drain on a later sync as slots free.
  */
 export function planDispatch(
   model: BoardModel,
   activeCardIds: string[],
   wipLimit: number,
+  trigger: string = READY,
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
   const candidates = allCards(model)
-    .filter((c) => c.status === READY && !active.has(c.id) && dependsSatisfied(index, c))
+    .filter((c) => c.status === trigger && !active.has(c.id) && dependsSatisfied(index, c))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
   const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds));
@@ -112,12 +114,19 @@ export function buildTaskPrompt(card: Card, resuming: boolean): string {
   // No question format here: the agent parks a question with the `add_question`
   // tool, which formats and writes it (c0102). Teaching a markdown shape in the
   // prompt is what let the agent drift off it in the first place.
+  //
+  // c0105: the status moves go through `set_status`. The in-progress move is
+  // called out as the first action, before any analysis — otherwise the human
+  // watches a card sit in `ready` while the agent thinks, unsure it was picked
+  // up at all.
   return (
-    `Work gello card ${card.id} — "${card.title}" (${card.path}). Follow the ` +
-    `gello workflow in CLAUDE.md: set it in-progress, work test-first, keep ` +
-    `Notes/Log current, and move it to review when the acceptance criteria ` +
-    `pass. If you need a human decision, call the \`add_question\` tool and ` +
-    `then exit — the human answers on the card and you are resumed.`
+    `Work gello card ${card.id} — "${card.title}" (${card.path}). First, right ` +
+    `away and before any analysis, call the \`set_status\` tool with ` +
+    `\`in-progress\` so the human sees you have picked the card up. Then follow ` +
+    `the gello workflow in CLAUDE.md: work test-first, keep Notes/Log current, ` +
+    `and call \`set_status\` with \`review\` when the acceptance criteria pass. ` +
+    `If you need a human decision, call the \`add_question\` tool and then exit ` +
+    `— the human answers on the card and you are resumed.`
   );
 }
 
@@ -142,6 +151,8 @@ export interface RunnerOptions {
   adapter: AgentAdapter;
   scope: SessionScope;
   wipLimit: number;
+  /** Status whose entry dispatches a run (c0099 config; default `ready`). */
+  trigger?: string;
   /** Permission posture for headless agent runs (adapter-specific; see
    *  `RunRequest.permissionMode`). Undefined → the CLI's own default. */
   permissionMode?: string;
@@ -185,7 +196,12 @@ export class Runner {
    */
   sync(next: BoardModel): void {
     for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
-    const { dispatch } = planDispatch(next, [...this.active.keys()], this.opts.wipLimit);
+    const { dispatch } = planDispatch(
+      next,
+      [...this.active.keys()],
+      this.opts.wipLimit,
+      this.opts.trigger ?? READY,
+    );
     for (const card of dispatch) this.start(card, false);
     this.publish();
   }

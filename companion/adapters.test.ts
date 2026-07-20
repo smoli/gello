@@ -4,7 +4,7 @@ import {
   claudeAdapter,
   piAdapter,
   ADAPTER_NAMES,
-  ASK_TOOL,
+  GELLO_TOOLS,
 } from "./adapters.ts";
 
 const SID = "11111111-2222-3333-4444-555555555555";
@@ -73,11 +73,12 @@ describe("agent adapters — command construction", () => {
     };
     const withServer = { ...req("print"), askServer };
 
-    it("claude: configures the server inline and allows its tool", () => {
+    it("claude: configures the server inline and allows its tools", () => {
       const args = claudeAdapter.build(withServer).args;
       const config = JSON.parse(args[args.indexOf("--mcp-config") + 1]);
       expect(config).toEqual({ mcpServers: { gello: askServer } });
-      expect(args[args.indexOf("--allowed-tools") + 1]).toBe(ASK_TOOL);
+      // both agent-facing tools must be allowed (c0102 add_question, c0105 set_status)
+      expect(args[args.indexOf("--allowed-tools") + 1]).toBe(GELLO_TOOLS.join(","));
     });
 
     it("claude: the prompt stays the last argv element", () => {

@@ -99,6 +99,19 @@ describe("planDispatch", () => {
     expect(planDispatch(model, ["c001"], 2).dispatch).toEqual([]);
   });
 
+  it("dispatches on a custom trigger status when configured (c0099)", () => {
+    const model = board({
+      c001: { status: "backlog", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    // trigger=backlog: c001 dispatches, the ready card does not.
+    expect(planDispatch(model, [], 2, "backlog").dispatch.map((c) => c.id)).toEqual([
+      "c001",
+    ]);
+    // default trigger stays `ready`.
+    expect(planDispatch(model, [], 2).dispatch.map((c) => c.id)).toEqual(["c002"]);
+  });
+
   it("skips a ready card whose depends are not all done", () => {
     const model = board({
       c001: { status: "ready", order: 1, depends: ["c009"] }, // c009 absent → not done
@@ -154,10 +167,22 @@ describe("buildTaskPrompt", () => {
     expect(prompt).not.toMatch(/gelloquestion/i);
   });
 
+  // c0105: the human should see the pickup immediately, before the agent does
+  // any (potentially long) analysis — so the prompt directs an early move via
+  // the set_status tool, first thing.
+  it("tells the agent to move to in-progress right away via set_status", () => {
+    const model = board({ c001: { status: "ready" } });
+    const prompt = buildTaskPrompt(cardOf(model, "c001"), false);
+    expect(prompt).toContain("set_status");
+    expect(prompt).toMatch(/in-progress/);
+    expect(prompt).toMatch(/right away|before.*analysis|first/i);
+  });
+
   it("resume prompt tells the agent the question was answered", () => {
     const model = board({ c001: { status: "in-progress" } });
     expect(buildTaskPrompt(cardOf(model, "c001"), true)).toMatch(/answered/i);
   });
+
 });
 
 // --- Runner (lifecycle with a fake spawner) ---------------------------------

@@ -91,6 +91,17 @@ describe("cardsEnteringReady", () => {
     const next = board({ c001: "in-progress" });
     expect(cardsEnteringReady(prev, next)).toEqual([]);
   });
+
+  it("uses a custom trigger status when given (c0099 config)", () => {
+    const prev = board({ c001: "inbox", c002: "backlog" });
+    const next = board({ c001: "backlog", c002: "backlog" });
+    // trigger=backlog: c001 just entered backlog; c002 was already there; the
+    // default `ready` reports neither.
+    expect(cardsEnteringReady(prev, next, "backlog").map((c) => c.id)).toEqual([
+      "c001",
+    ]);
+    expect(cardsEnteringReady(prev, next).map((c) => c.id)).toEqual([]);
+  });
 });
 
 describe("findBoardRoot", () => {

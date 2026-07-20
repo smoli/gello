@@ -66,20 +66,22 @@ function cardsById(model: BoardModel): Map<string, Card> {
 }
 
 /**
- * Cards that newly entered the `ready` column between two board loads: `ready`
- * now and not `ready` before (a brand-new ready card counts). With no previous
- * model (first load), every ready card is "entering". This is the companion's
- * dispatch trigger — the actual run is wired later (c0097).
+ * Cards that newly entered the trigger column between two board loads: in the
+ * trigger status now and not before (a brand-new trigger card counts). With no
+ * previous model (first load), every trigger card is "entering". This is the
+ * companion's dispatch signal. `trigger` defaults to `ready`; c0099 config can
+ * point it at another status.
  */
 export function cardsEnteringReady(
   prev: BoardModel | null,
   next: BoardModel,
+  trigger: string = READY,
 ): Card[] {
   const before = prev ? cardsById(prev) : new Map<string, Card>();
   const entered: Card[] = [];
   for (const card of cardsById(next).values()) {
-    if (card.status !== READY) continue;
-    if (before.get(card.id)?.status !== READY) entered.push(card);
+    if (card.status !== trigger) continue;
+    if (before.get(card.id)?.status !== trigger) entered.push(card);
   }
   return entered;
 }
