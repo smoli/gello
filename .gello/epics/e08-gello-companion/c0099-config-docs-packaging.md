@@ -1,11 +1,12 @@
 ---
 id: c0099
 title: Config & docs / packaging
-status: backlog
+status: ready
 epic: e08
 depends: [c0093]
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-20
+status-changed: 2026-07-20T08:19:09
 ---
 
 ## What
@@ -34,3 +35,4 @@ Per-project companion configuration, docs, and an install/run path.
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-20 status → ready (app)
