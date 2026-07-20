@@ -289,6 +289,7 @@ describe("custom-column statuses (c033)", () => {
     types: ["task", "issue"],
     background: null,
     tagColors: {},
+    showTags: true,
   };
 
   function discussCard() {

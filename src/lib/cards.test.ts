@@ -122,6 +122,7 @@ describe("parseCard", () => {
       types: ["task"],
       background: null,
       tagColors: {},
+      showTags: true,
     };
     const result = parseCard("x.md", raw, config);
 
@@ -362,6 +363,7 @@ describe("card types and refs (c024)", () => {
       types: ["task", "issue", "chore"],
       background: null,
       tagColors: {},
+      showTags: true,
     };
     const result = parseCard("x.md", raw, config);
 
@@ -693,6 +695,14 @@ describe("parseBoardConfig", () => {
     );
     expect(config.tagColors).toEqual({ ui: "#123456", "agent-dx": "#abcdef" });
     expect(parseBoardConfig("columns: [a]\n").config.tagColors).toEqual({});
+  });
+
+  it("c0111: parses show_tags, defaulting to true when unset", () => {
+    expect(parseBoardConfig("columns: [a]\n").config.showTags).toBe(true);
+    expect(parseBoardConfig("show_tags: false\n").config.showTags).toBe(false);
+    expect(parseBoardConfig("show_tags: true\n").config.showTags).toBe(true);
+    // a non-boolean value is ignored — the default holds
+    expect(parseBoardConfig("show_tags: nope\n").config.showTags).toBe(true);
   });
 });
 

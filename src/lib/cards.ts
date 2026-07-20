@@ -18,6 +18,9 @@ export interface BoardConfig {
   /** c0058: user colour overrides per tag; a tag not listed uses its auto
    *  colour. Chips and the tag filter reflect this. */
   tagColors: Record<string, string>;
+  /** c0111: surface tags on the board (card-front chips, toolbar filter, and
+   *  the Manage-tags button). False hides all three; `tags:` is untouched. */
+  showTags: boolean;
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
@@ -29,6 +32,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   types: ["task", "issue"],
   background: null,
   tagColors: {},
+  showTags: true,
 };
 
 export interface Card {
@@ -285,6 +289,7 @@ export function parseBoardConfig(raw: string): {
     types: [...DEFAULT_BOARD_CONFIG.types],
     background: null,
     tagColors: {},
+    showTags: true,
   });
 
   let data: unknown;
@@ -325,6 +330,10 @@ export function parseBoardConfig(raw: string): {
       if (typeof limit === "number") config.wipLimits[column] = limit;
     }
   }
+
+  // c0111: hide all board tag surfaces when explicitly false.
+  const showTags = record["show_tags"];
+  if (typeof showTags === "boolean") config.showTags = showTags;
 
   // c0058: per-tag colour overrides — a { tag: "#hex" } mapping.
   const tagColors = record["tag_colors"];

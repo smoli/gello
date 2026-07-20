@@ -410,6 +410,15 @@ function App() {
     }
     void writeBoardYaml(removeBoardKey(board.model.configRaw, "background"));
   };
+  // c0111: flip the per-project tag-surfacing setting in board.yaml. Off writes
+  // `show_tags: false`; returning to the default (on) drops the key entirely.
+  const toggleShowTags = () => {
+    if (!board) return;
+    const raw = board.model.config.showTags
+      ? setBoardKey(board.model.configRaw, "show_tags", "false")
+      : removeBoardKey(board.model.configRaw, "show_tags");
+    void writeBoardYaml(raw);
+  };
   const pickBackgroundImage = async () => {
     if (!board) return;
     const source = await pickImageFile();
@@ -1256,6 +1265,11 @@ function App() {
                     label: "Show thumbnails",
                     checked: showThumbnails,
                     onSelect: toggleThumbnails,
+                  },
+                  {
+                    label: "Show tags",
+                    checked: board.model.config.showTags,
+                    onSelect: toggleShowTags,
                   },
                   {
                     label: "Auto-commit board changes",

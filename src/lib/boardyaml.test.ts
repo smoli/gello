@@ -44,6 +44,18 @@ describe("setBoardKey", () => {
     const out = setBoardKey(RAW, "background", "assets/board/bg.jpg");
     expect(out).toContain("background: assets/board/bg.jpg\n");
   });
+
+  it("c0111: writes show_tags as an unquoted boolean that round-trips", () => {
+    const off = setBoardKey(RAW, "show_tags", "false");
+    // unquoted, so YAML reads a boolean (a quoted "false" would parse as a
+    // string and be ignored by the config reader)
+    expect(off).toContain("show_tags: false\n");
+    expect(parseBoardConfig(off).config.showTags).toBe(false);
+    // removing the key returns to the default (shown)
+    const back = removeBoardKey(off, "show_tags");
+    expect(back).not.toContain("show_tags");
+    expect(parseBoardConfig(back).config.showTags).toBe(true);
+  });
 });
 
 describe("setTagColor / removeTagColor", () => {

@@ -8,7 +8,7 @@ import {
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
-import { collectTags, readableTextColor, tagColor, tintColor } from "../lib/tags";
+import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
 import { AssetImage } from "./AssetImage";
 import { startWindowDrag } from "../lib/window";
@@ -132,6 +132,8 @@ export function Board({
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const tagsInUse = useMemo(() => collectTags(model), [model]);
   const tagColors = model.config.tagColors;
+  // c0111: a per-project setting hides every board tag surface at once.
+  const showTags = model.config.showTags;
   // c0088: epic filter — "all", a specific epic folder, or "no-epic" (standalone)
   const byEpic =
     filter === "all"
@@ -280,26 +282,24 @@ export function Board({
               </option>
             ))}
           </select>
-          {tagsInUse.length > 0 && (
+          {showTags && tagsInUse.length > 0 && (
             <div className="tag-filter" role="group" aria-label="Tag filter">
               {tagsInUse.map(({ tag }) => {
                 const colour = tagColor(tag, tagColors);
                 const selected = selectedTags.has(tag);
-                // i0110: both states get an opaque fill so the label stays
-                // legible over any board background — selected is the full tag
-                // colour, unselected a pale tint with the colour kept as border.
-                const fill = selected ? colour : tintColor(colour, 0.82);
+                // i0113: unselected is the shared resting chip look; i0110:
+                // selected overrides the fill with the full tag colour, still
+                // opaque so the label stays legible over any board background.
+                const style = selected
+                  ? { backgroundColor: colour, borderColor: colour, color: readableTextColor(colour) }
+                  : tagChipStyle(colour);
                 return (
                   <button
                     key={tag}
                     type="button"
                     className={selected ? "tag-chip tag-chip-on" : "tag-chip"}
                     aria-pressed={selected}
-                    style={{
-                      backgroundColor: fill,
-                      borderColor: colour,
-                      color: readableTextColor(fill),
-                    }}
+                    style={style}
                     onClick={() => toggleTag(tag)}
                   >
                     {tag}
@@ -308,7 +308,7 @@ export function Board({
               })}
             </div>
           )}
-          {onManageTags && tagsInUse.length > 0 && (
+          {onManageTags && showTags && tagsInUse.length > 0 && (
             <button
               type="button"
               className="tag-manage-button"
@@ -349,6 +349,7 @@ export function Board({
               onBgContextMenu={bgContext}
               loadImage={loadImage}
               tagColors={tagColors}
+              showTags={showTags}
             />
           );
         })}
@@ -436,6 +437,7 @@ function Column({
   onBgContextMenu,
   loadImage,
   tagColors,
+  showTags,
 }: {
   name: string;
   cards: BoardCard[];
@@ -443,6 +445,8 @@ function Column({
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c0058: per-tag colour overrides, forwarded to each card front's chips. */
   tagColors: Record<string, string>;
+  /** c0111: render card-front tag chips only when tag surfacing is on. */
+  showTags: boolean;
   /** Path of the card currently being dragged, for origin marking (i0004). */
   draggingPath: string | null;
   /** c0108: the pointer is over this column during a drag — stronger highlight. */
@@ -514,6 +518,7 @@ function Column({
                 onDragState={onDragState}
                 loadImage={loadImage}
                 tagColors={tagColors}
+                showTags={showTags}
               />
             </Fragment>
           ))}
@@ -584,6 +589,7 @@ function CardFront({
   onDragState,
   loadImage,
   tagColors,
+  showTags,
 }: {
   entry: BoardCard;
   /** True while this card is the one being dragged (i0004 origin marker). */
@@ -595,6 +601,8 @@ function CardFront({
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c0058: per-tag colour overrides for the chips. */
   tagColors: Record<string, string>;
+  /** c0111: hide the chips when tag surfacing is off for the project. */
+  showTags: boolean;
 }) {
   const { card, epicLabel } = entry;
   // c012: thumbnail from the first body image (if any)
@@ -648,21 +656,16 @@ function CardFront({
           className="card-thumb"
         />
       )}
-      {/* c0058: the card's tags as coloured chips, in the card's own order */}
-      {card.tags.length > 0 && (
+      {/* c0058: the card's tags as coloured chips, in the card's own order.
+          c0111: suppressed when the project turns tag surfacing off. */}
+      {showTags && card.tags.length > 0 && (
         <div className="card-tags">
-          {card.tags.map((tag) => {
-            const colour = tagColor(tag, tagColors);
-            return (
-              <span
-                key={tag}
-                className="tag-chip"
-                style={{ backgroundColor: colour, color: readableTextColor(colour) }}
-              >
-                {tag}
-              </span>
-            );
-          })}
+          {card.tags.map((tag) => (
+            // i0113: the shared resting chip look, identical across every surface
+            <span key={tag} className="tag-chip" style={tagChipStyle(tagColor(tag, tagColors))}>
+              {tag}
+            </span>
+          ))}
         </div>
       )}
       {/* c0086: epic → its title; standalone (incl. inbox status) → no meta row */}

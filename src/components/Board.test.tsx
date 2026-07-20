@@ -951,11 +951,16 @@ describe("c0058: tags on the board", () => {
     expect(front.querySelector(".tag-chip")).toBeNull();
   });
 
-  it("colours a chip from the tag_colors override", () => {
+  it("gives a card-front chip the shared resting look: tinted fill, tag-colour border (i0113)", () => {
     render(<Board model={TAG_MODEL} />);
     const front = screen.getByText("Ui only").closest("article")!;
     const chip = within(front).getByText("ui") as HTMLElement;
-    expect(chip.style.backgroundColor).toBe("rgb(18, 52, 86)"); // #123456
+    // same chip as the toolbar's resting state, not the raw full-colour fill
+    expect(chip.style.backgroundColor).not.toBe("rgb(18, 52, 86)"); // #123456
+    expect(chip.style.backgroundColor).not.toBe("");
+    // the tag colour is kept as the border for identity; text is contrast-picked
+    expect(chip.style.borderColor).toBe("rgb(18, 52, 86)");
+    expect(chip.style.color).toBe("rgb(17, 17, 17)"); // #111111
   });
 });
 
@@ -1066,5 +1071,34 @@ describe("c0058: tag filter", () => {
     fireEvent.click(chip);
     expect(chip.style.backgroundColor).toBe("rgb(101, 163, 13)");
     expect(chip.style.color).toBe("rgb(255, 255, 255)");
+  });
+});
+
+describe("c0111: show_tags setting", () => {
+  const files = (showTags: boolean) => [
+    file(
+      "board.yaml",
+      `columns: [backlog]\nshow_tags: ${showTags}\n`,
+    ),
+    file(
+      "cards/c001-a.md",
+      "---\nid: c001\ntitle: Tagged card\nstatus: backlog\ntags: [ui, agent-dx]\n---\nbody\n",
+    ),
+  ];
+
+  it("renders the three tag surfaces when show_tags is true", () => {
+    render(<Board model={loadBoard(files(true))} onManageTags={() => {}} />);
+    const front = screen.getByText("Tagged card").closest("article")!;
+    expect(front.querySelector(".tag-chip")).not.toBeNull();
+    expect(screen.getByRole("group", { name: "Tag filter" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Manage tags/ })).toBeInTheDocument();
+  });
+
+  it("hides card-front chips, the tag filter, and Manage tags when show_tags is false", () => {
+    render(<Board model={loadBoard(files(false))} onManageTags={() => {}} />);
+    const front = screen.getByText("Tagged card").closest("article")!;
+    expect(front.querySelector(".tag-chip")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Tag filter" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Manage tags/ })).not.toBeInTheDocument();
   });
 });
