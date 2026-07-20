@@ -1,10 +1,10 @@
 ---
 id: c0058
 title: Surface tags on the board (chips, filter, management)
-status: in-progress
+status: review
 created: 2026-07-17
 updated: 2026-07-20
-status-changed: 2026-07-20T17:43:15
+status-changed: 2026-07-20T18:10:23
 ---
 
 Right now it is less a milestone, which would suggest a sequence on how to work on things but more a domain thing, foundation, UI, etc.
@@ -138,3 +138,4 @@ Implementation plan (test-first, small green commits):
   Board.tsx/Board.css/Board.test.tsx were being edited in parallel for c0108
   (drag highlight) in the same tree — staged only the c0058 hunks so that
   work stays intact and uncommitted.
+- 2026-07-20 status → review (agent)
