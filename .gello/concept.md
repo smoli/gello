@@ -181,6 +181,8 @@ is removed).
 columns: [inbox, discuss, backlog, ready, in-progress, review, done]  # default lineup
 types: [task, issue]     # optional; card types, open set; default [task, issue]
 background: assets/board/bg.jpg  # optional; full-image board background
+show_tags: false         # optional; default true. False hides every board tag
+                         # surface (card chips, filter, Manage tags button)
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```
