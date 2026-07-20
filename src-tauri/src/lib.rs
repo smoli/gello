@@ -1,5 +1,6 @@
 // gello Rust shell — kept deliberately thin (see CLAUDE.md).
 
+pub mod companion;
 pub mod fs_read;
 pub mod fs_watch;
 pub mod fs_write;
@@ -313,6 +314,14 @@ fn read_file_base64(path: String) -> Result<String, FsError> {
     })
 }
 
+/// c0110: open the OS terminal running `gello-companion <project_dir>`. A thin
+/// process-spawn seam (like git.rs) — the terminal owns the companion's
+/// lifetime; the app never tracks or kills it.
+#[tauri::command]
+fn start_companion(project_dir: String) -> Result<(), String> {
+    companion::start(&project_dir)
+}
+
 #[tauri::command]
 fn read_board_files(root: String) -> Result<Vec<fs_read::BoardFileEntry>, FsError> {
     fs_read::read_board_files(std::path::Path::new(&root)).map_err(|error| FsError {
@@ -363,7 +372,8 @@ pub fn run() {
             write_new_files,
             set_board_image,
             write_asset,
-            remove_dir
+            remove_dir,
+            start_companion
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
