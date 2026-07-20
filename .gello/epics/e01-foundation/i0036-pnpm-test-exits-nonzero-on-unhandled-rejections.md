@@ -1,11 +1,11 @@
 ---
 id: i0036
 title: pnpm test exits non-zero on unhandled rejections in App.test.tsx
-status: in-progress
+status: review
 type: issue
 created: 2026-07-20
 updated: 2026-07-21
-status-changed: 2026-07-21T00:27:00
+status-changed: 2026-07-21T00:33:53
 epic: e01
 ---
 
@@ -74,3 +74,4 @@ ignore that signal.
   it, added safe-read.test.ts. Full suite exits 0 (808 passed). Also aligned a
   stale i0114 tags-shade assertion (separate commit) that independently redded
   the suite.
+- 2026-07-21 status → review (agent)
