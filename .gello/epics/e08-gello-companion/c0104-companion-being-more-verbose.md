@@ -1,10 +1,10 @@
 ---
 id: c0104
 title: companion being more verbose
-status: in-progress
+status: review
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:12:16
+status-changed: 2026-07-20T18:26:07
 epic: e08
 ---
 
@@ -133,3 +133,4 @@ pre-existing — confirmed unchanged with my edits stashed — and untouched her
   claude event shape and that `--print` + `stream-json` requires `--verbose`.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
+- 2026-07-20 status → review (agent)
