@@ -1,13 +1,13 @@
 ---
 id: i0109
 title: add companion info to main readme
-status: review
+status: done
 type: issue
 ref: c0099
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:34:51
+status-changed: 2026-07-20T18:41:07
 ---
 
 with link to the companions readme
@@ -26,3 +26,4 @@ with link to the companions readme
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)

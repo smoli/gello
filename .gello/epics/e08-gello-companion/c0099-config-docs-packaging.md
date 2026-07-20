@@ -1,12 +1,12 @@
 ---
 id: c0099
 title: Config & docs / packaging
-status: review
+status: done
 epic: e08
 depends: [c0093]
 created: 2026-07-19
 updated: 2026-07-20
-status-changed: 2026-07-20T09:35:00
+status-changed: 2026-07-20T18:41:17
 ---
 
 ## What
@@ -79,3 +79,4 @@ dedicated prompt file is a possible follow-up, not required by the criteria.
   boots headless and reads `companion.yaml`. All criteria met → review.
   Suite green (643 pass; the 2 App.tsx timer unhandled-rejections are
   pre-existing, unrelated). Typecheck + lint clean.
+- 2026-07-20 status → done (app)

@@ -1,11 +1,11 @@
 ---
 id: i0107
 title: Checkboxes in display a clickable
-status: review
+status: done
 type: issue
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:36:39
+status-changed: 2026-07-20T18:41:11
 epic: e02
 ---
 
@@ -45,3 +45,4 @@ This reverses the c015 toggle feature by decision of the human (see Discussion).
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)

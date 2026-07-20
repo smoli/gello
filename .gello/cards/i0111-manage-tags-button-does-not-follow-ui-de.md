@@ -1,12 +1,12 @@
 ---
 id: i0111
 title: Manage Tags button does not follow UI design
-status: review
+status: done
 type: issue
 ref: c0058
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:40:18
+status-changed: 2026-07-20T18:41:03
 ---
 
 ![image](../assets/i0111/image.png)
@@ -37,3 +37,4 @@ out.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
