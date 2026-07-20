@@ -89,6 +89,40 @@ scrollback.
   `state.json` + the c0100 popover showing it; (3) `runs.log`. Card 1 stands
   alone and delivers most of the value.
 
+## Notes
+
+Implemented all three surfaces in one pass (the card was in `ready` whole, not
+split).
+
+- **`companion/stream.ts`** (new) — the backend-neutral `AgentEvent`
+  (`text` | `tool` | `usage`) and `RunUsage`, the `Level` ladder, `LineBuffer`
+  (reassembles NDJSON split across piped chunks), `renderEvent` (level-gated,
+  `[cardId]`-prefixed), `formatUsage`, and `StreamSink` (parse → render → log →
+  keep latest usage). Every unit tested.
+- **`companion/adapters.ts`** — `AgentAdapter` gained `stream: StreamAdapter`
+  (`printArgs` + `parse`). claude parses stream-json (`assistant` blocks →
+  text/tool, `result` → usage incl. `permission_denials` count); pi maps each
+  non-empty line to a text event. `printArgs` are added only in print mode, so
+  interactive runs stay plain. `JSON.parse` of external NDJSON is narrowed with
+  typed accessors — no `any`.
+- **`companion/config.ts`** — added `level` (default `normal`, env
+  `GELLO_COMPANION_LEVEL`, `companion.yaml` key; unknown value coerced back to
+  default).
+- **`companion/runner.ts`** — `SpawnedRun.onStdout?`; `start` wires a
+  `StreamSink` per run; `RunState.usage` published (a parked run carries its
+  tokens/cost so the c0100 popover can read it). `handleExit` takes the usage.
+- **`companion/core.ts`** — `RunState.usage` field; `appendRunsLog` (plain
+  append to `.companion/runs.log`).
+- **`companion/main.ts`** — `nodeSpawner` now `stdio: ["ignore","pipe","inherit"]`
+  (stdout piped, stderr inherited, stdin closed); wires `level`, `emit`
+  (console) and `appendRunLog` (verbose-rendered transcript).
+- **`src/lib/companion.ts`** — parse `usage` off runs defensively (drops garbage,
+  keeps the run) so the app side is ready for it.
+
+`.companion/runs.log` is gitignored by the existing `.gello/.companion/` rule.
+Two unhandled rejections in `src/App.test.tsx` (c0083 auto-commit mock) are
+pre-existing — confirmed unchanged with my edits stashed — and untouched here.
+
 ## Log
 
 - 2026-07-20 status → discuss (app)
