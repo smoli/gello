@@ -1,10 +1,10 @@
 ---
 id: c0058
 title: Surface tags on the board (chips, filter, management)
-status: backlog
+status: in-progress
 created: 2026-07-17
-updated: 2026-07-18
-status-changed: 2026-07-18T16:12:32
+updated: 2026-07-20
+status-changed: 2026-07-20T17:43:15
 ---
 
 Right now it is less a milestone, which would suggest a sequence on how to work on things but more a domain thing, foundation, UI, etc.
@@ -96,3 +96,5 @@ swimlanes-by-tag (spun out to [[c0075]]).
 - 2026-07-18 status → backlog (app)
 - 2026-07-18 status → discuss (app)
 - 2026-07-18 status → backlog (app)
+- 2026-07-20 status → ready (app)
+- 2026-07-20 status → in-progress (agent)
