@@ -27,10 +27,17 @@ export interface GelloQuestion {
   isChoice: boolean;
 }
 
-/** The human's answer to a parked question. */
-export type GelloAnswer =
-  | { kind: "choice"; selected: number[] }
-  | { kind: "open"; text: string };
+/**
+ * The human's answer to a parked question. Both halves are always available
+ * (c0103): checking options is not enough on its own, because the useful part
+ * of an answer is often the thing the agent did not think to offer.
+ */
+export interface GelloAnswer {
+  /** Indices of the options the human checked; empty for a text-only answer. */
+  selected: number[];
+  /** A free-text note. Empty when the human only checked boxes. */
+  text: string;
+}
 
 // The fence must sit at the start of a line; inner content is captured lazily.
 const FENCE_RE = /^```gelloquestion[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*$/m;
@@ -73,15 +80,12 @@ export function stripGelloQuestion(body: string): string {
   return body.replace(FENCE_RE, "").replace(/\n{3,}/g, "\n\n");
 }
 
-/** Apply the answer to the inner markdown (check chosen boxes, or append text). */
+/** Apply the answer to the inner markdown: check the chosen boxes, then append
+ *  the note below them. Either half may be empty. */
 function answeredInner(inner: string, answer: GelloAnswer): string {
-  if (answer.kind === "open") {
-    const text = answer.text.trim();
-    return text ? `${inner.replace(/\s*$/, "")}\n\n${text}` : inner;
-  }
   const selected = new Set(answer.selected);
   let checkboxIndex = -1;
-  return inner
+  const checked = inner
     .split(/\r?\n/)
     .map((line) => {
       const match = CHECKBOX_RE.exec(line);
@@ -91,6 +95,9 @@ function answeredInner(inner: string, answer: GelloAnswer): string {
       return `${match[1]}[${mark}]${match[2]}${match[3]}`;
     })
     .join("\n");
+
+  const text = answer.text.trim();
+  return text ? `${checked.replace(/\s*$/, "")}\n\n${text}` : checked;
 }
 
 /**

@@ -6,8 +6,9 @@ import "./QuestionModal.css";
 
 /**
  * c0101: the auto-opening popup that answers a single parked `gelloquestion`.
- * Choice questions render their options as checkboxes; an open question gets a
- * text slot. Answering hands the app a `GelloAnswer`; Cancel defers.
+ * A choice question renders its options as checkboxes; every question, choice
+ * or not, also gets a free-text slot (c0103). Answering hands the app a
+ * `GelloAnswer`; Cancel defers.
  */
 export function QuestionModal({
   cardId,
@@ -39,15 +40,11 @@ export function QuestionModal({
       return next;
     });
 
-  const canAnswer = question.isChoice ? selected.size > 0 : text.trim() !== "";
+  const canAnswer = selected.size > 0 || text.trim() !== "";
 
   const submit = () => {
     if (!canAnswer) return;
-    onAnswer(
-      question.isChoice
-        ? { kind: "choice", selected: [...selected].sort((a, b) => a - b) }
-        : { kind: "open", text },
-    );
+    onAnswer({ selected: [...selected].sort((a, b) => a - b), text });
   };
 
   return (
@@ -63,7 +60,7 @@ export function QuestionModal({
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{question.prompt}</ReactMarkdown>
         </div>
 
-        {question.isChoice ? (
+        {question.isChoice && (
           <ul className="question-modal-options">
             {question.options.map((label, index) => (
               <li key={index}>
@@ -78,17 +75,19 @@ export function QuestionModal({
               </li>
             ))}
           </ul>
-        ) : (
-          <textarea
-            className="question-modal-text"
-            aria-label="Your answer"
-            autoFocus
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            rows={4}
-            placeholder="Type your answer"
-          />
         )}
+
+        {/* c0103: always offered. On a choice question the options rarely cover
+            everything, and the reason for a pick is worth as much as the pick. */}
+        <textarea
+          className="question-modal-text"
+          aria-label="Your answer"
+          autoFocus={!question.isChoice}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          rows={question.isChoice ? 3 : 4}
+          placeholder={question.isChoice ? "Anything to add (optional)" : "Type your answer"}
+        />
 
         <div className="question-modal-actions">
           <button type="button" onClick={submit} disabled={!canAnswer}>

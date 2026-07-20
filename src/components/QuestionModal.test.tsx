@@ -22,7 +22,7 @@ describe("QuestionModal (c0101)", () => {
     fireEvent.click(screen.getByLabelText("SQLite"));
     fireEvent.click(screen.getByRole("button", { name: "Answer" }));
 
-    expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ kind: "choice", selected: [1] });
+    expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ selected: [1], text: "" });
   });
 
   it("answers an open question with typed text", () => {
@@ -34,7 +34,68 @@ describe("QuestionModal (c0101)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Answer" }));
 
-    expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ kind: "open", text: "30 seconds" });
+    expect(onAnswer).toHaveBeenCalledExactlyOnceWith({ selected: [], text: "30 seconds" });
+  });
+
+  // c0103 — a choice question must still let the human say something the agent
+  // did not offer
+  describe("free text on a choice question", () => {
+    const answerTo = (question: typeof choice) => {
+      const onAnswer = vi.fn();
+      render(
+        <QuestionModal
+          cardId="c001"
+          question={question}
+          onAnswer={onAnswer}
+          onCancel={vi.fn()}
+        />,
+      );
+      return onAnswer;
+    };
+
+    it("offers a text field alongside the options", () => {
+      answerTo(choice);
+      expect(screen.getByLabelText("SQLite")).toBeInTheDocument();
+      expect(screen.getByLabelText("Your answer")).toBeInTheDocument();
+    });
+
+    it("sends the checked options and the note together", () => {
+      const onAnswer = answerTo(choice);
+      fireEvent.click(screen.getByLabelText("SQLite"));
+      fireEvent.change(screen.getByLabelText("Your answer"), {
+        target: { value: "only if we drop the ORM" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Answer" }));
+
+      expect(onAnswer).toHaveBeenCalledExactlyOnceWith({
+        selected: [1],
+        text: "only if we drop the ORM",
+      });
+    });
+
+    it("accepts a note with no option checked", () => {
+      const onAnswer = answerTo(choice);
+      fireEvent.change(screen.getByLabelText("Your answer"), {
+        target: { value: "neither — use DuckDB" },
+      });
+      expect(screen.getByRole("button", { name: "Answer" })).toBeEnabled();
+      fireEvent.click(screen.getByRole("button", { name: "Answer" }));
+
+      expect(onAnswer).toHaveBeenCalledExactlyOnceWith({
+        selected: [],
+        text: "neither — use DuckDB",
+      });
+    });
+
+    it("keeps Answer disabled until there is a choice or a note", () => {
+      answerTo(choice);
+      const button = screen.getByRole("button", { name: "Answer" });
+      expect(button).toBeDisabled();
+      fireEvent.change(screen.getByLabelText("Your answer"), {
+        target: { value: "   " }, // whitespace is not an answer
+      });
+      expect(button).toBeDisabled();
+    });
   });
 
   it("cancels on the button, the backdrop, and Escape", () => {

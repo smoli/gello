@@ -119,7 +119,7 @@ Still open:
   a full agent run on claude and on pi has not happened.
 - `pnpm test` exits non-zero on two unhandled rejections in `App.test.tsx`
   (c0083 auto-commit tests, an unmocked `readFileRaw`). Pre-existing — present
-  on a clean tree before this card. Filed as i0035.
+  on a clean tree before this card. Filed as i0036.
 
 ## Log
 

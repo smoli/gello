@@ -38,7 +38,8 @@ tool, and the tool writes the block. Which tool depends on the backend:
 
 Both write the same thing: a `gelloquestion` fenced block at the top of the
 card, plus `awaiting: input` in its frontmatter. Options are `- [ ] label`
-checkbox lines; a question with no checkboxes is answered as free text.
+checkbox lines. Offering options does not constrain the human — every question
+also takes free text, so expect an answer that picks none of them.
 
 The card is not the agent's to pick. The companion puts the run's card id in
 `GELLO_CARD_ID` when it spawns the agent, and both surfaces take the card from

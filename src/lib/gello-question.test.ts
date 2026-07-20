@@ -53,7 +53,7 @@ describe("parseGelloQuestion (c0101)", () => {
 
 describe("unfenceWithAnswer (c0101)", () => {
   it("checks the chosen box and removes the fence, leaving markdown in place", () => {
-    const out = unfenceWithAnswer(CHOICE, { kind: "choice", selected: [1] })!;
+    const out = unfenceWithAnswer(CHOICE, { selected: [1], text: "" })!;
     expect(out).not.toContain("```gelloquestion");
     expect(out).not.toContain("```");
     expect(out).toContain("- [x] SQLite");
@@ -64,7 +64,7 @@ describe("unfenceWithAnswer (c0101)", () => {
   });
 
   it("appends the typed answer for an open question and un-fences", () => {
-    const out = unfenceWithAnswer(OPEN, { kind: "open", text: "30 seconds" })!;
+    const out = unfenceWithAnswer(OPEN, { selected: [], text: "30 seconds" })!;
     expect(out).not.toContain("```");
     expect(out).toContain("What should the timeout be?");
     expect(out).toContain("30 seconds");
@@ -72,7 +72,35 @@ describe("unfenceWithAnswer (c0101)", () => {
   });
 
   it("returns null when there is nothing to un-fence", () => {
-    expect(unfenceWithAnswer("no fence here\n", { kind: "open", text: "x" })).toBeNull();
+    expect(unfenceWithAnswer("no fence here\n", { selected: [], text: "x" })).toBeNull();
+  });
+
+  // c0103: free text is available on every question, so an answer can carry a
+  // choice, a note, or both — the note is where the human says the thing the
+  // agent did not offer.
+  it("keeps the checked boxes and appends the note when both are given", () => {
+    const out = unfenceWithAnswer(CHOICE, {
+      selected: [1],
+      text: "but only if we can drop the ORM",
+    })!;
+    expect(out).toContain("- [x] SQLite");
+    expect(out).toContain("- [ ] Postgres");
+    expect(out).toContain("but only if we can drop the ORM");
+    // the note goes after the options, not between them
+    expect(out.indexOf("- [x] SQLite")).toBeLessThan(
+      out.indexOf("but only if we can drop the ORM"),
+    );
+  });
+
+  it("takes a note alone on a choice question, leaving every box unchecked", () => {
+    const out = unfenceWithAnswer(CHOICE, { selected: [], text: "neither — use DuckDB" })!;
+    expect(out).not.toContain("- [x]");
+    expect(out).toContain("neither — use DuckDB");
+  });
+
+  it("ignores whitespace-only text", () => {
+    const out = unfenceWithAnswer(CHOICE, { selected: [0], text: "   \n  " })!;
+    expect(out.trimEnd().endsWith("more body")).toBe(true);
   });
 });
 
@@ -98,7 +126,7 @@ describe("insertGelloQuestion (c0102)", () => {
 
   it("un-fencing its own output yields plain markdown again", () => {
     const out = insertGelloQuestion("\nbody\n", "Pick\n\n- [ ] a\n- [ ] b")!;
-    const answered = unfenceWithAnswer(out, { kind: "choice", selected: [0] })!;
+    const answered = unfenceWithAnswer(out, { selected: [0], text: "" })!;
     expect(answered).not.toContain("```");
     expect(answered).toContain("- [x] a");
     expect(answered).toContain("body");
