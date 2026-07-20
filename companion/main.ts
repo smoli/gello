@@ -114,7 +114,8 @@ function main(): void {
   let runs: RunState[] = [];
 
   const runner = new Runner({
-    root: projectDir, // the agent runs in the repo, not inside .gello
+    cwd: projectDir, // the agent works the repo, not the board folder
+    boardRoot: root, // card paths are relative to .gello
     adapter: getAdapter(agentName),
     scope,
     trigger,

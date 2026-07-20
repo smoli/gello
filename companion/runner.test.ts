@@ -207,14 +207,18 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
   const writes: { path: string; raw: string }[] = [];
   let model = initial;
   const published: { runs: string[] }[] = [];
+  const cwds: string[] = [];
   const runner = new Runner({
-    root: "/board",
+    // the agent runs in the repo; card paths resolve against .gello
+    cwd: "/project",
+    boardRoot: "/project/.gello",
     writeCard: (path, raw) => writes.push({ path, raw }),
     askServer: { command: "tsx", args: ["/repo/companion/mcp-main.ts"], env: {} },
     adapter: claudeAdapter,
     scope: "card",
     wipLimit: 2,
-    spawn: (spec, _cwd, env) => {
+    spawn: (spec, cwd, env) => {
+      cwds.push(cwd);
       const proc = new FakeProc(spec, env);
       spawned.push(proc);
       return proc;
@@ -227,6 +231,7 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
     runner,
     spawned,
     writes,
+    cwds,
     published,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -359,6 +364,19 @@ describe("Runner", () => {
     expect(cardOfSpawn(1)).toBe("c002"); // not leaked from the first run
   });
 
+  it("runs the agent in the repo but resolves card paths against .gello", () => {
+    // These are two different directories. Conflating them wrote the cleared
+    // card to <project>/cards/... (ENOENT) instead of <project>/.gello/cards/...
+    const answered = board({
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    const h = makeRunner(answered, { "card:c001": "sid-1" });
+    h.runner.sync(answered);
+
+    expect(h.cwds).toEqual(["/project"]); // agent cwd = the repo
+    expect(h.writes[0].path).toBe("/project/.gello/cards/c001-x.md"); // card = .gello
+  });
+
   it("clears the awaiting marker when it resumes, so the resume fires once", () => {
     const answered = board({
       c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
@@ -367,7 +385,8 @@ describe("Runner", () => {
     h.runner.sync(answered);
 
     expect(h.writes).toHaveLength(1);
-    expect(h.writes[0].path).toBe("cards/c001-x.md");
+    // the write must land under the .gello board root, not the agent's cwd
+    expect(h.writes[0].path).toBe("/project/.gello/cards/c001-x.md");
     expect(h.writes[0].raw).not.toContain("awaiting:");
 
     // the cleared card is what a later sync sees — no second dispatch

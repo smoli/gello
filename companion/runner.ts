@@ -146,8 +146,12 @@ export type Spawner = (
 ) => SpawnedRun;
 
 export interface RunnerOptions {
-  /** Absolute `.gello` root (agent cwd + state location). */
-  root: string;
+  /** Working directory for the agent process: the **project root** (the repo),
+   *  since the agent works the codebase, not the board folder. */
+  cwd: string;
+  /** Absolute **`.gello` root**. Card paths (`card.path`) are relative to this,
+   *  so they must resolve against it — not against `cwd`, which is its parent. */
+  boardRoot: string;
   adapter: AgentAdapter;
   scope: SessionScope;
   wipLimit: number;
@@ -162,9 +166,9 @@ export interface RunnerOptions {
   askServer?: AskServerSpec;
   /** Re-read the board from disk (to classify an exit, drain the queue). */
   reload: () => BoardModel;
-  /** Write a card file, given its path relative to `root`. Injected so tests
-   *  can observe it; defaults to an atomic node:fs write. */
-  writeCard?: (relPath: string, raw: string) => void;
+  /** Write a card file, given its **absolute** path. Injected so tests can
+   *  observe *where* the write lands; defaults to an atomic node:fs write. */
+  writeCard?: (absPath: string, raw: string) => void;
   /** Published whenever the set of active runs changes. */
   onRuns: (runs: RunState[]) => void;
   /** Initial session map; defaults to empty. */
@@ -229,10 +233,9 @@ export class Runner {
   private clearAwaiting(card: Card, config: BoardConfig): void {
     try {
       const { raw } = withAwaitingCleared(card, todayIsoDate(), config);
-      const write =
-        this.opts.writeCard ??
-        ((rel: string, text: string) => writeCardAtomic(join(this.opts.root, rel), text));
-      write(card.path, raw);
+      const write = this.opts.writeCard ?? writeCardAtomic;
+      // card.path is relative to the .gello root, never to the agent's cwd
+      write(join(this.opts.boardRoot, card.path), raw);
     } catch (error) {
       this.log(`could not clear awaiting on ${card.id}: ${(error as Error).message}`);
     }
@@ -271,7 +274,7 @@ export class Runner {
     this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);
     // The ask surfaces (`add_question`, `gello ask`) read the card from here —
     // it is what stops an agent parking a question on an unrelated card (c0102).
-    const proc = this.opts.spawn(spec, this.opts.root, { GELLO_CARD_ID: card.id });
+    const proc = this.opts.spawn(spec, this.opts.cwd, { GELLO_CARD_ID: card.id });
     proc.onExit((code) => this.handleExit(card.id, code));
   }
 
