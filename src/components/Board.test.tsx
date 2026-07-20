@@ -1048,4 +1048,23 @@ describe("c0058: tag filter", () => {
     render(<Board model={model} />);
     expect(screen.queryByRole("group", { name: "Tag filter" })).not.toBeInTheDocument();
   });
+
+  it("gives an unselected chip an opaque pale fill with legible dark text (i0110)", () => {
+    const model = loadBoard([
+      file("board.yaml", 'columns: [backlog]\ntag_colors:\n  ui: "#65a30d"\n'),
+      file("cards/c001-a.md", "---\nid: c001\ntitle: UI\nstatus: backlog\ntags: [ui]\n---\nb\n"),
+    ]);
+    render(<Board model={model} />);
+    const chip = within(tagFilter()).getByRole("button", { name: "ui" });
+    // not transparent-over-the-photo: a filled backing guarantees contrast
+    expect(chip.style.backgroundColor).not.toBe("");
+    expect(chip.style.backgroundColor).not.toBe("transparent");
+    expect(chip.style.color).toBe("rgb(17, 17, 17)"); // #111111
+    expect(chip.style.borderColor).toBe("rgb(101, 163, 13)"); // #65a30d, kept for identity
+
+    // selected stays the full-colour fill with its own readable text
+    fireEvent.click(chip);
+    expect(chip.style.backgroundColor).toBe("rgb(101, 163, 13)");
+    expect(chip.style.color).toBe("rgb(255, 255, 255)");
+  });
 });

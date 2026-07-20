@@ -7,6 +7,7 @@ import {
   readableTextColor,
   renameTagInList,
   tagColor,
+  tintColor,
   TAG_PALETTE,
 } from "./tags";
 
@@ -82,6 +83,27 @@ describe("readableTextColor", () => {
   it("tolerates a 3-digit hex or a missing hash", () => {
     expect(readableTextColor("#fff")).toBe("#111111");
     expect(readableTextColor("000")).toBe("#ffffff");
+  });
+});
+
+describe("tintColor", () => {
+  it("mixes a colour toward white by the given amount", () => {
+    expect(tintColor("#000000", 0)).toBe("#000000");
+    expect(tintColor("#000000", 1)).toBe("#ffffff");
+    expect(tintColor("#000000", 0.5)).toBe("#808080");
+  });
+
+  it("keeps a legible pale fill: a tinted chip takes dark text (i0110)", () => {
+    // bright tags that read poorly as raw-coloured text over a board photo
+    for (const colour of ["#65a30d", "#0ea5e9", "#ca8a04"]) {
+      const fill = tintColor(colour, 0.82);
+      expect(readableTextColor(fill)).toBe("#111111");
+    }
+  });
+
+  it("tolerates a 3-digit hex or a missing hash", () => {
+    expect(tintColor("#fff", 0.5)).toBe("#ffffff");
+    expect(tintColor("000", 0)).toBe("#000000");
   });
 });
 

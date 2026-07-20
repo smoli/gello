@@ -57,17 +57,40 @@ export function tagColor(tag: string, overrides: Record<string, string>): string
   return overrides[tag] ?? autoTagColor(tag);
 }
 
+/** Parse a hex colour ("#rgb", "#rrggbb", or without the hash) to [r, g, b]. */
+function parseHex(hex: string): [number, number, number] {
+  let h = hex.replace(/^#/, "");
+  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
+  return [
+    parseInt(h.slice(0, 2), 16) || 0,
+    parseInt(h.slice(2, 4), 16) || 0,
+    parseInt(h.slice(4, 6), 16) || 0,
+  ];
+}
+
+/** [r, g, b] back to a "#rrggbb" string. */
+function toHex(r: number, g: number, b: number): string {
+  const pair = (n: number) => Math.round(n).toString(16).padStart(2, "0");
+  return `#${pair(r)}${pair(g)}${pair(b)}`;
+}
+
 /** A legible text colour ("#111111" or "#ffffff") for a chip filled with the
  *  given hex background, chosen by perceived luminance. */
 export function readableTextColor(hex: string): string {
-  let h = hex.replace(/^#/, "");
-  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
-  const r = parseInt(h.slice(0, 2), 16) || 0;
-  const g = parseInt(h.slice(2, 4), 16) || 0;
-  const b = parseInt(h.slice(4, 6), 16) || 0;
+  const [r, g, b] = parseHex(hex);
   // perceived luminance (0–255); above the threshold reads as a light fill
   const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
   return luminance > 140 ? "#111111" : "#ffffff";
+}
+
+/** Mix a hex colour toward white by `amount` (0 = unchanged, 1 = white). The
+ *  pale fill of an unselected tag filter chip: it keeps the tag's hue while
+ *  giving the label a light, opaque backing that stays legible over any board
+ *  background (i0110). */
+export function tintColor(hex: string, amount: number): string {
+  const [r, g, b] = parseHex(hex);
+  const mix = (c: number) => c + (255 - c) * amount;
+  return toHex(mix(r), mix(g), mix(b));
 }
 
 /** Replace `from` with `to` in a tag list, preserving order and deduping. */

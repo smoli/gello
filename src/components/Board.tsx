@@ -8,7 +8,7 @@ import {
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
-import { collectTags, readableTextColor, tagColor } from "../lib/tags";
+import { collectTags, readableTextColor, tagColor, tintColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
 import { AssetImage } from "./AssetImage";
 import { startWindowDrag } from "../lib/window";
@@ -285,17 +285,21 @@ export function Board({
               {tagsInUse.map(({ tag }) => {
                 const colour = tagColor(tag, tagColors);
                 const selected = selectedTags.has(tag);
+                // i0110: both states get an opaque fill so the label stays
+                // legible over any board background — selected is the full tag
+                // colour, unselected a pale tint with the colour kept as border.
+                const fill = selected ? colour : tintColor(colour, 0.82);
                 return (
                   <button
                     key={tag}
                     type="button"
                     className={selected ? "tag-chip tag-chip-on" : "tag-chip"}
                     aria-pressed={selected}
-                    style={
-                      selected
-                        ? { backgroundColor: colour, color: readableTextColor(colour) }
-                        : { borderColor: colour, color: colour }
-                    }
+                    style={{
+                      backgroundColor: fill,
+                      borderColor: colour,
+                      color: readableTextColor(fill),
+                    }}
                     onClick={() => toggleTag(tag)}
                   >
                     {tag}
