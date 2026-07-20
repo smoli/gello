@@ -37,6 +37,14 @@ export type AgentEvent =
   | { kind: "tool"; name: string; arg?: string }
   | { kind: "usage"; usage: RunUsage };
 
+/** What the agent is doing right now (c0109): the latest tool call, structured.
+ *  The companion publishes this in the state file; the app phrases it into a
+ *  card line (tool → verb, path → basename). */
+export interface Activity {
+  name: string;
+  arg?: string;
+}
+
 const RANK: Record<Level, number> = { quiet: 0, normal: 1, verbose: 2 };
 
 const MAX_ARG = 120;
@@ -117,6 +125,7 @@ export class LineBuffer {
 export class StreamSink {
   private readonly buffer = new LineBuffer();
   private lastUsage: RunUsage | undefined;
+  private lastActivity: Activity | undefined;
 
   constructor(
     private readonly cardId: string,
@@ -124,6 +133,9 @@ export class StreamSink {
     private readonly parse: (line: string) => AgentEvent[],
     private readonly emit: (line: string) => void,
     private readonly logEvent: (cardId: string, event: AgentEvent) => void,
+    /** c0109: called on each tool call with the run's new activity. Not
+     *  level-gated — the card line shows at every verbosity. */
+    private readonly onActivity?: (activity: Activity) => void,
   ) {}
 
   feed(chunk: string): void {
@@ -140,9 +152,20 @@ export class StreamSink {
     return this.lastUsage;
   }
 
+  /** The latest tool call, once one has been seen (c0109). */
+  activity(): Activity | undefined {
+    return this.lastActivity;
+  }
+
   private handle(line: string): void {
     for (const event of this.parse(line)) {
       if (event.kind === "usage") this.lastUsage = event.usage;
+      if (event.kind === "tool") {
+        this.lastActivity = event.arg !== undefined
+          ? { name: event.name, arg: event.arg }
+          : { name: event.name };
+        this.onActivity?.(this.lastActivity);
+      }
       this.logEvent(this.cardId, event);
       for (const out of renderEvent(this.level, this.cardId, event)) this.emit(out);
     }

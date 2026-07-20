@@ -4,6 +4,7 @@ import {
   renderEvent,
   formatUsage,
   StreamSink,
+  type Activity,
   type AgentEvent,
   type RunUsage,
 } from "./stream.ts";
@@ -150,14 +151,16 @@ function jsonParse(line: string): AgentEvent[] {
 function makeSink(level: "quiet" | "normal" | "verbose") {
   const emitted: string[] = [];
   const logged: { cardId: string; event: AgentEvent }[] = [];
+  const activities: Activity[] = [];
   const sink = new StreamSink(
     "c001",
     level,
     jsonParse,
     (line) => emitted.push(line),
     (cardId, event) => logged.push({ cardId, event }),
+    (activity) => activities.push(activity),
   );
-  return { sink, emitted, logged };
+  return { sink, emitted, logged, activities };
 }
 
 describe("StreamSink", () => {
@@ -197,5 +200,38 @@ describe("StreamSink", () => {
     expect(emitted).toEqual([]);
     sink.end();
     expect(emitted).toEqual(["[c001] → Bash(ls)"]);
+  });
+
+  // c0109: the latest tool call is the run's live "activity" for the card line.
+  it("tracks the latest tool call as the run's activity, name + arg", () => {
+    const { sink, activities } = makeSink("normal");
+    sink.feed('{"kind":"tool","name":"Read","arg":"a.ts"}\n');
+    sink.feed('{"kind":"tool","name":"Bash","arg":"pnpm test"}\n');
+    expect(activities).toEqual([
+      { name: "Read", arg: "a.ts" },
+      { name: "Bash", arg: "pnpm test" },
+    ]);
+    expect(sink.activity()).toEqual({ name: "Bash", arg: "pnpm test" });
+  });
+
+  it("carries a tool call with no argument as activity without an arg", () => {
+    const { sink, activities } = makeSink("normal");
+    sink.feed('{"kind":"tool","name":"TodoWrite"}\n');
+    expect(activities).toEqual([{ name: "TodoWrite" }]);
+    expect(sink.activity()).toEqual({ name: "TodoWrite" });
+  });
+
+  it("does not report activity for text or usage events", () => {
+    const { sink, activities } = makeSink("verbose");
+    sink.feed('{"kind":"text","text":"thinking"}\n');
+    sink.feed('{"kind":"usage","usage":{"inputTokens":1,"outputTokens":2}}\n');
+    expect(activities).toEqual([]);
+    expect(sink.activity()).toBeUndefined();
+  });
+
+  it("reports activity regardless of level (the card line is not level-gated)", () => {
+    const { sink, activities } = makeSink("quiet");
+    sink.feed('{"kind":"tool","name":"Read","arg":"a.ts"}\n');
+    expect(activities).toEqual([{ name: "Read", arg: "a.ts" }]);
   });
 });

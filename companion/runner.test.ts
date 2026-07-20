@@ -5,6 +5,7 @@ import type { LaunchSpec } from "./adapters.ts";
 import { claudeAdapter } from "./adapters.ts";
 import type { AgentEvent, Level } from "./stream.ts";
 import type { RunState } from "./core.ts";
+import type { Scheduler } from "./throttle.ts";
 import {
   planDispatch,
   classifyExit,
@@ -253,6 +254,37 @@ class FakeProc implements SpawnedRun {
   }
 }
 
+/** A manual clock + scheduler so the activity throttle is deterministic and
+ *  leaves no real timers pending between tests. */
+function fakeClock() {
+  let now = 0;
+  let nextId = 1;
+  const pending = new Map<number, { at: number; fn: () => void }>();
+  const scheduler: Scheduler = {
+    set(fn, ms) {
+      const id = nextId++;
+      pending.set(id, { at: now + ms, fn });
+      return id as unknown as ReturnType<typeof setTimeout>;
+    },
+    clear(id) {
+      pending.delete(id as unknown as number);
+    },
+  };
+  return {
+    now: () => now,
+    scheduler,
+    advance(ms: number) {
+      now += ms;
+      for (const [id, task] of [...pending]) {
+        if (task.at <= now) {
+          pending.delete(id);
+          task.fn();
+        }
+      }
+    },
+  };
+}
+
 function makeRunner(
   initial: BoardModel,
   sessions?: Record<string, string>,
@@ -266,6 +298,7 @@ function makeRunner(
   const emitted: string[] = [];
   const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
+  const clock = fakeClock();
   const runner = new Runner({
     // the agent runs in the repo; card paths resolve against .gello
     cwd: "/project",
@@ -290,6 +323,8 @@ function makeRunner(
       publishedRaw.push(runs);
     },
     sessions,
+    now: clock.now,
+    scheduler: clock.scheduler,
   });
   return {
     runner,
@@ -300,6 +335,7 @@ function makeRunner(
     publishedRaw,
     emitted,
     runLog,
+    advance: clock.advance,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
     last: () => published[published.length - 1]?.runs ?? [],
@@ -617,5 +653,84 @@ describe("Runner — run observability (c0104)", () => {
     h.setModel(board({ c001: { status: "review" } }));
     h.spawned[0].exit(0);
     expect(h.last()).toEqual([]);
+  });
+});
+
+// c0109 — the run's latest tool call is published as `activity`, throttled.
+describe("Runner — live activity (c0109)", () => {
+  it("publishes the latest tool call as the run's activity", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Read", { file_path: "src/board.ts" }));
+
+    const run = h.lastRaw().find((r) => r.cardId === "c001");
+    expect(run?.phase).toBe("running");
+    expect(run?.activity).toEqual({ name: "Read", arg: "src/board.ts" });
+  });
+
+  it("coalesces a burst of tool calls into at most one write per window", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+    const before = h.published.length;
+
+    // three tool calls back-to-back within the throttle window
+    h.spawned[0].stdout(toolLine("Read", { file_path: "a.ts" }));
+    h.spawned[0].stdout(toolLine("Edit", { file_path: "b.ts" }));
+    h.spawned[0].stdout(toolLine("Bash", { command: "pnpm test" }));
+
+    // only the leading write landed so far
+    expect(h.published.length).toBe(before + 1);
+    h.advance(1000); // window elapses → one trailing write with the latest
+    expect(h.published.length).toBe(before + 2);
+    expect(h.lastRaw().find((r) => r.cardId === "c001")?.activity).toEqual({
+      name: "Bash",
+      arg: "pnpm test",
+    });
+  });
+
+  it("drops activity from a run's state entry once it parks (waiting-for-input)", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready, undefined, "normal");
+    h.runner.sync(ready);
+
+    h.spawned[0].stdout(toolLine("Bash", { command: "pnpm test" }));
+    expect(h.lastRaw().find((r) => r.cardId === "c001")?.activity).toBeDefined();
+
+    // the agent parks a question and exits clean → waiting-for-input
+    const parked = board({
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
+    });
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    const run = h.lastRaw().find((r) => r.cardId === "c001");
+    expect(run?.phase).toBe("waiting-for-input");
+    expect(run?.activity).toBeUndefined(); // the needs-input badge covers a parked run
+  });
+
+  it("keeps each concurrent run's activity attributed to its own card", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Read", { file_path: "a.ts" }));
+    h.spawned[1].stdout(toolLine("Read", { file_path: "b.ts" }));
+    h.advance(1000); // flush any trailing writes
+
+    const runs = h.lastRaw();
+    expect(runs.find((r) => r.cardId === "c001")?.activity).toEqual({
+      name: "Read",
+      arg: "a.ts",
+    });
+    expect(runs.find((r) => r.cardId === "c002")?.activity).toEqual({
+      name: "Read",
+      arg: "b.ts",
+    });
   });
 });

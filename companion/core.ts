@@ -15,7 +15,7 @@ import {
 import { join, relative, sep, dirname } from "node:path";
 import { loadBoard, type BoardFile, type BoardModel } from "../src/lib/board.ts";
 import type { Card } from "../src/lib/cards.ts";
-import type { RunUsage } from "./stream.ts";
+import type { Activity, RunUsage } from "./stream.ts";
 
 /**
  * Walk up from `start` looking for a `.gello/` directory; returns its absolute
@@ -113,6 +113,9 @@ export interface RunState {
    *  the run's final usage event arrives — for claude, near the end. The c0100
    *  popover reads this to show a run's tokens and cost. */
   usage?: RunUsage;
+  /** The agent's latest tool call (c0109), published only while `running` so
+   *  the card can show a live activity line. The app phrases it. */
+  activity?: Activity;
 }
 
 export function initialState(now: string): CompanionState {

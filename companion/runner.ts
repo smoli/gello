@@ -16,7 +16,8 @@ import { todayIsoDate } from "../src/lib/dates.ts";
 import { withAwaitingCleared } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
 import { writeCardAtomic, type RunState } from "./core.ts";
-import { StreamSink, type AgentEvent, type Level, type RunUsage } from "./stream.ts";
+import { StreamSink, type Activity, type AgentEvent, type Level, type RunUsage } from "./stream.ts";
+import { Throttle, type Scheduler } from "./throttle.ts";
 import {
   resolveSession,
   recordSession,
@@ -200,6 +201,13 @@ export interface RunnerOptions {
   /** c0104: persist one parsed event to the runs.log transcript. No-op if
    *  unset (tests that don't care about the transcript). */
   appendRunLog?: (cardId: string, event: AgentEvent) => void;
+  /** c0109: coalescing window (ms) for activity-driven state writes. Default
+   *  ~1s — a glimpse tolerates a second of lag. */
+  activityThrottleMs?: number;
+  /** c0109: clock + timer surface for the activity throttle. Injected so tests
+   *  drive it deterministically; defaults to real time. */
+  now?: () => number;
+  scheduler?: Scheduler;
 }
 
 interface ActiveRun {
@@ -207,14 +215,24 @@ interface ActiveRun {
   phase: RunPhase;
   /** Latest per-run usage from the piped stream (c0104), once reported. */
   usage?: RunUsage;
+  /** Latest tool call from the piped stream (c0109), once one has been seen. */
+  activity?: Activity;
 }
 
 export class Runner {
   private readonly active = new Map<string, ActiveRun>();
   private sessions: SessionMap;
+  /** c0109: coalesces activity-driven state writes to ~1s, however fast the
+   *  agent emits tool calls. Lifecycle changes publish immediately (bypass it). */
+  private readonly activityThrottle: Throttle;
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
+    this.activityThrottle = new Throttle(
+      opts.activityThrottleMs ?? 1000,
+      opts.now,
+      opts.scheduler,
+    );
   }
 
   /**
@@ -267,12 +285,15 @@ export class Runner {
     }
   }
 
-  /** Active runs as published run states. */
+  /** Active runs as published run states. Activity is carried only while a run
+   *  is `running` — a parked/done run's last tool call is meaningless, and the
+   *  needs-input badge already speaks for a parked one (c0109). */
   runs(): RunState[] {
     return [...this.active].map(([cardId, r]) => ({
       cardId,
       phase: r.phase,
       ...(r.usage ? { usage: r.usage } : {}),
+      ...(r.phase === "running" && r.activity ? { activity: r.activity } : {}),
     }));
   }
 
@@ -314,12 +335,22 @@ export class Runner {
       this.opts.adapter.stream.parse,
       this.opts.emit ?? ((line) => console.log(line)),
       this.opts.appendRunLog ?? (() => {}),
+      (activity) => this.recordActivity(card.id, activity),
     );
     proc.onStdout?.((chunk) => sink.feed(chunk));
     proc.onExit((code) => {
       sink.end();
       this.handleExit(card.id, code, sink.usage());
     });
+  }
+
+  /** Record the run's latest tool call and publish it — throttled, so a fast
+   *  stream of tool calls rewrites the state file at most ~once a second (c0109). */
+  private recordActivity(cardId: string, activity: Activity): void {
+    const run = this.active.get(cardId);
+    if (!run) return;
+    run.activity = activity;
+    this.activityThrottle.trigger(() => this.publish());
   }
 
   private handleExit(cardId: string, code: number | null, usage?: RunUsage): void {
