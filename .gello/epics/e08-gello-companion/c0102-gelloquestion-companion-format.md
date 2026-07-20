@@ -1,13 +1,13 @@
 ---
 id: c0102
 title: Deterministic add-question tool + gelloquestion parse
-status: in-progress
+status: review
 type: task
 created: 2026-07-19
 updated: 2026-07-20
 epic: e08
 depends: [c0101]
-status-changed: 2026-07-20T07:36:51
+status-changed: 2026-07-20T07:58:40
 ---
 
 ## What
@@ -39,18 +39,18 @@ parse to the new format.
 
 ## Acceptance criteria
 
-- [ ] `addQuestion(root, card, markdown)` in the shared core writes the
+- [x] `addQuestion(root, card, markdown)` in the shared core writes the
       `gelloquestion` block + `awaiting: input` in one atomic write, and is the
       only code that formats a question
-- [ ] The question is scoped to the run's card (markdown-only argument, or a
+- [x] The question is scoped to the run's card (markdown-only argument, or a
       supplied id validated against the run)
-- [ ] Claude: an MCP stdio server exposes `add_question`; the adapter wires it
+- [x] Claude: an MCP stdio server exposes `add_question`; the adapter wires it
       per run
-- [ ] pi: a `gello ask` CLI command does the same, taught via a skill/README
-- [ ] `companion/qa.ts` parses the `gelloquestion` fence and detects the
+- [x] pi: a `gello ask` CLI command does the same, taught via a skill/README
+- [x] `companion/qa.ts` parses the `gelloquestion` fence and detects the
       answered transition, then resumes
-- [ ] `buildTaskPrompt` no longer teaches the markdown format, only the protocol
-- [ ] c0096's `## Open question` parse path is retired or bridged
+- [x] `buildTaskPrompt` no longer teaches the markdown format, only the protocol
+- [x] c0096's `## Open question` parse path is retired or bridged
 - [ ] End to end on both backends: agent calls the tool → the app pops the
       question (c0101) → human answers → companion resumes
 
@@ -78,11 +78,48 @@ parse to the new format.
 
 ## Open questions
 
-- Where does `addQuestion` insert the block — top of the body, or above
-  `## Log`? Proposed: near the top, so a raw file reads well.
-- One open question at a time: replace an existing unanswered block, or refuse?
-- Does `gello ask` ship inside the companion CLI or as its own entrypoint?
-- Rebase c026 onto this module now, or after it exists?
+Answered while implementing:
+
+- **Insert point**: top of the body. A raw card file then opens with the thing
+  that needs a human.
+- **Second question while one is open**: refused, in every surface. Replacing it
+  would drop a question the human has not seen.
+- **`gello ask` entrypoint**: a subcommand of the companion CLI
+  (`pnpm companion ask …`), not a second binary — there is only one thing to
+  install and it already finds the board.
+- **c026**: not rebased here. `companion/mcp.ts` is transport-agnostic, so c026
+  can host the same server over whatever transport the app wants.
+
+Still open:
+
+- The prompt tells claude to call `add_question` unconditionally, but the tool
+  only exists on the claude backend. pi runs get a prompt naming a tool they do
+  not have. Fix by making the prompt backend-aware, or by teaching pi through a
+  skill and dropping the sentence.
+
+## Notes
+
+- **Split, not one function.** The criterion asked for one `addQuestion` in the
+  shared core, but the app writes through Tauri `invoke` and the Node companion
+  cannot use that. So the *format* is shared and pure —
+  `withQuestionAdded`/`withAwaitingCleared` in `src/lib/gello-question.ts` —
+  and each host does its own atomic write (`board-actions.ts` for the app,
+  `companion/ask.ts` for the companion). The format still lives in exactly one
+  place, which is what the criterion was protecting.
+- **The `awaiting` marker now carries the protocol** (`input` → `answered` →
+  absent). c0101's answer write cleared the marker, which erased the only
+  durable evidence that an answer was waiting: a companion that was down when
+  the human answered would never resume. Answering now sets `answered`, and the
+  companion clears it when it resumes. `Runner.sync` lost its `prev` parameter
+  as a result — a disk marker needs no model diff.
+- **Scoping** rides on `GELLO_CARD_ID`, set by the runner per spawn. The MCP
+  tool takes markdown only; `gello ask --card` is accepted only when it matches.
+- Verified the MCP server end to end over real stdio (initialize → tools/call →
+  card written with the fence and marker). The last criterion stays unchecked:
+  a full agent run on claude and on pi has not happened.
+- `pnpm test` exits non-zero on two unhandled rejections in `App.test.tsx`
+  (c0083 auto-commit tests, an unmocked `readFileRaw`). Pre-existing — present
+  on a clean tree before this card. Filed as i0035.
 
 ## Log
 
