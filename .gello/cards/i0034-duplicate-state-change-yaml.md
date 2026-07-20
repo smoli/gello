@@ -1,11 +1,11 @@
 ---
 id: i0034
 title: Duplicate state change YAML
-status: review
+status: done
 type: issue
 created: 2026-07-19
-updated: 2026-07-19
-status-changed: 2026-07-19T08:46:00
+updated: 2026-07-20
+status-changed: 2026-07-20T07:36:11
 ---
 
 In another project I’ve got a duplicatestate change entry
@@ -41,6 +41,7 @@ lane** — it can't be loaded or fixed in the app, only by hand-editing the file
 ## Log
 
 - 2026-07-19 status → ready (app)
+- 2026-07-20 status → done (app)
 
 ## Resolution (human's call: keep strict + repair action)
 

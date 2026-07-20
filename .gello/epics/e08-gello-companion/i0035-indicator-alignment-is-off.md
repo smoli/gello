@@ -1,14 +1,13 @@
 ---
 id: i0035
 title: Indicator alignment is off
-status: review
+status: done
 type: issue
 ref: c0100
 epic: e08
 created: 2026-07-19
-updated: 2026-07-19
-status-changed: 2026-07-19T21:20:00
-order: 10
+updated: 2026-07-20
+status-changed: 2026-07-20T07:36:01
 ---
 
 ![image](../../assets/i0035/image.png)
@@ -39,3 +38,4 @@ CSS-only ([src/components/TitleBar.css](../../../src/components/TitleBar.css)).
   Browser-preview screenshot unavailable (the preview tooling wouldn't render
   the static harness), so verified by reasoning against the c0083 dot's rules.
   status → review.
+- 2026-07-20 status → done (app)

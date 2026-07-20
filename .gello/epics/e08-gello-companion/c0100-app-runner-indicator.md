@@ -1,12 +1,12 @@
 ---
 id: c0100
 title: App — title-bar runner indicator + needs-input badge
-status: review
+status: done
 epic: e08
 depends: [c0093]
 created: 2026-07-19
-updated: 2026-07-19
-status-changed: 2026-07-19T21:05:00
+updated: 2026-07-20
+status-changed: 2026-07-20T07:36:05
 ---
 
 ## What
@@ -99,3 +99,4 @@ in-detail open-turn answer surface.
   `.companion/state.json`, click → runs popover) + the card-front needs-input
   badge (`awaiting: input` marker). Answer-surface rendering split to
   [[c0101]]. Full suite 580 green, typecheck + lint clean. status → review.
+- 2026-07-20 status → done (app)

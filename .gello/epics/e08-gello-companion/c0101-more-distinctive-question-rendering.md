@@ -1,10 +1,10 @@
 ---
 id: c0101
 title: More distinctive Question rendering
-status: review
+status: done
 created: 2026-07-19
-updated: 2026-07-19
-status-changed: 2026-07-19T21:32:46
+updated: 2026-07-20
+status-changed: 2026-07-20T07:35:58
 epic: e08
 ---
 
@@ -92,3 +92,4 @@ change the on-disk question format to a fenced block.
   auto-opens on card open; a read-only question panel with an Answer button;
   Cancel leaves the card editable. 595 tests green. The companion parser +
   agent convention (write/detect the fence) are split to c0102.
+- 2026-07-20 status → done (app)
