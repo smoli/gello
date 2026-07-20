@@ -8,10 +8,8 @@ epic: e08
 created: 2026-07-20
 updated: 2026-07-21
 status-changed: 2026-07-21T00:09:55
-awaiting: input
 ---
 
-```gelloquestion
 ## Diagnosis: not a code bug — a stale companion process
 
 I traced the whole pipeline and the current build is correct:
@@ -33,13 +31,12 @@ layer was unit-tested, but not the contract between them).
 
 **How do you want to dispose this?**
 
-- [ ] Close it — accept it was a stale process; the seam test is enough. (Tip:
+- [x] Close it — accept it was a stale process; the seam test is enough. (Tip:
       restart the companion after updating its code.)
 - [ ] Build robustness — have the app distinguish "companion running but
       reporting no activity / stale" from genuine "Thinking…" (e.g. a companion
       version/heartbeat in `state.json`). I'd scope this as its own change.
 - [ ] Something else — say what you'd like.
-```
 
 It only shows thinking although the agent did:
 
