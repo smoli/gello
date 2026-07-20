@@ -9,6 +9,7 @@
 import { watch } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   findBoardRoot,
   loadBoardFrom,
@@ -20,7 +21,8 @@ import {
   type RunState,
 } from "./core.ts";
 import { cardsAwaitingInput } from "./qa.ts";
-import { getAdapter } from "./adapters.ts";
+import { runAsk } from "./ask-cli.ts";
+import { getAdapter, type AskServerSpec } from "./adapters.ts";
 import { loadSessions, saveSessions, type SessionScope } from "./sessions.ts";
 import { Runner, type SpawnedRun, type Spawner } from "./runner.ts";
 import type { BoardModel } from "../src/lib/board.ts";
@@ -43,8 +45,12 @@ function log(message: string): void {
 /** Spawn a real agent process, inheriting stdio so its work streams to the
  *  companion's terminal. A spawn error (e.g. command not found) surfaces as a
  *  null exit code → classified as an error, non-fatal to the companion. */
-const nodeSpawner: Spawner = (spec, cwd): SpawnedRun => {
-  const child = spawn(spec.command, spec.args, { cwd, stdio: "inherit" });
+const nodeSpawner: Spawner = (spec, cwd, env): SpawnedRun => {
+  const child = spawn(spec.command, spec.args, {
+    cwd,
+    stdio: "inherit",
+    env: { ...process.env, ...env },
+  });
   return {
     onExit(cb) {
       let fired = false;
@@ -63,7 +69,27 @@ const nodeSpawner: Spawner = (spec, cwd): SpawnedRun => {
   };
 };
 
+/** How the agent should launch the `add_question` MCP server (c0102): the same
+ *  tsx runtime the companion itself runs under, pointed at the stdio
+ *  entrypoint. The runner adds the run's card id to `env`. */
+function askServerSpec(root: string): AskServerSpec {
+  return {
+    command: process.execPath,
+    args: [
+      ...process.execArgv,
+      fileURLToPath(new URL("mcp-main.ts", import.meta.url)),
+    ],
+    env: { GELLO_BOARD_ROOT: root },
+  };
+}
+
 function main(): void {
+  // `ask` is the agent-facing subcommand (c0102); bare argv is the watch dir.
+  if (process.argv[2] === "ask") {
+    process.exit(
+      runAsk(process.argv.slice(3), process.env, process.cwd(), (m) => console.log(m)),
+    );
+  }
   const start = resolve(process.argv[2] ?? process.cwd());
   const root = findBoardRoot(start);
   if (!root) {
@@ -93,6 +119,7 @@ function main(): void {
     permissionMode,
     wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
     spawn: nodeSpawner,
+    askServer: askServerSpec(root),
     reload: () => loadBoardFrom(root),
     sessions: loadSessions(root),
     persistSessions: (map) => saveSessions(root, map),
@@ -104,7 +131,7 @@ function main(): void {
   });
 
   publish(root, model, runs);
-  runner.sync(null, model);
+  runner.sync(model);
 
   // Debounce watcher bursts (an atomic write is a delete+create; a triage
   // touches several files); reload once things settle, then let the runner
@@ -121,9 +148,8 @@ function main(): void {
         log(`reload failed: ${(error as Error).message}`);
         return;
       }
-      const prev = model;
       model = next;
-      runner.sync(prev, next);
+      runner.sync(next);
       publish(root, next, runs);
     }, 150);
   });

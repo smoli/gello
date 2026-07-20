@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  insertGelloQuestion,
   parseGelloQuestion,
   stripGelloQuestion,
   unfenceWithAnswer,
@@ -72,6 +73,35 @@ describe("unfenceWithAnswer (c0101)", () => {
 
   it("returns null when there is nothing to un-fence", () => {
     expect(unfenceWithAnswer("no fence here\n", { kind: "open", text: "x" })).toBeNull();
+  });
+});
+
+describe("insertGelloQuestion (c0102)", () => {
+  it("puts the question at the top of the body, fenced, keeping the rest", () => {
+    const body = "\n## What\n\ndo a thing\n";
+    const out = insertGelloQuestion(body, "Which database?\n\n- [ ] Postgres\n- [ ] SQLite")!;
+
+    expect(out).toContain("```gelloquestion");
+    expect(out.indexOf("```gelloquestion")).toBeLessThan(out.indexOf("## What"));
+    expect(out).toContain("do a thing");
+
+    // it round-trips through the parser it is the source of
+    const q = parseGelloQuestion(out)!;
+    expect(q.prompt).toBe("Which database?");
+    expect(q.options).toEqual(["Postgres", "SQLite"]);
+  });
+
+  it("refuses a second question while one is still open", () => {
+    const withOpen = insertGelloQuestion("\nbody\n", "First?")!;
+    expect(insertGelloQuestion(withOpen, "Second?")).toBeNull();
+  });
+
+  it("un-fencing its own output yields plain markdown again", () => {
+    const out = insertGelloQuestion("\nbody\n", "Pick\n\n- [ ] a\n- [ ] b")!;
+    const answered = unfenceWithAnswer(out, { kind: "choice", selected: [0] })!;
+    expect(answered).not.toContain("```");
+    expect(answered).toContain("- [x] a");
+    expect(answered).toContain("body");
   });
 });
 

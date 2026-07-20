@@ -93,8 +93,8 @@ export interface CompanionState {
   status: "idle" | "running" | "waiting";
   /** Card ids currently sitting in `ready` (detected, awaiting dispatch). */
   ready: string[];
-  /** Card ids with a parked, unanswered `## Open question` (c0096) — the app
-   *  shows a "needs input" badge for these. */
+  /** Card ids parked on an unanswered question (`awaiting: input`, c0102) —
+   *  the app shows a "needs input" badge for these. */
   waiting: string[];
   /** Active runs — empty until the dispatch flow lands (c0097). */
   runs: RunState[];
@@ -141,4 +141,13 @@ export function readJson<T>(path: string, fallback: T): T {
 /** Write the state file atomically (temp + rename), creating `.companion/`. */
 export function writeStateFile(root: string, state: CompanionState): void {
   writeJsonAtomic(companionStatePath(root), state);
+}
+
+/** c0102: write a card file atomically (temp + rename), Node-side. The app
+ *  writes through Tauri; the companion needs its own path for the Q&A protocol
+ *  writes (parking a question, clearing the marker on resume). */
+export function writeCardAtomic(absPath: string, raw: string): void {
+  const tmp = `${absPath}.gello-tmp.${process.pid}`;
+  writeFileSync(tmp, raw);
+  renameSync(tmp, absPath);
 }

@@ -8,6 +8,13 @@
 // When the human answers, the app un-fences the block in place (the resolved
 // Q&A becomes plain markdown) and clears the marker; the companion resumes.
 
+import {
+  replaceCardBody,
+  updateCardFields,
+  type BoardConfig,
+  type Card,
+} from "./cards";
+
 /** A parsed `gelloquestion` block. */
 export interface GelloQuestion {
   /** The markdown between the fences (question + slots). */
@@ -45,6 +52,20 @@ export function parseGelloQuestion(body: string): GelloQuestion | null {
   return { inner, prompt, options, isChoice: options.length > 0 };
 }
 
+/**
+ * c0102: insert a question as a `gelloquestion` block at the top of the body —
+ * the single place a question is ever formatted, so the format can't drift.
+ * Returns null when the card already has an open question: one turn at a time,
+ * and replacing an unanswered one would silently drop a question the human has
+ * not seen yet.
+ */
+export function insertGelloQuestion(body: string, markdown: string): string | null {
+  if (FENCE_RE.test(body)) return null;
+  const block = `\`\`\`gelloquestion\n${markdown.trim()}\n\`\`\``;
+  const rest = body.replace(/^\s*\n/, "");
+  return `\n${block}\n\n${rest}`;
+}
+
 /** Remove the `gelloquestion` block from a body (for the in-detail render that
  *  shows the question in its own panel). Collapses the gap it leaves. */
 export function stripGelloQuestion(body: string): string {
@@ -70,6 +91,34 @@ function answeredInner(inner: string, answer: GelloAnswer): string {
       return `${match[1]}[${mark}]${match[2]}${match[3]}`;
     })
     .join("\n");
+}
+
+/**
+ * c0102: the card raw with a question parked on it — the `gelloquestion` block
+ * plus `awaiting: input`. Pure, so both hosts can use it: the app writes the
+ * result through Tauri, the companion (MCP tool / CLI) through node:fs. Returns
+ * null when the card already has an open question.
+ */
+export function withQuestionAdded(
+  card: Card,
+  markdown: string,
+  today: string,
+  config: BoardConfig,
+): { card: Card; raw: string } | null {
+  const newBody = insertGelloQuestion(card.body, markdown);
+  if (newBody === null) return null;
+  const { card: withBody } = replaceCardBody(card, newBody, today, config);
+  return updateCardFields(withBody, { awaiting: "input" }, today, config);
+}
+
+/** c0102: the card raw with the `awaiting` marker cleared — what the companion
+ *  writes once it has resumed on an `answered` marker. Pure. */
+export function withAwaitingCleared(
+  card: Card,
+  today: string,
+  config: BoardConfig,
+): { card: Card; raw: string } {
+  return updateCardFields(card, { awaiting: null }, today, config);
 }
 
 /**

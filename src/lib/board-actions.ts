@@ -15,6 +15,7 @@ import {
   type Epic,
 } from "./cards";
 import { writeFileAtomic } from "./fs";
+import { withAwaitingCleared, withQuestionAdded } from "./gello-question";
 import { appendLogLine, retargetAssetLinks } from "./markdown";
 
 export interface MoveResult {
@@ -116,10 +117,35 @@ export function saveCardBody(
 }
 
 /**
+ * c0102: park a question on a card — the deterministic counterpart to
+ * answering. Inserts the `gelloquestion` block and sets `awaiting: input` in one
+ * atomic write. This is the only path that formats a question, so an agent
+ * supplies content and never markup. Throws when the card already has an open
+ * question (one turn at a time).
+ */
+export function addGelloQuestion(
+  root: string,
+  card: Card,
+  markdown: string,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  const result = withQuestionAdded(card, markdown, today, config);
+  if (result === null) {
+    throw new Error(`card ${card.id} already has an open question`);
+  }
+  const persisted = writeFileAtomic(`${root}/${card.path}`, result.raw);
+  return { card: result.card, persisted };
+}
+
+/**
  * c0101: answer a parked `gelloquestion`. Un-fences the block in place (the
- * resolved Q&A becomes plain markdown, `newBody`) and clears the `awaiting:
- * input` marker — one atomic write, so the companion sees a single consistent
- * transition to resume on.
+ * resolved Q&A becomes plain markdown, `newBody`) and moves the marker from
+ * `awaiting: input` to `awaiting: answered` — one atomic write.
+ *
+ * c0102: the marker is *set*, not cleared, so the answered state is durable on
+ * disk. A companion that was down while the human answered still sees it on
+ * restart and resumes; it clears the marker when it does.
  */
 export function answerGelloQuestion(
   root: string,
@@ -129,7 +155,25 @@ export function answerGelloQuestion(
   today: string,
 ): MoveResult {
   const { card: withBody } = replaceCardBody(card, newBody, today, config);
-  const { card: updated, raw } = updateCardFields(withBody, { awaiting: null }, today, config);
+  const { card: updated, raw } = updateCardFields(
+    withBody,
+    { awaiting: "answered" },
+    today,
+    config,
+  );
+  const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
+  return { card: updated, persisted };
+}
+
+/** c0102: clear the `awaiting` marker (app-side counterpart of the companion's
+ *  clear-on-resume). */
+export function clearAwaitingMarker(
+  root: string,
+  card: Card,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  const { card: updated, raw } = withAwaitingCleared(card, today, config);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
 }
@@ -357,18 +401,6 @@ export function deleteCard(root: string, card: Card): { persisted: Promise<void>
   return { persisted };
 }
 
-/** Now as a local-time ISO datetime (c056) — lexicographically sortable,
- *  human-readable in the file, no timezone juggling for a local-first tool. */
-export function nowIsoDateTime(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-  );
-}
-
-/** Today as a local ISO date (YYYY-MM-DD) for `updated` bumps. */
-export function todayIsoDate(): string {
-  return nowIsoDateTime().slice(0, 10);
-}
+// Re-exported so existing callers keep their import site; the definitions moved
+// to the pure dates module (c0102) so the Node companion can share them.
+export { nowIsoDateTime, todayIsoDate } from "./dates";

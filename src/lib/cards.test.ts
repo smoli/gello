@@ -74,7 +74,9 @@ describe("parseCard", () => {
   });
 
   it("c0096: parses the `awaiting` marker for a parked question", () => {
-    const raw = `---\nid: c007\ntitle: Parked\nstatus: in-progress\nawaiting: input\n---\n\n## Open question\n\n### Which?\n\n- [ ] a\n`;
+    const raw =
+      "---\nid: c007\ntitle: Parked\nstatus: in-progress\nawaiting: input\n---\n" +
+      "\n```gelloquestion\nWhich?\n\n- [ ] a\n```\n";
     const result = parseCard("cards/c007-parked.md", raw);
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -21,21 +21,30 @@ interface CardSpec {
   status: string;
   depends?: string[];
   order?: number;
-  open?: string; // an `## Open question` body, if any
+  /** Question markdown parked as a `gelloquestion` fence (awaiting: input). */
+  parked?: string;
+  /** Answered question, un-fenced in place by the app (awaiting: answered). */
+  answered?: string;
 }
 
 function cardFile(id: string, s: CardSpec): string {
+  const awaiting = s.parked ? "input" : s.answered ? "answered" : null;
   const fm = [
     `id: ${id}`,
     `title: Card ${id}`,
     `status: ${s.status}`,
     s.depends ? `depends: [${s.depends.join(", ")}]` : null,
     s.order !== undefined ? `order: ${s.order}` : null,
+    awaiting ? `awaiting: ${awaiting}` : null,
   ]
     .filter(Boolean)
     .join("\n");
-  const open = s.open ? `\n\n## Open question\n\n${s.open}` : "";
-  return `---\n${fm}\n---\n\n## What\n\ntask${open}\n`;
+  const question = s.parked
+    ? `\n\n\`\`\`gelloquestion\n${s.parked.trim()}\n\`\`\``
+    : s.answered
+      ? `\n\n${s.answered.trim()}`
+      : "";
+  return `---\n${fm}\n---\n\n## What\n\ntask${question}\n`;
 }
 
 function board(cards: Record<string, CardSpec>): BoardModel {
@@ -109,7 +118,7 @@ describe("classifyExit", () => {
 
   it("clean exit with a parked open turn is waiting-for-input", () => {
     const model = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
     });
     expect(classifyExit(cardOf(model, "c001"), 0)).toBe("waiting-for-input");
   });
@@ -121,19 +130,28 @@ describe("classifyExit", () => {
 
   it("clean exit with an answered open turn is done (not still waiting)", () => {
     const model = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
     });
     expect(classifyExit(cardOf(model, "c001"), 0)).toBe("done");
   });
 });
 
 describe("buildTaskPrompt", () => {
-  it("names the card and points the agent at the park convention", () => {
+  it("names the card and points the agent at the add_question tool", () => {
     const model = board({ c001: { status: "ready" } });
     const prompt = buildTaskPrompt(cardOf(model, "c001"), false);
     expect(prompt).toContain("c001");
     expect(prompt).toContain("cards/c001-x.md");
-    expect(prompt).toMatch(/Open question/i);
+    expect(prompt).toContain("add_question");
+  });
+
+  // c0102: the tool owns the format. A prompt that also describes a markdown
+  // shape is what let the agent hand-roll a non-conforming question.
+  it("does not teach a question markdown format", () => {
+    const model = board({ c001: { status: "ready" } });
+    const prompt = buildTaskPrompt(cardOf(model, "c001"), false);
+    expect(prompt).not.toMatch(/Open question/i);
+    expect(prompt).not.toMatch(/gelloquestion/i);
   });
 
   it("resume prompt tells the agent the question was answered", () => {
@@ -147,7 +165,10 @@ describe("buildTaskPrompt", () => {
 /** A fake process: records the spec and lets the test fire its exit. */
 class FakeProc implements SpawnedRun {
   private cb: ((code: number | null) => void) | null = null;
-  constructor(readonly spec: LaunchSpec) {}
+  constructor(
+    readonly spec: LaunchSpec,
+    readonly env?: Record<string, string>,
+  ) {}
   onExit(cb: (code: number | null) => void): void {
     this.cb = cb;
   }
@@ -158,15 +179,18 @@ class FakeProc implements SpawnedRun {
 
 function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
   const spawned: FakeProc[] = [];
+  const writes: { path: string; raw: string }[] = [];
   let model = initial;
   const published: { runs: string[] }[] = [];
   const runner = new Runner({
     root: "/board",
+    writeCard: (path, raw) => writes.push({ path, raw }),
+    askServer: { command: "tsx", args: ["/repo/companion/mcp-main.ts"], env: {} },
     adapter: claudeAdapter,
     scope: "card",
     wipLimit: 2,
-    spawn: (spec) => {
-      const proc = new FakeProc(spec);
+    spawn: (spec, _cwd, env) => {
+      const proc = new FakeProc(spec, env);
       spawned.push(proc);
       return proc;
     },
@@ -177,6 +201,7 @@ function makeRunner(initial: BoardModel, sessions?: Record<string, string>) {
   return {
     runner,
     spawned,
+    writes,
     published,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -188,7 +213,7 @@ describe("Runner", () => {
   it("dispatches a ready card: one spawn creating a new session (--session-id)", () => {
     const start = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(start);
-    h.runner.sync(null, start);
+    h.runner.sync(start);
 
     expect(h.spawned).toHaveLength(1);
     const args = h.spawned[0].spec.args;
@@ -203,7 +228,7 @@ describe("Runner", () => {
     // in the map. Recreating the id would error ("already in use"), so resume.
     const start = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(start, { "card:c001": "prior-session-id" });
-    h.runner.sync(null, start);
+    h.runner.sync(start);
 
     const args = h.spawned[0].spec.args;
     expect(args[0]).toBe("--resume");
@@ -214,11 +239,11 @@ describe("Runner", () => {
   it("a clean exit on a parked card → waiting-for-input, run stays active", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);
-    h.runner.sync(null, ready);
+    h.runner.sync(ready);
 
     // agent moved c001 to in-progress and parked a question, then exited 0
     const parked = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
     });
     h.setModel(parked);
     h.spawned[0].exit(0);
@@ -229,20 +254,20 @@ describe("Runner", () => {
   it("answering a parked turn resumes the SAME session via --resume", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);
-    h.runner.sync(null, ready);
+    h.runner.sync(ready);
     const sessionId = h.spawned[0].spec.args[1]; // after --session-id
 
     const parked = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
     });
     h.setModel(parked);
     h.spawned[0].exit(0);
 
     const answered = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
     });
     h.setModel(answered);
-    h.runner.sync(parked, answered);
+    h.runner.sync(answered);
 
     expect(h.spawned).toHaveLength(2);
     expect(h.spawned[1].spec.args[0]).toBe("--resume"); // resume, not recreate
@@ -255,14 +280,14 @@ describe("Runner", () => {
     // the human answers, a fresh companion must still resume — not sit idle
     // until the card is bumped back to ready.
     const parked = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [ ] Postgres\n" },
+      c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] Postgres\n" },
     });
     const h = makeRunner(parked, { "card:c001": "prior-session-id" });
     const answered = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
     });
     h.setModel(answered);
-    h.runner.sync(parked, answered);
+    h.runner.sync(answered);
 
     expect(h.spawned).toHaveLength(1);
     expect(h.spawned[0].spec.args[0]).toBe("--resume");
@@ -274,30 +299,73 @@ describe("Runner", () => {
     // On a cold start, a card left answered-but-not-archived is waiting on the
     // agent, not the human — resume it.
     const answered = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
     });
     const h = makeRunner(answered, { "card:c001": "sid-1" });
-    h.runner.sync(null, answered);
+    h.runner.sync(answered);
 
     expect(h.spawned).toHaveLength(1);
     expect(h.spawned[0].spec.args[0]).toBe("--resume");
+  });
+
+  // c0102: the ask surfaces read the card from the environment, so the agent
+  // cannot park a question on a card its run is not for
+  it("scopes the run to its card via GELLO_CARD_ID in the spawn environment", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned[0].env?.GELLO_CARD_ID).toBe("c001");
+  });
+
+  it("stamps the run's card into the ask server config, per run", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    const cardOfSpawn = (i: number) => {
+      const args = h.spawned[i].spec.args;
+      const config = JSON.parse(args[args.indexOf("--mcp-config") + 1]);
+      return config.mcpServers.gello.env.GELLO_CARD_ID;
+    };
+    expect(cardOfSpawn(0)).toBe("c001");
+    expect(cardOfSpawn(1)).toBe("c002"); // not leaked from the first run
+  });
+
+  it("clears the awaiting marker when it resumes, so the resume fires once", () => {
+    const answered = board({
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
+    });
+    const h = makeRunner(answered, { "card:c001": "sid-1" });
+    h.runner.sync(answered);
+
+    expect(h.writes).toHaveLength(1);
+    expect(h.writes[0].path).toBe("cards/c001-x.md");
+    expect(h.writes[0].raw).not.toContain("awaiting:");
+
+    // the cleared card is what a later sync sees — no second dispatch
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.runner.sync(h.reloadModel());
+    expect(h.spawned).toHaveLength(1);
   });
 
   it("does not auto-resume an answered card the companion never started (no session)", () => {
     // A human-authored Q&A card with no session must not be spuriously
     // dispatched — the companion only continues dialogues it owns.
     const answered = board({
-      c001: { status: "in-progress", open: "### Which db?\n\n- [x] Postgres\n" },
+      c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
     });
     const h = makeRunner(answered); // no sessions
-    h.runner.sync(null, answered);
+    h.runner.sync(answered);
     expect(h.spawned).toHaveLength(0);
   });
 
   it("a clean exit with the work finished → done, run removed", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);
-    h.runner.sync(null, ready);
+    h.runner.sync(ready);
 
     const finished = board({ c001: { status: "review" } });
     h.setModel(finished);
@@ -309,7 +377,7 @@ describe("Runner", () => {
   it("a crashed agent → error, run removed, card left untouched (companion never edits)", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready);
-    h.runner.sync(null, ready);
+    h.runner.sync(ready);
 
     const midwork = board({ c001: { status: "in-progress" } });
     h.setModel(midwork);
@@ -327,7 +395,7 @@ describe("Runner", () => {
       c003: { status: "ready", order: 3 },
     });
     const h = makeRunner(start);
-    h.runner.sync(null, start);
+    h.runner.sync(start);
     expect(h.spawned.map((p) => p.spec.args[p.spec.args.length - 1])).toHaveLength(2);
   });
 });

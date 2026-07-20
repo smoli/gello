@@ -696,7 +696,7 @@ describe("App", () => {
     expect((written.match(/^status-changed:/gm) ?? []).length).toBe(1);
   });
 
-  it("c0101: answering a parked question un-fences the body and clears awaiting", async () => {
+  it("c0101: answering a parked question un-fences the body and marks it answered", async () => {
     const raw =
       "---\nid: c009\ntitle: Parked\nstatus: in-progress\nawaiting: input\nupdated: 2026-07-18\n---\n" +
       "\n```gelloquestion\nWhich?\n- [ ] a\n- [ ] b\n```\n";
@@ -724,7 +724,7 @@ describe("App", () => {
       ),
     );
     const written = writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string;
-    expect(written).not.toContain("awaiting:");
+    expect(written).toContain("awaiting: answered");
     expect(written).not.toContain("```gelloquestion");
   });
 

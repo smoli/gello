@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getAdapter, claudeAdapter, piAdapter, ADAPTER_NAMES } from "./adapters.ts";
+import {
+  getAdapter,
+  claudeAdapter,
+  piAdapter,
+  ADAPTER_NAMES,
+  ASK_TOOL,
+} from "./adapters.ts";
 
 const SID = "11111111-2222-3333-4444-555555555555";
 
@@ -55,6 +61,37 @@ describe("agent adapters — command construction", () => {
 
   it("pi: interactive run omits -p", () => {
     expect(piAdapter.build(req("interactive")).args).not.toContain("-p");
+  });
+
+  // c0102 — the ask surface differs per backend: claude gets the MCP tool, pi
+  // has no MCP at all and uses the `gello ask` CLI.
+  describe("ask server wiring", () => {
+    const askServer = {
+      command: "tsx",
+      args: ["/repo/companion/mcp-main.ts"],
+      env: { GELLO_CARD_ID: "c001", GELLO_BOARD_ROOT: "/repo/.gello" },
+    };
+    const withServer = { ...req("print"), askServer };
+
+    it("claude: configures the server inline and allows its tool", () => {
+      const args = claudeAdapter.build(withServer).args;
+      const config = JSON.parse(args[args.indexOf("--mcp-config") + 1]);
+      expect(config).toEqual({ mcpServers: { gello: askServer } });
+      expect(args[args.indexOf("--allowed-tools") + 1]).toBe(ASK_TOOL);
+    });
+
+    it("claude: the prompt stays the last argv element", () => {
+      const args = claudeAdapter.build(withServer).args;
+      expect(args[args.length - 1]).toBe("Work on card c0001");
+    });
+
+    it("claude: omits the MCP flags when no server is supplied", () => {
+      expect(claudeAdapter.build(req("print")).args).not.toContain("--mcp-config");
+    });
+
+    it("pi: ignores it — pi has no MCP", () => {
+      expect(piAdapter.build(withServer).args).not.toContain("--mcp-config");
+    });
   });
 
   // Headless runs can't answer an interactive approval prompt, so an

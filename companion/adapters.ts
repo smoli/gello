@@ -35,7 +35,20 @@ export interface RunRequest {
    *  that pre-approves them (claude: `auto`; `default` prompts and thus fails
    *  headless). Backends without such a flag (pi) ignore it. */
   permissionMode?: string;
+  /** c0102: an MCP stdio server to wire into the run (the `add_question` tool).
+   *  Backends without MCP (pi) ignore it and use the `gello ask` CLI instead. */
+  askServer?: AskServerSpec;
 }
+
+/** How to launch the ask MCP server as a stdio child of the agent. */
+export interface AskServerSpec {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+}
+
+/** The tool name the agent must be allowed to call, per MCP's `mcp__<server>__<tool>`. */
+export const ASK_TOOL = "mcp__gello__add_question";
 
 export interface AgentAdapter {
   readonly name: string;
@@ -68,6 +81,20 @@ export const claudeAdapter: AgentAdapter = {
     // headless run gets an explicit auto-approving mode when asked.
     if (req.permissionMode && req.permissionMode !== "default") {
       args.push("--permission-mode", req.permissionMode);
+    }
+    // c0102: the ask server is scoped to this run — configured inline rather
+    // than in the user's ~/.claude config, so it exists only for this process
+    // and carries this card's id.
+    if (req.askServer) {
+      const { command, args: serverArgs, env } = req.askServer;
+      args.push(
+        "--mcp-config",
+        JSON.stringify({
+          mcpServers: { gello: { command, args: serverArgs, env } },
+        }),
+        "--allowed-tools",
+        ASK_TOOL,
+      );
     }
     return args;
   }),

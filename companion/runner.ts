@@ -9,10 +9,13 @@
 // counts a card the moment it has an active run — not only once the agent has
 // flipped it to `in-progress` — so two dispatches can't race past the limit.
 
+import { join } from "node:path";
 import type { BoardModel } from "../src/lib/board.ts";
-import type { Card } from "../src/lib/cards.ts";
-import type { AgentAdapter, LaunchSpec } from "./adapters.ts";
-import type { RunState } from "./core.ts";
+import type { BoardConfig, Card } from "../src/lib/cards.ts";
+import { todayIsoDate } from "../src/lib/dates.ts";
+import { withAwaitingCleared } from "../src/lib/gello-question.ts";
+import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
+import { writeCardAtomic, type RunState } from "./core.ts";
 import {
   resolveSession,
   recordSession,
@@ -20,7 +23,7 @@ import {
   type SessionMap,
   type SessionScope,
 } from "./sessions.ts";
-import { parseOpenTurn, isOpenTurnAnswered, cardsAnswered } from "./qa.ts";
+import { hasOpenQuestion, cardsAnswered } from "./qa.ts";
 
 const IN_PROGRESS = "in-progress";
 const READY = "ready";
@@ -85,12 +88,12 @@ export type RunPhase = RunState["phase"];
 
 /**
  * Classify a finished agent process. A non-zero exit is an error. A clean exit
- * that left a parked, unanswered open turn (c0096) means the agent is waiting
+ * that left a parked question (c0096/c0102) means the agent is waiting
  * on the human; anything else is done.
  */
 export function classifyExit(card: Card | undefined, code: number | null): RunPhase {
   if (code !== 0) return "error";
-  if (card && parseOpenTurn(card.body).present && !isOpenTurnAnswered(card.body)) {
+  if (card && hasOpenQuestion(card.body)) {
     return "waiting-for-input";
   }
   return "done";
@@ -102,19 +105,19 @@ export function classifyExit(card: Card | undefined, code: number | null): RunPh
 export function buildTaskPrompt(card: Card, resuming: boolean): string {
   if (resuming) {
     return (
-      `The human answered your open question on gello card ${card.id} ` +
-      `(${card.path}). Read the answers in its "## Open question" section, ` +
-      `archive that resolved turn to "## History", clear the awaiting marker, ` +
-      `and continue the work.`
+      `The human answered your question on gello card ${card.id} ` +
+      `(${card.path}). Re-read the card for the answer and continue the work.`
     );
   }
+  // No question format here: the agent parks a question with the `add_question`
+  // tool, which formats and writes it (c0102). Teaching a markdown shape in the
+  // prompt is what let the agent drift off it in the first place.
   return (
     `Work gello card ${card.id} — "${card.title}" (${card.path}). Follow the ` +
     `gello workflow in CLAUDE.md: set it in-progress, work test-first, keep ` +
     `Notes/Log current, and move it to review when the acceptance criteria ` +
-    `pass. If you need a human decision, write it into the card's ` +
-    `"## Open question" section and exit — the human answers there and you ` +
-    `resume.`
+    `pass. If you need a human decision, call the \`add_question\` tool and ` +
+    `then exit — the human answers on the card and you are resumed.`
   );
 }
 
@@ -126,8 +129,12 @@ export interface SpawnedRun {
 }
 
 /** Launches an agent process from a spec. Real impl wraps `child_process`;
- *  tests pass a fake. */
-export type Spawner = (spec: LaunchSpec, cwd: string) => SpawnedRun;
+ *  tests pass a fake. `env` is overlaid on the companion's own environment. */
+export type Spawner = (
+  spec: LaunchSpec,
+  cwd: string,
+  env: Record<string, string>,
+) => SpawnedRun;
 
 export interface RunnerOptions {
   /** Absolute `.gello` root (agent cwd + state location). */
@@ -139,8 +146,14 @@ export interface RunnerOptions {
    *  `RunRequest.permissionMode`). Undefined → the CLI's own default. */
   permissionMode?: string;
   spawn: Spawner;
+  /** c0102: how to launch the `add_question` MCP server. The runner stamps the
+   *  run's card id into its env, which is what scopes the tool. */
+  askServer?: AskServerSpec;
   /** Re-read the board from disk (to classify an exit, drain the queue). */
   reload: () => BoardModel;
+  /** Write a card file, given its path relative to `root`. Injected so tests
+   *  can observe it; defaults to an atomic node:fs write. */
+  writeCard?: (relPath: string, raw: string) => void;
   /** Published whenever the set of active runs changes. */
   onRuns: (runs: RunState[]) => void;
   /** Initial session map; defaults to empty. */
@@ -163,11 +176,15 @@ export class Runner {
     this.sessions = opts.sessions ?? {};
   }
 
-  /** Reconcile against a fresh board load: resume answered parked runs, then
-   *  dispatch ready cards up to the WIP budget (draining the queue as slots
-   *  free). */
-  sync(prev: BoardModel | null, next: BoardModel): void {
-    for (const card of cardsAnswered(prev, next)) this.maybeResume(card);
+  /**
+   * Reconcile against a fresh board load: resume answered parked runs, then
+   * dispatch ready cards up to the WIP budget (draining the queue as slots
+   * free). Takes only the current board — c0102 moved the resume trigger from a
+   * model diff to the `awaiting` marker, which is durable on disk, so a
+   * companion that was down while the human answered still sees it on startup.
+   */
+  sync(next: BoardModel): void {
+    for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
     const { dispatch } = planDispatch(next, [...this.active.keys()], this.opts.wipLimit);
     for (const card of dispatch) this.start(card, false);
     this.publish();
@@ -181,11 +198,28 @@ export class Runner {
    * a dialogue the companion actually owns (a session exists) and is not
    * already running.
    */
-  private maybeResume(card: Card): void {
+  private maybeResume(card: Card, config: BoardConfig): void {
     if (this.active.get(card.id)?.phase === "running") return;
     const { sessionId } = resolveSession(this.sessions, card, this.opts.scope);
     if (sessionId === null) return; // never started by us — don't dispatch
+    // Clear before dispatching: the marker is the resume trigger, so leaving it
+    // set would re-fire the same resume on every subsequent sync.
+    this.clearAwaiting(card, config);
     this.start(card, true);
+  }
+
+  /** Drop `awaiting: answered` from the card file. The one card write the
+   *  companion makes — it owns the marker half of the Q&A protocol (c0102). */
+  private clearAwaiting(card: Card, config: BoardConfig): void {
+    try {
+      const { raw } = withAwaitingCleared(card, todayIsoDate(), config);
+      const write =
+        this.opts.writeCard ??
+        ((rel: string, text: string) => writeCardAtomic(join(this.opts.root, rel), text));
+      write(card.path, raw);
+    } catch (error) {
+      this.log(`could not clear awaiting on ${card.id}: ${(error as Error).message}`);
+    }
   }
 
   /** Active runs as published run states. */
@@ -212,10 +246,16 @@ export class Runner {
       mode: "print",
       resume,
       permissionMode: this.opts.permissionMode,
+      askServer: this.opts.askServer && {
+        ...this.opts.askServer,
+        env: { ...this.opts.askServer.env, GELLO_CARD_ID: card.id },
+      },
     });
     this.active.set(card.id, { sessionId: id, phase: "running" });
     this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);
-    const proc = this.opts.spawn(spec, this.opts.root);
+    // The ask surfaces (`add_question`, `gello ask`) read the card from here —
+    // it is what stops an agent parking a question on an unrelated card (c0102).
+    const proc = this.opts.spawn(spec, this.opts.root, { GELLO_CARD_ID: card.id });
     proc.onExit((code) => this.handleExit(card.id, code));
   }
 

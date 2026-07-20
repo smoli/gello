@@ -9,6 +9,7 @@ import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
   createIssueFor,
   createCard,
+  addGelloQuestion,
   answerGelloQuestion,
   createEpic,
   deleteCard,
@@ -45,13 +46,66 @@ function fixtureCard() {
   return parsed.card;
 }
 
+describe("addGelloQuestion (c0102)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  function plainCard() {
+    const parsed = parseCard(
+      "cards/c001-q.md",
+      "---\nid: c001\ntitle: Q\nstatus: in-progress\nupdated: 2026-07-18\n---\n\n## What\n\nwork\n",
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  it("writes the fenced question and sets awaiting: input in one write", async () => {
+    const { card, persisted } = addGelloQuestion(
+      "/repo/.gello",
+      plainCard(),
+      "Which database?\n\n- [ ] Postgres\n- [ ] SQLite",
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-20",
+    );
+
+    expect(card.awaiting).toBe("input");
+    await persisted;
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c001-q.md",
+      expect.stringContaining("```gelloquestion"),
+    );
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("awaiting: input");
+    expect(written).toContain("Which database?");
+    expect(written).toContain("- [ ] SQLite");
+    expect(written).toContain("## What"); // original body kept
+    expect(written).toContain("updated: 2026-07-20");
+  });
+
+  it("refuses a second question while one is open, without writing", () => {
+    const parsed = parseCard(
+      "cards/c002-q.md",
+      "---\nid: c002\ntitle: Q\nstatus: in-progress\nawaiting: input\n---\n" +
+        "\n```gelloquestion\nFirst?\n```\n",
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    expect(() =>
+      addGelloQuestion("/repo/.gello", parsed.card, "Second?", DEFAULT_BOARD_CONFIG, "2026-07-20"),
+    ).toThrow(/already has an open question/);
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("answerGelloQuestion (c0101)", () => {
   beforeEach(() => {
     writeMock.mockReset();
     writeMock.mockResolvedValue(undefined);
   });
 
-  it("writes the un-fenced body and clears the awaiting marker in one write", async () => {
+  it("writes the un-fenced body and flips the marker to answered in one write", async () => {
     const raw =
       "---\nid: c001\ntitle: Q\nstatus: in-progress\nawaiting: input\nupdated: 2026-07-18\n---\n" +
       "\n```gelloquestion\nWhich?\n- [ ] a\n```\n";
@@ -69,14 +123,17 @@ describe("answerGelloQuestion (c0101)", () => {
       "2026-07-19",
     );
 
-    expect(card.awaiting).toBeNull();
+    // c0102: `answered`, not cleared — the marker is durable evidence on disk,
+    // so a companion that was down while the human answered still resumes. The
+    // companion clears it when it does.
+    expect(card.awaiting).toBe("answered");
     await persisted;
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/cards/c001-q.md",
       expect.stringContaining("- [x] a"),
     );
     const written = writeMock.mock.calls[0][1];
-    expect(written).not.toContain("awaiting:");
+    expect(written).toContain("awaiting: answered");
     expect(written).not.toContain("```gelloquestion");
     expect(written).toContain("updated: 2026-07-19");
   });
