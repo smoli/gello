@@ -129,3 +129,12 @@ Implementation plan (test-first, small green commits):
 - 2026-07-18 status → backlog (app)
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
+- 2026-07-20 implemented (agent): tag utilities + `tag_colors` config storage;
+  coloured chips on card fronts; multi-select toolbar tag filter (AND with
+  epic/type/search); tag manager (counts, colour picker, rename-everywhere);
+  `renameTag` board-action (one atomic `tags:` write per card, merge on
+  collision, colour follows); concept.md + CLAUDE.md updated. All seven
+  acceptance criteria met, TDD throughout. Landed as four commits. Note:
+  Board.tsx/Board.css/Board.test.tsx were being edited in parallel for c0108
+  (drag highlight) in the same tree — staged only the c0058 hunks so that
+  work stays intact and uncommitted.

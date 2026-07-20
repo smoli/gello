@@ -111,6 +111,14 @@ do not maintain parallel plan/TODO files.
   **`cards/`** (epic-less) for a bug or small change. Assignment is the only
   move; a status change never moves the file. A card has at most one epic;
   **tags** (`tags:`) are the separate cross-cutting axis.
+- **Tags** are the cross-cutting label axis (epics are the container axis): a
+  card carries any number of tags. They render as coloured chips on card fronts,
+  drive a multi-select toolbar filter, and are colour/rename-managed from the
+  tag manager. Per-tag colour overrides are in `board.yaml` under `tag_colors:`
+  (surgical writes, like every other config edit); an unset tag gets a stable
+  colour from its name. Renaming a tag rewrites `tags:` on every card carrying
+  it. Editing a card's `tags:` by hand is fine — it is one flat label space, no
+  kebab-case rule.
 - **Discuss** (`status: discuss`): the human flags a card they want to think
   through with you before it becomes implementable — typically an inbox idea
   before triage. When asked to discuss (or picking work and only discuss
