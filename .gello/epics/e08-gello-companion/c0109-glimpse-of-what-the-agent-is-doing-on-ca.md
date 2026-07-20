@@ -1,12 +1,11 @@
 ---
 id: c0109
 title: Glimpse of what the agent is doing on cards
-status: backlog
+status: in-progress
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:44:10
+status-changed: 2026-07-20T22:46:22
 epic: e08
-order: 0
 depends: [c0104]
 ---
 
@@ -84,3 +83,5 @@ it, and render it.
   publishes structured `activity: {name, arg}` in `state.json` throttled to
   ~1s (the existing 2s poll kept); the app phrases it (verb + basename) and
   marks the line stale when the state file ages out.
+- 2026-07-20 status → ready (app)
+- 2026-07-20 status → in-progress (agent)

@@ -1,10 +1,10 @@
 ---
 id: c0104
 title: companion being more verbose
-status: review
+status: done
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:26:07
+status-changed: 2026-07-20T22:46:07
 epic: e08
 ---
 
@@ -134,3 +134,4 @@ pre-existing — confirmed unchanged with my edits stashed — and untouched her
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
