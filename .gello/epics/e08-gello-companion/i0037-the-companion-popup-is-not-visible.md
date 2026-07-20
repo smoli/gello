@@ -1,13 +1,13 @@
 ---
 id: i0037
 title: The companion popup is not visible
-status: review
+status: done
 type: issue
 ref: c0100
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T08:44:30
+status-changed: 2026-07-20T08:53:10
 ---
 
 ![image](../../assets/i0037/image.png)
@@ -53,3 +53,4 @@ glyph, so no title-bar ancestor can clip it.
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress; diagnosed overflow-clip, fixing via portal
 - 2026-07-20 portal fix + test; typecheck/lint/tests green; status → review
+- 2026-07-20 status → done (app)
