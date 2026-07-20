@@ -1,12 +1,11 @@
 ---
 id: c0110
 title: Start companion from UI
-status: backlog
+status: in-progress
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T22:54:26
+status-changed: 2026-07-20T23:16:50
 epic: e08
-order: 0
 ---
 
 ## What
@@ -82,3 +81,5 @@ companion source — needs a bundled companion binary and is its own card.
   process lifetime; scope is the dev checkout (`gello-companion` on PATH),
   distributed launching deferred.
 - 2026-07-20 status → backlog (app)
+- 2026-07-20 status → ready (app)
+- 2026-07-20 status → in-progress (agent)
