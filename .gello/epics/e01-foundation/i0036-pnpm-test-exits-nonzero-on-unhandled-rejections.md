@@ -1,11 +1,11 @@
 ---
 id: i0036
 title: pnpm test exits non-zero on unhandled rejections in App.test.tsx
-status: ready
+status: in-progress
 type: issue
 created: 2026-07-20
 updated: 2026-07-21
-status-changed: 2026-07-21T00:22:35
+status-changed: 2026-07-21T00:27:00
 epic: e01
 ---
 
@@ -51,3 +51,4 @@ ignore that signal.
   pre-existing by stashing and re-running `src/App.test.tsx`.
 - 2026-07-20 status → backlog (app)
 - 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
