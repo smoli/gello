@@ -35,19 +35,20 @@ companion source — needs a bundled companion binary and is its own card.
 
 ## Acceptance criteria
 
-- [ ] With a board open and no running companion (no state file, or it is
+- [x] With a board open and no running companion (no state file, or it is
       stale), a "Start companion" action is shown in the title-bar runner area
-- [ ] While a companion is running, the action is replaced by the c0100
+- [x] While a companion is running, the action is replaced by the c0100
       indicator (never both at once)
-- [ ] Clicking it opens the OS terminal running `gello-companion <project-dir>`
+- [x] Clicking it opens the OS terminal running `gello-companion <project-dir>`
       for the open board's project root
-- [ ] The launch command construction (command + project-dir argument) is a
+- [x] The launch command construction (command + project-dir argument) is a
       pure, unit-tested function
 - [ ] On the dev platform (macOS), launching starts the companion — its state
       file appears and the indicator turns on within a poll cycle
-- [ ] If the terminal or command cannot be launched, the failure is surfaced to
+      *(needs a live click in the app — left for the human; see Notes)*
+- [x] If the terminal or command cannot be launched, the failure is surfaced to
       the user, not swallowed
-- [ ] The app does not track or terminate the companion process (the terminal
+- [x] The app does not track or terminate the companion process (the terminal
       owns its lifetime)
 
 ## Discussion
