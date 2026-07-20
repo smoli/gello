@@ -1,0 +1,4 @@
+agent: claude
+scope: epic
+permissionMode: auto
+level: normal
