@@ -40,10 +40,35 @@ ignore that signal.
 
 ## Acceptance criteria
 
-- [ ] `pnpm test` exits 0 on a clean tree
-- [ ] The c0083 auto-commit tests still assert what they assert now
-- [ ] `reconcile` tolerates a read that fails or returns nothing, rather than
+- [x] `pnpm test` exits 0 on a clean tree
+- [x] The c0083 auto-commit tests still assert what they assert now
+- [x] `reconcile` tolerates a read that fails or returns nothing, rather than
       rejecting into the void
+
+## Notes
+
+- Root cause confirmed at `App.tsx` reconcile: `readFileRaw(...).catch(...)`
+  assumes `readFileRaw` returns a promise. When the debounced reconcile fires
+  after a test has reset the mock, `readFileRaw` returns `undefined`, so
+  `undefined.catch` throws — outside any assertion, as an unhandled rejection.
+- Fix: `src/lib/safe-read.ts` `readRawOrNull(read, path)` — `try { (await
+  read(path)) ?? null } catch { null }`. It tolerates a rejected read and a
+  non-promise/undefined return, resolving to null either way. reconcile now
+  reads through it. The c0083 tests are untouched.
+- Unit-tested the helper directly (`safe-read.test.ts`): success, rejection,
+  and the undefined-return case that reproduced the crash.
+- Discovered while satisfying criterion 1: a second, unrelated suite failure —
+  `tags.test.ts` still asserted `shadeColor(..., 0.72)` after commit a52a028
+  deliberately changed `CHIP_SHADE` to 0.55 (i0114). A stale test, not a
+  product bug. Aligned the expected value (its own commit) so the tree is
+  green; without it "never commit red" could not hold.
+
+## Log
+
+- 2026-07-21 fixed (agent): extracted readRawOrNull, wired reconcile through
+  it, added safe-read.test.ts. Full suite exits 0 (808 passed). Also aligned a
+  stale i0114 tags-shade assertion (separate commit) that independently redded
+  the suite.
 
 ## Log
 
