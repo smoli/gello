@@ -60,12 +60,15 @@
   flex-direction: column;
 }
 
-/* c054: while dragging, the drop lanes show themselves (not the inbox) */
+/* c054: while dragging, the drop lanes show themselves (not the inbox).
+   i001: the outline sits over an arbitrary board background (c047), so a
+   faint translucent blue vanished on many images. Use a solid accent stroke
+   and a stronger fill so the lane reads on any background. */
 .board-dragging .column-track:not(.column-track-inbox) {
-  outline: 2px dashed color-mix(in srgb, #4c8bf5 40%, transparent);
+  outline: 2px dashed #4c8bf5;
   outline-offset: -2px;
   border-radius: 10px;
-  background: color-mix(in srgb, #4c8bf5 4%, transparent);
+  background: color-mix(in srgb, #4c8bf5 14%, transparent);
 }
 
 .column {
