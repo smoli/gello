@@ -1,13 +1,13 @@
 ---
 id: c0102
 title: Deterministic add-question tool + gelloquestion parse
-status: ready
+status: in-progress
 type: task
 created: 2026-07-19
 updated: 2026-07-20
 epic: e08
 depends: [c0101]
-status-changed: 2026-07-20T07:35:47
+status-changed: 2026-07-20T07:36:51
 ---
 
 ## What
