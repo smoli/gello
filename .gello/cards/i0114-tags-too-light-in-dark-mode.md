@@ -1,12 +1,12 @@
 ---
 id: i0114
 title: Tags too light in dark mode
-status: review
+status: done
 type: issue
 ref: c0058
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T22:40:37
+status-changed: 2026-07-20T22:44:18
 ---
 
 ![image](../assets/i0114/image.png)
@@ -43,3 +43,4 @@ the hue and taking light text.
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
