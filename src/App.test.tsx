@@ -236,6 +236,77 @@ describe("App", () => {
     });
   });
 
+  it("c0058: renames a tag everywhere from the tag manager, live on the board", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        {
+          path: "cards/c001.md",
+          content: "---\nid: c001\ntitle: Alpha\nstatus: backlog\ntags: [ui]\n---\nx\n",
+        },
+        {
+          path: "cards/c002.md",
+          content:
+            "---\nid: c002\ntitle: Beta\nstatus: done\ntags: [ui, foundation]\n---\ny\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+    await screen.findByText("Alpha");
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage tags…" }));
+    const dialog = screen.getByRole("dialog", { name: "Manage tags" });
+    const uiRow = within(dialog).getByRole("listitem", { name: "ui" });
+    fireEvent.change(within(uiRow).getByLabelText("Rename tag"), {
+      target: { value: "interface" },
+    });
+    fireEvent.click(within(uiRow).getByRole("button", { name: "Rename" }));
+
+    // one surgical tags: write per card carrying ui (both cards), none for others
+    await vi.waitFor(() => {
+      const tagWrites = writeMock.mock.calls.filter(
+        (c) => typeof c[1] === "string" && c[1].includes("tags: [interface"),
+      );
+      expect(tagWrites).toHaveLength(2);
+    });
+    // the board reflects the rename live (chips now read "interface")
+    expect(screen.getAllByText("interface").length).toBeGreaterThan(0);
+  });
+
+  it("c0058: sets a tag colour from the manager in one board.yaml write", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        {
+          path: "cards/c001.md",
+          content: "---\nid: c001\ntitle: Alpha\nstatus: backlog\ntags: [ui]\n---\nx\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+    await screen.findByText("Alpha");
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage tags…" }));
+    const uiRow = screen.getByRole("listitem", { name: "ui" });
+    fireEvent.change(within(uiRow).getByLabelText("Colour"), {
+      target: { value: "#00ff00" },
+    });
+
+    await vi.waitFor(() => {
+      const yamlWrites = vi
+        .mocked(writeNewFiles)
+        .mock.calls.filter((c) => c[0][0].path.endsWith("/board.yaml"));
+      expect(yamlWrites).toHaveLength(1);
+      expect(yamlWrites[0][0][0].content).toContain('ui: "#00ff00"');
+    });
+  });
+
   it("i0011: right-click opens a context menu with Reload and Background…", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/proj/.gello",

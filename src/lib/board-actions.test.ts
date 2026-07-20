@@ -14,6 +14,7 @@ import {
   createEpic,
   deleteCard,
   moveCard,
+  renameTag,
   renumberCards,
   reorderCard,
   saveCardBody,
@@ -907,5 +908,93 @@ body
     expect(created.created).toBe("2026-07-16T09:00:00");
     expect(created.updated).toBe("2026-07-16");
     await persisted;
+  });
+});
+
+describe("renameTag (c0058)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  function taggedModel() {
+    return loadBoard([
+      { path: "board.yaml", content: "columns: [backlog, ready, done]\n" },
+      {
+        path: "cards/c001-a.md",
+        content:
+          "---\nid: c001\ntitle: A\nstatus: backlog\ntags: [ui, agent-dx]\nupdated: 2026-07-10\n---\nbody\n",
+      },
+      {
+        path: "cards/c002-b.md",
+        content:
+          "---\nid: c002\ntitle: B\nstatus: ready\ntags: [foundation]\nupdated: 2026-07-10\n---\nbody\n",
+      },
+      {
+        path: "epics/e01-x/epic.md",
+        content: "---\nid: e01\ntitle: X\n---\ngoal\n",
+      },
+      {
+        path: "epics/e01-x/c003-c.md",
+        content:
+          "---\nid: c003\ntitle: C\nstatus: done\ntags: [ui]\nupdated: 2026-07-10\n---\nbody\n",
+      },
+    ]);
+  }
+
+  it("rewrites tags: on every card carrying the tag, atomically per file", () => {
+    const model = taggedModel();
+    const results = renameTag(
+      "/repo/.gello",
+      model,
+      "ui",
+      "interface",
+      model.config,
+      "2026-07-20",
+    );
+
+    // only the two ui-carrying cards are written (c002 has no ui → untouched)
+    expect(writeMock).toHaveBeenCalledTimes(2);
+    const written = new Map(writeMock.mock.calls.map((c) => [c[0], c[1]]));
+    expect(written.get("/repo/.gello/cards/c001-a.md")).toContain(
+      "tags: [interface, agent-dx]",
+    );
+    expect(written.get("/repo/.gello/epics/e01-x/c003-c.md")).toContain(
+      "tags: [interface]",
+    );
+    // the returned cards reflect the new tags for the optimistic model update
+    expect(results.map((r) => r.card.tags)).toEqual([
+      ["interface", "agent-dx"],
+      ["interface"],
+    ]);
+  });
+
+  it("merges (dedups) when renaming into a tag a card already has", () => {
+    const model = taggedModel();
+    const results = renameTag(
+      "/repo/.gello",
+      model,
+      "agent-dx",
+      "ui",
+      model.config,
+      "2026-07-20",
+    );
+    expect(writeMock).toHaveBeenCalledTimes(1);
+    expect(writeMock.mock.calls[0][1]).toContain("tags: [ui]");
+    expect(results[0].card.tags).toEqual(["ui"]);
+  });
+
+  it("writes nothing and returns [] when no card carries the tag", () => {
+    const model = taggedModel();
+    const results = renameTag(
+      "/repo/.gello",
+      model,
+      "nope",
+      "x",
+      model.config,
+      "2026-07-20",
+    );
+    expect(results).toEqual([]);
+    expect(writeMock).not.toHaveBeenCalled();
   });
 });

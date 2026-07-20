@@ -17,6 +17,7 @@ import {
 import { writeFileAtomic } from "./fs";
 import { withAwaitingCleared, withQuestionAdded } from "./gello-question";
 import { appendLogLine, retargetAssetLinks } from "./markdown";
+import { planTagRename } from "./tags";
 
 export interface MoveResult {
   /** The card with new status/updated — available synchronously for
@@ -196,6 +197,29 @@ export function saveCardEdit(
   const { card: updated, raw } = replaceCardBody(current, edit.body, today, config);
   const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
   return { card: updated, persisted };
+}
+
+/**
+ * c0058: rename a tag everywhere it appears. One surgical `tags:` edit per
+ * card carrying `from`, each an atomic write; a card already carrying `to`
+ * merges (dedups). Cards without `from` are left untouched. The board.yaml
+ * colour key follows separately (App-side). Returns one MoveResult per written
+ * card for the optimistic model update and rollback.
+ */
+export function renameTag(
+  root: string,
+  model: BoardModel,
+  from: string,
+  to: string,
+  config: BoardConfig,
+  now: string,
+): MoveResult[] {
+  const today = now.slice(0, 10);
+  return planTagRename(model, from, to).map(({ card, tags }) => {
+    const { card: updated, raw } = updateCardFields(card, { tags }, today, config);
+    const persisted = writeFileAtomic(`${root}/${card.path}`, raw);
+    return { card: updated, persisted };
+  });
 }
 
 /** Filename-safe slug from a card title. */

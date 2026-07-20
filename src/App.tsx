@@ -24,6 +24,7 @@ import {
   deleteCard,
   moveCard,
   nowIsoDateTime,
+  renameTag,
   renumberCards,
   reorderCard,
   saveCardBody,
@@ -68,7 +69,9 @@ import {
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { backgroundCss, classifyBackground } from "./lib/background";
-import { removeBoardKey, setBoardKey } from "./lib/boardyaml";
+import { removeBoardKey, removeTagColor, setBoardKey, setTagColor } from "./lib/boardyaml";
+import { TagManager } from "./components/TagManager";
+import { collectTags } from "./lib/tags";
 import { ProjectMenu } from "./components/ProjectMenu";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ContextMenu } from "./components/ContextMenu";
@@ -147,6 +150,8 @@ function App() {
   const [bgMenu, setBgMenu] = useState<{ x: number; y: number } | null>(null);
   // i0011: right-click background menu (Reload / Background… / room to grow)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+  // c0058: the tag management surface is open
+  const [managingTags, setManagingTags] = useState(false);
   // i0013: an id reserved when an image is pasted into a quick-create draft
   // before the card exists, so the asset folder and the eventual card agree.
   const reservedCreate = useRef<{ type: "task" | "issue"; id: string } | null>(null);
@@ -679,6 +684,60 @@ function App() {
     }
   };
 
+  /** c0058: set a tag's colour override — a surgical board.yaml write. */
+  const handleSetTagColor = (tag: string, colour: string) => {
+    if (!board) return;
+    void writeBoardYaml(setTagColor(board.model.configRaw, tag, colour));
+  };
+
+  /**
+   * c0058: rename a tag everywhere — one surgical `tags:` write per card
+   * carrying it, optimistic model update with rollback (like handleRenumber).
+   * The colour override follows the rename (kept if the target already has one),
+   * in a separate board.yaml write.
+   */
+  const handleRenameTag = (from: string, to: string) => {
+    if (!board) return;
+    const before = board.model;
+    try {
+      const results = renameTag(
+        board.root,
+        board.model,
+        from,
+        to,
+        board.model.config,
+        nowIsoDateTime(),
+      );
+      if (results.length > 0) {
+        setBoard((current) =>
+          current
+            ? {
+                ...current,
+                model: results.reduce((m, r) => withUpdatedCard(m, r.card), current.model),
+              }
+            : current,
+        );
+      }
+      setError(null);
+      for (const result of results) {
+        result.persisted.catch((failure: unknown) => {
+          setBoard((current) => (current ? { ...current, model: before } : current));
+          setError(failure instanceof Error ? failure.message : String(failure));
+        });
+      }
+      // the colour override follows the rename (a no-op when `from` has none)
+      const colours = board.model.config.tagColors;
+      if (colours[from] !== undefined) {
+        let raw = board.model.configRaw;
+        if (colours[to] === undefined) raw = setTagColor(raw, to, colours[from]);
+        raw = removeTagColor(raw, from);
+        if (raw !== board.model.configRaw) void writeBoardYaml(raw);
+      }
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   const handleFieldChanges = async (card: Card, changes: CardFieldChanges) => {
     if (!board) return;
     // c015: merge onto current disk content — a field edit must not clobber an
@@ -1095,6 +1154,7 @@ function App() {
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
           onRepairDuplicates={(entry) => void handleRepairDuplicates(entry)}
+          onManageTags={() => setManagingTags(true)}
           toolbarLeading={
             <ProjectMenu
               currentPath={projectFolder(board.root).path}
@@ -1113,6 +1173,15 @@ function App() {
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
         />
+        {managingTags && (
+          <TagManager
+            tags={collectTags(board.model)}
+            tagColors={board.model.config.tagColors}
+            onSetColor={handleSetTagColor}
+            onRename={handleRenameTag}
+            onClose={() => setManagingTags(false)}
+          />
+        )}
         {issueSource && (
           <div className="issue-draft-overlay">
             <CaptureForm
