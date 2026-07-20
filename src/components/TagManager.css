@@ -85,9 +85,17 @@
   color: CanvasText;
 }
 
+/* i0112: the Rename button rendered as a native OS button. Give it the
+   toolbar pill language (c051 / i0111) so it matches the rest of the UI,
+   at the smaller scale the row uses. */
 .tag-manager-row button {
+  font: inherit;
   font-size: 0.75rem;
   padding: 0.25rem 0.6rem;
-  border-radius: 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
   cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
 }
