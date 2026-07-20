@@ -77,6 +77,7 @@ import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ContextMenu } from "./components/ContextMenu";
 import { MilestonePicker } from "./components/MilestonePicker";
 import { projectFolder } from "./lib/status";
+import { readRawOrNull } from "./lib/safe-read";
 import {
   ALL_SKILLS,
   dirsNeedingInstall,
@@ -532,7 +533,9 @@ function App() {
       const changes = await Promise.all(
         paths.map(async (path) => ({
           path,
-          content: await readFileRaw(`${root}/${path}`).catch(() => null),
+          // i0036: tolerate a failed read or a reset mock (undefined) so a
+          // debounced reconcile never rejects into the void
+          content: await readRawOrNull(readFileRaw, `${root}/${path}`),
         })),
       );
       if (stopped) return;
