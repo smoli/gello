@@ -112,7 +112,7 @@ export function shadeColor(hex: string, amount: number): string {
 const CHIP_TINT = 0.82;
 
 /** How far a dark-mode chip's fill is mixed toward the dark base (i0114). */
-const CHIP_SHADE = 0.72;
+const CHIP_SHADE = 0.55;
 
 /** Inline style for a tag chip's resting look, shared by every tag surface
  *  (i0113): a tinted fill, the tag colour as the border for identity, and
