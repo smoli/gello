@@ -1,13 +1,13 @@
 ---
 id: i0108
 title: Popover does not close when clicking outside
-status: review
+status: done
 type: issue
 ref: c0100
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T17:48:08
+status-changed: 2026-07-20T17:57:46
 ---
 
 Companion popover should close when I click outisde
@@ -31,3 +31,4 @@ lands on the toggle button or inside the popover (both tracked by refs).
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
