@@ -1,10 +1,10 @@
 ---
 id: c0109
 title: Glimpse of what the agent is doing on cards
-status: review
+status: done
 created: 2026-07-20
-updated: 2026-07-20
-status-changed: 2026-07-20T23:01:53
+updated: 2026-07-21
+status-changed: 2026-07-21T00:22:27
 epic: e08
 depends: [c0104]
 ---
@@ -115,3 +115,4 @@ it, and render it.
   for a follow-up). Note: `src/lib/tags.test.ts` (i0114 dark shade) fails on
   `main` independently of this card — pre-existing, not touched here.
 - 2026-07-20 status → review (agent)
+- 2026-07-21 status → done (app)
