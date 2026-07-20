@@ -1,13 +1,13 @@
 ---
 id: i0115
 title: "Only „Thinking…\""
-status: in-progress
+status: done
 type: issue
 ref: c0109
 epic: e08
 created: 2026-07-20
 updated: 2026-07-21
-status-changed: 2026-07-21T00:09:55
+status-changed: 2026-07-21T00:22:19
 ---
 
 ## Diagnosis: not a code bug — a stale companion process
@@ -99,3 +99,9 @@ call on disposition — see the question.
 - 2026-07-21 (agent) diagnosed: stale pre-c0109 companion, not a code bug; the
   live state.json + a real-data repro confirm the current build works. Asked
   the human how to dispose the card.
+- 2026-07-21 (human) chose: close it — accept it was a stale process; the seam
+  test is enough. (Restart the companion after updating its code.)
+- 2026-07-21 (agent) no further code change. The seam regression test
+  (`companion/activity-seam.test.ts`) is committed; moving to review.
+- 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
