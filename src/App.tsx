@@ -1177,6 +1177,9 @@ function App() {
           openEpicSignal={openEpicSignal}
         />
         <Board
+          // i0116: remount per board so switching projects resets the toolbar
+          // filters (epic/type/tags) — a filter from board A leaves board B empty
+          key={board.root}
           background={effectiveBackground}
           darkChips={darkChips}
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}

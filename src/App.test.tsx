@@ -1501,4 +1501,61 @@ describe("App", () => {
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("i0116: switching to another board resets the epic filter", async () => {
+    // board A: an epic e01 plus a standalone card
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/proj-a/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog]\n" },
+        {
+          path: "epics/e01-alpha/epic.md",
+          content: "---\nid: e01\ntitle: Alpha epic\n---\ngoal\n",
+        },
+        {
+          path: "epics/e01-alpha/c010-alpha.md",
+          content: "---\nid: c010\ntitle: Alpha card\nstatus: backlog\nepic: e01\n---\nx\n",
+        },
+        {
+          path: "cards/c011-standalone.md",
+          content: "---\nid: c011\ntitle: Standalone A\nstatus: backlog\n---\nx\n",
+        },
+      ]),
+    });
+    // board B: no e01 epic — a single standalone card
+    vi.mocked(loadBoardAt).mockResolvedValue({
+      root: "/repo/proj-b/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog]\n" },
+        {
+          path: "cards/c020-b.md",
+          content: "---\nid: c020\ntitle: Board B card\nstatus: backlog\n---\nx\n",
+        },
+      ]),
+    });
+    // both projects are recent so the project menu offers board B
+    vi.mocked(appFlagGet).mockImplementation(async (flag: string) =>
+      flag === "recent-projects"
+        ? JSON.stringify(["/repo/proj-a", "/repo/proj-b"])
+        : null,
+    );
+
+    render(<App />);
+    await screen.findByText("Alpha card");
+
+    // filter board A on the e01 epic — the standalone card drops out
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "e01-alpha" },
+    });
+    expect(screen.queryByText("Standalone A")).not.toBeInTheDocument();
+
+    // switch to board B, which has no e01 epic
+    fireEvent.click(screen.getByRole("button", { name: /proj-a/ }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "proj-b" }));
+
+    // the epic filter must not carry over — board B's card is visible
+    expect(await screen.findByText("Board B card")).toBeInTheDocument();
+  });
 });
