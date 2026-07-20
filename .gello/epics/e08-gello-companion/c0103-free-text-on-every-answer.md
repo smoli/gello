@@ -1,13 +1,13 @@
 ---
 id: c0103
 title: Free text on every answer, alongside the choices
-status: review
+status: done
 type: task
 created: 2026-07-20
 updated: 2026-07-20
 epic: e08
 depends: [c0101]
-status-changed: 2026-07-20T08:09:20
+status-changed: 2026-07-20T08:18:56
 ---
 
 ## What
@@ -41,3 +41,4 @@ otherwise".
   the companion README, which told agents a checkbox question is answered by
   checkboxes alone.
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)

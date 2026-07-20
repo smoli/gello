@@ -1,13 +1,13 @@
 ---
 id: c0102
 title: Deterministic add-question tool + gelloquestion parse
-status: review
+status: done
 type: task
 created: 2026-07-19
 updated: 2026-07-20
 epic: e08
 depends: [c0101]
-status-changed: 2026-07-20T07:58:40
+status-changed: 2026-07-20T08:18:58
 ---
 
 ## What
@@ -140,3 +140,4 @@ Still open:
   `pnpm companion ask` for pi; prompt slimmed to protocol; companion/README.md.
   624 tests green, typecheck and lint clean.
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
