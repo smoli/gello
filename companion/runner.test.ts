@@ -183,6 +183,27 @@ describe("buildTaskPrompt", () => {
     expect(buildTaskPrompt(cardOf(model, "c001"), true)).toMatch(/answered/i);
   });
 
+  // The agent's harness only commits when the user asks, so an unprompted run
+  // ends with "I didn't commit (you didn't ask)". The companion is the
+  // delegating user here, so it must ask — while deferring *what* a commit
+  // looks like to the repo's own CLAUDE.md (the companion is used across
+  // projects and has no business imposing a policy). Pushing stays off.
+  it("authorizes committing, defers the policy to CLAUDE.md, and forbids pushing", () => {
+    const model = board({ c001: { status: "ready" } });
+    for (const resuming of [false, true]) {
+      const prompt = buildTaskPrompt(cardOf(model, "c001"), resuming);
+      expect(prompt).toMatch(/commit/i);
+      expect(prompt).toContain("CLAUDE.md");
+      expect(prompt).toMatch(/never push|do not push/i);
+    }
+  });
+
+  it("does not hard-code a commit policy of its own", () => {
+    const model = board({ c001: { status: "ready" } });
+    const prompt = buildTaskPrompt(cardOf(model, "c001"), false);
+    // no branching / message-format rules invented here — CLAUDE.md decides
+    expect(prompt).not.toMatch(/branch per card|create a branch|prefix the message/i);
+  });
 });
 
 // --- Runner (lifecycle with a fake spawner) ---------------------------------

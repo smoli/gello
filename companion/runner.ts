@@ -104,11 +104,23 @@ export function classifyExit(card: Card | undefined, code: number | null): RunPh
 /** The task prompt handed to the agent. Minimal here — the full convention is
  *  taught by the companion system prompt (c0099); this just points the agent
  *  at the card and the park protocol so a run is self-contained. */
+// The agent's own harness commits only when the user asks, so an unprompted
+// run ends with "I didn't commit (you didn't ask)" and the work piles up
+// uncommitted. The companion is the delegating user, so it asks — but it does
+// not say what a commit should look like: the companion runs against any
+// project, and the repo's CLAUDE.md is the authority on scope, message format,
+// branching, and when to commit. Pushing stays off regardless.
+const COMMIT_CLAUSE =
+  `Committing your work is part of this task — treat it as explicitly ` +
+  `requested, and follow this repo's CLAUDE.md for when to commit, what to ` +
+  `include, and the message format. Never push.`;
+
 export function buildTaskPrompt(card: Card, resuming: boolean): string {
   if (resuming) {
     return (
       `The human answered your question on gello card ${card.id} ` +
-      `(${card.path}). Re-read the card for the answer and continue the work.`
+      `(${card.path}). Re-read the card for the answer and continue the work. ` +
+      COMMIT_CLAUSE
     );
   }
   // No question format here: the agent parks a question with the `add_question`
@@ -126,7 +138,8 @@ export function buildTaskPrompt(card: Card, resuming: boolean): string {
     `the gello workflow in CLAUDE.md: work test-first, keep Notes/Log current, ` +
     `and call \`set_status\` with \`review\` when the acceptance criteria pass. ` +
     `If you need a human decision, call the \`add_question\` tool and then exit ` +
-    `— the human answers on the card and you are resumed.`
+    `— the human answers on the card and you are resumed. ` +
+    COMMIT_CLAUSE
   );
 }
 
