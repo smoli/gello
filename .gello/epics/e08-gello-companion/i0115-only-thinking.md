@@ -37,7 +37,37 @@ c0110] → mcp__gello__set_status(in-progress)
 [c0110] → Edit(/Users/stephan/WebstormProjects/gello/src-tauri/src/lib.rs)
 [c0110] → Bash(cd src-tauri && cargo test companion 2>&1 | tail -25)
 
+## Investigation (agent, 2026-07-21)
+
+Root cause: a **stale companion process** running code that predated c0109, not
+a code defect. Evidence:
+
+- The **live** `.companion/state.json` now carries a correct `activity` field
+  for the running card, so the companion transport works.
+- The app pipeline is wired end-to-end (App → Board → Column → CardFront →
+  `cardActivity`), and a reproduction feeding the real `state.json` shape
+  through `parseCompanionState` + `cardActivity` yields "Updating status", not
+  "Thinking…". So there is no app-side defect either.
+- Timing: c0109's transport (`activity` in `state.json`) landed at
+  22:56 on 2026-07-20. The companion that worked c0110 (~23:16) was an earlier
+  process (the current `gello-companion` PID started 00:09 on 2026-07-21).
+  That old process still emitted tool lines to the **terminal** (the c0104
+  `renderEvent` path, which predates c0109), but never wrote the new `activity`
+  field — so the card fell back to "Thinking…" the whole run.
+
+So: the current build already behaves correctly; the fix for the observed run is
+operational (restart the companion after updating). There is no reproducing test
+for a code bug, because the code is not the bug.
+
+What I can still add regardless: an **end-to-end regression test** across the
+companion→state.json→app seam (each layer is unit-tested today, but not the
+boundary), so this multi-stage feature can't silently regress later. Awaiting a
+call on disposition — see the question.
+
 ## Log
 
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 (agent) diagnosed: stale pre-c0109 companion, not a code bug; the
+  live state.json + a real-data repro confirm the current build works. Asked
+  the human how to dispose the card.
