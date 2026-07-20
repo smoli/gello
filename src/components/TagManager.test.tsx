@@ -75,4 +75,14 @@ describe("TagManager", () => {
     setup({ tags: [] });
     expect(screen.getByText(/no tags/i)).toBeInTheDocument();
   });
+
+  it("renders a row chip in the shared resting look: tinted fill, tag-colour border (i0113)", () => {
+    setup();
+    const chip = within(row("ui")).getByText("ui") as HTMLElement;
+    // not the raw full-colour fill — the same chip as the toolbar's resting state
+    expect(chip.style.backgroundColor).not.toBe("rgb(18, 52, 86)"); // #123456
+    expect(chip.style.backgroundColor).not.toBe("");
+    expect(chip.style.borderColor).toBe("rgb(18, 52, 86)");
+    expect(chip.style.color).toBe("rgb(17, 17, 17)"); // #111111
+  });
 });

@@ -93,6 +93,26 @@ export function tintColor(hex: string, amount: number): string {
   return toHex(mix(r), mix(g), mix(b));
 }
 
+/** How far an unselected/resting chip's fill is mixed toward white (i0110). */
+const CHIP_TINT = 0.82;
+
+/** Inline style for a tag chip's resting look, shared by every tag surface
+ *  (i0113): a pale tinted fill, the tag colour as the border for identity, and
+ *  contrast-picked text. The board toolbar reuses it for unselected filter
+ *  chips; a selected filter chip overrides the fill with the full tag colour. */
+export function tagChipStyle(colour: string): {
+  backgroundColor: string;
+  borderColor: string;
+  color: string;
+} {
+  const fill = tintColor(colour, CHIP_TINT);
+  return {
+    backgroundColor: fill,
+    borderColor: colour,
+    color: readableTextColor(fill),
+  };
+}
+
 /** Replace `from` with `to` in a tag list, preserving order and deduping. */
 export function renameTagInList(tags: string[], from: string, to: string): string[] {
   if (!tags.includes(from)) return tags;

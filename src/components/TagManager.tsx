@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { readableTextColor, tagColor, type TagCount } from "../lib/tags";
+import { tagChipStyle, tagColor, type TagCount } from "../lib/tags";
 import "./TagManager.css";
 
 /**
@@ -86,10 +86,7 @@ function TagRow({
 
   return (
     <li role="listitem" aria-label={tag} className="tag-manager-row">
-      <span
-        className="tag-chip"
-        style={{ backgroundColor: colour, color: readableTextColor(colour) }}
-      >
+      <span className="tag-chip" style={tagChipStyle(colour)}>
         {tag}
       </span>
       <span className="tag-manager-count">{count}</span>

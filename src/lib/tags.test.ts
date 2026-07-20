@@ -6,6 +6,7 @@ import {
   planTagRename,
   readableTextColor,
   renameTagInList,
+  tagChipStyle,
   tagColor,
   tintColor,
   TAG_PALETTE,
@@ -104,6 +105,21 @@ describe("tintColor", () => {
   it("tolerates a 3-digit hex or a missing hash", () => {
     expect(tintColor("#fff", 0.5)).toBe("#ffffff");
     expect(tintColor("000", 0)).toBe("#000000");
+  });
+});
+
+describe("tagChipStyle", () => {
+  it("is the resting chip look: pale tinted fill, tag-colour border, legible text (i0113)", () => {
+    const style = tagChipStyle("#65a30d");
+    expect(style.backgroundColor).toBe(tintColor("#65a30d", 0.82));
+    expect(style.borderColor).toBe("#65a30d");
+    expect(style.color).toBe(readableTextColor(style.backgroundColor));
+  });
+
+  it("picks dark text for the pale fill of any bright tag", () => {
+    for (const colour of ["#65a30d", "#0ea5e9", "#ca8a04"]) {
+      expect(tagChipStyle(colour).color).toBe("#111111");
+    }
   });
 });
 
