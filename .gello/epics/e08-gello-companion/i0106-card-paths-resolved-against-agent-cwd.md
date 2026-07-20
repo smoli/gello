@@ -1,13 +1,13 @@
 ---
 id: i0106
 title: Card writes resolved against the agent cwd, not .gello
-status: review
+status: done
 type: issue
 ref: c0105
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T10:05:00
+status-changed: 2026-07-20T18:33:33
 ---
 
 ## What
@@ -56,3 +56,4 @@ resolved location observable, plus a test pinning the two directories apart.
 
 - 2026-07-20 found while running the companion on the sandbox board; fixed and
   verified against the real paths (old → ENOENT, new → exists). status → review
+- 2026-07-20 status → done (app)
