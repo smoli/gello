@@ -1,13 +1,13 @@
 ---
 id: i001
 title: The dashed outline is almost invisible
-status: in-progress
+status: review
 type: issue
 ref: c052
 epic: e02
 created: 2026-07-17
 updated: 2026-07-20
-status-changed: 2026-07-20T17:42:58
+status-changed: 2026-07-20T17:45:50
 ---
 
 This is of course dependend on the background which can be chnaged by the user
@@ -50,3 +50,4 @@ invisible. Make the drop lane read on any background.
 - 2026-07-17 status → backlog (app)
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
+- 2026-07-20 status → review (agent)
