@@ -1,12 +1,13 @@
 ---
 id: i0115
 title: "Only „Thinking…\""
-status: backlog
+status: in-progress
 type: issue
 ref: c0109
 epic: e08
 created: 2026-07-20
-updated: 2026-07-20
+updated: 2026-07-21
+status-changed: 2026-07-21T00:09:55
 ---
 
 It only shows thinking although the agent did:
@@ -35,3 +36,8 @@ c0110] → mcp__gello__set_status(in-progress)
 [c0110] → Edit(/Users/stephan/WebstormProjects/gello/src-tauri/src/lib.rs)
 [c0110] → Edit(/Users/stephan/WebstormProjects/gello/src-tauri/src/lib.rs)
 [c0110] → Bash(cd src-tauri && cargo test companion 2>&1 | tail -25)
+
+## Log
+
+- 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
