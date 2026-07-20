@@ -1,11 +1,11 @@
 ---
 id: c0107
 title: Companion asks the agent to commit (policy stays with CLAUDE.md)
-status: review
+status: done
 epic: e08
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T10:20:00
+status-changed: 2026-07-20T18:33:20
 ---
 
 ## What
@@ -56,3 +56,4 @@ that the companion never pushes.
 - 2026-07-20 raised from running the companion on gello itself; diagnosed
   (CLAUDE.md loads fine; the prompt never asked), fixed, and verified in a
   throwaway repo. status → review
+- 2026-07-20 status → done (app)
