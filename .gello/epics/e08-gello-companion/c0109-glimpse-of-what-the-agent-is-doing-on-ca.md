@@ -38,21 +38,21 @@ it, and render it.
 
 ## Acceptance criteria
 
-- [ ] `RunState` carries an optional `activity: { name, arg? }` for a running
+- [x] `RunState` carries an optional `activity: { name, arg? }` for a running
       run, published in `.companion/state.json`
-- [ ] The companion coalesces activity updates and rewrites the state file at
+- [x] The companion coalesces activity updates and rewrites the state file at
       most about once a second, however fast the agent emits events
-- [ ] The app parses `activity` defensively — garbage is dropped and the run is
+- [x] The app parses `activity` defensively — garbage is dropped and the run is
       kept (same contract as `usage`)
-- [ ] A card whose run is `running` shows a one-line activity phrased from the
+- [x] A card whose run is `running` shows a one-line activity phrased from the
       tool, preferring a path's basename, truncated to one line
-- [ ] A `running` run with no tool call yet shows "Thinking…"
-- [ ] A parked (`waiting-for-input`) run shows no activity line — the c0100
+- [x] A `running` run with no tool call yet shows "Thinking…"
+- [x] A parked (`waiting-for-input`) run shows no activity line — the c0100
       needs-input badge already says that
-- [ ] No activity line when the companion isn't running (no state file)
-- [ ] When the state file's `updated` goes stale (~30s), each affected card's
+- [x] No activity line when the companion isn't running (no state file)
+- [x] When the state file's `updated` goes stale (~30s), each affected card's
       line is marked stale rather than presented as current
-- [ ] The activity never appears in the card's markdown
+- [x] The activity never appears in the card's markdown
 
 ## Notes
 
