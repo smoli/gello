@@ -1,12 +1,12 @@
 ---
 id: i0113
 title: tag display should be the same app wide
-status: review
+status: done
 type: issue
 ref: i0110
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:54:23
+status-changed: 2026-07-20T22:39:33
 ---
 
 I prefer the toolbar design for tags.
@@ -45,3 +45,4 @@ tag surface use the toolbar's resting look.
 - 2026-07-20 unified tag chips on the toolbar resting look via a shared
   `tagChipStyle` helper (card fronts + tag manager); tests green (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)

@@ -1,10 +1,10 @@
 ---
 id: c0111
 title: Make tag surfacing a setting
-status: review
+status: done
 created: 2026-07-20
 updated: 2026-07-20
-status-changed: 2026-07-20T18:51:59
+status-changed: 2026-07-20T22:39:29
 epic: e03
 ---
 
@@ -49,3 +49,4 @@ Decisions (card was terse; chose defaults consistent with existing patterns):
 - 2026-07-20 status → ready (app)
 - 2026-07-20 status → in-progress (agent)
 - 2026-07-20 status → review (agent)
+- 2026-07-20 status → done (app)
