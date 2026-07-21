@@ -1,13 +1,13 @@
 ---
 id: i0118
 title: Start does not find the companion app
-status: ready
+status: in-progress
 type: issue
 ref: c0110
 epic: e08
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T07:25:43
+status-changed: 2026-07-21T07:25:59
 ---
 
 Last login: Mon Jul 20 23:38:28 on ttys007
@@ -21,3 +21,4 @@ It was not isntalled via PNPM. That would ony work from the dev repoy anyways. W
 ## Log
 
 - 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
