@@ -1,11 +1,12 @@
 ---
 id: c0112
 title: A nice TUI for the companion
-status: discuss
+status: backlog
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:24:26
+status-changed: 2026-07-21T12:39:16
 epic: e08
+order: 55
 ---
 
 ## What
@@ -95,3 +96,4 @@ header needs that added.
   control deferred); auto TTY → TUI / piped → plain log; a collapsible log pane
   per running card with arrow-key switching; board shown as companion-relevant
   slices, not a mini kanban.
+- 2026-07-21 status → backlog (app)
