@@ -562,11 +562,37 @@ export function replaceCardBody(
   today: string,
   config: BoardConfig = DEFAULT_BOARD_CONFIG,
 ): { card: Card; raw: string } {
-  const bumped = setFrontmatterField(card.raw, "updated", today);
-  const split = splitFrontmatter(bumped);
+  return spliceBody(
+    card,
+    setFrontmatterField(card.raw, "updated", today),
+    newBody,
+    config,
+  );
+}
+
+/**
+ * i0121: replace the card body without touching the frontmatter. The archive
+ * move (c018) relocates a card and logs it; bumping `updated` would reorder it
+ * in its column, since done sorts by status-changed → updated → created.
+ */
+export function replaceCardBodyKeepingDates(
+  card: Card,
+  newBody: string,
+  config: BoardConfig = DEFAULT_BOARD_CONFIG,
+): { card: Card; raw: string } {
+  return spliceBody(card, card.raw, newBody, config);
+}
+
+function spliceBody(
+  card: Card,
+  source: string,
+  newBody: string,
+  config: BoardConfig,
+): { card: Card; raw: string } {
+  const split = splitFrontmatter(source);
   if (!split) throw new Error("no frontmatter block found");
 
-  const raw = bumped.slice(0, split.prefixLength) + newBody;
+  const raw = source.slice(0, split.prefixLength) + newBody;
   return { card: reparse(card.path, raw, config), raw };
 }
 

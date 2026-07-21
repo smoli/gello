@@ -854,7 +854,6 @@ updated: 2026-07-10
       expect.stringContaining("![shot](../../../assets/c007/shot.png)"),
     );
     expect(writeMock.mock.calls[0][1]).toContain("- 2026-07-21 archived (app)");
-    expect(writeMock.mock.calls[0][1]).toContain("updated: 2026-07-21");
     expect(removeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/epics/e05-projects/c007-long-done.md",
     );
@@ -863,6 +862,45 @@ updated: 2026-07-10
     expect(writeMock.mock.invocationCallOrder[0]).toBeLessThan(
       removeMock.mock.invocationCallOrder[0],
     );
+  });
+
+  it("i0121: leaves the ordering fields alone — a move is not an edit", async () => {
+    // done sorts by status-changed → updated → created, so bumping `updated`
+    // would drag a long-done card to the bottom of the column
+    const { card, persisted } = archiveCard(
+      "/repo/.gello",
+      doneCard(),
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+    await persisted;
+
+    expect(card.updated).toBe("2026-07-10");
+    expect(writeMock.mock.calls[0][1]).toContain("updated: 2026-07-10");
+    expect(writeMock.mock.calls[0][1]).not.toContain("updated: 2026-07-21");
+  });
+
+  it("i0121: unarchive leaves them alone too", async () => {
+    const archived = archiveCard(
+      "/repo/.gello",
+      doneCard(),
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+    await archived.persisted;
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+
+    const back = unarchiveCard(
+      "/repo/.gello",
+      archived.card,
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-22",
+    );
+    await back.persisted;
+
+    expect(back.card.updated).toBe("2026-07-10");
+    expect(writeMock.mock.calls[0][1]).toContain("updated: 2026-07-10");
   });
 
   it("archives a standalone card into cards/archive/", async () => {

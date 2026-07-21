@@ -8,6 +8,7 @@ import {
   parseCard,
   parseEpic,
   replaceCardBody,
+  replaceCardBodyKeepingDates,
   updateCardFields,
 } from "./cards";
 
@@ -322,6 +323,24 @@ describe("replaceCardBody", () => {
         "updated: 2026-07-16",
         "updated: 2026-07-18",
       ),
+    );
+  });
+});
+
+describe("replaceCardBodyKeepingDates (i0121)", () => {
+  it("swaps the body and leaves the frontmatter byte-identical", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = replaceCardBodyKeepingDates(
+      parsed.card,
+      "\n## What\n\nNew body.\n",
+    );
+
+    expect(card.body).toBe("\n## What\n\nNew body.\n");
+    expect(card.updated).toBe("2026-07-16");
+    expect(raw).toBe(
+      FULL_CARD.replace(/\n\n## What[\s\S]*$/, "\n\n## What\n\nNew body.\n"),
     );
   });
 });

@@ -8,6 +8,7 @@ import {
   parseCard,
   parseEpic,
   replaceCardBody,
+  replaceCardBodyKeepingDates,
   updateCardFields,
   type BoardConfig,
   type Card,
@@ -422,6 +423,10 @@ function dirname(path: string): string {
  * Relative asset links are rewritten for the new depth; the new file is written
  * before the old one is removed, so an interruption leaves a duplicate rather
  * than a lost card. A dated Log line records the move.
+ *
+ * i0121: the frontmatter is left alone — a move is not an edit. Bumping
+ * `updated` would move the card to the end of the done column, which sorts by
+ * status-changed → updated → created.
  */
 function moveArchive(
   root: string,
@@ -432,10 +437,9 @@ function moveArchive(
 ): MoveResult {
   const from = dirname(card.path);
   const destFolder = archived ? `${from}/archive` : dirname(from);
-  const { raw } = replaceCardBody(
+  const { raw } = replaceCardBodyKeepingDates(
     card,
     appendLogLine(card.body, `${today} ${archived ? "archived" : "unarchived"} (app)`),
-    today,
     config,
   );
   const srcDepth = card.path.split("/").length - 1;

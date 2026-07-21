@@ -1317,3 +1317,29 @@ describe("archived cards (c018)", () => {
     expect(onMoveCard).not.toHaveBeenCalled();
   });
 });
+
+describe("i0121: archived cards sort with the rest of their column", () => {
+  // done sorts by when the status was assigned (status-changed → updated →
+  // created), so an archive move must not disturb those fields.
+  const model = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\n"),
+    file("epics/e01-core/epic.md", "---\nid: e01\ntitle: Core\nstatus: backlog\n---\ng\n"),
+    file(
+      "epics/e01-core/archive/c001-first.md",
+      "---\nid: c001\ntitle: Done first\nstatus: done\ncreated: 2026-07-16\nupdated: 2026-07-16\n---\nx\n",
+    ),
+    file(
+      "epics/e01-core/c002-later.md",
+      "---\nid: c002\ntitle: Done later\nstatus: done\ncreated: 2026-07-18\nupdated: 2026-07-20\n---\nx\n",
+    ),
+  ]);
+
+  it("places an archived card by its own date, not last", () => {
+    render(<Board model={model} showArchived />);
+
+    const titles = within(column("done"))
+      .getAllByRole("article")
+      .map((el) => el.getAttribute("aria-label"));
+    expect(titles).toEqual(["c001: Done first", "c002: Done later"]);
+  });
+});
