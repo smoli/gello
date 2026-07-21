@@ -6,7 +6,7 @@ epic: e01
 depends: []
 tags: [infra]
 created: 2026-07-16
-updated: 2026-07-16
+updated: 2026-07-21
 ---
 
 ## What
@@ -46,3 +46,4 @@ after it must be.)
 - 2026-07-16 created from concept breakdown
 - 2026-07-16 picked up (agent), status → in-progress
 - 2026-07-16 all criteria verified (tests, typecheck, cargo test, dev window), status → review
+- 2026-07-21 archived (app)
