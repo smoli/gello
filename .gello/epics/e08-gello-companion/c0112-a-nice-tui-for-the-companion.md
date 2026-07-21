@@ -6,10 +6,8 @@ created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T12:45:08
 epic: e08
-awaiting: input
 ---
 
-```gelloquestion
 ## You're right — my Tauri framing was wrong
 
 The companion is a standalone Node CLI, and the TUI is purely a companion
@@ -41,7 +39,7 @@ terminal code otherwise, and the React model matches the rest of the repo. But
 it is a real dependency in a CLI that is otherwise lean, and that's your call.
 
 - [ ] **Ink** — declarative layout, handles resize/redraw; +1.7 MB, adds React
-- [ ] **Raw ANSI** — no dependency, stays lean; I hand-roll the drawing
+- [x] **Raw ANSI** — no dependency, stays lean; I hand-roll the drawing
 - [ ] Something else
 
 **Meanwhile I built the renderer-independent half**, so this isn't a blocked
@@ -50,7 +48,6 @@ board slice, cumulative session totals, elapsed formatting (20 tests). The
 `emit` seam now carries the card id, and a runner test proves two concurrent
 runs don't interleave. All of that is reused whichever way you go; only the
 drawing layer depends on your answer.
-```
 
 ## Library choice — measured, and your premise needs one correction
 
