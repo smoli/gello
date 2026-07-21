@@ -1,11 +1,11 @@
 ---
 id: i0117
 title: context menu shows two submenus shortly
-status: review
+status: done
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:42:51
+status-changed: 2026-07-21T12:44:41
 epic: e02
 ---
 
@@ -41,3 +41,4 @@ When hovering from one entry with a submenu to the next it shows both submenus f
 - 2026-07-21 status → in-progress (agent)
 - 2026-07-21 open submenu lifted to the menu level, reproducing test first
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)

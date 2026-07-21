@@ -1,10 +1,10 @@
 ---
 id: c0113
 title: More activity ui for glimpse
-status: review
+status: done
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:44:08
+status-changed: 2026-07-21T12:44:43
 epic: e08
 ---
 
@@ -118,3 +118,4 @@ turns the sweep off and leaves exactly today's static line.
   stamps in the c0109 Board fixtures. 853 frontend tests, typecheck, lint and a
   production build all green.
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
