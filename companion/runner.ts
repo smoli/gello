@@ -219,8 +219,10 @@ export interface RunnerOptions {
   log?: (message: string) => void;
   /** c0104: terminal verbosity for rendered agent output (default `normal`). */
   level?: Level;
-  /** c0104: where a rendered stream line goes (default `console.log`). */
-  emit?: (line: string) => void;
+  /** c0104: where a rendered stream line goes (default `console.log`). c0112
+   *  passes the run's card alongside it, so the TUI can route each run's lines
+   *  into that card's own pane. */
+  emit?: (line: string, cardId: string) => void;
   /** c0104: persist one parsed event to the runs.log transcript. No-op if
    *  unset (tests that don't care about the transcript). */
   appendRunLog?: (cardId: string, event: AgentEvent) => void;

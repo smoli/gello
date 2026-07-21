@@ -138,7 +138,9 @@ export class StreamSink {
     private readonly cardId: string,
     private readonly level: Level,
     private readonly parse: (line: string) => AgentEvent[],
-    private readonly emit: (line: string) => void,
+    /** c0112: the run's card is passed alongside the line so a caller can route
+     *  it into that card's own pane instead of one merged stream. */
+    private readonly emit: (line: string, cardId: string) => void,
     private readonly logEvent: (cardId: string, event: AgentEvent) => void,
     /** c0109: called on each tool call with the run's new activity. Not
      *  level-gated — the card line shows at every verbosity. */
@@ -185,7 +187,7 @@ export class StreamSink {
         this.onActivity?.(this.lastActivity);
       }
       this.logEvent(this.cardId, event);
-      for (const out of renderEvent(this.level, this.cardId, event)) this.emit(out);
+      for (const out of renderEvent(this.level, this.cardId, event)) this.emit(out, this.cardId);
     }
   }
 }

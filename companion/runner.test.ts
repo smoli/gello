@@ -6,6 +6,7 @@ import { claudeAdapter } from "./adapters.ts";
 import type { AgentEvent, Level } from "./stream.ts";
 import type { RunState } from "./core.ts";
 import type { Scheduler } from "./throttle.ts";
+import { LogPanes } from "./tui-model.ts";
 import {
   planDispatch,
   classifyExit,
@@ -330,6 +331,7 @@ function makeRunner(
   const published: { runs: string[] }[] = [];
   const publishedRaw: RunState[][] = [];
   const emitted: string[] = [];
+  const panes = new LogPanes();
   const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
   const logs: string[] = [];
@@ -344,7 +346,10 @@ function makeRunner(
     scope: "card",
     wipLimit: 2,
     level,
-    emit: (line) => emitted.push(line),
+    emit: (line, cardId) => {
+      emitted.push(line);
+      panes.append(cardId, line); // c0112: the per-card routing the TUI uses
+    },
     appendRunLog: (cardId, event) => runLog.push({ cardId, event }),
     spawn: (spec, cwd, env) => {
       cwds.push(cwd);
@@ -370,6 +375,7 @@ function makeRunner(
     published,
     publishedRaw,
     emitted,
+    panes,
     runLog,
     logs,
     advance: clock.advance,
@@ -711,6 +717,27 @@ describe("Runner — run observability (c0104)", () => {
     h.spawned[0].stdout(toolLine("Bash", { command: "ls" }));
     h.spawned[0].stdout(resultLine({ input_tokens: 1, output_tokens: 2 }));
     expect(h.emitted).toEqual([]);
+  });
+
+  // c0112: the TUI gives each run its own pane, so lines must be routable by
+  // card rather than merged into one stream.
+  it("routes each concurrent run's lines to its own card, never interleaving", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(toolLine("Read", { file_path: "a.ts" }));
+    h.spawned[1].stdout(toolLine("Read", { file_path: "b.ts" }));
+    h.spawned[0].stdout(toolLine("Bash", { command: "pnpm test" }));
+
+    expect(h.panes.lines("c001")).toEqual([
+      "[c001] → Read(a.ts)",
+      "[c001] → Bash(pnpm test)",
+    ]);
+    expect(h.panes.lines("c002")).toEqual(["[c002] → Read(b.ts)"]);
   });
 
   it("keeps two concurrent runs readable — every line names its own card", () => {
