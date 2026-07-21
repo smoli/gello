@@ -62,6 +62,38 @@ header needs that added.
 - [ ] Ctrl-C exits cleanly and restores the terminal; a resize re-lays out
       without corrupting the view
 
+## Notes
+
+- 2026-07-21 (agent) **Model capture landed** (the card's "one small gap"), since
+  it is needed whatever the library turns out to be. `AgentEvent` gains a
+  `model` variant, claude's parser emits it from the assistant event *before*
+  the content blocks (so a malformed block list still yields the model), the
+  sink keeps the latest, and the runner publishes it per run. It renders nothing
+  to the terminal, so `runs.log` is untouched.
+- **Library measured, not guessed** (for the open question below):
+  | | |
+  |---|---|
+  | companion bundle today | 845 KB |
+  | minimal Ink app, bundled | 1.7 MB |
+  | combined estimate | ~2.5 MB (≈3×) |
+  - Ink **does** bundle to a single file: `yoga-layout` embeds its WASM as
+    base64 *JavaScript* (`yoga-wasm-base64-esm.js`), so there is no external
+    asset and i0118's single-file guarantee survives.
+  - Two build accommodations: the `createRequire` banner (already in our build
+    from i0118) and aliasing `react-devtools-core` to a stub.
+  - Ink's `useInput` **hard-errors** off a TTY ("Raw mode is not supported").
+    That confirms the card's TTY gate is mandatory rather than a nicety, and the
+    TUI must be imported lazily so headless/piped runs never load it.
+- **The card's premise needs correcting**: the open question weighed Ink against
+  "i0118's compile-to-a-binary plan", but i0118 shipped as *bundle + the user's
+  Node*, not a binary. So the cost is ~1.7 MB added to an app resource inside a
+  Tauri bundle that is already tens of MB — much weaker than the card assumed.
+- **Smaller opens, decided (veto welcome)**: a pane is **dropped when its run
+  ends** (`runs.log` keeps the full record, so nothing is lost); **no scrollback**
+  inside a pane — a ring buffer of the last N lines, matching the read-only
+  scope; session totals are **cumulative across every run since the companion
+  started**, which is what "session … totals" in the header implies.
+
 ## Discussion
 
 - **Read-only now, keys later** (human's call). Navigation keys (collapse,
