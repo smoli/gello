@@ -12,6 +12,42 @@ status-changed: 2026-07-21T09:24:30
 
 Trying to run pnpm companion ../popexel the companion start but does nothing when I move a card to ready
 
+## What
+
+Not a cross-project bug — the same thing happens on any board. The card moved
+to `ready` was blocked by an unfinished dependency, and the companion said
+nothing about it.
+
+Reproduced against a copy of the popexel board: `c0058` was in `ready` with
+`depends: [c0053]`, and `c0053` sits in `backlog`. `planDispatch` drops
+dependency-blocked cards while building its candidate list, so the card never
+reaches the WIP-budget split and never appears in `queued` either. The
+companion prints its one startup line and is then silent for good. Flipping
+`c0053` to `done` makes the same board dispatch `c0058`.
+
+Refusing to run the card is right. Refusing without a word is the bug: from
+the outside, "blocked by c0053" and "the companion is broken" look identical,
+which is why this got filed as a startup failure.
+
+The companion should say why a trigger-status card is not running:
+
+- blocked by dependencies — name the ones that are not `done`
+- over the WIP limit — already computed as `queued`, then discarded by the
+  caller (`const { dispatch } = planDispatch(...)`)
+
+`sync` runs on every watcher tick, so this has to report a card's reason when
+it changes, not on every pass.
+
+## Acceptance criteria
+
+- [ ] `planDispatch` reports dependency-blocked trigger cards with the ids that
+      are not `done`, instead of dropping them
+- [ ] The companion logs the reason a ready card is not running, for both the
+      blocked and the over-budget case
+- [ ] A reason is logged once, not on every watcher tick, and again when it
+      changes
+- [ ] A card that becomes unblocked dispatches, and says so
+
 ## Log
 
 - 2026-07-21 status → ready (app)
