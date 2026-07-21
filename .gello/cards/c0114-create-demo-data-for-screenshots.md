@@ -110,6 +110,33 @@ shooting** or the indicator disappears and the activity line dims.
   photos will beat a placeholder block); whether to stage an uncommitted change
   at shoot time to demonstrate the dirty indicator.
 
+## Notes
+
+- The criteria are checked by `demo/holzhof-board.test.ts` — it loads the demo
+  board through `loadBoard`/`parseCard` and asserts every column is filled, the
+  thumbnail resolves to a file, the question parses, exactly one file is
+  malformed, and the companion state has a running run with activity and usage.
+  Gitignored with the rest of `demo/`, so it can only run where the board is;
+  `pnpm test demo/` after editing the board.
+- The board: 3 epics (marketplace / payments / logistics) with 10 cards, 5
+  standalone cards, one archived, one malformed (duplicate `status:` key, the
+  i0034 one-click repair). WIP shows 3/3 in in-progress. `depends`: c031 → c030;
+  `ref`: i001 → c010.
+- **Open question resolved provisionally**: the thumbnail image is a generated
+  stacking diagram (`assets/c030/stacking-patterns.png`) rather than a photo —
+  it reads as product art in the card body, which a stock photo would not, and
+  it carries no licence question for marketing shots. Drop a real photo in its
+  place if you prefer; the link is one line in c030.
+- **Open question left to the shoot**: nothing uncommitted is staged, so the
+  demo repo starts clean. Editing `src/listings/rating.ts` gives the c0083 dirty
+  dot on demand.
+- `demo/README.md` maps each feature to the card that shows it, and
+  `demo/refresh-companion.sh` stamps the companion state before a shoot (the 30s
+  staleness window).
+- The board is committed inside `demo/holzhof/`, so board edits made while
+  shooting auto-commit there and `git reset --hard` restores the authored state.
+  `.gello/.companion/` is gitignored in the demo repo, as in a real project.
+
 ## Log
 
 - 2026-07-21 status → discuss (app)
@@ -121,3 +148,5 @@ shooting** or the indicator disappears and the activity line dims.
   deadpan-plausible titles, the joke in the domain not the formatting.
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 authored the Holzhof board at `demo/holzhof/`, git-initialised on
+  `main`; validated by `demo/holzhof-board.test.ts` (12 checks, green).
