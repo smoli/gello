@@ -1,11 +1,11 @@
 ---
 id: i0120
 title: Cannot drag a card with column scroll bar
-status: in-progress
+status: review
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T09:36:10
+status-changed: 2026-07-21T09:47:20
 epic: e02
 ---
 
@@ -40,12 +40,23 @@ whichever engine is underneath.
 
 ## Acceptance criteria
 
-- [ ] `.card-front` declares `user-select: none`, prefixed and unprefixed
-- [ ] `.card-front` declares `-webkit-user-drag: element`
-- [ ] A test fails if those declarations are removed
-- [ ] No other element depends on the `[draggable=true]` UA rule
+- [x] `.card-front` declares `user-select: none`, prefixed and unprefixed
+- [x] `.card-front` declares `-webkit-user-drag: element`
+- [x] A test fails if those declarations are removed
+- [x] No other element depends on the `[draggable=true]` UA rule
 
 ## Log
 
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 implemented (agent): declared `-webkit-user-select`/`user-select:
+  none` and `-webkit-user-drag: element` on `.card-front`. Guarded by
+  card-drag.test.ts, which reads Board.css — jsdom would pass either way, so a
+  rendered assertion could not catch this. Verified the test fails with the CSS
+  stashed. `.card-front` is the only `draggable` element in the app.
+  828 tests green, typecheck and lint clean.
+- 2026-07-21 NOT verified in WKWebView: the browser pane is Chromium, where the
+  drag worked before the fix too. The engine-level confirmation is that gello's
+  own stylesheet now carries the declarations rather than relying on the UA
+  rule. Worth one drag in the running app from a scrolling column.
+- 2026-07-21 status → review (agent)

@@ -133,6 +133,14 @@
   flex-direction: column;
   gap: 0.35rem;
   box-shadow: 0 1px 2px color-mix(in srgb, CanvasText 8%, transparent);
+  /* i0120: the whole front is a drag handle, so its text must not be
+     selectable — a mousedown on the title would start a selection and the drag
+     would never begin. Blink's UA sheet does this for [draggable=true] and
+     WebKit's does not, so relying on it worked everywhere except the app's own
+     WKWebView. Declared here instead. Card text is read in the detail view. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: element;
 }
 
 .card-title {
