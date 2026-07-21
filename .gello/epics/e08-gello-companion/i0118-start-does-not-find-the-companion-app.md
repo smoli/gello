@@ -1,13 +1,13 @@
 ---
 id: i0118
 title: Start does not find the companion app
-status: review
+status: done
 type: issue
 ref: c0110
 epic: e08
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T07:44:18
+status-changed: 2026-07-21T08:13:03
 ---
 
 ## Answer: yes it's feasible — but I'd advise against it here
@@ -216,3 +216,4 @@ dev `pnpm link --global` path. The app no longer depends on it.
   bundle and launches `node <bundle> <dir>` with a node guard. All tests green;
   verified end-to-end against a scratch board.
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
