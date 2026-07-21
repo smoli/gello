@@ -53,9 +53,17 @@ export function occupiedSlots(model: BoardModel, activeCardIds: string[]): numbe
   return ids.size;
 }
 
-/** A ready card is dispatchable only when all its `depends` are `done`. */
-function dependsSatisfied(index: Map<string, Card>, card: Card): boolean {
-  return card.depends.every((id) => index.get(id)?.status === DONE);
+/** The `depends` of a card that are not `done` — an id absent from the board
+ *  counts as missing. Empty means the card is dispatchable. */
+function missingDepends(index: Map<string, Card>, card: Card): string[] {
+  return card.depends.filter((id) => index.get(id)?.status !== DONE);
+}
+
+/** A trigger-status card held back by unfinished dependencies (i0119). */
+export interface BlockedCard {
+  card: Card;
+  /** The `depends` ids that are not `done`, in the order the card lists them. */
+  missing: string[];
 }
 
 export interface DispatchPlan {
@@ -63,6 +71,9 @@ export interface DispatchPlan {
   dispatch: Card[];
   /** Dispatchable-but-over-budget ready cards, waiting for a free slot. */
   queued: Card[];
+  /** Ready cards waiting on a dependency, with the ids they wait on. Reported
+   *  rather than silently dropped — see i0119. */
+  blocked: BlockedCard[];
 }
 
 /**
@@ -80,12 +91,24 @@ export function planDispatch(
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
-  const candidates = allCards(model)
-    .filter((c) => c.status === trigger && !active.has(c.id) && dependsSatisfied(index, c))
+  const waiting = allCards(model)
+    .filter((c) => c.status === trigger && !active.has(c.id))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
+  const blocked: BlockedCard[] = [];
+  const candidates: Card[] = [];
+  for (const card of waiting) {
+    const missing = missingDepends(index, card);
+    if (missing.length) blocked.push({ card, missing });
+    else candidates.push(card);
+  }
+
   const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds));
-  return { dispatch: candidates.slice(0, budget), queued: candidates.slice(budget) };
+  return {
+    dispatch: candidates.slice(0, budget),
+    queued: candidates.slice(budget),
+    blocked,
+  };
 }
 
 export type RunPhase = RunState["phase"];
@@ -221,6 +244,9 @@ interface ActiveRun {
 
 export class Runner {
   private readonly active = new Map<string, ActiveRun>();
+  /** Card id → the last held-back reason logged for it (i0119), so a reason is
+   *  announced on change instead of on every watcher tick. */
+  private heldBack = new Map<string, string>();
   private sessions: SessionMap;
   /** c0109: coalesces activity-driven state writes to ~1s, however fast the
    *  agent emits tool calls. Lifecycle changes publish immediately (bypass it). */
@@ -244,14 +270,35 @@ export class Runner {
    */
   sync(next: BoardModel): void {
     for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
-    const { dispatch } = planDispatch(
+    const { dispatch, queued, blocked } = planDispatch(
       next,
       [...this.active.keys()],
       this.opts.wipLimit,
       this.opts.trigger ?? READY,
     );
+    this.reportHeldBack(queued, blocked);
     for (const card of dispatch) this.start(card, false);
     this.publish();
+  }
+
+  /**
+   * Say why a card in the trigger status is not running (i0119). Without this
+   * the companion refuses silently, which from outside is indistinguishable
+   * from a companion that failed to start. `sync` runs on every watcher tick,
+   * so each card's reason is logged when it changes, not on every pass.
+   */
+  private reportHeldBack(queued: Card[], blocked: BlockedCard[]): void {
+    const reasons = new Map<string, string>();
+    for (const { card, missing } of blocked) {
+      reasons.set(card.id, `waiting on ${missing.join(", ")} (not done)`);
+    }
+    for (const card of queued) {
+      reasons.set(card.id, `at the in-progress WIP limit (${this.opts.wipLimit})`);
+    }
+    for (const [cardId, reason] of reasons) {
+      if (this.heldBack.get(cardId) !== reason) this.log(`${cardId} held: ${reason}`);
+    }
+    this.heldBack = reasons;
   }
 
   /**

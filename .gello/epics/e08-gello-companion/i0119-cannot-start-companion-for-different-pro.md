@@ -1,13 +1,13 @@
 ---
 id: i0119
 title: Cannot start companion for different project
-status: in-progress
+status: review
 type: issue
 ref: c0093
 epic: e08
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T09:24:30
+status-changed: 2026-07-21T09:31:40
 ---
 
 Trying to run pnpm companion ../popexel the companion start but does nothing when I move a card to ready
@@ -40,15 +40,23 @@ it changes, not on every pass.
 
 ## Acceptance criteria
 
-- [ ] `planDispatch` reports dependency-blocked trigger cards with the ids that
+- [x] `planDispatch` reports dependency-blocked trigger cards with the ids that
       are not `done`, instead of dropping them
-- [ ] The companion logs the reason a ready card is not running, for both the
+- [x] The companion logs the reason a ready card is not running, for both the
       blocked and the over-budget case
-- [ ] A reason is logged once, not on every watcher tick, and again when it
+- [x] A reason is logged once, not on every watcher tick, and again when it
       changes
-- [ ] A card that becomes unblocked dispatches, and says so
+- [x] A card that becomes unblocked dispatches, and says so
 
 ## Log
 
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 implemented (agent): planDispatch now partitions the trigger-status
+  cards into dispatch / queued / blocked instead of filtering blocked ones out,
+  and the runner logs each held-back card's reason on change (`heldBack` map,
+  keyed by card id). Verified against a copy of the popexel board: the same
+  startup that was silent now prints `c0058 held: waiting on c0053 (not done)`,
+  both at startup and when the card is moved to ready with the watcher live.
+  825 tests green, typecheck and lint clean.
+- 2026-07-21 status → review (agent)

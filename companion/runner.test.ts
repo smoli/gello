@@ -145,6 +145,40 @@ describe("planDispatch", () => {
     const { dispatch } = planDispatch(model, [], 2);
     expect(dispatch.map((c) => c.id)).toEqual(["c002"]); // c001 blocked by c009
   });
+
+  // i0119: a blocked card used to be filtered out of the candidate list and
+  // never mentioned again, so the companion sat silent and looked broken.
+  it("reports a blocked card with the depends that are not done", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c003", "c009"] },
+      c003: { status: "done" },
+      c009: { status: "backlog" },
+    });
+    const { dispatch, blocked } = planDispatch(model, [], 2);
+
+    expect(dispatch).toEqual([]);
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0].card.id).toBe("c001");
+    expect(blocked[0].missing).toEqual(["c009"]); // c003 is done, so not listed
+  });
+
+  it("counts an absent dependency as missing", () => {
+    const model = board({ c001: { status: "ready", depends: ["c404"] } });
+    expect(planDispatch(model, [], 2).blocked[0].missing).toEqual(["c404"]);
+  });
+
+  it("reports nothing blocked when every dependency is done", () => {
+    const model = board({
+      c001: { status: "ready", depends: ["c003"] },
+      c003: { status: "done" },
+    });
+    expect(planDispatch(model, [], 2).blocked).toEqual([]);
+  });
+
+  it("does not report a card in another status as blocked", () => {
+    const model = board({ c001: { status: "backlog", depends: ["c404"] } });
+    expect(planDispatch(model, [], 2).blocked).toEqual([]);
+  });
 });
 
 describe("classifyExit", () => {
@@ -298,6 +332,7 @@ function makeRunner(
   const emitted: string[] = [];
   const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
+  const logs: string[] = [];
   const clock = fakeClock();
   const runner = new Runner({
     // the agent runs in the repo; card paths resolve against .gello
@@ -323,6 +358,7 @@ function makeRunner(
       publishedRaw.push(runs);
     },
     sessions,
+    log: (line) => logs.push(line),
     now: clock.now,
     scheduler: clock.scheduler,
   });
@@ -335,6 +371,7 @@ function makeRunner(
     publishedRaw,
     emitted,
     runLog,
+    logs,
     advance: clock.advance,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -342,6 +379,100 @@ function makeRunner(
     lastRaw: () => publishedRaw[publishedRaw.length - 1] ?? [],
   };
 }
+
+// i0119 — "the companion starts but does nothing" was a blocked dependency it
+// never mentioned. Every trigger-status card that is not running must say why.
+describe("Runner — why a ready card is not running", () => {
+  it("names the unfinished dependency instead of staying silent", () => {
+    const start = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] },
+      c009: { status: "backlog" },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toContain("c001");
+    expect(h.logs.join("\n")).toContain("c009");
+  });
+
+  it("says a card is over the WIP limit rather than dropping it quietly", () => {
+    const start = board({
+      c001: { status: "in-progress" },
+      c002: { status: "in-progress" },
+      c003: { status: "ready", order: 1 },
+    });
+    const h = makeRunner(start); // wipLimit 2, both slots taken
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c003.*(wip|limit|slot)/i);
+  });
+
+  // sync fires on every watcher tick, and a board edit is several ticks — the
+  // reason must not scroll the terminal
+  it("reports a reason once, not on every sync", () => {
+    const start = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "backlog" },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    const after = h.logs.length;
+    h.runner.sync(start);
+    h.runner.sync(start);
+    expect(h.logs.length).toBe(after);
+  });
+
+  it("reports again when the reason changes", () => {
+    const blocked = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "backlog" },
+    });
+    const h = makeRunner(blocked);
+    h.runner.sync(blocked);
+    const after = h.logs.length;
+
+    const alsoBlocked = board({
+      c001: { status: "ready", depends: ["c009", "c010"] },
+      c009: { status: "backlog" },
+      c010: { status: "backlog" },
+    });
+    h.runner.sync(alsoBlocked);
+    expect(h.logs.length).toBeGreaterThan(after);
+    expect(h.logs[h.logs.length - 1]).toContain("c010");
+  });
+
+  it("dispatches once the dependency is done, and stops reporting it", () => {
+    const blocked = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "backlog" },
+    });
+    const h = makeRunner(blocked);
+    h.runner.sync(blocked);
+    expect(h.spawned).toHaveLength(0);
+
+    const unblocked = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "done" },
+    });
+    h.setModel(unblocked);
+    h.runner.sync(unblocked);
+
+    expect(h.spawned).toHaveLength(1);
+    // the card is running now; a later sync must not re-announce it as blocked
+    const after = h.logs.length;
+    h.runner.sync(unblocked);
+    expect(h.logs.slice(after).join("\n")).not.toContain("c009");
+  });
+
+  it("stays quiet when there is nothing in the trigger status", () => {
+    const start = board({ c001: { status: "backlog" }, c002: { status: "done" } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.logs).toEqual([]);
+  });
+});
 
 describe("Runner", () => {
   it("dispatches a ready card: one spawn creating a new session (--session-id)", () => {
