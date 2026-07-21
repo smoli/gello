@@ -131,6 +131,45 @@ describe("c0076: epic folders + standalone cards", () => {
   });
 });
 
+describe("archive folders (c018)", () => {
+  const model = loadBoard([
+    file("board.yaml", "columns: [inbox, backlog, done]\n"),
+    file("epics/e01-core/epic.md", "---\nid: e01\ntitle: Core\nstatus: backlog\n---\ngoal\n"),
+    file("epics/e01-core/c001-a.md", "---\nid: c001\ntitle: Live\nstatus: backlog\nepic: e01\n---\nx\n"),
+    file(
+      "epics/e01-core/archive/c007-old.md",
+      "---\nid: c007\ntitle: Old epic card\nstatus: done\nepic: e01\n---\nx\n",
+    ),
+    file("cards/c002-loose.md", "---\nid: c002\ntitle: Standalone\nstatus: backlog\n---\nx\n"),
+    file(
+      "cards/archive/c009-shelved.md",
+      "---\nid: c009\ntitle: Shelved\nstatus: done\n---\nx\n",
+    ),
+  ]);
+
+  it("loads archived cards into their epic group, flagged archived", () => {
+    expect(model.invalid).toEqual([]);
+    expect(model.epics[0].cards.map((c) => c.id)).toEqual(["c001", "c007"]);
+    const archived = model.epics[0].cards.find((c) => c.id === "c007")!;
+    expect(archived.archived).toBe(true);
+    expect(model.epics[0].cards.find((c) => c.id === "c001")!.archived).toBe(false);
+  });
+
+  it("loads archived standalone cards into cards/, flagged archived", () => {
+    expect(model.cards.map((c) => c.id)).toEqual(["c002", "c009"]);
+    expect(model.cards.find((c) => c.id === "c009")!.archived).toBe(true);
+  });
+
+  it("never hands out an archived card's id again", () => {
+    // c009 is the highest id on the board and it is archived
+    expect(nextCardId(model)).toBe("c0010");
+  });
+
+  it("finds an archived card by id", () => {
+    expect(findCardById(model, "c007")?.title).toBe("Old epic card");
+  });
+});
+
 describe("loadBoard on a synthetic tree", () => {
   const model = loadBoard(SYNTHETIC);
 

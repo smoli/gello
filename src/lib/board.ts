@@ -182,18 +182,25 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     if (!path.endsWith(".md")) continue;
     const segments = path.split("/");
 
-    if (segments.length === 2 && segments[0] === "cards") {
+    // c018: an `archive/` folder holds long-done cards. They belong to the same
+    // home as their live siblings (so ids stay reserved and search finds them);
+    // the `archived` flag on the card keeps them off the board by default.
+    const archived = segments[segments.length - 2] === "archive";
+    const home = archived ? segments.slice(0, -2) : segments.slice(0, -1);
+
+    if (home.length === 1 && home[0] === "cards") {
       // c0076: standalone cards — a flat home, no epic membership. c0088: an
       // unassigned card (incl. `status: inbox`) lives here; there is no inbox/.
       const result = parseCard(path, content, config);
       if (result.ok) standalone.push(result.card);
       else invalid.push(result.invalid);
     } else if (
-      segments.length === 3 &&
-      (segments[0] === "epics" || segments[0] === "milestones") // legacy
+      home.length === 2 &&
+      (home[0] === "epics" || home[0] === "milestones") // legacy
     ) {
-      const folder = segments[1];
-      if (segments[2] === "epic.md" || segments[2] === "milestone.md") {
+      const folder = home[1];
+      const name = segments[segments.length - 1];
+      if (!archived && (name === "epic.md" || name === "milestone.md")) {
         const result = parseEpic(path, content);
         if (result.ok) groupFor(folder).epic = result.epic;
         else invalid.push(result.invalid);

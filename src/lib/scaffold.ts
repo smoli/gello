@@ -56,6 +56,9 @@ frontmatter. Read \`.gello/concept.md\` for the product spec.
   heading and a sentence. (Inbox is a status, the first column — not a folder.)
 - **Triage**: move a card into an epic (\`epics/eNN-name/\`) or leave it
   standalone in \`.gello/cards/\`; \`tags:\` are the separate cross-cutting axis.
+- **Archive**: long-done cards can be archived into an \`archive/\` folder in
+  their own home; they keep their id and epic. Add \`--exclude-dir=archive\` to
+  a board query to leave them out.
 - Valid statuses come from \`board.yaml\`; frontmatter must be valid YAML.
 `;
 

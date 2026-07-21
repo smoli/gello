@@ -1275,3 +1275,45 @@ describe("c008: WIP limits", () => {
     );
   });
 });
+
+describe("archived cards (c018)", () => {
+  const ARCHIVE_MODEL = loadBoard([
+    file("board.yaml", "columns: [backlog, done]\n"),
+    file("epics/e01-core/epic.md", "---\nid: e01\ntitle: Core\nstatus: backlog\n---\ng\n"),
+    file("epics/e01-core/c001-live.md", card("c001", "Live card", "done")),
+    file(
+      "epics/e01-core/archive/c002-shelved.md",
+      card("c002", "Shelved card", "done"),
+    ),
+  ]);
+
+  it("keeps archived cards off the board by default", () => {
+    render(<Board model={ARCHIVE_MODEL} />);
+    expect(screen.getByText("Live card")).toBeInTheDocument();
+    expect(screen.queryByText("Shelved card")).not.toBeInTheDocument();
+    expect(column("done").querySelector(".column-count")).toHaveTextContent("1");
+  });
+
+  it("shows them, marked, when the toggle is on", () => {
+    render(<Board model={ARCHIVE_MODEL} showArchived />);
+    const front = screen.getByText("Shelved card").closest("article")!;
+    expect(front).toHaveClass("card-archived");
+    expect(within(front as HTMLElement).getByText("archived")).toBeInTheDocument();
+    expect(column("done").querySelector(".column-count")).toHaveTextContent("2");
+  });
+
+  it("finds them by search even with the toggle off", () => {
+    render(<Board model={ARCHIVE_MODEL} query="shelved" />);
+    expect(screen.getByText("Shelved card")).toBeInTheDocument();
+    expect(screen.queryByText("Live card")).not.toBeInTheDocument();
+  });
+
+  it("does not move an archived card by drag or keyboard", () => {
+    const onMoveCard = vi.fn();
+    render(<Board model={ARCHIVE_MODEL} showArchived onMoveCard={onMoveCard} />);
+    const front = screen.getByText("Shelved card").closest("article")!;
+    expect(front).not.toHaveAttribute("draggable", "true");
+    fireEvent.keyDown(front, { key: "ArrowLeft" });
+    expect(onMoveCard).not.toHaveBeenCalled();
+  });
+});

@@ -411,6 +411,73 @@ function basename(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
+function dirname(path: string): string {
+  return path.slice(0, path.lastIndexOf("/"));
+}
+
+/**
+ * c018: move a card between its home folder and that folder's `archive/`.
+ * Archiving keeps the card where it belongs (its epic, or `cards/`) — only one
+ * folder level deeper — so epic membership, ids, and search are unaffected.
+ * Relative asset links are rewritten for the new depth; the new file is written
+ * before the old one is removed, so an interruption leaves a duplicate rather
+ * than a lost card. A dated Log line records the move.
+ */
+function moveArchive(
+  root: string,
+  card: Card,
+  archived: boolean,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  const from = dirname(card.path);
+  const destFolder = archived ? `${from}/archive` : dirname(from);
+  const { raw } = replaceCardBody(
+    card,
+    appendLogLine(card.body, `${today} ${archived ? "archived" : "unarchived"} (app)`),
+    today,
+    config,
+  );
+  const srcDepth = card.path.split("/").length - 1;
+  const destDepth = destFolder.split("/").length;
+  const newRaw = retargetAssetLinks(
+    raw,
+    `${"../".repeat(srcDepth)}assets/`,
+    `${"../".repeat(destDepth)}assets/`,
+  );
+  const newPath = `${destFolder}/${basename(card.path)}`;
+  const parsed = parseCard(newPath, newRaw, config);
+  if (!parsed.ok) {
+    throw new Error(`archived card would be invalid: ${parsed.invalid.reason}`);
+  }
+  const persisted = writeFileAtomic(`${root}/${newPath}`, newRaw).then(() =>
+    removeFile(`${root}/${card.path}`),
+  );
+  return { card: parsed.card, persisted };
+}
+
+/** c018: archive a (long done) card into its folder's `archive/`. */
+export function archiveCard(
+  root: string,
+  card: Card,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  if (card.archived) throw new Error(`card ${card.id} is already archived`);
+  return moveArchive(root, card, true, config, today);
+}
+
+/** c018: bring an archived card back onto the board. */
+export function unarchiveCard(
+  root: string,
+  card: Card,
+  config: BoardConfig,
+  today: string,
+): MoveResult {
+  if (!card.archived) throw new Error(`card ${card.id} is not archived`);
+  return moveArchive(root, card, false, config, today);
+}
+
 /**
  * c0062: permanently delete a card — its Markdown file, then its asset folder
  * (`assets/<card-id>/`, keyed by id per concept §; a no-op if the card has no

@@ -7,6 +7,8 @@ import { removeDir, removeFile } from "./board-io";
 import { loadBoard } from "./board";
 import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
+  archiveCard,
+  unarchiveCard,
   createIssueFor,
   createCard,
   addGelloQuestion,
@@ -802,6 +804,137 @@ describe("deleteCard (c0062)", () => {
 
     await expect(persisted).rejects.toThrow("locked");
     expect(removeDirMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("archiveCard / unarchiveCard (c018)", () => {
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+    removeMock.mockReset();
+    removeMock.mockResolvedValue(undefined);
+  });
+
+  const DONE_RAW = `---
+id: c007
+title: Long done
+status: done
+epic: e05
+updated: 2026-07-10
+---
+
+![shot](../../assets/c007/shot.png)
+
+## Log
+
+- 2026-07-10 status → done (app)
+`;
+
+  function doneCard(path = "epics/e05-projects/c007-long-done.md") {
+    const parsed = parseCard(path, DONE_RAW);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  it("moves the file into archive/, deepens asset links, and logs it", async () => {
+    const { card, persisted } = archiveCard(
+      "/repo/.gello",
+      doneCard(),
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+
+    expect(card.path).toBe("epics/e05-projects/archive/c007-long-done.md");
+    expect(card.archived).toBe(true);
+    expect(card.status).toBe("done"); // archiving is not a status change
+    await persisted;
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e05-projects/archive/c007-long-done.md",
+      expect.stringContaining("![shot](../../../assets/c007/shot.png)"),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("- 2026-07-21 archived (app)");
+    expect(writeMock.mock.calls[0][1]).toContain("updated: 2026-07-21");
+    expect(removeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e05-projects/c007-long-done.md",
+    );
+    // write-new strictly before delete-old — a failure leaves a duplicate,
+    // never a lost card
+    expect(writeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      removeMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("archives a standalone card into cards/archive/", async () => {
+    const raw = "---\nid: c009\ntitle: Shelved\nstatus: done\n---\n\n![s](../assets/c009/s.png)\n";
+    const parsed = parseCard("cards/c009-shelved.md", raw);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = archiveCard(
+      "/repo/.gello",
+      parsed.card,
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+    await persisted;
+
+    expect(card.path).toBe("cards/archive/c009-shelved.md");
+    expect(writeMock.mock.calls[0][1]).toContain("![s](../../assets/c009/s.png)");
+  });
+
+  it("keeps the archived file when the new write fails", async () => {
+    writeMock.mockRejectedValueOnce(new Error("disk full"));
+
+    const { persisted } = archiveCard(
+      "/repo/.gello",
+      doneCard(),
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+
+    await expect(persisted).rejects.toThrow("disk full");
+    expect(removeMock).not.toHaveBeenCalled();
+  });
+
+  it("unarchive puts the card back beside its epic, with shallower links", async () => {
+    const archived = doneCard();
+    const { card, persisted } = archiveCard(
+      "/repo/.gello",
+      archived,
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-21",
+    );
+    await persisted;
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+    removeMock.mockReset();
+    removeMock.mockResolvedValue(undefined);
+
+    const back = unarchiveCard("/repo/.gello", card, DEFAULT_BOARD_CONFIG, "2026-07-22");
+    await back.persisted;
+
+    expect(back.card.path).toBe("epics/e05-projects/c007-long-done.md");
+    expect(back.card.archived).toBe(false);
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e05-projects/c007-long-done.md",
+      expect.stringContaining("![shot](../../assets/c007/shot.png)"),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("- 2026-07-22 unarchived (app)");
+    expect(removeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e05-projects/archive/c007-long-done.md",
+    );
+  });
+
+  it("refuses to archive twice or to unarchive a live card", () => {
+    const live = doneCard();
+    const archived = archiveCard("/repo/.gello", live, DEFAULT_BOARD_CONFIG, "2026-07-21").card;
+
+    expect(() => archiveCard("/repo/.gello", archived, DEFAULT_BOARD_CONFIG, "2026-07-21")).toThrow(
+      /already archived/,
+    );
+    expect(() => unarchiveCard("/repo/.gello", live, DEFAULT_BOARD_CONFIG, "2026-07-21")).toThrow(
+      /not archived/,
+    );
   });
 });
 

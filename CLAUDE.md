@@ -130,6 +130,13 @@ do not maintain parallel plan/TODO files.
   `grep -rl "^status: discuss" .gello/cards .gello/epics --include="[ci][0-9]*.md"`.
   Exit is the human's call: assign to an epic (or leave standalone) and set a
   status (`backlog` / `ready`).
+- **Archive** (c018): a long-done card can be archived into an `archive/`
+  folder inside its own home — `cards/archive/`, `epics/eNN-name/archive/`.
+  The card keeps its epic and its id (an archived id is never handed out
+  again), and its relative asset links gain one `../`. Archived cards are off
+  the board unless the Settings › Show archived toggle is on, but a board
+  search still finds them. Board queries recurse into `archive/`; add
+  `--exclude-dir=archive` when you want only live cards.
 - **Attachments**: store under `.gello/assets/<card-id>/`, link with relative
   Markdown image paths. When moving a card file between folders, rewrite its
   relative asset links.

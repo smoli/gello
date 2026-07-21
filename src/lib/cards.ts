@@ -59,6 +59,9 @@ export interface Card {
   body: string;
   raw: string;
   path: string;
+  /** c018: the card sits in an `archive/` folder — off the board by default.
+   *  Derived from the path, never a frontmatter field. */
+  archived: boolean;
 }
 
 /** c0076: an epic (renamed from milestone) — a single-container folder for a
@@ -241,8 +244,15 @@ export function parseCard(
       body: split.body,
       raw,
       path,
+      archived: isArchivedPath(path),
     },
   };
+}
+
+/** c018: a card file under an `archive/` folder — `cards/archive/c1.md` or
+ *  `epics/eNN-x/archive/c1.md`. */
+export function isArchivedPath(path: string): boolean {
+  return path.split("/").slice(0, -1).includes("archive");
 }
 
 /** c0076: parse an `epic.md` (or legacy `milestone.md`) container file. */

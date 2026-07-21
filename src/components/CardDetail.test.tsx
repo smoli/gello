@@ -554,3 +554,36 @@ describe("CardDetail", () => {
     expect(loadImage).toHaveBeenCalledWith("assets/c009/shot.png");
   });
 });
+
+describe("archive action (c018)", () => {
+  function doneCard(path = "epics/e05-projects/c009-detail.md") {
+    const parsed = parseCard(path, RAW.replace("status: in-progress", "status: done"));
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  it("offers Archive on a done card", () => {
+    const onArchive = vi.fn();
+    renderDetail({ card: doneCard(), onArchive });
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    expect(onArchive).toHaveBeenCalledWith(true);
+  });
+
+  it("does not offer it on a card that is not done", () => {
+    renderDetail({ onArchive: vi.fn() }); // fixture is in-progress
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+  });
+
+  it("offers Unarchive on an archived card", () => {
+    const onArchive = vi.fn();
+    renderDetail({
+      card: doneCard("epics/e05-projects/archive/c009-detail.md"),
+      onArchive,
+    });
+
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+    expect(onArchive).toHaveBeenCalledWith(false);
+  });
+});

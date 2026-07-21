@@ -86,6 +86,7 @@ export function Board({
   onBackgroundContextMenu,
   loadImage,
   query = "",
+  showArchived = false,
   runner,
 }: {
   model: BoardModel;
@@ -101,6 +102,9 @@ export function Board({
   onManageTags?: () => void;
   /** c0066: fulltext filter, now owned by the top bar's search box. */
   query?: string;
+  /** c018: also show archived cards (`archive/` folders), which are off the
+   *  board otherwise. A search still reaches them either way. */
+  showArchived?: boolean;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c016: a control rendered at the start of the toolbar (project menu). */
@@ -150,8 +154,12 @@ export function Board({
     filter === "all"
       ? statusCards
       : statusCards.filter((c) => c.filterKey === filter);
+  // c018: archived cards are off the board unless the toggle is on — but a
+  // search still reaches them, so nothing is lost by archiving.
+  const searching = query.trim() !== "";
   const visible = byEpic.filter(
     (c) =>
+      (!c.card.archived || showArchived || searching) &&
       (typeFilter === "all" || c.card.type === typeFilter) &&
       (selectedTags.size === 0 ||
         c.card.tags.some((tag) => selectedTags.has(tag))) &&
@@ -653,10 +661,20 @@ function CardFront({
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
   const activity = cardActivity(runner ?? null, card.id, Date.now());
+  // c018: an archived card is shown for reference — moving it would leave it
+  // in `archive/` with a live status, so it stays put until it is unarchived.
+  const archived = card.archived;
+  const className = [
+    "card-front",
+    isOrigin ? "card-origin" : "",
+    archived ? "card-archived" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <article
-      className={isOrigin ? "card-front card-origin" : "card-front"}
-      draggable
+      className={className}
+      draggable={!archived}
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
@@ -667,14 +685,17 @@ function CardFront({
       }}
       onDragEnd={() => onDragState(null)}
       onKeyDown={(event) => {
-        if (event.key === "ArrowRight") onMoveByKey(card, 1);
-        if (event.key === "ArrowLeft") onMoveByKey(card, -1);
+        if (event.key === "ArrowRight" && !archived) onMoveByKey(card, 1);
+        if (event.key === "ArrowLeft" && !archived) onMoveByKey(card, -1);
         if (event.key === "Enter") onSelect?.(card);
       }}
     >
       <div className="card-meta">
         <span className="card-id">{card.id}</span>
         <span className="card-meta-badges">
+          {/* c018: shown only when archived cards are on the board (toggle or
+              search), so the front says why this one is here. */}
+          {archived && <span className="card-archived-badge">archived</span>}
           {/* c0100: parked on a companion Q&A — read from the card's own
               `awaiting: input` marker, so it shows even when the companion
               process isn't running (title-bar aggregate reads the state file). */}

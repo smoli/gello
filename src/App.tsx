@@ -18,6 +18,8 @@ import {
 } from "./lib/board";
 import {
   answerGelloQuestion,
+  archiveCard,
+  unarchiveCard,
   createIssueFor,
   createCard,
   createEpic,
@@ -97,6 +99,7 @@ const skillsDismissedKey = (projectPath: string) =>
   `skills-prompt-dismissed:${projectPath}`;
 const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
+const ARCHIVED_FLAG = "show-archived"; // c018: show archived cards on the board
 const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
 // c0083: per-project auto-commit — off by default, keyed by project path
 const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
@@ -172,6 +175,8 @@ function App() {
   const [recent, setRecent] = useState<string[]>([]);
   // c0063: show first-image thumbnails on board cards (default on, off = "0")
   const [showThumbnails, setShowThumbnails] = useState(true);
+  // c018: show archived cards on the board (off by default, on = "1")
+  const [showArchived, setShowArchived] = useState(false);
   // c0068: theme override — "system" follows the OS (default), else forced
   const [theme, setTheme] = useState<Theme>("system");
   // i0114: track the OS scheme so chip fills (computed in JS, not CSS) can shade
@@ -217,6 +222,9 @@ function App() {
     });
     void appFlagGet(THUMBNAILS_FLAG).then((v) => {
       if (!cancelled) setShowThumbnails(v !== "0");
+    });
+    void appFlagGet(ARCHIVED_FLAG).then((v) => {
+      if (!cancelled) setShowArchived(v === "1");
     });
     void appFlagGet(THEME_FLAG).then((v) => {
       if (!cancelled && (v === "light" || v === "dark")) setTheme(v);
@@ -935,6 +943,15 @@ function App() {
     void appFlagSet(THEME_FLAG, next);
   };
 
+  // c018: flip the archived-cards preference and persist it app-locally
+  const toggleShowArchived = () => {
+    setShowArchived((current) => {
+      const next = !current;
+      void appFlagSet(ARCHIVED_FLAG, next ? "1" : "0");
+      return next;
+    });
+  };
+
   // c0063: flip the board thumbnail preference and persist it app-locally
   const toggleThumbnails = () => {
     setShowThumbnails((current) => {
@@ -1042,6 +1059,30 @@ function App() {
     const base = oldPath.slice(oldPath.lastIndexOf("/") + 1);
     // i0029: an epic lands in epics/<folder>/ (was the pre-migration milestones/)
     const newPath = epicId === null ? `cards/${base}` : `epics/${folder}/${base}`;
+    setSelectedPath((current) => (current === oldPath ? newPath : current));
+  };
+
+  // c018: move a card into its folder's `archive/`, or back out of it. The file
+  // moves like a triage does (same epic, one level deeper), so the open detail
+  // follows it to its new path.
+  const handleArchive = (card: Card, archived: boolean) => {
+    if (!board) return;
+    const oldPath = card.path;
+    // the group the card stays in: its epic folder, or standalone `cards/`
+    const folder = card.epic === null ? "cards" : oldPath.split("/")[1];
+    const dir = oldPath.slice(0, oldPath.lastIndexOf("/"));
+    const newDir = archived ? `${dir}/archive` : dir.slice(0, dir.lastIndexOf("/"));
+    const newPath = `${newDir}/${oldPath.slice(oldPath.lastIndexOf("/") + 1)}`;
+    applyAction(
+      () =>
+        (archived ? archiveCard : unarchiveCard)(
+          board.root,
+          card,
+          board.model.config,
+          todayIsoDate(),
+        ),
+      (model, moved) => withCardTriaged(model, oldPath, moved, folder),
+    );
     setSelectedPath((current) => (current === oldPath ? newPath : current));
   };
 
@@ -1201,6 +1242,7 @@ function App() {
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           query={query}
+          showArchived={showArchived}
           loadImage={showThumbnails ? handleLoadImage : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })
@@ -1317,6 +1359,11 @@ function App() {
                     onSelect: toggleShowTags,
                   },
                   {
+                    label: "Show archived",
+                    checked: showArchived,
+                    onSelect: toggleShowArchived,
+                  },
+                  {
                     label: "Auto-commit board changes",
                     checked: autoCommit,
                     onSelect: toggleAutoCommit,
@@ -1361,6 +1408,7 @@ function App() {
             onSaveImage={(file) => handleSaveImage(selected.card, file)}
             loadImage={(src) => handleLoadImage(selected.card, src)}
             onDelete={() => handleDelete(selected.card)}
+            onArchive={(archived) => handleArchive(selected.card, archived)}
             onAnswerQuestion={(newBody) =>
               void handleAnswerQuestion(selected.card, newBody)
             }

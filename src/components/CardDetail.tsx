@@ -50,6 +50,7 @@ export function CardDetail({
   onSaveImage,
   loadImage,
   onDelete,
+  onArchive,
   onAnswerQuestion,
   onClose,
 }: {
@@ -72,6 +73,8 @@ export function CardDetail({
   loadImage?: (src: string) => Promise<string | null>;
   /** c0062: permanently delete this card (file + assets). */
   onDelete?: () => void;
+  /** c018: move this card into (`true`) or out of (`false`) its `archive/`. */
+  onArchive?: (archived: boolean) => void;
   /** c0101: answer a parked gelloquestion — the app writes the un-fenced body. */
   onAnswerQuestion?: (newBody: string) => void;
   onClose: () => void;
@@ -210,6 +213,13 @@ export function CardDetail({
             {!editing && (
               <button type="button" onClick={startEdit}>
                 Edit
+              </button>
+            )}
+            {/* c018: archiving is for cards that are long done — offered on a
+                done card, and reversed from the archived card itself. */}
+            {onArchive && !editing && (card.archived || card.status === "done") && (
+              <button type="button" onClick={() => onArchive(!card.archived)}>
+                {card.archived ? "Unarchive" : "Archive"}
               </button>
             )}
             {onDelete && !editing && !confirmingDelete && (

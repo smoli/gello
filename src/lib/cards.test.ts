@@ -60,6 +60,16 @@ describe("parseCard", () => {
     expect(card.raw).toBe(FULL_CARD);
   });
 
+  it("c018: derives `archived` from an archive/ folder in the path", () => {
+    const inEpic = parseCard("epics/e05-projects/archive/c003-kanban.md", FULL_CARD);
+    const standalone = parseCard("cards/archive/c042-idea.md", MINIMAL_CARD);
+    const live = parseCard("cards/c042-idea.md", MINIMAL_CARD);
+
+    expect(inEpic.ok && inEpic.card.archived).toBe(true);
+    expect(standalone.ok && standalone.card.archived).toBe(true);
+    expect(live.ok && live.card.archived).toBe(false);
+  });
+
   it("applies defaults for a minimal card (inbox style)", () => {
     const result = parseCard("inbox/c042-just-an-idea.md", MINIMAL_CARD);
 

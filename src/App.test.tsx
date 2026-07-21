@@ -1502,6 +1502,82 @@ describe("App", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  // c018: archive
+  function archiveFixture() {
+    return {
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        {
+          path: "epics/e01-core/epic.md",
+          content: "---\nid: e01\ntitle: Core\n---\ngoal\n",
+        },
+        {
+          path: "epics/e01-core/c001-shipped.md",
+          content:
+            "---\nid: c001\ntitle: Shipped card\nstatus: done\nepic: e01\nupdated: 2026-07-10\n---\n\n![p](../../assets/c001/p.png)\n",
+        },
+        {
+          path: "epics/e01-core/archive/c002-old.md",
+          content:
+            "---\nid: c002\ntitle: Old card\nstatus: done\nepic: e01\n---\nx\n",
+        },
+      ]),
+    };
+  }
+
+  it("c018: archives a done card from the detail — file moves, board drops it", async () => {
+    loadMock.mockResolvedValueOnce(archiveFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+    vi.mocked(removeFile).mockResolvedValue(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Shipped card")).closest("article")!);
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "c001" })).getByRole("button", {
+        name: "Archive",
+      }),
+    );
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/e01-core/archive/c001-shipped.md",
+      expect.stringContaining("![p](../../../assets/c001/p.png)"),
+    );
+    await waitFor(() =>
+      expect(vi.mocked(removeFile)).toHaveBeenCalledWith(
+        "/repo/.gello/epics/e01-core/c001-shipped.md",
+      ),
+    );
+    // off the board (the detail still shows it), and the open detail follows
+    // the card into the archive
+    expect(
+      screen.queryByRole("article", { name: "c001: Shipped card" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog", { name: "c001" })).getByRole("button", {
+        name: "Unarchive",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("c018: Settings › Show archived puts archived cards back on the board", async () => {
+    loadMock.mockResolvedValueOnce(archiveFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Shipped card");
+    expect(screen.queryByText("Old card")).not.toBeInTheDocument();
+
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.mouseEnter(screen.getByRole("menuitem", { name: /Settings/ }));
+    const toggle = screen.getByRole("menuitemcheckbox", { name: "Show archived" });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+
+    expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("show-archived", "1");
+    expect(await screen.findByText("Old card")).toBeInTheDocument();
+  });
+
   it("i0116: switching to another board resets the epic filter", async () => {
     // board A: an epic e01 plus a standalone card
     loadMock.mockResolvedValueOnce({
