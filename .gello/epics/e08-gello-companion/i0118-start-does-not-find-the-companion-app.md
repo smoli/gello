@@ -8,10 +8,8 @@ epic: e08
 created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T07:25:59
-awaiting: input
 ---
 
-```gelloquestion
 ## Root cause found — now a distribution-contract decision
 
 `package.json` declares `bin: { "gello-companion": "companion/main.ts" }` — a
@@ -44,12 +42,13 @@ the same bundle**, since a shipped companion has no `.ts` files.
 - [ ] **Fully standalone binary (Node SEA sidecar)** — embeds the Node runtime,
       so nothing is required on the user's machine. Cost: ~110 MB per platform,
       a per-platform build matrix, and a heavier release process.
-- [ ] Something else — say what you'd prefer.
+- [x] Something else — say what you'd prefer.
 
 Scope I'd then implement: an esbuild `build:companion` step wired into the
 Tauri build, the resource/sidecar plumbing, Rust path resolution for both dev
 and bundled, and the `mcp` subcommand — keeping `pnpm companion` working in dev.
-```
+
+Just a question but coul we rewrite the companion in rust?
 
 Last login: Mon Jul 20 23:38:28 on ttys007
 gello-companion '/Users/stephan/WebstormProjects/gello'
