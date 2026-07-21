@@ -1,13 +1,13 @@
 ---
 id: c018
 title: Archive done cards
-status: backlog
+status: in-progress
 epic: e05
 depends: [c006]
 tags: [core]
 created: 2026-07-16
-updated: 2026-07-17
-order: 70
+updated: 2026-07-21
+status-changed: 2026-07-21T22:11:52
 ---
 
 ## What
@@ -27,3 +27,5 @@ cards stay parseable and searchable but off the board by default.
 ## Log
 
 - 2026-07-16 created from concept breakdown
+- 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
