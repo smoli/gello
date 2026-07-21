@@ -1,13 +1,13 @@
 ---
 id: i0118
 title: Start does not find the companion app
-status: in-progress
+status: review
 type: issue
 ref: c0110
 epic: e08
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T07:25:59
+status-changed: 2026-07-21T07:44:18
 ---
 
 ## Answer: yes it's feasible — but I'd advise against it here
@@ -215,3 +215,4 @@ dev `pnpm link --global` path. The app no longer depends on it.
   MCP served as an `mcp` subcommand of the running entry, Rust resolves the
   bundle and launches `node <bundle> <dir>` with a node guard. All tests green;
   verified end-to-end against a scratch board.
+- 2026-07-21 status → review (agent)
