@@ -8,10 +8,8 @@ epic: e08
 created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T07:25:59
-awaiting: input
 ---
 
-```gelloquestion
 ## Answer: yes it's feasible — but I'd advise against it here
 
 Short version: a Rust companion would **fork the board format into two
@@ -46,7 +44,7 @@ epic, not this bug.
 
 **So, how do you want to proceed?**
 
-- [ ] **Ship the 302 KB bundle + user's Node** — unblocks Start now, one board
+- [x] **Ship the 302 KB bundle + user's Node** — unblocks Start now, one board
       core, smallest change. *(still my recommendation)*
 - [ ] **Node SEA standalone binary** — no runtime dependency for users,
       no rewrite; ~110 MB per platform and a per-platform build matrix.
@@ -54,7 +52,6 @@ epic, not this bug.
       Say so and I'd want it split into its own epic rather than this card.
 - [ ] **Park the Rust idea as a separate strategic card** and pick one of the
       first two to unblock i0118 now. Tell me which of the two.
-```
 
 ## Root cause found — now a distribution-contract decision
 
