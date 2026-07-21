@@ -65,26 +65,26 @@ shooting** or the indicator disappears and the activity line dims.
 
 ## Acceptance criteria
 
-- [ ] `demo/holzhof/` exists with a `.gello` board, and `demo/` is listed in
+- [x] `demo/holzhof/` exists with a `.gello` board, and `demo/` is listed in
       `.gitignore`
-- [ ] `demo/holzhof/` is a git repo with at least one commit, so the title bar
+- [x] `demo/holzhof/` is a git repo with at least one commit, so the title bar
       shows `gello - holzhof (main)`
-- [ ] Card titles are deadpan-plausible — they read as a real backlog at a
+- [x] Card titles are deadpan-plausible — they read as a real backlog at a
       glance, with the humour in the domain rather than the formatting
-- [ ] `board.yaml` sets the full column list, a WIP limit, a background, and
+- [x] `board.yaml` sets the full column list, a WIP limit, a background, and
       tag colour overrides
-- [ ] At least three epics with `epic.md`, plus standalone cards; **every**
+- [x] At least three epics with `epic.md`, plus standalone cards; **every**
       column has at least one card
-- [ ] The board includes an `issue` with `ref:`, a card with `depends:`, tags
+- [x] The board includes an `issue` with `ref:`, a card with `depends:`, tags
       across several cards, and manual `order` in backlog/ready
-- [ ] At least one card renders a thumbnail from an image in `assets/`
-- [ ] At least one card body shows headings, checkboxes, a code block and a
+- [x] At least one card renders a thumbnail from an image in `assets/`
+- [x] At least one card body shows headings, checkboxes, a code block and a
       table
-- [ ] One card is parked with `awaiting: input` and a question block (badge +
+- [x] One card is parked with `awaiting: input` and a question block (badge +
       question rendering visible)
-- [ ] One archived card and one malformed card exist (needs-attention lane
+- [x] One archived card and one malformed card exist (needs-attention lane
       renders)
-- [ ] A `.companion/state.json` produces the runner indicator, the runs popover
+- [x] A `.companion/state.json` produces the runner indicator, the runs popover
       and a card activity line when `updated` is current
 
 ## Discussion
