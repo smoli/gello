@@ -22,9 +22,12 @@ import {
   type CompanionState,
   type RunState,
 } from "./core.ts";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { renderEvent, type AgentEvent } from "./stream.ts";
 import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
+import { createGelloServer } from "./mcp.ts";
+import { MCP_SUBCOMMAND, askServerSpec, resolveMcpScope } from "./ask-server.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
 import { loadSessions, saveSessions } from "./sessions.ts";
 import { loadConfig } from "./config.ts";
@@ -80,18 +83,31 @@ const nodeSpawner: Spawner = (spec, cwd, env): SpawnedRun => {
   };
 };
 
-/** How the agent should launch the `add_question` MCP server (c0102): the same
- *  tsx runtime the companion itself runs under, pointed at the stdio
- *  entrypoint. The runner adds the run's card id to `env`. */
-function askServerSpec(root: string): AskServerSpec {
-  return {
-    command: process.execPath,
-    args: [
-      ...process.execArgv,
-      fileURLToPath(new URL("mcp-main.ts", import.meta.url)),
-    ],
-    env: { GELLO_BOARD_ROOT: root },
-  };
+/** How the agent should launch the `add_question` MCP server (c0102): re-invoke
+ *  *this* entry with the `mcp` subcommand (i0118). Using `import.meta.url` means
+ *  the same code works whether the entry is `main.ts` under tsx or the bundled
+ *  `.mjs` in the installed app — each knows its own path. The runner adds the
+ *  run's card id to `env`. */
+function currentAskServer(root: string): AskServerSpec {
+  return askServerSpec(
+    fileURLToPath(import.meta.url),
+    process.execPath,
+    process.execArgv,
+    root,
+  );
+}
+
+/** The MCP stdio server, run as a subcommand of this entry (i0118). stdout is
+ *  the JSON-RPC channel — diagnostics must go to stderr. */
+async function runMcpServer(): Promise<never> {
+  try {
+    const { cardId, root } = resolveMcpScope(process.env, process.cwd());
+    await createGelloServer(root, cardId).connect(new StdioServerTransport());
+  } catch (error) {
+    console.error(`gello mcp server failed: ${(error as Error).message}`);
+    process.exit(1);
+  }
+  return new Promise<never>(() => {}); // stay alive on the transport
 }
 
 function main(): void {
@@ -100,6 +116,12 @@ function main(): void {
     process.exit(
       runAsk(process.argv.slice(3), process.env, process.cwd(), (m) => console.log(m)),
     );
+  }
+  // `mcp` (i0118) serves the stdio MCP server from this same entry, so the
+  // shipped bundle needs no sibling `.ts` file.
+  if (process.argv[2] === MCP_SUBCOMMAND) {
+    void runMcpServer();
+    return;
   }
   const start = resolve(process.argv[2] ?? process.cwd());
   const root = findBoardRoot(start);
@@ -146,7 +168,7 @@ function main(): void {
     emit,
     appendRunLog,
     spawn: nodeSpawner,
-    askServer: askServerSpec(root),
+    askServer: currentAskServer(root),
     reload: () => loadBoardFrom(root),
     sessions: loadSessions(root),
     persistSessions: (map) => saveSessions(root, map),
