@@ -162,6 +162,43 @@ Rust and have the app call it over Tauri IPC, so there is still one
 implementation. That is a deliberate re-architecture of the whole product, not a
 fix for this bug — it belongs in its own epic if wanted.
 
+## Implementation (agent, 2026-07-21)
+
+Human picked: ship the bundle, use the user's Node.
+
+- **Bundle** — `pnpm build:companion` (`scripts/build-companion.mjs`, esbuild now
+  an explicit devDependency) packs the companion and every dependency into
+  `src-tauri/companion-dist/gello-companion.mjs`. Output goes under `src-tauri/`
+  so `tauri.conf.json` can name it as a resource with no `../` (Tauri rewrites
+  those to `_up_/`). The artifact is gitignored and rebuilt by both
+  `beforeDevCommand` and `beforeBuildCommand`.
+  - Gotcha caught by a smoke test: `yaml` ships CJS that calls `require()`, which
+    ESM output has no binding for ("Dynamic require of node:process is not
+    supported"). Fixed with a `createRequire` banner. ESM output is required
+    regardless — the MCP launch resolves its own entry via `import.meta.url`.
+- **MCP** — the stdio server is now an `mcp` **subcommand of the running entry**
+  (it re-invokes itself, resolving its path through `import.meta.url`), so the
+  same code works under tsx in dev and as the bundled `.mjs`. `mcp-main.ts` is
+  gone; the spec + scope resolution moved to `ask-server.ts` with tests.
+- **Launch** — `terminal_command` now builds `node '<bundle>' '<project-dir>'`.
+  Rust resolves the bundle from the app resource dir, falling back to the crate
+  dir for dev builds.
+- **Where each failure surfaces** — a missing *bundle* is a packaging fault the
+  app can see, so it is reported in-app. A missing *node* cannot be probed
+  app-side: a GUI app on macOS does not inherit the login shell's PATH, so an
+  app-side check would report node missing when the terminal can see it. The
+  launched script therefore guards `command -v node` and prints a readable
+  message in the terminal the user is already looking at.
+
+**Verified.** 49 Rust tests, 815 frontend tests, typecheck and lint all green.
+Ran the bundle end-to-end against a scratch board with no `ready` cards (so
+nothing could be dispatched): it found the board, loaded config and wrote
+`state.json`. Also checked both guard branches — node present passes args
+through with spaces intact, node absent exits 1 with the message.
+
+Not changed: `package.json`'s `bin` still points at `companion/main.ts` for the
+dev `pnpm link --global` path. The app no longer depends on it.
+
 ## Log
 
 - 2026-07-21 status → ready (app)
@@ -170,3 +207,11 @@ fix for this bug — it belongs in its own epic if wanted.
   ever worked via `pnpm link --global` in the dev checkout. Proved a 302 KB
   single-file esbuild bundle is viable; asked the human to pick the
   distribution contract (system Node vs standalone binary).
+- 2026-07-21 (agent) assessed a Rust rewrite (~5,400 LOC + ~4,000 LOC of tests)
+  and advised against it — it would fork the board format into two
+  implementations, since the webview keeps the TypeScript core either way.
+- 2026-07-21 (human) chose: ship the 302 KB bundle and use the user's Node.
+- 2026-07-21 (agent) implemented: esbuild bundle shipped as a Tauri resource,
+  MCP served as an `mcp` subcommand of the running entry, Rust resolves the
+  bundle and launches `node <bundle> <dir>` with a node guard. All tests green;
+  verified end-to-end against a scratch board.
