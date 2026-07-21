@@ -114,6 +114,16 @@
   opacity: 0.6;
 }
 
+/* c008: WIP overrun — the same amber the needs-attention lane uses */
+.column-count-over {
+  font-weight: 600;
+  opacity: 1;
+  color: #b97a0a;
+  background: color-mix(in srgb, #f5a623 18%, transparent);
+  border-radius: 6px;
+  padding: 0.05rem 0.3rem;
+}
+
 .column-cards {
   display: flex;
   flex-direction: column;

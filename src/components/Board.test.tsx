@@ -1162,3 +1162,58 @@ describe("c0111: show_tags setting", () => {
     expect(screen.queryByRole("button", { name: /Manage tags/ })).not.toBeInTheDocument();
   });
 });
+
+describe("c008: WIP limits", () => {
+  const files = (inProgress: number) => [
+    file(
+      "board.yaml",
+      "columns: [ready, in-progress, done]\nwip_limits:\n  in-progress: 2\n",
+    ),
+    file("cards/c001-ready.md", card("c001", "Ready card", "ready")),
+    ...Array.from({ length: inProgress }, (_, i) =>
+      file(
+        `cards/c10${i}-running.md`,
+        card(`c10${i}`, `Running card ${i}`, "in-progress"),
+      ),
+    ),
+  ];
+
+  const counter = (name: string) =>
+    column(name).querySelector(".column-count") as HTMLElement;
+
+  it("shows count/limit in the header of a column with a limit", () => {
+    render(<Board model={loadBoard(files(1))} />);
+    expect(counter("in-progress")).toHaveTextContent("1/2");
+  });
+
+  it("leaves a column without a limit as a plain count", () => {
+    render(<Board model={loadBoard(files(1))} />);
+    expect(counter("ready")).toHaveTextContent("1");
+    expect(counter("ready").textContent).not.toContain("/");
+    expect(counter("done")).toHaveTextContent("0");
+    expect(counter("done").textContent).not.toContain("/");
+  });
+
+  it("flags an overrun visually, at the limit it does not", () => {
+    const { unmount } = render(<Board model={loadBoard(files(2))} />);
+    expect(counter("in-progress")).toHaveTextContent("2/2");
+    expect(counter("in-progress")).not.toHaveClass("column-count-over");
+    unmount();
+
+    render(<Board model={loadBoard(files(3))} />);
+    expect(counter("in-progress")).toHaveTextContent("3/2");
+    expect(counter("in-progress")).toHaveClass("column-count-over");
+    expect(counter("in-progress").title).toMatch(/over the wip limit/i);
+  });
+
+  it("never blocks a move over the limit — the limit is a warning", () => {
+    const onMoveCard = vi.fn();
+    render(<Board model={loadBoard(files(3))} onMoveCard={onMoveCard} />);
+    const front = screen.getByText("Ready card").closest("article")!;
+    fireEvent.keyDown(front, { key: "ArrowRight" });
+    expect(onMoveCard).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "c001" }),
+      "in-progress",
+    );
+  });
+});

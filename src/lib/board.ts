@@ -94,6 +94,32 @@ export function columnComparator(column: string): (a: Card, b: Card) => number {
   return byStatusChanged;
 }
 
+// --- WIP limits (c008) ----------------------------------------------------------
+
+export interface WipState {
+  /** The configured limit for the column. */
+  limit: number;
+  /** Cards currently in the column. */
+  count: number;
+  /** More cards than the limit allows. Soft — nothing blocks a move. */
+  over: boolean;
+}
+
+/**
+ * WIP state for a column, or null when board.yaml configures no limit for it
+ * (columns without a limit show no counter beyond the plain count). A limit of
+ * 0 is a limit: any card in the column is an overrun.
+ */
+export function wipState(
+  config: BoardConfig,
+  column: string,
+  count: number,
+): WipState | null {
+  const limit = config.wipLimits[column];
+  if (limit === undefined) return null;
+  return { limit, count, over: count > limit };
+}
+
 const RANK_STEP = 10;
 
 export interface ManualInsertPlan {

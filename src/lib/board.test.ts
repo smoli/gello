@@ -16,6 +16,7 @@ import {
   withoutCard,
   columnComparator,
   planManualInsert,
+  wipState,
   type BoardFile,
 } from "./board";
 import { DEFAULT_BOARD_CONFIG, parseCard, parseEpic, type Card } from "./cards";
@@ -732,6 +733,38 @@ describe("planManualInsert (c056)", () => {
     const cards = [sortCard("c001", { order: 1 }), sortCard("c002", { order: 1 })];
     const plan = planManualInsert(cards, 1);
     expect(plan.renumber).toBeDefined();
+  });
+});
+
+describe("wipState (c008)", () => {
+  const config = {
+    ...DEFAULT_BOARD_CONFIG,
+    wipLimits: { "in-progress": 2, review: 0 },
+  };
+
+  it("returns null for a column with no configured limit", () => {
+    expect(wipState(config, "ready", 99)).toBeNull();
+  });
+
+  it("reports the limit and the count for a configured column", () => {
+    expect(wipState(config, "in-progress", 1)).toEqual({
+      limit: 2,
+      count: 1,
+      over: false,
+    });
+  });
+
+  it("is not over at exactly the limit", () => {
+    expect(wipState(config, "in-progress", 2)!.over).toBe(false);
+  });
+
+  it("is over above the limit", () => {
+    expect(wipState(config, "in-progress", 3)!.over).toBe(true);
+  });
+
+  it("treats a limit of 0 as a real limit, not an absent one", () => {
+    expect(wipState(config, "review", 0)!.over).toBe(false);
+    expect(wipState(config, "review", 1)!.over).toBe(true);
   });
 });
 

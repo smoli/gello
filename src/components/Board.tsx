@@ -3,7 +3,9 @@ import {
   columnComparator,
   MANUAL_COLUMNS,
   planManualInsert,
+  wipState,
   type BoardModel,
+  type WipState,
 } from "../lib/board";
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
@@ -344,6 +346,7 @@ export function Board({
               key={column}
               name={column}
               cards={entries}
+              wip={wipState(model.config, column, entries.length)}
               draggingPath={dragging?.path ?? null}
               isOver={dragging != null && overColumn === column}
               onOver={() => setOverColumn(column)}
@@ -451,9 +454,12 @@ function Column({
   showTags,
   darkChips,
   runner,
+  wip,
 }: {
   name: string;
   cards: BoardCard[];
+  /** c008: WIP state for this column; null when no limit is configured. */
+  wip: WipState | null;
   /** c0109: companion state, forwarded to each card front for its activity line. */
   runner?: CompanionState | null;
   /** c012: passed through to each card front for its thumbnail. */
@@ -516,7 +522,20 @@ function Column({
       <section className="column" aria-label={name}>
         <div className="column-header">
           <h2>{name}</h2>
-          <span className="column-count">{cards.length}</span>
+          {/* c008: a configured WIP limit turns the count into count/limit and
+              flags an overrun; unlimited columns keep the plain count. */}
+          <span
+            className={wip?.over ? "column-count column-count-over" : "column-count"}
+            title={
+              wip
+                ? wip.over
+                  ? `Over the WIP limit — ${wip.count} of ${wip.limit}`
+                  : `WIP limit ${wip.count} of ${wip.limit}`
+                : undefined
+            }
+          >
+            {wip ? `${wip.count}/${wip.limit}` : cards.length}
+          </span>
         </div>
         <div className="column-cards">
           {cards.map((entry, i) => (
