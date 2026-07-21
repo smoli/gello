@@ -1,10 +1,10 @@
 ---
 id: c0113
 title: More activity ui for glimpse
-status: discuss
+status: ready
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:27:50
+status-changed: 2026-07-21T12:38:39
 epic: e08
 ---
 
@@ -75,3 +75,4 @@ turns the sweep off and leaves exactly today's static line.
   freezes, reusing c0109's flag) and is disabled under
   `prefers-reduced-motion`. Rejected a ticking elapsed timer, a pulsing dot,
   and extending to the title bar / detail view.
+- 2026-07-21 status → ready (app)
