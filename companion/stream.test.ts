@@ -234,4 +234,26 @@ describe("StreamSink", () => {
     sink.feed('{"kind":"tool","name":"Read","arg":"a.ts"}\n');
     expect(activities).toEqual([{ name: "Read", arg: "a.ts" }]);
   });
+
+  // c0112: the run's model, for the TUI header.
+  it("captures the model the run reports", () => {
+    const { sink } = makeSink("normal");
+    expect(sink.model()).toBeUndefined();
+    sink.feed('{"kind":"model","model":"claude-opus-4-8"}\n');
+    expect(sink.model()).toBe("claude-opus-4-8");
+  });
+
+  it("keeps the latest model when the run reports it again", () => {
+    const { sink } = makeSink("normal");
+    sink.feed('{"kind":"model","model":"claude-opus-4-8"}\n');
+    sink.feed('{"kind":"model","model":"claude-haiku-4-5"}\n');
+    expect(sink.model()).toBe("claude-haiku-4-5");
+  });
+
+  it("a model event writes nothing to the terminal or the transcript", () => {
+    // runs.log must read identically to before the model was captured
+    const { sink, emitted } = makeSink("verbose");
+    sink.feed('{"kind":"model","model":"claude-opus-4-8"}\n');
+    expect(emitted).toEqual([]);
+  });
 });

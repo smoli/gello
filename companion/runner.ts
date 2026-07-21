@@ -240,6 +240,8 @@ interface ActiveRun {
   usage?: RunUsage;
   /** Latest tool call from the piped stream (c0109), once one has been seen. */
   activity?: Activity;
+  /** Model the backend reported using (c0112), once it has said so. */
+  model?: string;
 }
 
 export class Runner {
@@ -341,6 +343,7 @@ export class Runner {
       phase: r.phase,
       ...(r.usage ? { usage: r.usage } : {}),
       ...(r.phase === "running" && r.activity ? { activity: r.activity } : {}),
+      ...(r.model ? { model: r.model } : {}),
     }));
   }
 
@@ -383,6 +386,7 @@ export class Runner {
       this.opts.emit ?? ((line) => console.log(line)),
       this.opts.appendRunLog ?? (() => {}),
       (activity) => this.recordActivity(card.id, activity),
+      (model) => this.recordModel(card.id, model),
     );
     proc.onStdout?.((chunk) => sink.feed(chunk));
     proc.onExit((code) => {
@@ -397,6 +401,15 @@ export class Runner {
     const run = this.active.get(cardId);
     if (!run) return;
     run.activity = activity;
+    this.activityThrottle.trigger(() => this.publish());
+  }
+
+  /** Record which model the run reports using (c0112). Published through the
+   *  same coalescing window as activity — it arrives early and rarely changes. */
+  private recordModel(cardId: string, model: string): void {
+    const run = this.active.get(cardId);
+    if (!run || run.model === model) return;
+    run.model = model;
     this.activityThrottle.trigger(() => this.publish());
   }
 

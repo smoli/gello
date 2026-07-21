@@ -173,9 +173,15 @@ function claudeParse(line: string): AgentEvent[] {
   if (!obj) return [];
   if (obj.type === "assistant") {
     const message = asRecord(obj.message);
-    const content = message?.content ?? obj.content;
-    if (!Array.isArray(content)) return [];
     const events: AgentEvent[] = [];
+    // c0112: the model rides on the assistant event. Report it before the
+    // content blocks so the header still learns it from an event whose content
+    // is missing or malformed.
+    if (typeof message?.model === "string" && message.model !== "") {
+      events.push({ kind: "model", model: message.model });
+    }
+    const content = message?.content ?? obj.content;
+    if (!Array.isArray(content)) return events;
     for (const raw of content) {
       const block = asRecord(raw);
       if (!block) continue;

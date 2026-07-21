@@ -35,7 +35,9 @@ export interface RunUsage {
 export type AgentEvent =
   | { kind: "text"; text: string }
   | { kind: "tool"; name: string; arg?: string }
-  | { kind: "usage"; usage: RunUsage };
+  | { kind: "usage"; usage: RunUsage }
+  /** c0112: which model the backend is actually running, for the TUI header. */
+  | { kind: "model"; model: string };
 
 /** What the agent is doing right now (c0109): the latest tool call, structured.
  *  The companion publishes this in the state file; the app phrases it into a
@@ -89,6 +91,10 @@ export function renderEvent(level: Level, cardId: string, event: AgentEvent): st
         .split("\n")
         .filter((l) => l.trim() !== "")
         .map((l) => `${prefix}${l}`);
+    case "model":
+      // c0112: header data, not a log line. Rendering nothing keeps both the
+      // terminal and the runs.log transcript exactly as they were.
+      return [];
   }
 }
 
@@ -126,6 +132,7 @@ export class StreamSink {
   private readonly buffer = new LineBuffer();
   private lastUsage: RunUsage | undefined;
   private lastActivity: Activity | undefined;
+  private lastModel: string | undefined;
 
   constructor(
     private readonly cardId: string,
@@ -136,6 +143,8 @@ export class StreamSink {
     /** c0109: called on each tool call with the run's new activity. Not
      *  level-gated — the card line shows at every verbosity. */
     private readonly onActivity?: (activity: Activity) => void,
+    /** c0112: called when the run reports which model it is using. */
+    private readonly onModel?: (model: string) => void,
   ) {}
 
   feed(chunk: string): void {
@@ -157,9 +166,18 @@ export class StreamSink {
     return this.lastActivity;
   }
 
+  /** The model this run reports using, once seen (c0112). */
+  model(): string | undefined {
+    return this.lastModel;
+  }
+
   private handle(line: string): void {
     for (const event of this.parse(line)) {
       if (event.kind === "usage") this.lastUsage = event.usage;
+      if (event.kind === "model") {
+        this.lastModel = event.model;
+        this.onModel?.(event.model);
+      }
       if (event.kind === "tool") {
         this.lastActivity = event.arg !== undefined
           ? { name: event.name, arg: event.arg }

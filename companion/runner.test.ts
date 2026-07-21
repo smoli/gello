@@ -842,6 +842,30 @@ describe("Runner — live activity (c0109)", () => {
     expect(run?.activity).toBeUndefined(); // the needs-input badge covers a parked run
   });
 
+  // c0112: the TUI header names the model the run actually used.
+  it("publishes the model the run reports", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(
+      `${JSON.stringify({
+        type: "assistant",
+        message: { model: "claude-opus-4-8", content: [{ type: "text", text: "hi" }] },
+      })}\n`,
+    );
+    h.advance(1000);
+
+    expect(h.lastRaw().find((r) => r.cardId === "c001")?.model).toBe("claude-opus-4-8");
+  });
+
+  it("has no model before the run reports one", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal");
+    h.runner.sync(start);
+    expect(h.lastRaw().find((r) => r.cardId === "c001")?.model).toBeUndefined();
+  });
+
   it("never writes the activity to the card file (runtime state only)", () => {
     const start = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(start, undefined, "normal");

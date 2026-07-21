@@ -116,6 +116,8 @@ export interface RunState {
   /** The agent's latest tool call (c0109), published only while `running` so
    *  the card can show a live activity line. The app phrases it. */
   activity?: Activity;
+  /** Which model the backend reported using (c0112), once it has said so. */
+  model?: string;
 }
 
 export function initialState(now: string): CompanionState {

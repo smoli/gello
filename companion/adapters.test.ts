@@ -145,6 +145,33 @@ describe("stream parsing (adapter-owned)", () => {
       expect(events).toEqual([{ kind: "text", text: "Looking at the code" }]);
     });
 
+    // c0112: the TUI header names the model the run is actually using; it is on
+    // the assistant event and was previously dropped.
+    it("reports the model carried by an assistant event", () => {
+      const events = parse({
+        type: "assistant",
+        message: {
+          model: "claude-opus-4-8",
+          content: [{ type: "text", text: "hi" }],
+        },
+      });
+      expect(events).toContainEqual({ kind: "model", model: "claude-opus-4-8" });
+    });
+
+    it("reports the model even when the content is unusable", () => {
+      // the header should still name the model if the blocks are not an array
+      const events = parse({ type: "assistant", message: { model: "claude-haiku-4-5" } });
+      expect(events).toEqual([{ kind: "model", model: "claude-haiku-4-5" }]);
+    });
+
+    it("reports no model when the assistant event carries none", () => {
+      const events = parse({
+        type: "assistant",
+        message: { content: [{ type: "text", text: "hi" }] },
+      });
+      expect(events.some((e) => e.kind === "model")).toBe(false);
+    });
+
     it("maps a tool_use block to a tool event with its primary argument", () => {
       const events = parse({
         type: "assistant",
