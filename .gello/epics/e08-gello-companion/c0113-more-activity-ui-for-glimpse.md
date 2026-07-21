@@ -1,10 +1,10 @@
 ---
 id: c0113
 title: More activity ui for glimpse
-status: ready
+status: in-progress
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:38:39
+status-changed: 2026-07-21T12:38:49
 epic: e08
 ---
 
@@ -76,3 +76,4 @@ turns the sweep off and leaves exactly today's static line.
   `prefers-reduced-motion`. Rejected a ticking elapsed timer, a pulsing dot,
   and extending to the title bar / detail view.
 - 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
