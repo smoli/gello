@@ -9,14 +9,32 @@ status-changed: 2026-07-21T22:18:28
 
 ## What
 
-A hand-authored demo board in a gitignored `demo/` subfolder (same pattern as
-`sandbox/`), rich enough that every gello feature can be screenshotted from it.
-The fiction: **a web community for leasing out firewood** — believable card
-titles, epics, and bodies, so screenshots read as a real project rather than
-lorem ipsum.
+A hand-authored demo board at **`demo/holzhof/`** (with `demo/` gitignored,
+same pattern as `sandbox/`), rich enough that every gello feature can be
+screenshotted from it. The title bar renders the folder name, so shots read
+`gello - holzhof (main)`.
 
-**Make it a git repo.** `git init` + one commit, so the title bar shows
-`gello - <folder> (main)` — without it the branch is missing from every shot,
+**The fiction: Holzhof, a web community for leasing out firewood** — played
+**tongue in cheek**. The premise is quietly absurd (you lease firewood, then
+burn it; it is not coming back), and the cards should treat that with complete
+professional sincerity. Sample flavour:
+
+- *Seller onboarding: verify the applicant owns an actual tree*
+- *Log quality rating (1–5 splinters)*
+- *Deposit hold for logs not returned*
+- *Refund policy for partially combusted goods*
+- *Wheelbarrow-radius delivery search*
+- *Stacking-pattern preview: Holzmiete vs. Holzhaufen*
+- issue: *Users keep burning the inventory* (`ref:` the marketplace card)
+- tags: `kindling`, `seasoned`, `hardwood`, `splinter`, `urgent`
+
+**Calibrate the humour**: deadpan-plausible at a glance, funny on a second
+read. These end up in marketing screenshots, so titles must look like real
+backlog items — the joke lives in the *domain*, never in silly formatting or
+punchlines. If a shot reads as unserious, it undercuts gello.
+
+**Make it a git repo.** `git init` + one commit inside `demo/holzhof/`, so the
+title bar shows the branch — without it the branch is missing from every shot,
 and the c0083 dirty indicator can't be demonstrated either.
 
 **Feature coverage** the board must exercise:
@@ -24,8 +42,9 @@ and the c0083 dirty indicator can't be demonstrated either.
 - **board.yaml** — the full default column set (so no column is empty), a
   `wip_limits` entry, a `background` (a warm gradient suits the theme), and
   `tag_colors` overrides so the chips look deliberate
-- **Epics** — three or so (marketplace / payments / logistics), each with an
-  `epic.md`, plus **standalone** cards in `cards/` so both shapes appear
+- **Epics** — three or so (Marketplace / Payments & Deposits / Logistics &
+  Stacking), each with an `epic.md`, plus **standalone** cards in `cards/` so
+  both shapes appear
 - **Types** — tasks and at least one `issue` carrying `ref:` (provenance)
 - **Tags** across several cards, **`depends`** on a blocked card, manual
   **`order`** in backlog/ready, and varied **`status-changed`** so the
