@@ -8,6 +8,7 @@ import {
   addUsage,
   emptyTotals,
   formatElapsed,
+  formatActivity,
 } from "./tui-model.ts";
 
 // c0112: the TUI's view-model — everything the dashboard shows, derived and
@@ -155,6 +156,29 @@ describe("session totals", () => {
     const t = addUsage(emptyTotals(), { inputTokens: 1, outputTokens: 1 });
     expect(t.costUsd).toBe(0);
     expect(t.runs).toBe(1);
+  });
+});
+
+// --- activity ----------------------------------------------------------------
+// The companion keeps the terminal's own `Tool(arg)` convention rather than the
+// app's phrasing — c0109 made phrasing an app-side presentation choice, and
+// importing it here would drag the app's Tauri imports into this bundle.
+
+describe("formatActivity", () => {
+  it("renders a tool call the way the stream lines already do", () => {
+    expect(formatActivity({ name: "Bash", arg: "pnpm test" })).toBe("Bash(pnpm test)");
+  });
+
+  it("renders a tool with no argument as a bare name", () => {
+    expect(formatActivity({ name: "TodoWrite" })).toBe("TodoWrite");
+  });
+
+  it("collapses a multi-line argument onto one line", () => {
+    expect(formatActivity({ name: "Bash", arg: "cd foo\nrm bar" })).toBe("Bash(cd foo rm bar)");
+  });
+
+  it("is undefined when there is no activity yet", () => {
+    expect(formatActivity(undefined)).toBeUndefined();
   });
 });
 

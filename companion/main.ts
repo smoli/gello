@@ -28,6 +28,15 @@ import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
 import { createGelloServer } from "./mcp.ts";
 import { MCP_SUBCOMMAND, askServerSpec, resolveMcpScope } from "./ask-server.ts";
+import {
+  LogPanes,
+  addUsage,
+  boardSlice,
+  emptyTotals,
+  formatActivity,
+  renderMode,
+} from "./tui-model.ts";
+import { Dashboard, nodeScreen } from "./tui.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
 import { loadSessions, saveSessions } from "./sessions.ts";
 import { loadConfig } from "./config.ts";
@@ -45,8 +54,14 @@ function nowIso(): string {
   );
 }
 
-function log(message: string): void {
+/** Where the companion's own lifecycle lines go. Plain mode prints them; the
+ *  TUI (c0112) owns the screen, so it swaps this for the frame's status line —
+ *  otherwise these writes would tear the frame apart. */
+let logSink: (message: string) => void = (message) =>
   console.log(`[gello-companion] ${message}`);
+
+function log(message: string): void {
+  logSink(message);
 }
 
 /** Spawn a real agent process (c0104). stdout is **piped** — the runner parses
@@ -144,8 +159,23 @@ function main(): void {
   // c0104: a run's parsed events go to two persistent surfaces. The terminal
   // gets a level-gated, card-id-prefixed line (`emit`); runs.log gets the full
   // verbose transcript of every event, for inspecting a finished run later.
-  const emit = (line: string) => console.log(line);
+  // c0112: a TTY gets the dashboard, anything piped or redirected keeps the
+  // plain lines. The two differ only in where `emit` sends a line — runs.log is
+  // written from `appendRunLog` either way, so the transcript is identical.
+  const mode = renderMode(process.stdout);
+  const panes = new LogPanes();
+  const emit =
+    mode === "tui"
+      ? (line: string, cardId: string) => panes.append(cardId, line)
+      : (line: string) => console.log(line);
+
+  const startedAt = Date.now();
+  const runStartedAt = new Map<string, number>();
+  let totals = emptyTotals();
+  let dashboard: Dashboard | undefined;
+
   const appendRunLog = (cardId: string, event: AgentEvent) => {
+    if (event.kind === "usage") totals = addUsage(totals, event.usage);
     try {
       for (const line of renderEvent("verbose", cardId, event)) appendRunsLog(root, line);
     } catch (error) {
@@ -173,13 +203,80 @@ function main(): void {
     sessions: loadSessions(root),
     persistSessions: (map) => saveSessions(root, map),
     onRuns: (next) => {
+      const ended = new Set(runs.map((r) => r.cardId));
+      for (const run of next) {
+        ended.delete(run.cardId);
+        if (!runStartedAt.has(run.cardId)) runStartedAt.set(run.cardId, Date.now());
+      }
+      // a finished run's pane goes with it; runs.log keeps the full record
+      for (const cardId of ended) {
+        panes.drop(cardId);
+        runStartedAt.delete(cardId);
+      }
       runs = next;
       publish(root, model, runs, trigger);
+      dashboard?.draw();
     },
     log,
   });
 
   publish(root, model, runs, trigger);
+
+  if (mode === "tui") {
+    const titleOf = (cardId: string) =>
+      [...model.cards, ...model.epics.flatMap((e) => e.cards)].find((c) => c.id === cardId)
+        ?.title ?? cardId;
+    let status: string | undefined;
+
+    dashboard = new Dashboard(
+      nodeScreen(process.stdout, process.stdin),
+      (selected) => ({
+        boardRoot: root,
+        agent: agentName,
+        model: runs.find((r) => r.model)?.model,
+        scope,
+        trigger,
+        permissionMode,
+        wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
+        startedAt,
+        totals,
+        board: boardSlice(model, trigger),
+        runs: runs.map((run) => ({
+          cardId: run.cardId,
+          title: titleOf(run.cardId),
+          phase: run.phase,
+          startedAt: runStartedAt.get(run.cardId) ?? startedAt,
+          usage: run.usage,
+          activity: formatActivity(run.activity),
+        })),
+        paneLines: panes.lines(selected ?? ""),
+        now: Date.now(),
+        status,
+      }),
+      () => runs.map((r) => r.cardId),
+      () => process.exit(0),
+    );
+
+    // lifecycle lines can no longer go to stdout — show the newest in the frame
+    logSink = (message) => {
+      status = message;
+      dashboard?.draw();
+    };
+    panes.subscribe(() => dashboard?.draw());
+    dashboard.start();
+    // the header's clock and each run's elapsed have to keep ticking
+    setInterval(() => dashboard?.draw(), 500).unref?.();
+    // raw mode swallows SIGINT (the dashboard handles Ctrl-C itself), but a
+    // signal from elsewhere must still put the terminal back
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      process.on(signal, () => {
+        dashboard?.stop();
+        process.exit(0);
+      });
+    }
+    process.on("exit", () => dashboard?.stop());
+  }
+
   runner.sync(model);
 
   // Debounce watcher bursts (an atomic write is a delete+create; a triage

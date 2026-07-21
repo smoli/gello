@@ -7,7 +7,7 @@
 // rather than by driving a terminal.
 
 import type { BoardModel } from "../src/lib/board.ts";
-import type { RunUsage } from "./stream.ts";
+import type { Activity, RunUsage } from "./stream.ts";
 import { cardsEnteringReady } from "./core.ts";
 import { cardsAwaitingInput } from "./qa.ts";
 
@@ -138,6 +138,20 @@ export function addUsage(totals: SessionTotals, usage: RunUsage): SessionTotals 
     costUsd: totals.costUsd + (usage.totalCostUsd ?? 0),
     runs: totals.runs + 1,
   };
+}
+
+// --- activity ----------------------------------------------------------------
+
+/**
+ * A run's current tool call in the terminal's own `Tool(arg)` convention — the
+ * same shape the stream lines already use. c0109 made *phrasing* an app-side
+ * presentation choice, and reusing it here would pull the app's Tauri imports
+ * into this bundle, so the companion keeps its own rendering.
+ */
+export function formatActivity(activity: Activity | undefined): string | undefined {
+  if (!activity) return undefined;
+  if (activity.arg === undefined) return activity.name;
+  return `${activity.name}(${activity.arg.replace(/\s+/g, " ").trim()})`;
 }
 
 // --- elapsed -----------------------------------------------------------------
