@@ -7,3 +7,5 @@ updated: 2026-07-21
 ---
 
 for the companion glimpse on the card, they are a bit static
+
+Claude Desktop has a highlight running let to right over the text. maybe something similar.
