@@ -132,22 +132,22 @@ header needs that added.
 
 ## Acceptance criteria
 
-- [ ] Running in a TTY shows the TUI; piped or redirected output falls back to
+- [x] Running in a TTY shows the TUI; piped or redirected output falls back to
       the current plain log lines, with no flag needed
-- [ ] `runs.log` content is byte-identical whether the TUI is active or not
-- [ ] The header shows board, agent, model, and session run time plus running
+- [x] `runs.log` content is byte-identical whether the TUI is active or not
+- [x] The header shows board, agent, model, and session run time plus running
       token/cost totals
-- [ ] The board slice lists the `ready` queue and cards waiting on input, with
+- [x] The board slice lists the `ready` queue and cards waiting on input, with
       a per-column tally
-- [ ] Each active run shows phase, elapsed, tokens/cost, and its current
+- [x] Each active run shows phase, elapsed, tokens/cost, and its current
       activity line
-- [ ] Each running card has its own log pane; arrow keys switch cards and a key
+- [x] Each running card has its own log pane; arrow keys switch cards and a key
       collapses/expands it
-- [ ] With two concurrent runs (WIP 2), each card's stream lines go only to
+- [x] With two concurrent runs (WIP 2), each card's stream lines go only to
       that card's pane — no interleaving
-- [ ] The model is captured from the agent stream and displayed
-- [ ] The TUI drives nothing: no key pauses, kills, or reconfigures a run
-- [ ] Ctrl-C exits cleanly and restores the terminal; a resize re-lays out
+- [x] The model is captured from the agent stream and displayed
+- [x] The TUI drives nothing: no key pauses, kills, or reconfigures a run
+- [x] Ctrl-C exits cleanly and restores the terminal; a resize re-lays out
       without corrupting the view
 
 ## Notes
