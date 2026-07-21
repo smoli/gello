@@ -6,10 +6,8 @@ created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T12:45:08
 epic: e08
-awaiting: input
 ---
 
-```gelloquestion
 ## Library choice — measured, and your premise needs one correction
 
 I landed the **model capture** first (the card's "one small gap"), since it's
@@ -54,7 +52,8 @@ a pane is **dropped when its run ends** (`runs.log` keeps the full record);
 **no scrollback** in a pane, just a ring buffer of the last N lines (matches the
 read-only scope); session totals are **cumulative across all runs** since the
 companion started.
-```
+
+I am confused about you metioning tauri here. the tui is for companion. that is not a tauri ap
 
 ## What
 
