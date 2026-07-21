@@ -160,6 +160,105 @@ describe("ContextMenu (i0011)", () => {
     }
   });
 
+  // i0117: sibling submenus are mutually exclusive
+
+  describe("i0117: moving between two submenu parents", () => {
+    const twoParents = () => ({
+      items: [
+        { label: "Reload", onSelect: vi.fn() },
+        {
+          label: "Theme",
+          items: [{ label: "Light", checked: true, onSelect: vi.fn() }],
+        },
+        {
+          label: "Settings",
+          items: [{ label: "Show tags", checked: false, onSelect: vi.fn() }],
+        },
+      ],
+    });
+
+    const sub = (label: string) =>
+      screen
+        .getByRole("menuitem", { name: new RegExp(label) })
+        .closest(".context-menu-sub") as HTMLElement;
+
+    const openSubmenus = () =>
+      document.querySelectorAll(".context-menu-submenu").length;
+
+    it("never shows both submenus at once", () => {
+      vi.useFakeTimers();
+      try {
+        renderMenu(twoParents());
+        fireEvent.mouseEnter(sub("Theme"));
+        expect(screen.getByRole("menuitemcheckbox", { name: "Light" })).toBeInTheDocument();
+
+        // pointer moves on to the next parent — the open flyout must not
+        // linger next to the new one while its close delay runs out
+        fireEvent.mouseLeave(sub("Theme"));
+        fireEvent.mouseEnter(sub("Settings"));
+        expect(openSubmenus()).toBe(1);
+        act(() => vi.advanceTimersByTime(100));
+        expect(openSubmenus()).toBe(1);
+
+        // the switch lands as one change: the first is gone, the second is up
+        act(() => vi.advanceTimersByTime(400));
+        expect(openSubmenus()).toBe(1);
+        expect(screen.getByRole("menuitemcheckbox", { name: "Show tags" })).toBeInTheDocument();
+        expect(
+          screen.queryByRole("menuitemcheckbox", { name: "Light" }),
+        ).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("crossing a sibling on the way back to the open flyout keeps it open", () => {
+      vi.useFakeTimers();
+      try {
+        renderMenu(twoParents());
+        fireEvent.mouseEnter(sub("Theme"));
+
+        // diagonal travel to the flyout clips the parent below it
+        fireEvent.mouseLeave(sub("Theme"));
+        fireEvent.mouseEnter(sub("Settings"));
+        act(() => vi.advanceTimersByTime(100));
+        fireEvent.mouseLeave(sub("Settings"));
+        fireEvent.mouseEnter(sub("Theme"));
+        act(() => vi.advanceTimersByTime(400));
+
+        expect(screen.getByRole("menuitemcheckbox", { name: "Light" })).toBeInTheDocument();
+        expect(openSubmenus()).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hovering a plain item closes the open submenu after the delay", () => {
+      vi.useFakeTimers();
+      try {
+        renderMenu(twoParents());
+        fireEvent.mouseEnter(sub("Theme"));
+        fireEvent.mouseLeave(sub("Theme"));
+        fireEvent.mouseEnter(screen.getByRole("menuitem", { name: "Reload" }));
+        act(() => vi.advanceTimersByTime(400));
+        expect(openSubmenus()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("opens the first submenu without a delay — nothing is open to swap out", () => {
+      vi.useFakeTimers();
+      try {
+        renderMenu(twoParents());
+        fireEvent.mouseEnter(sub("Settings"));
+        expect(screen.getByRole("menuitemcheckbox", { name: "Show tags" })).toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it("shows an unchecked toggle without a check", () => {
     renderMenu({
       items: [
