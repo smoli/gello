@@ -265,3 +265,12 @@ header needs that added.
 - 2026-07-21 status → backlog (app)
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
+- 2026-07-21 (agent) captured the agent's model from the stream (the card's
+  named gap), then built the renderer-independent view-model while the library
+  question was open.
+- 2026-07-21 (human) chose raw ANSI over Ink — no dependency.
+- 2026-07-21 (agent) implemented the dashboard in raw ANSI: pure frame
+  composition (30 tests) plus a thin shell tested against a fake screen (13).
+  Bundle grew 845 KB → 856 KB. Running it under a real pty caught a zero-size
+  terminal drawing an empty screen and `wip=Infinity`; both fixed with tests.
+  All ten criteria pass; 925 tests, typecheck and lint green.
