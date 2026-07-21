@@ -6,7 +6,55 @@ created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T12:45:08
 epic: e08
+awaiting: input
 ---
+
+```gelloquestion
+## Library choice — measured, and your premise needs one correction
+
+I landed the **model capture** first (the card's "one small gap"), since it's
+needed whatever we pick. That's committed and green.
+
+Now the open question. I measured it rather than guessing:
+
+| | |
+|---|---|
+| companion bundle today | 845 KB |
+| minimal Ink app, bundled | 1.7 MB |
+| combined estimate | **~2.5 MB** (≈3×) |
+
+Three findings:
+
+- **Ink bundles to a single file.** `yoga-layout` embeds its WASM as base64
+  *JavaScript*, so there's no external asset — i0118's single-file guarantee
+  survives. It needs the `createRequire` banner (already in our build) and
+  `react-devtools-core` aliased to a stub.
+- **Ink hard-errors off a TTY** ("Raw mode is not supported"). That confirms the
+  TTY gate is mandatory, and the TUI must be lazily imported so headless/piped
+  runs never load it.
+- **Correction:** the card weighs Ink against *"i0118's compile-to-a-binary
+  plan"* — but i0118 shipped as **bundle + the user's Node**, not a binary. So
+  the cost is ~1.7 MB inside a Tauri app that's already tens of MB, not bloat on
+  a 110 MB binary. That's much weaker than the card assumed.
+
+**My recommendation: Ink.** The layout you specced (header + board slice + runs
+table + switchable per-card pane, resizable) is exactly what a declarative
+flexbox layer is for. Hand-rolling flicker-free redraw, resize and pane regions
+in raw ANSI is a lot of fiddly code that's easy to get subtly wrong, and Ink's
+React model matches the rest of the repo. blessed I'd rule out — effectively
+unmaintained.
+
+- [ ] **Ink** — recommended; ~1.7 MB, React model, lazy-loaded on TTY only
+- [ ] **Raw ANSI** — zero deps, stays ~845 KB; I hand-roll layout, resize,
+      redraw diffing and key parsing. Slower and more bug-prone, but lean.
+- [ ] Something else / you want to discuss the tradeoff further
+
+**Minor opens I've decided** — tell me if you'd rather have it otherwise:
+a pane is **dropped when its run ends** (`runs.log` keeps the full record);
+**no scrollback** in a pane, just a ring buffer of the last N lines (matches the
+read-only scope); session totals are **cumulative across all runs** since the
+companion started.
+```
 
 ## What
 
