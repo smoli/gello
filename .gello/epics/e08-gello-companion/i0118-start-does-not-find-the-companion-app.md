@@ -8,7 +8,53 @@ epic: e08
 created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T07:25:59
+awaiting: input
 ---
+
+```gelloquestion
+## Answer: yes it's feasible — but I'd advise against it here
+
+Short version: a Rust companion would **fork the board format into two
+implementations**, which is the one thing the codebase is set up to avoid.
+
+The app renders the board *in the webview*, so the TypeScript core has to stay
+either way. A Rust companion needs its own copy of frontmatter parsing, the
+surgical line-edit writer, the `gelloquestion` protocol, duplicate-key repair,
+column comparators, WIP/dependency rules — and the two must stay byte-compatible
+forever. CLAUDE.md's "frontmatter I/O goes through one module" and "keep the Rust
+layer thin — no business logic in Rust unless it must be there" both point away
+from it.
+
+Measured scope of the rewrite:
+
+| | LOC |
+|---|---|
+| companion sources | 4,106 |
+| companion tests | 2,289 |
+| shared board core it reuses | 1,250 |
+| that core's tests | 1,702 |
+
+So ~5,400 LOC of logic plus ~4,000 LOC of tests — to solve a **packaging**
+problem whose alternative is one build step and a 302 KB file. And e08 is the
+fastest-moving part of the repo; a rewrite freezes companion work and doubles
+the cost of every later card while both versions exist.
+
+The only *coherent* Rust version is the inverse: move the board core itself into
+Rust and have the app call it over Tauri IPC, so there's still one
+implementation. That's a deliberate re-architecture of the product — its own
+epic, not this bug.
+
+**So, how do you want to proceed?**
+
+- [ ] **Ship the 302 KB bundle + user's Node** — unblocks Start now, one board
+      core, smallest change. *(still my recommendation)*
+- [ ] **Node SEA standalone binary** — no runtime dependency for users,
+      no rewrite; ~110 MB per platform and a per-platform build matrix.
+- [ ] **Rust rewrite anyway** — I'll do it, accepting the forked board core.
+      Say so and I'd want it split into its own epic rather than this card.
+- [ ] **Park the Rust idea as a separate strategic card** and pick one of the
+      first two to unblock i0118 now. Tell me which of the two.
+```
 
 ## Root cause found — now a distribution-contract decision
 
