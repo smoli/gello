@@ -1,10 +1,10 @@
 ---
 id: c0112
 title: A nice TUI for the companion
-status: ready
+status: in-progress
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:44:57
+status-changed: 2026-07-21T12:45:08
 epic: e08
 ---
 
@@ -97,3 +97,4 @@ header needs that added.
   slices, not a mini kanban.
 - 2026-07-21 status → backlog (app)
 - 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
