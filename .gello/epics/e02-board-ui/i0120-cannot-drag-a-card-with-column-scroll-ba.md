@@ -1,11 +1,11 @@
 ---
 id: i0120
 title: Cannot drag a card with column scroll bar
-status: in-progress
+status: review
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T10:02:15
+status-changed: 2026-07-21T10:08:30
 epic: e02
 ---
 
@@ -38,12 +38,42 @@ in either column.
 Fix: declare the behaviour on `.card-front` instead of inheriting it from
 whichever engine is underneath.
 
+## The actual cause
+
+The above was real but was masking this, which is what the card title names.
+
+`.insert-zone` grows to a 28px hit area during a drag and cancels it with
+`margin: -14px 0`, so the column's height is meant to be unchanged (i0002 /
+i0004). That only holds if the 28px survives. The zone is a flex item in
+`.column-cards`, and a flex item shrinks by default — so once the column
+overflows, which is exactly when it shows a scrollbar, the height is
+compressed while the margins stay fixed.
+
+Measured in a browser, column scrolled to 200:
+
+- the zone's 28px was used at **5.4px**, so each of the 17 zones netted −22.6px
+- `scrollHeight` collapsed **1239 → 871**, and `scrollTop` was clamped to 16
+- every card jumped: **+161px at the top, −178px at the bottom**
+
+WebKit cancels a drag whose source moves under the pointer — the codebase
+already knows this (see the i0006 note about unmounting a node next to the
+source). Chromium tolerates it, which is why no browser check caught it. Cards
+near the crossover point of that shift barely move, so they still drag; the
+further from it, the further they jump, which is the boundary that moves with
+window height.
+
+With `flex-shrink: 0` every card shifts 0px and `scrollTop` does not move, at
+every scroll position.
+
 ## Acceptance criteria
 
 - [x] `.card-front` declares `user-select: none`, prefixed and unprefixed
 - [x] `.card-front` declares `-webkit-user-drag: element`
 - [x] A test fails if those declarations are removed
 - [x] No other element depends on the `[draggable=true]` UA rule
+- [x] A drag starting in an overflowing column shifts no card and does not
+      move `scrollTop`
+- [x] The zone's drag-time height cannot be compressed by flex shrink
 
 ## Log
 
@@ -62,3 +92,9 @@ whichever engine is underneath.
 - 2026-07-21 status → review (agent)
 - 2026-07-21 reopened (agent): the user-select fix was real but was masking the
   actual cause. Root cause found and measured — see Notes.
+- 2026-07-21 fixed (agent): `flex-shrink: 0` on `.board-dragging .insert-zone`.
+  Guarded by two tests reading Board.css — one asserts the height/margin
+  arithmetic still cancels, one that the height is pinned, since the
+  cancellation is meaningless without it. Verified in a browser at four scroll
+  positions: max card shift 0px, scrollTop jump 0. 830 tests green.
+- 2026-07-21 status → review (agent)

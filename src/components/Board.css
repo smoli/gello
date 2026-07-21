@@ -378,10 +378,18 @@ button.tag-chip {
 
 /* i0002/i0004: during a drag the zone becomes a tall hit area (28px) whose
    box NEVER changes on activation, so hovering the edge can't reflow-jitter.
-   Net flow height stays 0 (28 − 14 − 14) so cards don't shift at dragstart. */
+   Net flow height stays 0 (28 − 14 − 14) so cards don't shift at dragstart.
+   i0120: that only holds if the 28px survives. The zone is a flex item in
+   `.column-cards`, and a flex item shrinks by default — so once the column
+   overflows (exactly when it shows a scrollbar) the height was compressed
+   while the margins stayed, each zone netting about −22px. The column
+   collapsed at dragstart, scrollTop was clamped, every card jumped, and
+   WebKit cancels a drag whose source moves under the pointer. Pin the
+   shrink: the margins are not negotiable, so the height must not be. */
 .board-dragging .insert-zone {
   height: 28px;
   margin: -14px 0;
+  flex-shrink: 0;
   pointer-events: auto;
   z-index: 1;
 }
