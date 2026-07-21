@@ -173,10 +173,59 @@
 }
 
 /* a stale state file (companion crashed/wedged) — the line is suspect, so mute
-   it further and flag it rather than presenting it as current. */
+   it further and flag it rather than presenting it as current. It deliberately
+   gets no sweep (c0113): a frozen line is the tell that the companion stopped. */
 .card-activity-stale {
   opacity: 0.45;
   font-style: italic;
+}
+
+/* c0113: a live line sweeps, so a working agent never looks frozen just because
+   its tool hasn't changed. Motion is the liveness signal, not decoration.
+
+   Done as an overlay pseudo-element rather than the usual `background-clip:
+   text` gradient: clipping a background to the glyphs fights `text-overflow:
+   ellipsis`, because the ellipsis is generated rather than part of the text run
+   and does not reliably pick the gradient up. An overlay leaves text rendering
+   untouched, so the truncation above keeps working as-is. */
+.card-activity-live {
+  position: relative;
+}
+.card-activity-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* derived from CanvasText so the band reads in both themes; the parent's
+     opacity mutes it further, which is what keeps it subtle on a full board */
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, CanvasText 20%, transparent) 50%,
+    transparent 100%
+  );
+  /* the band starts off to the left and is clipped by the parent's
+     overflow:hidden until it sweeps through */
+  transform: translateX(-100%);
+  animation: card-activity-sweep 2.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes card-activity-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Hard requirement: no sweep under reduced motion. The band is removed rather
+   than paused — stopping the animation would strand it mid-line. What is left
+   is exactly the pre-c0113 static line. */
+@media (prefers-reduced-motion: reduce) {
+  .card-activity-live::after {
+    content: none;
+  }
 }
 
 /* c012: first-image thumbnail on the card front */

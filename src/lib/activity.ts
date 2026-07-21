@@ -88,3 +88,30 @@ export function cardActivity(
     stale: isStale(state.updated, now),
   };
 }
+
+/** How a card-front activity line is rendered (c0113). */
+export type ActivityTreatment = "animated" | "stale" | "none";
+
+/**
+ * Pick the treatment for a line. Motion means live: only a fresh line sweeps,
+ * so a wedged companion's last line freezes instead of pretending to work. The
+ * rule lives here rather than in the CSS so it can be tested on its own; it
+ * reuses c0109's `stale` flag and adds no state.
+ */
+export function activityTreatment(activity: CardActivity | null): ActivityTreatment {
+  if (!activity) return "none";
+  return activity.stale ? "stale" : "animated";
+}
+
+/** The card-front class list for a treatment. Every rendered line keeps the
+ *  base class, which owns the one-line ellipsis truncation. */
+export function activityClassName(treatment: ActivityTreatment): string {
+  switch (treatment) {
+    case "animated":
+      return "card-activity card-activity-live";
+    case "stale":
+      return "card-activity card-activity-stale";
+    case "none":
+      return "";
+  }
+}

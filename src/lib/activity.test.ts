@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { phraseActivity, cardActivity } from "./activity";
+import {
+  phraseActivity,
+  cardActivity,
+  activityTreatment,
+  activityClassName,
+} from "./activity";
 import type { CompanionState } from "./companion";
 
 // --- phraseActivity ---------------------------------------------------------
@@ -120,5 +125,46 @@ describe("cardActivity", () => {
       runs: [{ cardId: "c001", phase: "running" }],
     });
     expect(cardActivity(s, "c001", NOW)?.stale).toBe(true);
+  });
+});
+
+// --- c0113: which visual treatment the line gets -----------------------------
+// Motion means live, so the choice is driven by the same stale flag c0109
+// already computes — kept out of the CSS so the rule itself is testable.
+
+describe("activityTreatment", () => {
+  it("animates a live line", () => {
+    expect(activityTreatment({ label: "Editing x.ts", stale: false })).toBe("animated");
+  });
+
+  it("does not animate a stale line — a dead companion must not look busy", () => {
+    expect(activityTreatment({ label: "Editing x.ts", stale: true })).toBe("stale");
+  });
+
+  it("is none when there is no activity at all", () => {
+    expect(activityTreatment(null)).toBe("none");
+  });
+});
+
+describe("activityClassName", () => {
+  it("gives live and stale lines distinct classes for the CSS to target", () => {
+    const live = activityClassName("animated");
+    const stale = activityClassName("stale");
+    expect(live).not.toBe(stale);
+    // both keep the base class that owns the one-line ellipsis truncation
+    expect(live.split(" ")).toContain("card-activity");
+    expect(stale.split(" ")).toContain("card-activity");
+  });
+
+  it("marks the stale line with the existing c0109 class", () => {
+    expect(activityClassName("stale").split(" ")).toContain("card-activity-stale");
+  });
+
+  it("does not mark a live line as stale", () => {
+    expect(activityClassName("animated").split(" ")).not.toContain("card-activity-stale");
+  });
+
+  it("has no class when there is no line", () => {
+    expect(activityClassName("none")).toBe("");
   });
 });

@@ -32,6 +32,21 @@ function column(name: string) {
   return screen.getByRole("region", { name });
 }
 
+/** A companion `updated` stamp. The companion writes **local** time and the app
+ *  parses it as local, so a UTC stamp (toISOString) would read as hours stale
+ *  and silently take the wrong branch. */
+function localNow(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}
+
+/** Long past the stale window, whatever the timezone. */
+const STALE_STAMP = "2000-01-01T00:00:00";
+
 describe("Board", () => {
   it("c0100: shows a needs-input badge on a card parked with awaiting: input", () => {
     const model = loadBoard([
@@ -65,7 +80,7 @@ describe("Board", () => {
       ready: [],
       waiting: [],
       runs: [{ cardId: "c001", phase: "running" as const, activity: { name: "Edit", arg: "src/runner.ts" } }],
-      updated: new Date().toISOString().slice(0, 19),
+      updated: localNow(),
     };
     render(<Board model={model} runner={runner} />);
 
@@ -87,7 +102,7 @@ describe("Board", () => {
       ready: [],
       waiting: [],
       runs: [{ cardId: "c001", phase: "running" as const }],
-      updated: new Date().toISOString().slice(0, 19),
+      updated: localNow(),
     };
     render(<Board model={model} runner={runner} />);
     const card1 = screen.getByText("Thinking card").closest("article")!;
@@ -107,11 +122,54 @@ describe("Board", () => {
       ready: [],
       waiting: ["c001"],
       runs: [{ cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Bash", arg: "x" } }],
-      updated: new Date().toISOString().slice(0, 19),
+      updated: localNow(),
     };
     render(<Board model={model} runner={runner} />);
     const parked = screen.getByText("Parked card").closest("article")!;
     expect(within(parked).queryByText(/Running|Thinking/)).not.toBeInTheDocument();
+  });
+
+  // c0113: motion means live — the sweep is the liveness signal, so it must be
+  // present on a fresh line and absent on a stale one.
+  function runnerFor(updated: string) {
+    return {
+      status: "running" as const,
+      ready: [],
+      waiting: [],
+      runs: [
+        {
+          cardId: "c001",
+          phase: "running" as const,
+          activity: { name: "Edit", arg: "src/runner.ts" },
+        },
+      ],
+      updated,
+    };
+  }
+
+  function activityLine(updated: string) {
+    const model = loadBoard([
+      file("board.yaml", "columns: [in-progress]\n"),
+      file("cards/c001-run.md", card("c001", "Running card", "in-progress")),
+    ]);
+    render(<Board model={model} runner={runnerFor(updated)} />);
+    return screen.getByText("Editing runner.ts");
+  }
+
+  it("c0113: a live activity line is marked for the sweep", () => {
+    const line = activityLine(localNow());
+    expect(line).toHaveClass("card-activity-live");
+    expect(line).not.toHaveClass("card-activity-stale");
+  });
+
+  it("c0113: a stale activity line is not animated, keeping the c0109 treatment", () => {
+    const line = activityLine(STALE_STAMP);
+    expect(line).toHaveClass("card-activity-stale");
+    expect(line).not.toHaveClass("card-activity-live");
+  });
+
+  it("c0113: every activity line keeps the truncating base class", () => {
+    expect(activityLine(localNow())).toHaveClass("card-activity");
   });
 
   it("renders the configured columns in order", () => {

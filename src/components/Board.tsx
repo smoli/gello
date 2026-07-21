@@ -10,7 +10,7 @@ import {
 import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
-import { cardActivity } from "../lib/activity";
+import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
 import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
@@ -696,10 +696,12 @@ function CardFront({
       <p className="card-title">{card.title}</p>
       {/* c0109: the running agent's latest action, phrased app-side. A stale
           state file (companion crashed/wedged) marks the line rather than
-          hiding it, so it doesn't stay pinned as if current. */}
+          hiding it, so it doesn't stay pinned as if current.
+          c0113: a live line also sweeps — the treatment is picked in activity.ts,
+          so this stays presentation-only. */}
       {activity && (
         <p
-          className={activity.stale ? "card-activity card-activity-stale" : "card-activity"}
+          className={activityClassName(activityTreatment(activity))}
           role="status"
           title={
             activity.stale
