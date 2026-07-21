@@ -131,10 +131,24 @@ header needs that added.
   - Ink's `useInput` **hard-errors** off a TTY ("Raw mode is not supported").
     That confirms the card's TTY gate is mandatory rather than a nicety, and the
     TUI must be imported lazily so headless/piped runs never load it.
-- **The card's premise needs correcting**: the open question weighed Ink against
-  "i0118's compile-to-a-binary plan", but i0118 shipped as *bundle + the user's
-  Node*, not a binary. So the cost is ~1.7 MB added to an app resource inside a
-  Tauri bundle that is already tens of MB — much weaker than the card assumed.
+- **My Tauri framing was wrong and confused things.** The companion is a
+  standalone Node CLI; the TUI is purely a companion concern. Tauri only entered
+  because i0118 ships a *copy* of the companion bundle inside the app
+  (`bundle.resources` → `companion-dist/gello-companion.mjs`) so the Start button
+  works without a dev checkout. That is a distribution detail, not what the
+  companion *is*, and it was the wrong frame for a size argument.
+  - Judged as what it actually is — a local Node CLI — the bundle goes
+    **845 KB → ~2.5 MB**. For a long-running local dev tool that is one extra
+    parse at startup, tens of milliseconds, once. It does not touch run latency.
+  - So size is a weak argument either way. The real trade is a dependency
+    (Ink/React) against hand-rolling layout, resize, redraw diffing and key
+    parsing in raw ANSI.
+- 2026-07-21 (agent) **View-model landed** ahead of the library decision, since
+  it is renderer-independent: `tui-model.ts` holds the TTY-vs-plain choice,
+  `LogPanes` (per-card ring buffers), the board slice, cumulative session totals
+  and elapsed formatting — 20 tests. The `emit` seam now carries the card id, so
+  two concurrent runs route to separate panes; a runner test asserts no
+  interleaving (the acceptance criterion), using the real runner.
 - **Smaller opens, decided (veto welcome)**: a pane is **dropped when its run
   ends** (`runs.log` keeps the full record, so nothing is lost); **no scrollback**
   inside a pane — a ring buffer of the last N lines, matching the read-only
