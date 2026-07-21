@@ -1,11 +1,11 @@
 ---
 id: i0116
 title: Switching between boards keeps filter
-status: review
+status: done
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T00:26:36
+status-changed: 2026-07-21T07:22:10
 epic: e01
 ---
 
@@ -35,3 +35,4 @@ If I filter in board A on epic Y and then switch to board B the board stays filt
 - 2026-07-21 status → ready (app)
 - 2026-07-21 status → in-progress (agent)
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
