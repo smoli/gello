@@ -1,13 +1,13 @@
 ---
 id: i0119
 title: Cannot start companion for different project
-status: review
+status: done
 type: issue
 ref: c0093
 epic: e08
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T09:31:40
+status-changed: 2026-07-21T12:23:09
 ---
 
 Trying to run pnpm companion ../popexel the companion start but does nothing when I move a card to ready
@@ -60,3 +60,4 @@ it changes, not on every pass.
   both at startup and when the card is moved to ready with the watcher live.
   825 tests green, typecheck and lint clean.
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
