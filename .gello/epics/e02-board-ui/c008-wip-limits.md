@@ -1,13 +1,13 @@
 ---
 id: c008
 title: WIP limit warnings
-status: ready
+status: in-progress
 epic: e02
 depends: [c005]
 tags: [ui]
 created: 2026-07-16
 updated: 2026-07-21
-status-changed: 2026-07-21T12:23:13
+status-changed: 2026-07-21T12:23:23
 ---
 
 ## What
@@ -27,3 +27,4 @@ overruns visually. Soft limit — never blocks a move.
 
 - 2026-07-16 created from concept breakdown
 - 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
