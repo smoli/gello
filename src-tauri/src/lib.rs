@@ -314,12 +314,31 @@ fn read_file_base64(path: String) -> Result<String, FsError> {
     })
 }
 
-/// c0110: open the OS terminal running `gello-companion <project_dir>`. A thin
-/// process-spawn seam (like git.rs) — the terminal owns the companion's
-/// lifetime; the app never tracks or kills it.
+/// c0110/i0118: open the OS terminal running the **bundled** companion against
+/// `project_dir`. A thin process-spawn seam (like git.rs) — the terminal owns
+/// the companion's lifetime; the app never tracks or kills it.
+///
+/// The bundle ships as an app resource; a dev build finds it next to the crate.
+/// A missing bundle is a packaging fault we *can* detect app-side, so it is
+/// reported here — unlike a missing `node`, which only the terminal can see
+/// (a GUI app does not inherit the login shell's PATH).
 #[tauri::command]
-fn start_companion(project_dir: String) -> Result<(), String> {
-    companion::start(&project_dir)
+fn start_companion(project_dir: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let relative = std::path::Path::new(companion::COMPANION_DIR).join(companion::COMPANION_JS);
+    let mut candidates = Vec::new();
+    if let Ok(resources) = app.path().resource_dir() {
+        candidates.push(resources.join(&relative));
+    }
+    candidates.push(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(&relative));
+
+    let bundle = companion::companion_js_path(&candidates).ok_or_else(|| {
+        format!(
+            "the companion is missing from this build (expected {}) — run `pnpm build:companion`",
+            relative.display()
+        )
+    })?;
+    companion::start(&bundle, &project_dir)
 }
 
 #[tauri::command]

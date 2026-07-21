@@ -4,9 +4,9 @@
   "version": "0.3.0",
   "identifier": "com.stephan.gello",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm build:companion && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build:companion && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -27,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "companion-dist/gello-companion.mjs"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

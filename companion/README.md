@@ -29,6 +29,22 @@ npx tsx companion/main.ts [dir]   # standalone, no global link
 gello-companion [dir]             # after `pnpm link --global`
 ```
 
+### Shipped with the app (i0118)
+
+The desktop app does **not** use any of the above — a global link only ever
+exists in a dev checkout. `pnpm build:companion` bundles the companion and every
+dependency into one file, `src-tauri/companion-dist/gello-companion.mjs`, which
+the Tauri build ships as an app resource. The app's **Start companion** action
+runs it with the user's Node:
+
+```bash
+node gello-companion.mjs <project-dir>
+```
+
+So the app needs `node` on the PATH of the terminal it opens, and nothing else.
+The bundle is a build artifact — gitignored, rebuilt by `pnpm tauri dev` and
+`pnpm tauri build`.
+
 `dir` is any path inside the project; the companion walks up to find `.gello/`,
 the same way the app does. With no argument it starts from the current
 directory.
@@ -184,19 +200,23 @@ card as ordinary markdown.
 
 ## Launching from the app
 
-The desktop app can offer a one-click "start companion" toggle that spawns the
-CLI as a child process, for users who don't want a separate terminal. The app
-and companion still coordinate only through `.gello/` files; the child process
-is a convenience, not a link.
+The title bar's runner corner offers **Start companion** whenever no companion is
+live for the open board; once one is running, that same spot becomes the c0100
+status indicator (c0110). The app and companion coordinate only through
+`.gello/` files.
 
-The toggle spawns the bin resolved above with the project directory as its
-argument, inheriting the config from `.gello/companion.yaml`:
+Start **opens a terminal** rather than managing a child process:
 
 ```
-gello-companion <project-dir>
+node <app resources>/companion-dist/gello-companion.mjs <project-dir>
 ```
+
+The terminal owns the process — it is where the run stream shows and Ctrl-C is
+how you stop it, so closing the app leaves the companion running and the app
+never kills it. Opening a login-shell terminal is also what gives the companion
+the user's PATH (a GUI app does not inherit it), which is why a missing `node`
+is reported by the launched script rather than by the app. A missing bundle *is*
+reported in-app, since that is a packaging fault the app can see.
 
 The app reads `.gello/.companion/state.json` to show whether a companion is
-running, and stopping the toggle kills the child. The spawn itself is a small
-app-side follow-up (see c0100 for the runner indicator that consumes the state
-file).
+running (c0100).
