@@ -1,12 +1,11 @@
 ---
 id: c0112
 title: A nice TUI for the companion
-status: backlog
+status: ready
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:39:16
+status-changed: 2026-07-21T12:44:57
 epic: e08
-order: 55
 ---
 
 ## What
@@ -97,3 +96,4 @@ header needs that added.
   per running card with arrow-key switching; board shown as companion-relevant
   slices, not a mini kanban.
 - 2026-07-21 status → backlog (app)
+- 2026-07-21 status → ready (app)
