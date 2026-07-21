@@ -6,7 +6,51 @@ created: 2026-07-21
 updated: 2026-07-21
 status-changed: 2026-07-21T12:45:08
 epic: e08
+awaiting: input
 ---
+
+```gelloquestion
+## You're right — my Tauri framing was wrong
+
+The companion is a standalone Node CLI, and the TUI is purely a companion
+concern. I dragged Tauri in for one narrow reason and then used it as the whole
+size argument, which was the wrong frame.
+
+The only connection: **i0118 ships a *copy* of the companion bundle inside the
+app** (`bundle.resources` → `companion-dist/gello-companion.mjs`) so the Start
+button works for someone without a dev checkout. That's a distribution detail,
+not what the companion *is*.
+
+**Re-framed honestly, as a Node CLI:**
+
+| | |
+|---|---|
+| companion bundle today | 845 KB |
+| with Ink | ~2.5 MB |
+
+For a long-running local dev tool that's one extra parse at startup — tens of
+milliseconds, once. It doesn't touch run latency or memory in any way you'd
+notice. So **size is a weak argument either way**; I over-weighted it.
+
+The real trade is: **a dependency (Ink → React + reconciler) vs hand-rolling**
+layout, resize, redraw diffing and key parsing in raw ANSI.
+
+I still lean **Ink** — your spec (header + board slice + runs table +
+switchable, resizable per-card pane) is a lot of fiddly, easy-to-get-subtly-wrong
+terminal code otherwise, and the React model matches the rest of the repo. But
+it is a real dependency in a CLI that is otherwise lean, and that's your call.
+
+- [ ] **Ink** — declarative layout, handles resize/redraw; +1.7 MB, adds React
+- [ ] **Raw ANSI** — no dependency, stays lean; I hand-roll the drawing
+- [ ] Something else
+
+**Meanwhile I built the renderer-independent half**, so this isn't a blocked
+turn: `tui-model.ts` — the TTY-vs-plain decision, per-card ring buffers, the
+board slice, cumulative session totals, elapsed formatting (20 tests). The
+`emit` seam now carries the card id, and a runner test proves two concurrent
+runs don't interleave. All of that is reused whichever way you go; only the
+drawing layer depends on your answer.
+```
 
 ## Library choice — measured, and your premise needs one correction
 
