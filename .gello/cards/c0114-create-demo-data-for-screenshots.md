@@ -1,10 +1,10 @@
 ---
 id: c0114
 title: Create demo data for screenshots
-status: discuss
+status: in-progress
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T22:18:28
+status-changed: 2026-07-21T22:31:24
 ---
 
 ## What
@@ -119,3 +119,5 @@ shooting** or the indicator disappears and the activity line dims.
   (malformed + archived cards) included alongside the polished path.
 - 2026-07-21 named **Holzhof** at `demo/holzhof/`, played tongue in cheek —
   deadpan-plausible titles, the joke in the domain not the formatting.
+- 2026-07-21 status → ready (app)
+- 2026-07-21 status → in-progress (agent)
