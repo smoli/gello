@@ -1,10 +1,10 @@
 ---
 id: c0113
 title: More activity ui for glimpse
-status: in-progress
+status: review
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:38:49
+status-changed: 2026-07-21T12:44:08
 epic: e08
 ---
 
@@ -117,3 +117,4 @@ turns the sweep off and leaves exactly today's static line.
   unfocused-window pausing out on purpose. Also fixed UTC-vs-local `updated`
   stamps in the c0109 Board fixtures. 853 frontend tests, typecheck, lint and a
   production build all green.
+- 2026-07-21 status → review (agent)
