@@ -65,9 +65,12 @@ shooting** or the indicator disappears and the activity line dims.
 
 ## Acceptance criteria
 
-- [ ] `demo/` exists with a `.gello` board and is listed in `.gitignore`
-- [ ] `demo/` is a git repo with at least one commit, so the title bar shows a
-      branch
+- [ ] `demo/holzhof/` exists with a `.gello` board, and `demo/` is listed in
+      `.gitignore`
+- [ ] `demo/holzhof/` is a git repo with at least one commit, so the title bar
+      shows `gello - holzhof (main)`
+- [ ] Card titles are deadpan-plausible — they read as a real backlog at a
+      glance, with the humour in the domain rather than the formatting
 - [ ] `board.yaml` sets the full column list, a WIP limit, a background, and
       tag colour overrides
 - [ ] At least three epics with `epic.md`, plus standalone cards; **every**
@@ -98,16 +101,21 @@ shooting** or the indicator disappears and the activity line dims.
   point rather than only shooting the happy path.
 - **git init is load-bearing**, not incidental — the branch in the title bar
   and the dirty-worktree dot both depend on it.
-- **Open**: the demo project's folder name (it shows in every screenshot —
-  something like `holzhof` or `woodshare` reads better than `demo`); where the
-  thumbnail images come from (a couple of real firewood photos beat a
-  placeholder block); whether to also stage an uncommitted change at shoot time
-  to demonstrate the dirty indicator.
+- **Named `holzhof`, played tongue in cheek** (human's call). The name shows in
+  every screenshot, so it carries the fiction for free. The humour is
+  deliberately dry: the cards stay professionally sincere about an absurd
+  premise, because these are marketing shots — an obviously joking board would
+  make gello itself look unserious.
+- **Open**: where the thumbnail images come from (a couple of real firewood
+  photos will beat a placeholder block); whether to stage an uncommitted change
+  at shoot time to demonstrate the dirty indicator.
 
 ## Log
 
 - 2026-07-21 status → discuss (app)
-- 2026-07-21 discussed (human): hand-authored gitignored `demo/` board (no
-  generator), firewood-community fiction, git-initialised so the branch shows;
-  static `.companion/state.json` accepting the 30s staleness window; edge
-  surfaces (malformed + archived cards) included alongside the polished path.
+- 2026-07-21 discussed (human): hand-authored gitignored board (no generator),
+  firewood-community fiction, git-initialised so the branch shows; static
+  `.companion/state.json` accepting the 30s staleness window; edge surfaces
+  (malformed + archived cards) included alongside the polished path.
+- 2026-07-21 named **Holzhof** at `demo/holzhof/`, played tongue in cheek —
+  deadpan-plausible titles, the joke in the domain not the formatting.
