@@ -605,7 +605,6 @@ function Column({
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
                 onFollowUp={onFollowUp}
-                revealFollowUp={hoveredPath === entry.card.path}
                 onHover={onHover}
                 onHoverEnd={onHoverEnd}
                 onDragState={onDragState}
@@ -682,7 +681,6 @@ function CardFront({
   onMoveByKey,
   onSelect,
   onFollowUp,
-  revealFollowUp,
   onHover,
   onHoverEnd,
   onDragState,
@@ -741,8 +739,8 @@ function CardFront({
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
-      onMouseEnter={() => onHover(card.path)}
-      onMouseLeave={() => onHoverEnd(card.path)}
+      // onMouseEnter={() => onHover(card.path)}
+      // onMouseLeave={() => onHoverEnd(card.path)}
       onDragStart={(event) => {
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
@@ -786,7 +784,7 @@ function CardFront({
           {onFollowUp && (card.status === "review" || card.status === "done") && (
             <button
               type="button"
-              className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
+              className={`card-followup`}
               aria-label={`Follow up on ${card.id}`}
               title="Follow up — creates a task in ready, which a running companion starts on"
               onClick={(event) => {

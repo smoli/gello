@@ -334,17 +334,13 @@ button.tag-chip {
   border-radius: 999px;
   background: color-mix(in srgb, CanvasText 6%, transparent);
   color: color-mix(in srgb, CanvasText 65%, transparent);
-  opacity: 0;
-  transition: opacity 0.12s ease;
+  visibility: hidden;
 }
 
-/* c0120: the reveal is driven by the card's own hover state (see CardFront),
-   not by `.card-front:hover` — a re-render under the pointer left the stale
-   :hover lit on a card the pointer had already left. */
-.card-followup-visible,
-.card-followup:focus-visible {
-  opacity: 1;
+.card-front:hover .card-followup {
+  visibility: visible;
 }
+
 
 .card-followup:hover {
   background: color-mix(in srgb, #4c8bf5 18%, transparent);
