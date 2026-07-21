@@ -1,11 +1,11 @@
 ---
 id: i0120
 title: Cannot drag a card with column scroll bar
-status: review
+status: done
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T10:08:30
+status-changed: 2026-07-21T12:22:49
 epic: e02
 ---
 
@@ -98,3 +98,4 @@ every scroll position.
   cancellation is meaningless without it. Verified in a browser at four scroll
   positions: max card shift 0px, scrollTop jump 0. 830 tests green.
 - 2026-07-21 status → review (agent)
+- 2026-07-21 status → done (app)
