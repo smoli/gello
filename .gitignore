@@ -33,3 +33,6 @@ dist-ssr
 
 # gello-companion throwaway test board — real agents run against this
 sandbox/
+
+# c0114: hand-authored demo board for marketing screenshots
+demo/
