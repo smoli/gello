@@ -1,10 +1,10 @@
 ---
 id: c0112
 title: A nice TUI for the companion
-status: in-progress
+status: review
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T12:45:08
+status-changed: 2026-07-21T14:36:15
 epic: e08
 ---
 
@@ -274,3 +274,4 @@ header needs that added.
   Bundle grew 845 KB → 856 KB. Running it under a real pty caught a zero-size
   terminal drawing an empty screen and `wip=Infinity`; both fixed with tests.
   All ten criteria pass; 925 tests, typecheck and lint green.
+- 2026-07-21 status → review (agent)
