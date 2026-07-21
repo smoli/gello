@@ -85,6 +85,40 @@ below.
 
 The open decision is the distribution contract — see the question.
 
+## Rust rewrite — assessment (agent, 2026-07-21)
+
+Asked whether the companion could be rewritten in Rust. Measured scope:
+
+| | LOC |
+|---|---|
+| companion sources (non-test) | 4,106 |
+| companion tests | 2,289 |
+| shared `src/lib` board core it reuses (`board`, `cards`, `gello-question`, `dates`, `markdown`) | 1,250 |
+| that core's tests | 1,702 |
+
+Technically feasible, but I recommend **against** it for this card:
+
+1. **It forks the board format into two implementations.** The app renders the
+   board *in the webview*, so the TypeScript core has to stay. A Rust companion
+   would need its own copy of frontmatter parsing, the surgical line-edit writer,
+   the `gelloquestion` protocol, duplicate-key repair, column comparators, WIP
+   and dependency rules — ~1,250 LOC that must stay byte-compatible with the TS
+   one forever. CLAUDE.md's "frontmatter I/O goes through one module" is exactly
+   what that breaks.
+2. **It contradicts the stated architecture.** CLAUDE.md: "Keep the Rust layer
+   thin … No business logic in Rust unless it must be there." This would put
+   ~5,400 LOC of business logic there.
+3. **Cost/benefit is off.** It's a ~5,400-LOC rewrite (plus ~4,000 LOC of tests)
+   to solve a *packaging* problem whose alternative answer is one build step and
+   a 302 KB file.
+4. **e08 is the fastest-moving part of the repo.** A rewrite freezes companion
+   feature work and makes every later card cost double while both exist.
+
+The only *coherent* Rust version is the inverse: move the board core itself into
+Rust and have the app call it over Tauri IPC, so there is still one
+implementation. That is a deliberate re-architecture of the whole product, not a
+fix for this bug — it belongs in its own epic if wanted.
+
 ## Log
 
 - 2026-07-21 status → ready (app)
