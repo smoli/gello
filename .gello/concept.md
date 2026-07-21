@@ -59,6 +59,8 @@ structured frontmatter, and render them as a Kanban board in a desktop app.
       e02-board-ui/
         epic.md
         c003-kanban-view.md
+        archive/                # long-done cards, off the board by default
+          c000-spike.md
     cards/                      # epic-less cards; a new capture lands here
       c004-typo-in-tooltip.md   #   with status: inbox
   CLAUDE.md                     # includes the gello agent convention
@@ -93,8 +95,13 @@ its name.
 
 Notes:
 
-- Files never move when status changes (stable links, clean diffs). Optional:
-  an archive action moves long-done cards to `archive/` to keep folders small.
+- Files never move when status changes (stable links, clean diffs). The
+  exception is the archive action: it moves a long-done card one level down
+  into an `archive/` folder in its own home (`cards/archive/`,
+  `epics/eNN-name/archive/`) to keep working folders small, rewriting its
+  relative asset links. An archived card keeps its epic and its ID, which stays
+  reserved. It is off the board unless the archived toggle is on, but a search
+  always finds it.
 - **Capture** creates a card in `cards/` with `status: inbox`; triage (assign to
   an epic, refine) happens later on the board.
 - IDs are per-board sequential and part of the filename → stable references
