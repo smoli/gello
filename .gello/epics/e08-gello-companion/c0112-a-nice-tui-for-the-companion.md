@@ -196,6 +196,39 @@ header needs that added.
   scope; session totals are **cumulative across every run since the companion
   started**, which is what "session … totals" in the header implies.
 
+- 2026-07-21 (agent) **Raw ANSI chosen (human's call); implemented.**
+  - `tui-frame.ts` — composition is a **pure function** from state to screen
+    lines, so every layout rule is unit-tested (30 tests) without driving a
+    terminal. Always returns exactly `rows` lines, each ≤ `columns`, so a resize
+    just produces a different frame and cannot corrupt the view.
+  - `tui.ts` — the shell owns only setup/restore, keys and resize, reaching the
+    terminal through an injected `Screen`, so Ctrl-C-restores, resize-redraws and
+    arrow navigation are testable against a fake (13 tests). The frame goes out
+    in **one write** with a per-line clear, which is what keeps a hand-rolled
+    renderer flicker-free and stops a shorter frame leaving stale text.
+  - Cost of the choice, measured: the bundle went **845 KB → 856 KB** (+11 KB),
+    against the ~1.7 MB Ink would have added.
+- **Three things found by actually running it**, not by tests:
+  - A pty can report its size as **0**, and `?? 80` does not catch a zero — the
+    first live run composed a frame of no rows and drew an empty screen. Fixed
+    with a tested `terminalSize` fallback.
+  - An unlimited WIP rendered as the word `Infinity`; it now shows `∞`.
+  - The companion's own `log()` lines would tear the frame apart, so in TUI mode
+    they are swapped for the frame's status line — otherwise an error like
+    "could not write state.json" would be silently swallowed.
+- **`runs.log` is identical in both modes** by construction: it is written from
+  `appendRunLog`, which does not branch on render mode; only `emit` differs. The
+  new `model` event renders nothing, so the transcript is also unchanged from
+  before this card.
+- **Activity is formatted companion-side** as `Tool(arg)`, matching the existing
+  stream lines, rather than reusing the app's `phraseActivity` — c0109 made
+  phrasing an app-side presentation choice, and importing it here would drag the
+  app's Tauri imports into the companion bundle.
+- **Verified live** against a scratch board (no `ready` cards, so nothing could
+  dispatch): piped output is plain with no escapes; under a pty the header,
+  board slice, tally and runs section all render. Criterion 5's run row is
+  unit-tested rather than observed live, since that scratch board had no runs.
+
 ## Discussion
 
 - **Read-only now, keys later** (human's call). Navigation keys (collapse,
