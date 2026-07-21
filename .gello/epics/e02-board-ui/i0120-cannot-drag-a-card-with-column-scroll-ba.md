@@ -1,11 +1,11 @@
 ---
 id: i0120
 title: Cannot drag a card with column scroll bar
-status: review
+status: in-progress
 type: issue
 created: 2026-07-21
 updated: 2026-07-21
-status-changed: 2026-07-21T09:47:20
+status-changed: 2026-07-21T10:02:15
 epic: e02
 ---
 
@@ -60,3 +60,5 @@ whichever engine is underneath.
   own stylesheet now carries the declarations rather than relying on the UA
   rule. Worth one drag in the running app from a scrolling column.
 - 2026-07-21 status → review (agent)
+- 2026-07-21 reopened (agent): the user-select fix was real but was masking the
+  actual cause. Root cause found and measured — see Notes.
