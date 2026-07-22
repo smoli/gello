@@ -1,10 +1,10 @@
 ---
 id: c0117
 title: Have a delay for a companion before picking up a card
-status: review
+status: done
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T07:33:22
+status-changed: 2026-07-22T08:08:53
 epic: e08
 ---
 
@@ -141,3 +141,4 @@ so the countdown restarts.
   criteria pass; 1019 tests, typecheck and lint green, and a live scratch run
   confirmed a ready card sat undispatched inside its window.
 - 2026-07-22 status → review (agent)
+- 2026-07-22 status → done (app)

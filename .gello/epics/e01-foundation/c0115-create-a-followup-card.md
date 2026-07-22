@@ -1,10 +1,10 @@
 ---
 id: c0115
 title: Create a followup card
-status: review
+status: done
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T06:55:04
+status-changed: 2026-07-22T08:08:39
 epic: e01
 ---
 
@@ -139,3 +139,4 @@ legible rather than surprising.
   separate Follow-ups section, ready-landing note on the draft form. 973 tests
   green.
 - 2026-07-22 status → review (agent)
+- 2026-07-22 status → done (app)
