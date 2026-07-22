@@ -77,8 +77,9 @@ so the countdown restarts.
   *today, moving a card back does not recall an already-dispatched agent*
   (exactly what forced killing the companion during the c0116 accident).
   Stopping an in-flight run raises partial-work and process-control questions
-  and deserves its own discussion. Rejected here: auto-recall on drag-out, and
-  an explicit stop control (which also overlaps c0112's deferred control keys).
+  and deserves its own discussion — split out as [[c0119]]. Rejected here:
+  auto-recall on drag-out, and an explicit stop control (which also overlaps
+  c0112's deferred control keys).
 - **Reuse over new state**: `status-changed` answers "how long has it waited",
   `throttle.ts`'s `Scheduler` answers "wake me later", `CompanionConfig`
   answers "how long", and `isCompanionLive` answers "is anyone watching".
