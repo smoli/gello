@@ -1,12 +1,12 @@
 ---
 id: c0120
 title: Trigger display stays when moving to other card
-status: in-progress
+status: review
 ref: c0118
 epic: e01
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T07:05:55
+status-changed: 2026-07-22T07:10:42
 ---
 
 When I move the mouse from one card to another the trigger stays. Only when I exit the card to the side, it vanishes
@@ -74,3 +74,4 @@ could not assert the behaviour at all, because jsdom applies no stylesheet.
   on dragStart); CSS reveals on `.card-followup-visible` instead of
   `.card-front:hover`. 4 tests added, 983 green. Mechanism reasoned, not
   observed in a WebView — see Notes.
+- 2026-07-22 status → review (agent)
