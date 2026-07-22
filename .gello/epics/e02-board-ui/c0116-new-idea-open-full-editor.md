@@ -37,19 +37,19 @@ not collapse when the textarea loses focus.
 
 ## Acceptance criteria
 
-- [ ] Focusing the Details/Goal textarea expands the capture panel into a
+- [x] Focusing the Details/Goal textarea expands the capture panel into a
       larger centred editor
-- [ ] Text already typed into the title and body survives the expansion
-- [ ] The panel does not collapse when the textarea loses focus; it stays
+- [x] Text already typed into the title and body survives the expansion
+- [x] The panel does not collapse when the textarea loses focus; it stays
       expanded until the capture closes
-- [ ] Nothing is written to disk until Add — cancelling still leaves no file
-- [ ] Escape with an empty body closes the capture immediately, as today
-- [ ] Escape with a non-empty body asks for confirmation before discarding
-- [ ] All three modes get it: new idea, new issue (⌘I / report-issue), new epic
+- [x] Nothing is written to disk until Add — cancelling still leaves no file
+- [x] Escape with an empty body closes the capture immediately, as today
+- [x] Escape with a non-empty body asks for confirmation before discarding
+- [x] All three modes get it: new idea, new issue (⌘I / report-issue), new epic
       (Goal field)
-- [ ] Pasting an image into the draft still works while expanded (the i0013 /
+- [x] Pasting an image into the draft still works while expanded (the i0013 /
       i0022 reserved-id path is unaffected)
-- [ ] The textarea keeps its current Enter-inserts-a-newline behaviour
+- [x] The textarea keeps its current Enter-inserts-a-newline behaviour
 
 ## Discussion
 
@@ -73,6 +73,27 @@ not collapse when the textarea loses focus.
   transitioning to a centred overlay — a visual call better made in the running
   app than on this card; whether the expanded state should be remembered as the
   default for subsequent captures.
+
+## Notes
+
+- All of it is `CaptureForm.tsx` plus its styles, as the discussion predicted:
+  two pieces of state (`expanded`, `confirmingDiscard`), a class swap on the
+  panel, and the confirm row in place of Add/Cancel. No new component, nothing
+  touched in `App.tsx`, so the three modes and the report-issue overlay get it
+  from the shared form.
+- Expanded is a class, not a different render tree — the same input and
+  textarea nodes stay mounted, so the typed text and the focus stay put and
+  the i0013 paste path is untouched. `rows` goes 3 → 16 so the field grows
+  even before CSS.
+- The report-issue overlay (c040) already centres the panel, so the expanded
+  rule's centring transform is reset there; only the width changes.
+- Escape while the confirm prompt is up dismisses the prompt instead of
+  confirming it, so a reflex double-tap cannot blow through the guard. Only
+  Escape is guarded — clicking Cancel is a deliberate aim at a button, and
+  routing it through the prompt was not asked for.
+- Still open from the discussion: whether centred-overlay is the right look
+  versus growing in the corner. It is one CSS rule
+  (`.quick-capture-expanded`), so it is cheap to change after seeing it live.
 
 ## Log
 
