@@ -44,22 +44,22 @@ legible rather than surprising.
 
 ## Acceptance criteria
 
-- [ ] A **Follow up** action appears on a card only when its status is `review`
+- [x] A **Follow up** action appears on a card only when its status is `review`
       or `done`; **Report issue** stays available on any card
-- [ ] Follow up creates a **task** (`c` id) with `ref:` set to the parent and
+- [x] Follow up creates a **task** (`c` id) with `ref:` set to the parent and
       the parent's `epic`, filed in the parent's folder
-- [ ] The new follow-up's status is `ready`
-- [ ] With a companion running, a new follow-up is dispatched without any
+- [x] The new follow-up's status is `ready`
+- [x] With a companion running, a new follow-up is dispatched without any
       further action, once the WIP limit and the existing `ready` queue allow
-- [ ] A follow-up is created without an `order`, so it queues behind cards
+- [x] A follow-up is created without an `order`, so it queues behind cards
       already ordered in `ready` rather than preempting them
-- [ ] The parent's detail lists **Open issues** and **Follow-ups** as separate
+- [x] The parent's detail lists **Open issues** and **Follow-ups** as separate
       sections, each showing only cards that are not `done`
-- [ ] A follow-up's detail shows the existing clickable back-link to its parent
-- [ ] Report issue is unchanged — still an `issue`, still `backlog`
-- [ ] Card creation stays one shared path parameterised by type; no duplicated
+- [x] A follow-up's detail shows the existing clickable back-link to its parent
+- [x] Report issue is unchanged — still an `issue`, still `backlog`
+- [x] Card creation stays one shared path parameterised by type; no duplicated
       creation logic
-- [ ] The UI makes clear that a follow-up goes straight to `ready` (i.e. that a
+- [x] The UI makes clear that a follow-up goes straight to `ready` (i.e. that a
       running companion will start on it)
 
 ## Discussion
