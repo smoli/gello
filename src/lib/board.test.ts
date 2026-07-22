@@ -16,6 +16,7 @@ import {
   withUpdatedCard,
   withoutCard,
   blockersFor,
+  openDependencies,
   blockingCards,
   columnComparator,
   dependenciesOf,
@@ -891,6 +892,28 @@ describe("blockersFor (c0123)", () => {
       const model = boardOf(dep("c002", status, "c001"), dep("c001", "backlog"));
       expect(idsFor(model, "c002")).toEqual([]);
     }
+  });
+
+  // c0125: the same dependency rule without the status gate. `blockersFor`
+  // only speaks up where an open dependency is a problem to look at; the
+  // companion's dispatch gate cares in *whatever* status is configured as its
+  // trigger (c0099), which need not be `ready`.
+  it("openDependencies reports regardless of status, where blockersFor stays quiet", () => {
+    const model = boardOf(dep("c002", "backlog", "c001"), dep("c001", "backlog"));
+    const card = findCardById(model, "c002")!;
+    expect(blockersFor(model, card)).toEqual([]); // backlog: an open dep is the plan
+    expect(openDependencies(model, card)).toEqual([{ id: "c001", missing: false }]);
+  });
+
+  it("openDependencies agrees with blockersFor where both apply", () => {
+    const model = boardOf(dep("c002", "ready", "c001"), dep("c001", "review"));
+    const card = findCardById(model, "c002")!;
+    expect(openDependencies(model, card)).toEqual(blockersFor(model, card));
+  });
+
+  it("openDependencies is empty once every dependency is done", () => {
+    const model = boardOf(dep("c002", "backlog", "c001"), dep("c001", "done"));
+    expect(openDependencies(model, findCardById(model, "c002")!)).toEqual([]);
   });
 
   it("marks a dependency that matches no card as missing", () => {

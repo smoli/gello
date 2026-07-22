@@ -306,6 +306,31 @@ describe("Board", () => {
     expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
   });
 
+  // c0125: "but show it after the block is gone" — the other half is covered by
+  // the blocked-precedence test further down.
+  it("c0125: shows the countdown once the dependency is done", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, done]\n"),
+      file(
+        "cards/c001-wait.md",
+        `---\nid: c001\ntitle: Waiting card\nstatus: ready\ndepends: [c009]\nstatus-changed: ${localNow()}\n---\nbody\n`,
+      ),
+      file("cards/c009-dep.md", `---\nid: c009\ntitle: Dep\nstatus: done\n---\nbody\n`),
+    ]);
+    const runner = {
+      status: "idle" as const,
+      ready: ["c001"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 10,
+    };
+    render(<Board model={model} runner={runner} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+    expect(within(front).queryByText(/waiting on/)).not.toBeInTheDocument();
+  });
+
   it("c0117: shows no countdown when no companion is attached", () => {
     render(<Board model={readyBoard()} runner={null} />);
     const front = screen.getByText("Waiting card").closest("article")!;
@@ -434,7 +459,11 @@ describe("Board", () => {
     expect(within(front).queryByText(/waiting on/i)).not.toBeInTheDocument();
   });
 
-  it("c0123: the pickup countdown takes the slot ahead of blocked", () => {
+  // c0125 supersedes c0123's precedence here: this card is *blocked*, so the
+  // companion will never pick it up and a countdown would promise otherwise.
+  // Blocked now wins the slot; the countdown only applies to a card that is
+  // genuinely next.
+  it("c0125: a blocked card shows what it waits on, not a countdown", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [ready, review]\n"),
       file(
@@ -453,8 +482,8 @@ describe("Board", () => {
     };
     render(<Board model={model} runner={runner} />);
     const front = heldFront();
-    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
-    expect(within(front).queryByText(/waiting on/i)).not.toBeInTheDocument();
+    expect(within(front).queryByText(/picking up/i)).not.toBeInTheDocument();
+    expect(within(front).getByText(/waiting on/i)).toBeInTheDocument();
   });
 
   it("renders the configured columns in order", () => {

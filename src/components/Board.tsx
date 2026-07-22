@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   blockersFor,
+  openDependencies,
   columnComparator,
   findCardById,
   MANUAL_COLUMNS,
@@ -46,6 +47,10 @@ interface BoardCard {
   /** c0123: the unfinished dependencies holding this card back; empty when
    *  nothing is. Resolved here, where the whole model is on hand. */
   blockers: Blocker[];
+  /** c0125: whether any dependency is still open, *regardless of status*. The
+   *  companion's dispatch gate is not status-scoped the way `blockers` is (its
+   *  trigger is configurable), so the pickup countdown asks this instead. */
+  blocked: boolean;
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
@@ -68,6 +73,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
       epicLabel: group.epic?.title ?? group.folder,
       filterKey: group.folder,
       blockers: blockersFor(model, card),
+      blocked: openDependencies(model, card).length > 0,
     })),
   );
   const standaloneCards: BoardCard[] = model.cards.map((card) => ({
@@ -75,6 +81,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
     epicLabel: null,
     filterKey: "no-epic",
     blockers: blockersFor(model, card),
+    blocked: openDependencies(model, card).length > 0,
   }));
   return [...standaloneCards, ...epicCards];
 }
@@ -735,7 +742,7 @@ function CardFront({
   /** i0114: shade the chip fills dark in dark mode. */
   darkChips: boolean;
 }) {
-  const { card, epicLabel, blockers } = entry;
+  const { card, epicLabel, blockers, blocked } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
@@ -743,7 +750,13 @@ function CardFront({
   // c0117: before that, the grace period the companion is still waiting out.
   // Mutually exclusive with the activity line — a card cannot be both queued
   // for pickup and already running.
-  const countdown = pickupCountdown(runner ?? null, card.id, card.statusChanged, Date.now());
+  const countdown = pickupCountdown(
+    runner ?? null,
+    card.id,
+    card.statusChanged,
+    Date.now(),
+    blocked,
+  );
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;

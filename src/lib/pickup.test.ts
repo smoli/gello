@@ -66,4 +66,19 @@ describe("pickupCountdown", () => {
     expect(pickupCountdown(state(), "c001", null, NOW)).toBeNull();
     expect(pickupCountdown(state(), "c001", "not a date", NOW)).toBeNull();
   });
+
+  // c0125: the companion gates on `depends` *before* the grace period, so a
+  // blocked card is never picked up — counting down to a pickup that cannot
+  // happen is a lie, and it hid the "waiting on …" line that says why.
+  it("shows nothing while the card is blocked by a dependency", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW, true)).toBeNull();
+  });
+
+  it("shows the countdown again once the block is gone", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW, false)).toBe(5);
+  });
+
+  it("is unblocked by default, so existing callers are unchanged", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW)).toBe(5);
+  });
 });

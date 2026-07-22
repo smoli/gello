@@ -364,6 +364,20 @@ const BLOCKED_STATUSES: ReadonlySet<string> = new Set(["ready", "in-progress"]);
  */
 export function blockersFor(model: BoardModel, card: Card): Blocker[] {
   if (!BLOCKED_STATUSES.has(card.status)) return [];
+  return openDependencies(model, card);
+}
+
+/**
+ * The same dependency rule with no status gate (c0125): every `depends` entry
+ * that is not `done`, an absent id counting as open.
+ *
+ * `blockersFor` only speaks up in the statuses where an open dependency is a
+ * problem worth looking at. The companion's dispatch gate has no such licence —
+ * it holds a card back in whatever status is configured as its trigger (c0099),
+ * which need not be `ready` — so anything reasoning about *dispatch* asks this
+ * instead. One rule, two policies about where it applies.
+ */
+export function openDependencies(model: BoardModel, card: Card): Blocker[] {
   return card.depends.flatMap((id): Blocker[] => {
     const dependency = findCardById(model, id);
     if (dependency === null) return [{ id, missing: true }];
