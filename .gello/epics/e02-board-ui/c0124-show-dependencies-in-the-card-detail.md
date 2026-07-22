@@ -60,25 +60,25 @@ card that owns them.
 
 ## Acceptance criteria
 
-- [ ] The detail shows a **Depends on** section listing every dependency as
+- [x] The detail shows a **Depends on** section listing every dependency as
       `{id} — {title}`, each opening that card
-- [ ] Dependencies that are not `done` are visually distinguished from
+- [x] Dependencies that are not `done` are visually distinguished from
       satisfied ones
-- [ ] A dependency id matching no card on the board is shown as missing, in the
+- [x] A dependency id matching no card on the board is shown as missing, in the
       style of the existing `ref` fallback
-- [ ] The detail shows a **Blocking** section listing cards whose `depends`
+- [x] The detail shows a **Blocking** section listing cards whose `depends`
       include this card, hidden when there are none
-- [ ] Both sections use the existing `card-backlinks` / `card-link` pattern and
+- [x] Both sections use the existing `card-backlinks` / `card-link` pattern and
       navigate via `onOpenCardId`
-- [ ] A dependency can be added from the detail through a card picker
-- [ ] A dependency can be removed from the detail
-- [ ] `depends` is written through the surgical frontmatter path, leaving every
+- [x] A dependency can be added from the detail through a card picker
+- [x] A dependency can be removed from the detail
+- [x] `depends` is written through the surgical frontmatter path, leaving every
       untouched line byte-identical
-- [ ] A card cannot be made to depend on itself
-- [ ] Adding a dependency that would create a cycle is refused, and the reason
+- [x] A card cannot be made to depend on itself
+- [x] Adding a dependency that would create a cycle is refused, and the reason
       is shown
-- [ ] The Blocking list is read-only — no control there writes another card
-- [ ] Editing dependencies writes only the edited card's file
+- [x] The Blocking list is read-only — no control there writes another card
+- [x] Editing dependencies writes only the edited card's file
 
 ## Discussion
 
