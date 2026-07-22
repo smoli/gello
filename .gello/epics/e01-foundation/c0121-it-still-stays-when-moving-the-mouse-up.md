@@ -28,9 +28,46 @@ Third report on the same affordance. c0118 revealed the trigger with
 `.card-front:hover`; c0120 moved the reveal onto React state driven by
 mouseenter/mouseleave. Down the column now clears correctly, up does not.
 
+## Acceptance criteria
+
+- [x] Moving the pointer up a column clears the trigger on the card left behind
+- [x] At most one card on the board shows a trigger at any time
+- [x] Entering a card clears every other card's trigger on its own, without
+      depending on a `mouseleave` from the card being left
+- [x] Moving down, leaving sideways, and dragging still clear it (c0120)
+- [x] Covered by tests that fail without the fix
+
 ## Notes
 
-What I ruled out by reading the code:
+**Root cause, found by reproducing it rather than reasoning.** Built a
+throwaway CDP harness: headless Chrome, the Tauri boundary mocked via
+`Page.addScriptToEvaluateOnNewDocument` (`find_board_root` /
+`read_board_files`), pointed at the running Vite server, driving real
+`Input.dispatchMouseEvent` moves up and down a column of review cards and
+reading back which triggers were lit.
+
+In Chrome the c0120 code was already correct in **both** directions — exactly
+one card lit, moving up or down. That is the finding: the enter/leave logic is
+sound, and WKWebView is simply not delivering the `mouseleave` when the pointer
+exits a card upward.
+
+The actual defect was therefore the *shape* of the state, not the handlers.
+c0120 gave every card its own boolean, so a dropped `mouseleave` stranded one
+lit with nothing able to evict it — matching "stays forever, vanishes when I
+move down" precisely (moving down does deliver the leave).
+
+**Fix**: one board-level `hoveredPath` instead of N booleans. Entering a card
+overwrites it, so the *enter* alone evicts the previous card and the leave
+becomes a bonus rather than a requirement. Two cards can no longer be lit at
+once by construction. `onHoverEnd` clears only if the card still owns the
+reveal, so a late leave cannot unlight the card now hovered.
+
+Verified both ways: in jsdom (an enter with no preceding leave moves the
+reveal — fails before the fix), and in the real browser harness, where
+dispatching a bare `mouseover` on another card while one is lit now hands the
+reveal over cleanly.
+
+Earlier, ruled out by reading the code:
 
 - **No geometric asymmetry.** Moving up and moving down cross the same
   `0.5rem` column gap. The insert zone between cards is `height: 0` and
