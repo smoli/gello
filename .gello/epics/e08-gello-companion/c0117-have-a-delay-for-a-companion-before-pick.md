@@ -47,24 +47,24 @@ so the countdown restarts.
 
 ## Acceptance criteria
 
-- [ ] A card entering the trigger status is not dispatched until `pickupDelay`
+- [x] A card entering the trigger status is not dispatched until `pickupDelay`
       has elapsed since its `status-changed`
-- [ ] `pickupDelay` is configurable via `companion.yaml` and an env override
+- [x] `pickupDelay` is configurable via `companion.yaml` and an env override
       (c0099 pattern), defaulting to 10s; `0` dispatches immediately
-- [ ] A card moved out of the trigger status within the window is never
+- [x] A card moved out of the trigger status within the window is never
       dispatched
-- [ ] Moving it back in restarts the countdown
-- [ ] A card left untouched still dispatches once its delay elapses — the
+- [x] Moving it back in restarts the countdown
+- [x] A card left untouched still dispatches once its delay elapses — the
       runner re-checks on a timer rather than waiting for another file change
-- [ ] Resuming a parked card (its question was answered) is **not** delayed
-- [ ] A card whose `status-changed` is missing or unparseable is treated as
+- [x] Resuming a parked card (its question was answered) is **not** delayed
+- [x] A card whose `status-changed` is missing or unparseable is treated as
       eligible, never blocked indefinitely
-- [ ] The configured delay appears in the companion state file
-- [ ] With a companion live, a waiting card's front shows a countdown; with no
+- [x] The configured delay appears in the companion state file
+- [x] With a companion live, a waiting card's front shows a countdown; with no
       companion attached, nothing is shown
-- [ ] The WIP limit still applies — the delay is an additional gate, not a
+- [x] The WIP limit still applies — the delay is an additional gate, not a
       replacement
-- [ ] The delay is unit-tested with a fake scheduler (no real-time waiting)
+- [x] The delay is unit-tested with a fake scheduler (no real-time waiting)
 
 ## Discussion
 
