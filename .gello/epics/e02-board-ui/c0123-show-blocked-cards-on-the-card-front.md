@@ -1,11 +1,11 @@
 ---
 id: c0123
 title: Show on the card front when a card is blocked by a dependency
-status: review
+status: done
 epic: e02
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T18:55:53
+status-changed: 2026-07-22T19:37:54
 ---
 
 ## What
@@ -134,3 +134,4 @@ separate gap.
 - 2026-07-22 status → in-progress (agent)
 - 2026-07-22 blockersFor + the blocked line on the card front, 17 tests
 - 2026-07-22 status → review (agent)
+- 2026-07-22 status → done (app)
