@@ -7,7 +7,19 @@ epic: e01
 created: 2026-07-22
 updated: 2026-07-22
 status-changed: 2026-07-22T07:11:55
+awaiting: input
 ---
+
+```gelloquestion
+I'd rather not ship a third guess at this. c0120 was already a fix reasoned from the code that didn't hold, and I can't observe the real behaviour from here: no browser automation in the repo, `pnpm tauri dev` can't start (port 1420 is your own dev server, up ~23h), and jsdom has no layout or real pointer, so this class of bug can't be reproduced in the suite. Reading the code, I ruled out the things that would explain it — there's no geometric asymmetry between moving up and moving down (same 8px gap, the insert zone between cards is height-0 and `pointer-events: none`), it isn't the coarse-pointer fallback, and after c0120 the reveal doesn't consult CSS `:hover` at all.
+
+So: how do you want to proceed?
+
+- [ ] **Drop the hover reveal — make the trigger always visible but quiet** (my recommendation). A small, low-contrast `+` that's simply always there. There's no hover state left to get stranded, so this whole bug class disappears, and it still meets c0118's "small, doesn't compete with the title/badges/tags". Costs a little board calm on columns full of finished cards.
+- [ ] **Reveal per column instead of per card** — any card in the column the pointer is in shows its trigger. One hover region instead of N, so moving between cards never hands state over. Still a hover reveal, so still some risk.
+- [ ] **Keep chasing it** — then I need one detail from you, since I can't see it: when it stays on the way up, does it stay *forever* until you move down again, or does it clear after a second / after you click somewhere? And does it stay on the card you left, or does the *whole column* end up showing triggers?
+- [ ] Something else (say what)
+```
 
 It vanishes when going down the column
 
