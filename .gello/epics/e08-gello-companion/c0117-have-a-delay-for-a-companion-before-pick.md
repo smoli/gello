@@ -1,11 +1,12 @@
 ---
 id: c0117
 title: Have a delay for a companion before picking up a card
-status: discuss
+status: backlog
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T06:53:23
+status-changed: 2026-07-22T07:03:10
 epic: e08
+order: 0
 ---
 
 ## What
@@ -98,3 +99,4 @@ so the countdown restarts.
   re-checked via the existing `Scheduler`; countdown on the card front when a
   companion is attached; resumes exempt; recalling an already-dispatched agent
   deliberately left to its own card.
+- 2026-07-22 status → backlog (app)

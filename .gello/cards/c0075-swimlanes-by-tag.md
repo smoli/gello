@@ -1,10 +1,10 @@
 ---
 id: c0075
 title: Swimlanes by tag
-status: discuss
+status: backlog
 created: 2026-07-18
-updated: 2026-07-18
-status-changed: 2026-07-18T16:17:17
+updated: 2026-07-22
+status-changed: 2026-07-22T07:03:03
 ---
 
 Spun out of [[c0058]] (tags refinement): grouping the board into horizontal
@@ -92,3 +92,4 @@ first-class on the board.
   (None/Tag/Epic, satisfying concept.md's epic swimlanes); a card shows in
   every matching tag lane; lanes group the filtered set; a leftover
   Untagged/No-epic lane so nothing hides; drops change status only, not lane.
+- 2026-07-22 status → backlog (app)
