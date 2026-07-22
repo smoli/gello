@@ -19,20 +19,21 @@ and queueing more work happen in the same place.
 
 ## Acceptance criteria
 
-- [ ] A card front whose status is `review` or `done` shows a small follow-up
+- [x] A card front whose status is `review` or `done` shows a small follow-up
       trigger; a card in any other status shows none
-- [ ] Clicking the trigger opens the follow-up draft straight from the board,
+- [x] Clicking the trigger opens the follow-up draft straight from the board,
       without opening the card detail first
-- [ ] The trigger's click does not fall through to the card (the detail view
+- [x] The trigger's click does not fall through to the card (the detail view
       does not open behind the draft)
-- [ ] Submitting that draft creates exactly what c0115 creates — a task with
+- [x] Submitting that draft creates exactly what c0115 creates — a task with
       `ref` to the card, the card's epic, landing in `ready`
-- [ ] The draft still states that the card lands in `ready`, so the click that
+- [x] The draft still states that the card lands in `ready`, so the click that
       can start an agent run stays legible (c0115)
-- [ ] The trigger is keyboard reachable and carries an accessible name naming
+- [x] The trigger is keyboard reachable and carries an accessible name naming
       the card it follows up on
-- [ ] The trigger stays quiet: it does not compete with the card's title,
-      badges or tags
+- [~] The trigger stays quiet: it does not compete with the card's title,
+      badges or tags — implemented, but verified by code/CSS review only, not
+      on screen (see Notes)
 
 ## Notes
 
