@@ -342,6 +342,121 @@ describe("Board", () => {
     expect(activityLine(localNow())).toHaveClass("card-activity");
   });
 
+  // c0123: a ready card held by an unfinished dependency is a silent failure —
+  // it looks exactly like one about to run. Derived from the model, so it shows
+  // with no companion running.
+
+  function blockedBoard(status = "ready", dependsOn = "c001") {
+    return loadBoard([
+      file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
+      file(
+        "cards/c002-held.md",
+        `---\nid: c002\ntitle: Held card\nstatus: ${status}\ndepends: [${dependsOn}]\n---\nbody\n`,
+      ),
+      file("cards/c001-dep.md", card("c001", "The dependency", "review")),
+    ]);
+  }
+  const heldFront = () => screen.getByText("Held card").closest("article")!;
+
+  it("c0123: names the dependency a ready card is waiting on", () => {
+    render(<Board model={blockedBoard()} />);
+    const line = within(heldFront()).getByText(/waiting on/i);
+    expect(within(line).getByText("c001")).toBeInTheDocument();
+  });
+
+  it("c0123: opens the blocker, and not the card it sits on", () => {
+    const onSelectCard = vi.fn();
+    render(<Board model={blockedBoard()} onSelectCard={onSelectCard} />);
+
+    fireEvent.click(within(heldFront()).getByRole("button", { name: /c001/ }));
+
+    // the whole front is a click target too — it must not open behind this
+    expect(onSelectCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+    );
+  });
+
+  it("c0123: shows a dependency with no card behind it as missing", () => {
+    render(<Board model={blockedBoard("ready", "c404")} />);
+    const front = heldFront();
+    expect(within(front).getByText(/waiting on/i)).toHaveTextContent(/c404/);
+    // nothing to navigate to, so it is not offered as a link
+    expect(within(front).queryByRole("button", { name: /c404/ })).not.toBeInTheDocument();
+    expect(within(front).getByText(/missing/i)).toBeInTheDocument();
+  });
+
+  it("c0123: says nothing when the dependency is done", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, done]\n"),
+      file(
+        "cards/c002-held.md",
+        "---\nid: c002\ntitle: Held card\nstatus: ready\ndepends: [c001]\n---\nbody\n",
+      ),
+      file("cards/c001-dep.md", card("c001", "The dependency", "done")),
+    ]);
+    render(<Board model={model} />);
+    expect(within(heldFront()).queryByText(/waiting on/i)).not.toBeInTheDocument();
+  });
+
+  it("c0123: says nothing in a status where an open dependency is just the plan", () => {
+    render(<Board model={blockedBoard("backlog")} />);
+    expect(within(heldFront()).queryByText(/waiting on/i)).not.toBeInTheDocument();
+  });
+
+  it("c0123: flags an in-progress card whose dependency is not done", () => {
+    render(<Board model={blockedBoard("in-progress")} />);
+    expect(within(heldFront()).getByText(/waiting on/i)).toBeInTheDocument();
+  });
+
+  it("c0123: takes the shared line's truncating base class", () => {
+    render(<Board model={blockedBoard()} />);
+    expect(within(heldFront()).getByText(/waiting on/i)).toHaveClass("card-activity");
+  });
+
+  it("c0123: a live activity line takes the slot ahead of blocked", () => {
+    const runner = {
+      status: "running" as const,
+      ready: [],
+      waiting: [],
+      runs: [
+        {
+          cardId: "c002",
+          phase: "running" as const,
+          activity: { name: "Edit", arg: "src/runner.ts" },
+        },
+      ],
+      updated: localNow(),
+      pickupDelay: 0,
+    };
+    render(<Board model={blockedBoard("in-progress")} runner={runner} />);
+    const front = heldFront();
+    expect(within(front).getByText("Editing runner.ts")).toBeInTheDocument();
+    expect(within(front).queryByText(/waiting on/i)).not.toBeInTheDocument();
+  });
+
+  it("c0123: the pickup countdown takes the slot ahead of blocked", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, review]\n"),
+      file(
+        "cards/c002-held.md",
+        `---\nid: c002\ntitle: Held card\nstatus: ready\ndepends: [c001]\nstatus-changed: ${localNow()}\n---\nbody\n`,
+      ),
+      file("cards/c001-dep.md", card("c001", "The dependency", "review")),
+    ]);
+    const runner = {
+      status: "idle" as const,
+      ready: ["c002"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 10,
+    };
+    render(<Board model={model} runner={runner} />);
+    const front = heldFront();
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+    expect(within(front).queryByText(/waiting on/i)).not.toBeInTheDocument();
+  });
+
   it("renders the configured columns in order", () => {
     const custom = loadBoard([file("board.yaml", "columns: [todo, doing, shipped]\n")]);
     render(<Board model={custom} />);

@@ -101,6 +101,28 @@ separate gap.
 - **Open**: whether the companion's WIP-limit hold should later share this line
   once those reasons are published into the state file.
 
+## Notes
+
+- The rule is `blockersFor(model, card)` in `board.ts`, next to
+  `openIssuesFor` — same shape of thing: derived at render time, never written
+  into a card. It returns the unfinished dependencies in the order the card
+  lists them, each flagged `missing` when no card carries that id, and an empty
+  list for every status where an open dependency means nothing. So the caller
+  renders on a non-empty result and holds no policy.
+- Resolved in `collectStatusCards`, which already builds each card's display
+  context and is memoised on the model, and carried on `BoardCard` — the card
+  front never sees the model. The id → card lookup for the click is `Board`'s,
+  for the same reason.
+- The line reuses `card-activity` for its truncation and adds
+  `card-activity-blocked`; the amber matches the WIP overrun and the
+  needs-attention lane. No sweep: c0113 animates a line because work is
+  happening, and here the point is that none is.
+- Precedence is a plain guard — the line renders only when there is no activity
+  line and no countdown. The card flagged this as my call to revisit: blocked
+  is currently maskable by a running agent on the same card.
+- `depends` had no reader in the app before this (see [[c0124]]); this is the
+  first, and it deliberately does not touch the file.
+
 ## Log
 
 - 2026-07-22 raised after the popexel c0073 case: a ready card held by an
@@ -110,3 +132,4 @@ separate gap.
   `in-progress`; the WIP-limit hold stays out of scope as a companion fact.
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 blockersFor + the blocked line on the card front, 17 tests

@@ -15,6 +15,7 @@ import {
   withNewStandaloneCard,
   withUpdatedCard,
   withoutCard,
+  blockersFor,
   columnComparator,
   planManualInsert,
   wipState,
@@ -835,6 +836,73 @@ describe("wipState (c008)", () => {
   it("treats a limit of 0 as a real limit, not an absent one", () => {
     expect(wipState(config, "review", 0)!.over).toBe(false);
     expect(wipState(config, "review", 1)!.over).toBe(true);
+  });
+});
+
+describe("blockersFor (c0123)", () => {
+  const dep = (id: string, status: string, depends?: string) =>
+    file(
+      `cards/${id}-x.md`,
+      `---\nid: ${id}\ntitle: Card ${id}\nstatus: ${status}\n${
+        depends ? `depends: [${depends}]\n` : ""
+      }---\nbody\n`,
+    );
+  const boardOf = (...files: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\n"),
+      ...files,
+    ]);
+  const idsFor = (model: ReturnType<typeof loadBoard>, id: string) =>
+    blockersFor(model, findCardById(model, id)!).map((b) => b.id);
+
+  it("names the dependency a ready card is waiting on", () => {
+    const model = boardOf(dep("c002", "ready", "c001"), dep("c001", "review"));
+    expect(blockersFor(model, findCardById(model, "c002")!)).toEqual([
+      { id: "c001", missing: false },
+    ]);
+  });
+
+  it("leaves out the dependencies that are done", () => {
+    const model = boardOf(
+      dep("c003", "ready", "c001, c002"),
+      dep("c001", "done"),
+      dep("c002", "backlog"),
+    );
+    expect(idsFor(model, "c003")).toEqual(["c002"]);
+  });
+
+  it("says nothing when every dependency is done", () => {
+    const model = boardOf(dep("c002", "ready", "c001"), dep("c001", "done"));
+    expect(blockersFor(model, findCardById(model, "c002")!)).toEqual([]);
+  });
+
+  it("flags an in-progress card too — a dependency undone after dispatch", () => {
+    const model = boardOf(dep("c002", "in-progress", "c001"), dep("c001", "ready"));
+    expect(idsFor(model, "c002")).toEqual(["c001"]);
+  });
+
+  it("says nothing in any other status — there an open dependency is the plan", () => {
+    for (const status of ["backlog", "review", "done", "inbox"]) {
+      const model = boardOf(dep("c002", status, "c001"), dep("c001", "backlog"));
+      expect(idsFor(model, "c002")).toEqual([]);
+    }
+  });
+
+  it("marks a dependency that matches no card as missing", () => {
+    const model = boardOf(dep("c002", "ready", "c404"));
+    expect(blockersFor(model, findCardById(model, "c002")!)).toEqual([
+      { id: "c404", missing: true },
+    ]);
+  });
+
+  it("keeps the card's own order when several are unfinished", () => {
+    const model = boardOf(
+      dep("c004", "ready", "c003, c001, c002"),
+      dep("c001", "backlog"),
+      dep("c002", "review"),
+      dep("c003", "done"),
+    );
+    expect(idsFor(model, "c004")).toEqual(["c001", "c002"]);
   });
 });
 

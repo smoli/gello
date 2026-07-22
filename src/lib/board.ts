@@ -343,6 +343,34 @@ export function openFollowUpsFor(model: BoardModel, id: string): Card[] {
   );
 }
 
+/** An unfinished dependency, the reason a card will not be picked up (c0123). */
+export interface Blocker {
+  id: string;
+  /** No card on the board carries this id — a typo or a deleted card. */
+  missing: boolean;
+}
+
+/** Statuses where an unfinished dependency is worth flagging (c0123): in
+ *  `ready` it costs a run, in `in-progress` it is an anomaly. Anywhere else an
+ *  open dependency is just the plan. */
+const BLOCKED_STATUSES: ReadonlySet<string> = new Set(["ready", "in-progress"]);
+
+/**
+ * The dependencies holding `card` back, in the order the card lists them.
+ * Empty when nothing is holding it — including every status where an open
+ * dependency means nothing — so a caller can render on a non-empty result.
+ *
+ * A board fact: `depends` plus those cards' statuses, no companion involved.
+ */
+export function blockersFor(model: BoardModel, card: Card): Blocker[] {
+  if (!BLOCKED_STATUSES.has(card.status)) return [];
+  return card.depends.flatMap((id): Blocker[] => {
+    const dependency = findCardById(model, id);
+    if (dependency === null) return [{ id, missing: true }];
+    return dependency.status === "done" ? [] : [{ id, missing: false }];
+  });
+}
+
 /**
  * c0088: immutably add a freshly captured card to the standalone `cards/` set,
  * keeping sort order. Capture gives it `status: inbox`, so it lands in the inbox

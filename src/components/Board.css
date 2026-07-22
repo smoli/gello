@@ -571,3 +571,27 @@ button.tag-chip {
   opacity: 0.6;
   font-style: italic;
 }
+
+/* c0123: blocked by an unfinished dependency. The third treatment of this line
+   — no sweep, since nothing is happening, which is the whole point. Amber, as
+   everywhere else something wants attention without being broken. */
+.card-activity-blocked {
+  opacity: 0.85;
+  color: #b97a0a;
+}
+
+/* the named ids are links, not buttons — the line has to stay one line */
+.card-blocked-link {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  border: none;
+  background: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.card-blocked-missing {
+  opacity: 0.75;
+  font-style: italic;
+}

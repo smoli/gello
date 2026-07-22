@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import {
+  blockersFor,
   columnComparator,
+  findCardById,
   MANUAL_COLUMNS,
   planManualInsert,
   wipState,
+  type Blocker,
   type BoardModel,
   type WipState,
 } from "../lib/board";
@@ -40,6 +43,9 @@ interface BoardCard {
   epicLabel: string | null;
   /** Filter key: epic folder, "inbox", or "no-epic" (standalone, c0077). */
   filterKey: string;
+  /** c0123: the unfinished dependencies holding this card back; empty when
+   *  nothing is. Resolved here, where the whole model is on hand. */
+  blockers: Blocker[];
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
@@ -61,12 +67,14 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
       card,
       epicLabel: group.epic?.title ?? group.folder,
       filterKey: group.folder,
+      blockers: blockersFor(model, card),
     })),
   );
   const standaloneCards: BoardCard[] = model.cards.map((card) => ({
     card,
     epicLabel: null,
     filterKey: "no-epic",
+    blockers: blockersFor(model, card),
   }));
   return [...standaloneCards, ...epicCards];
 }
@@ -168,6 +176,12 @@ export function Board({
   const setDragState = (card: Card | null) => {
     setDragging(card);
     if (!card) setOverColumn(null);
+  };
+
+  /** c0123: a blocker named on a card front opens that card. */
+  const openBlocker = (id: string) => {
+    const target = findCardById(model, id);
+    if (target) onSelectCard?.(target);
   };
 
   /** Leave only clears the reveal if this card still owns it — a late leave
@@ -396,6 +410,7 @@ export function Board({
               }
               onMoveByKey={moveByKey}
               onSelect={onSelectCard}
+              onOpenCardId={openBlocker}
               onFollowUp={onFollowUpCard}
               hoveredPath={hoveredPath}
               onHover={setHoveredPath}
@@ -490,6 +505,7 @@ function Column({
   onDropAt,
   onMoveByKey,
   onSelect,
+  onOpenCardId,
   onFollowUp,
   hoveredPath,
   onHover,
@@ -532,6 +548,8 @@ function Column({
   onDropAt: (cardPath: string, zoneIndex: number) => void;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  /** c0123: open a card named on a front (a blocker) by its id. */
+  onOpenCardId?: (id: string) => void;
   /** c0118: forwarded to each card front's follow-up trigger. */
   onFollowUp?: (card: Card) => void;
   /** c0121: path of the one card whose trigger is revealed, board-wide. */
@@ -604,6 +622,7 @@ function Column({
                 isOrigin={draggingPath === entry.card.path}
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
+                onOpenCardId={onOpenCardId}
                 onFollowUp={onFollowUp}
                 onHover={onHover}
                 onHoverEnd={onHoverEnd}
@@ -680,6 +699,7 @@ function CardFront({
   isOrigin,
   onMoveByKey,
   onSelect,
+  onOpenCardId,
   onFollowUp,
   onHover,
   onHoverEnd,
@@ -697,6 +717,8 @@ function CardFront({
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  /** c0123: open a card named on a front (a blocker) by its id. */
+  onOpenCardId?: (id: string) => void;
   /** c0118: start a follow-up from this card's front (review/done only). */
   onFollowUp?: (card: Card) => void;
   /** c0121: this card owns the board's single follow-up reveal. */
@@ -713,7 +735,7 @@ function CardFront({
   /** i0114: shade the chip fills dark in dark mode. */
   darkChips: boolean;
 }) {
-  const { card, epicLabel } = entry;
+  const { card, epicLabel, blockers } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
@@ -826,6 +848,42 @@ function CardFront({
           title="Drag the card out of this column to cancel"
         >
           picking up in {countdown}s
+        </p>
+      )}
+      {/* c0123: why this card is going nowhere — the dependencies that are not
+          done yet, each opening that card. A board fact, so it shows with no
+          companion attached. Last of the three treatments of this line: a live
+          activity line and the pickup countdown are more immediate, and blocked
+          is back the moment neither is running. */}
+      {activity === null && countdown === null && blockers.length > 0 && (
+        <p
+          className="card-activity card-activity-blocked"
+          role="status"
+          title="Blocked — these dependencies are not done"
+        >
+          waiting on{" "}
+          {blockers.map((blocker, i) => (
+            <Fragment key={blocker.id}>
+              {i > 0 && ", "}
+              {blocker.missing ? (
+                <span className="card-blocked-missing" title="No card with this id">
+                  {blocker.id} (missing)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="card-blocked-link"
+                  onClick={(event) => {
+                    // the whole front opens this card — don't do both (c0118)
+                    event.stopPropagation();
+                    onOpenCardId?.(blocker.id);
+                  }}
+                >
+                  {blocker.id}
+                </button>
+              )}
+            </Fragment>
+          ))}
         </p>
       )}
       {thumbSrc && loadImage && (
