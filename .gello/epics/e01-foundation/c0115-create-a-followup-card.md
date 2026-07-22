@@ -92,6 +92,36 @@ legible rather than surprising.
   does not today; same-area work argues yes); whether creating a follow-up
   should touch the parent's status (probably not — they are independent).
 
+## Notes
+
+- **Creation is one path.** `createIssueFor` became `createRefCardFor(root,
+  model, source, input, today, kind)` with a `REF_CARD_KINDS` table holding the
+  only per-kind differences: id namespace, `type`, landing status. `issue` →
+  `nextIssueId` / `type: issue` / `backlog`; `followup` → `nextCardId` / no
+  `type` line (task is the default) / `ready`. `createIssueFor` and
+  `createFollowUpFor` are thin wrappers, so existing callers are untouched.
+- **No `order` is written**, so `planDispatch` (which sorts `ready` by
+  `order ?? Infinity`) puts a follow-up last. Criteria 4 and 5 needed no
+  production code — the companion tests are characterisation tests that pin the
+  behaviour the card depends on.
+- **Backlinks split** via a new `openFollowUpsFor` alongside `openIssuesFor`:
+  same non-done ref filter, partitioned on `type === "issue"`. Two sections in
+  `CardDetail`, kept visually separate.
+- **Report issue was ungated.** It was gated to review/done since c024; the
+  card calls for it on any card, so the c024 gating test was rewritten
+  deliberately (as its own change, not weakened to pass).
+- **Ref back-link label is type-aware**: "found in:" for an issue, "follow-up
+  to:" for a task. The shared link markup was already there; only the lead-in
+  differs, since "found in" reads wrong on planned work.
+- **The `ready` landing is stated in the draft form** ("Lands in ready — a
+  running companion will start on it.") plus a button tooltip, so the one click
+  that can start real agent spend is not a surprise.
+- **Both open questions resolved as "no"**, matching the criteria and the
+  reuse-over-reinvention line: a follow-up does **not** inherit the parent's
+  tags (report-issue does not either — one shared path, no special-casing), and
+  creating one does **not** touch the parent's status. Both are cheap to revisit
+  if the tag-less follow-ups turn out to be annoying in practice.
+
 ## Log
 
 - 2026-07-22 status → discuss (app)
@@ -104,3 +134,7 @@ legible rather than surprising.
   position and sort last in `ready` — an ordered ready column is not preempted.
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 implemented (agent): createRefCardFor + createFollowUpFor,
+  openFollowUpsFor, Follow up action on review/done, report-issue ungated,
+  separate Follow-ups section, ready-landing note on the draft form. 973 tests
+  green.
