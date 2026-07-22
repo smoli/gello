@@ -1,13 +1,13 @@
 ---
 id: i0121
 title: Arhived cards should display where they should
-status: review
+status: done
 type: issue
 ref: c018
 epic: e05
 created: 2026-07-21
-updated: 2026-07-21
-status-changed: 2026-07-21T22:36:18
+updated: 2026-07-22
+status-changed: 2026-07-22T06:34:28
 ---
 
 done is sorted chronologically. Archived Cards do not show up chronologically right now.
@@ -38,3 +38,4 @@ done is sorted chronologically. Archived Cards do not show up chronologically ri
 - 2026-07-21 status → in-progress (agent)
 - 2026-07-21 archive/unarchive no longer bump `updated`; c001's date restored
 - 2026-07-21 status → review (agent)
+- 2026-07-22 status → done (app)

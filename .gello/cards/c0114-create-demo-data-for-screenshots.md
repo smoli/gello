@@ -1,10 +1,10 @@
 ---
 id: c0114
 title: Create demo data for screenshots
-status: review
+status: done
 created: 2026-07-21
-updated: 2026-07-21
-status-changed: 2026-07-21T22:41:31
+updated: 2026-07-22
+status-changed: 2026-07-22T06:34:35
 ---
 
 ## What
@@ -151,3 +151,4 @@ shooting** or the indicator disappears and the activity line dims.
 - 2026-07-21 authored the Holzhof board at `demo/holzhof/`, git-initialised on
   `main`; validated by `demo/holzhof-board.test.ts` (12 checks, green).
 - 2026-07-21 status → review (agent)
+- 2026-07-22 status → done (app)

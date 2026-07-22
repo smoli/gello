@@ -1,13 +1,13 @@
 ---
 id: c018
 title: Archive done cards
-status: review
+status: done
 epic: e05
 depends: [c006]
 tags: [core]
 created: 2026-07-16
-updated: 2026-07-21
-status-changed: 2026-07-21T22:24:09
+updated: 2026-07-22
+status-changed: 2026-07-22T06:34:30
 ---
 
 ## What
@@ -52,3 +52,4 @@ board by default.
 - 2026-07-21 implemented archive/unarchive: loader, actions, board toggle,
   detail button; concept.md + CLAUDE.md + scaffold snippet updated
 - 2026-07-21 status → review (agent)
+- 2026-07-22 status → done (app)
