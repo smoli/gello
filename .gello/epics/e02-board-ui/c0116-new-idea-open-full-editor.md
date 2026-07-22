@@ -6,7 +6,6 @@ created: 2026-07-22
 updated: 2026-07-22
 status-changed: 2026-07-22T06:45:18
 epic: e02
-awaiting: input
 ---
 
 ```gelloquestion
