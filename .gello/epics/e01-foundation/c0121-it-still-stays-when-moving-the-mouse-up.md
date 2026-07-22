@@ -8,6 +8,8 @@ created: 2026-07-22
 updated: 2026-07-22
 status-changed: 2026-07-22T08:37:24
 ---
+**Fixed manually by using CSS**
+
 
 I'd rather not ship a third guess at this. c0120 was already a fix reasoned from the code that didn't hold, and I can't observe the real behaviour from here: no browser automation in the repo, `pnpm tauri dev` can't start (port 1420 is your own dev server, up ~23h), and jsdom has no layout or real pointer, so this class of bug can't be reproduced in the suite. Reading the code, I ruled out the things that would explain it — there's no geometric asymmetry between moving up and moving down (same 8px gap, the insert zone between cards is height-0 and `pointer-events: none`), it isn't the coarse-pointer fallback, and after c0120 the reveal doesn't consult CSS `:hover` at all.
 
