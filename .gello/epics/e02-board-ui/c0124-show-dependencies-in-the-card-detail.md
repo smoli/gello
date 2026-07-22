@@ -1,11 +1,11 @@
 ---
 id: c0124
 title: Show a card's dependencies in the card detail
-status: discuss
+status: ready
 epic: e02
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T18:21:00
+status-changed: 2026-07-22T19:24:43
 ---
 
 ## What
@@ -113,3 +113,4 @@ card that owns them.
   Blocking), all dependencies listed with unfinished distinguished, and
   add/remove from the detail — which pulls in making `depends` writable and
   adding cycle detection.
+- 2026-07-22 status → ready (app)
