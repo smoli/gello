@@ -676,6 +676,13 @@ function CardFront({
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
+  // c0120: the follow-up trigger's reveal is owned here rather than left to
+  // `.card-front:hover`. The board re-renders under the pointer all the time
+  // (companion poll, activity lines, watcher reconcile), and WebKit does not
+  // re-resolve :hover for a subtree it just re-rendered until the hit-test
+  // target changes again — so the trigger stayed lit on the card the pointer
+  // had already left. Real enter/leave events don't have that problem.
+  const [hovered, setHovered] = useState(false);
   const className = [
     "card-front",
     isOrigin ? "card-origin" : "",
@@ -690,9 +697,13 @@ function CardFront({
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onDragStart={(event) => {
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
+        // the card leaves the pointer without a mouseleave once it's dragging
+        setHovered(false);
         onDragState(card);
       }}
       onDragEnd={() => onDragState(null)}
@@ -731,7 +742,7 @@ function CardFront({
           {onFollowUp && (card.status === "review" || card.status === "done") && (
             <button
               type="button"
-              className="card-followup"
+              className={`card-followup${hovered ? " card-followup-visible" : ""}`}
               aria-label={`Follow up on ${card.id}`}
               title="Follow up — creates a task in ready, which a running companion starts on"
               onClick={(event) => {

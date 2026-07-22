@@ -338,7 +338,10 @@ button.tag-chip {
   transition: opacity 0.12s ease;
 }
 
-.card-front:hover .card-followup,
+/* c0120: the reveal is driven by the card's own hover state (see CardFront),
+   not by `.card-front:hover` — a re-render under the pointer left the stale
+   :hover lit on a card the pointer had already left. */
+.card-followup-visible,
 .card-followup:focus-visible {
   opacity: 1;
 }

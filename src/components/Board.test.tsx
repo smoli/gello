@@ -139,6 +139,53 @@ describe("Board", () => {
 
       expect(trigger("Reviewing card")).not.toBeInTheDocument();
     });
+
+    describe("c0120: the reveal follows the pointer", () => {
+      const shown = (title: string) =>
+        trigger(title)!.classList.contains("card-followup-visible");
+
+      it("keeps the trigger hidden until its own card is hovered", () => {
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        expect(shown("Reviewing card")).toBe(false);
+        fireEvent.mouseEnter(front("Reviewing card"));
+        expect(shown("Reviewing card")).toBe(true);
+      });
+
+      it("hands the reveal over when the pointer moves to another card", () => {
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        fireEvent.mouseEnter(front("Reviewing card"));
+        expect(shown("Reviewing card")).toBe(true);
+
+        // sliding straight onto the neighbouring card: leave then enter
+        fireEvent.mouseLeave(front("Reviewing card"));
+        fireEvent.mouseEnter(front("Finished card"));
+
+        expect(shown("Reviewing card")).toBe(false);
+        expect(shown("Finished card")).toBe(true);
+      });
+
+      it("hides the trigger when the pointer leaves the card", () => {
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        fireEvent.mouseEnter(front("Finished card"));
+        fireEvent.mouseLeave(front("Finished card"));
+
+        expect(shown("Finished card")).toBe(false);
+      });
+
+      it("clears the reveal when the card starts being dragged", () => {
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        fireEvent.mouseEnter(front("Finished card"));
+        fireEvent.dragStart(front("Finished card"), {
+          dataTransfer: { setData: vi.fn(), effectAllowed: "" },
+        });
+
+        expect(shown("Finished card")).toBe(false);
+      });
+    });
   });
 
   it("c0109: shows Thinking… for a running run with no tool call yet", () => {
