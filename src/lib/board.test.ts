@@ -16,10 +16,15 @@ import {
   withUpdatedCard,
   withoutCard,
   blockersFor,
+  blockingCards,
   columnComparator,
+  dependenciesOf,
+  dependencyCycle,
+  dependencyOptions,
   planManualInsert,
   wipState,
   type BoardFile,
+  type BoardModel,
 } from "./board";
 import { DEFAULT_BOARD_CONFIG, parseCard, parseEpic, type Card } from "./cards";
 
@@ -903,6 +908,170 @@ describe("blockersFor (c0123)", () => {
       dep("c003", "done"),
     );
     expect(idsFor(model, "c004")).toEqual(["c001", "c002"]);
+  });
+});
+
+describe("the dependency graph (c0124)", () => {
+  const node = (id: string, status: string, depends?: string) =>
+    file(
+      `cards/${id}-x.md`,
+      `---\nid: ${id}\ntitle: Card ${id}\nstatus: ${status}\n${
+        depends ? `depends: [${depends}]\n` : ""
+      }---\nbody\n`,
+    );
+  const boardOf = (...files: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\n"),
+      ...files,
+    ]);
+  const cardIn = (model: BoardModel, id: string) => findCardById(model, id)!;
+
+  describe("dependenciesOf", () => {
+    it("resolves each dependency, in the order the card lists them", () => {
+      const model = boardOf(
+        node("c003", "ready", "c002, c001"),
+        node("c001", "done"),
+        node("c002", "review"),
+      );
+      expect(
+        dependenciesOf(model, cardIn(model, "c003")).map((d) => [
+          d.id,
+          d.card?.status ?? null,
+        ]),
+      ).toEqual([
+        ["c002", "review"],
+        ["c001", "done"],
+      ]);
+    });
+
+    it("keeps an id no card carries, resolved to nothing", () => {
+      const model = boardOf(node("c002", "ready", "c404"));
+      expect(dependenciesOf(model, cardIn(model, "c002"))).toEqual([
+        { id: "c404", card: null },
+      ]);
+    });
+
+    it("is empty for a card that depends on nothing", () => {
+      const model = boardOf(node("c001", "ready"));
+      expect(dependenciesOf(model, cardIn(model, "c001"))).toEqual([]);
+    });
+  });
+
+  describe("blockingCards", () => {
+    it("finds the cards whose depends name this one", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "backlog", "c001"),
+        node("c003", "ready", "c001, c002"),
+        node("c004", "ready", "c002"),
+      );
+      expect(blockingCards(model, "c001").map((c) => c.id)).toEqual(["c002", "c003"]);
+    });
+
+    it("is empty when nothing depends on the card", () => {
+      const model = boardOf(node("c001", "ready"), node("c002", "ready"));
+      expect(blockingCards(model, "c001")).toEqual([]);
+    });
+
+    it("looks across epics, not just standalone cards", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        file("epics/e01-a/epic.md", "---\nid: e01\ntitle: A\n---\ngoal\n"),
+        file(
+          "epics/e01-a/c002-y.md",
+          "---\nid: c002\ntitle: Card c002\nstatus: ready\ndepends: [c001]\n---\nbody\n",
+        ),
+      );
+      expect(blockingCards(model, "c001").map((c) => c.id)).toEqual(["c002"]);
+    });
+  });
+
+  describe("dependencyCycle", () => {
+    it("refuses a card depending on itself", () => {
+      const model = boardOf(node("c001", "ready"));
+      expect(dependencyCycle(model, "c001", "c001")).toEqual(["c001"]);
+    });
+
+    it("catches the direct loop: the candidate already depends on this card", () => {
+      const model = boardOf(node("c001", "ready"), node("c002", "ready", "c001"));
+      expect(dependencyCycle(model, "c001", "c002")).toEqual(["c002", "c001"]);
+    });
+
+    it("catches a loop several hops out, naming the chain", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "ready", "c003"),
+        node("c003", "ready", "c004"),
+        node("c004", "ready", "c001"),
+      );
+      expect(dependencyCycle(model, "c001", "c002")).toEqual([
+        "c002",
+        "c003",
+        "c004",
+        "c001",
+      ]);
+    });
+
+    it("allows a dependency that closes no loop", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "ready", "c003"),
+        node("c003", "done"),
+      );
+      expect(dependencyCycle(model, "c001", "c002")).toBeNull();
+    });
+
+    it("allows the same card to be reached twice by different paths", () => {
+      // a diamond is not a cycle: c002 and c003 both rest on c004
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "ready", "c003, c004"),
+        node("c003", "ready", "c004"),
+        node("c004", "done"),
+      );
+      expect(dependencyCycle(model, "c001", "c002")).toBeNull();
+    });
+
+    it("terminates on a board that already contains a cycle", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "ready", "c003"),
+        node("c003", "ready", "c002"),
+      );
+      expect(dependencyCycle(model, "c001", "c002")).toBeNull();
+    });
+
+    it("says nothing about an id no card carries — it can depend on nothing", () => {
+      const model = boardOf(node("c001", "ready"));
+      expect(dependencyCycle(model, "c001", "c404")).toBeNull();
+    });
+  });
+
+  describe("dependencyOptions", () => {
+    it("offers every other card, flagging the ones that would close a loop", () => {
+      const model = boardOf(
+        node("c001", "ready"),
+        node("c002", "ready", "c001"),
+        node("c003", "backlog"),
+      );
+      const options = dependencyOptions(model, cardIn(model, "c001"));
+      expect(options.map((o) => [o.id, o.cycle !== null])).toEqual([
+        ["c002", true],
+        ["c003", false],
+      ]);
+      expect(options[0].title).toBe("Card c002");
+    });
+
+    it("leaves out the card itself and the dependencies it already has", () => {
+      const model = boardOf(
+        node("c001", "ready", "c002"),
+        node("c002", "done"),
+        node("c003", "ready"),
+      );
+      expect(dependencyOptions(model, cardIn(model, "c001")).map((o) => o.id)).toEqual([
+        "c003",
+      ]);
+    });
   });
 });
 

@@ -224,6 +224,56 @@
   color: #b97a0a;
 }
 
+/* c0124: one dependency — its link, where it stands, and its remove control */
+.card-depends-entry {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+/* not done yet: this is what the card is actually waiting on, so it carries
+   the same amber the card front uses for a blocker */
+.card-depends-open .card-link {
+  color: #b97a0a;
+}
+
+.card-depends-status {
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+
+.card-depends-remove {
+  font: inherit;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: CanvasText;
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 0 0.1rem;
+}
+
+.card-depends-remove:hover {
+  opacity: 1;
+  color: #e5484d;
+}
+
+.card-depends-add {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.card-depends-refusal {
+  color: #e5484d;
+  flex-basis: 100%;
+}
+
 .card-detail-body {
   padding: 0.75rem 1.25rem 1.25rem;
   overflow-y: auto;

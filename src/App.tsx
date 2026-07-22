@@ -10,6 +10,9 @@ import {
   nextIssueId,
   openFollowUpsFor,
   openIssuesFor,
+  blockingCards,
+  dependenciesOf,
+  dependencyOptions,
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
@@ -1458,6 +1461,10 @@ function App() {
             }
             openIssues={openIssuesFor(board.model, selected.card.id)}
             followUps={openFollowUpsFor(board.model, selected.card.id)}
+            // c0124: both directions of `depends`, resolved from the model
+            dependencies={dependenciesOf(board.model, selected.card)}
+            blocking={blockingCards(board.model, selected.card.id)}
+            dependencyOptions={dependencyOptions(board.model, selected.card)}
             onClose={() => setSelectedPath(null)}
           />
         )}

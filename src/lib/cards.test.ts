@@ -282,6 +282,45 @@ Body
     expect(raw).toContain("tags: []\n");
   });
 
+  it("c0124: updates depends as a flow-style list, leaving every other line alone", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(
+      parsed.card,
+      { depends: ["c001", "c002"] },
+      "2026-07-17",
+    );
+
+    expect(card.depends).toEqual(["c001", "c002"]);
+    expect(raw).toBe(
+      FULL_CARD.replace("depends: [c001]", "depends: [c001, c002]").replace(
+        "updated: 2026-07-16",
+        "updated: 2026-07-17",
+      ),
+    );
+  });
+
+  it("c0124: adds a depends line to a card that has none", () => {
+    const parsed = parseCard("x.md", MINIMAL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(parsed.card, { depends: ["c001"] }, "2026-07-17");
+
+    expect(card.depends).toEqual(["c001"]);
+    expect(raw).toContain("depends: [c001]\n");
+  });
+
+  it("c0124: clears depends with an empty list", () => {
+    const parsed = parseCard("x.md", FULL_CARD);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { card, raw } = updateCardFields(parsed.card, { depends: [] }, "2026-07-17");
+
+    expect(card.depends).toEqual([]);
+    expect(raw).toContain("depends: []\n");
+  });
+
   it("serializes numeric order as an unquoted number, including zero and negatives (i0007)", () => {
     const parsed = parseCard("x.md", FULL_CARD);
     if (!parsed.ok) throw new Error("fixture must parse");

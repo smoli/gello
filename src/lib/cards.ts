@@ -501,7 +501,16 @@ function removeFrontmatterField(raw: string, field: string): string {
 export type CardFieldChanges = Partial<
   Pick<
     Card,
-    "status" | "epic" | "title" | "tags" | "order" | "statusChanged" | "awaiting"
+    | "status"
+    | "epic"
+    | "title"
+    | "tags"
+    // c0124: dependencies are edited from the detail; same flow-list shape as
+    // tags, so the surgical write path needs nothing new
+    | "depends"
+    | "order"
+    | "statusChanged"
+    | "awaiting"
   >
 >;
 

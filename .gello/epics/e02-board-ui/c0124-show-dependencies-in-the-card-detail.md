@@ -105,6 +105,29 @@ card that owns them.
   constraint but costs a failed attempt); whether epics should also show what
   their cards are blocked by.
 
+## Notes
+
+- Four functions in `board.ts` carry the whole thing, next to the c0123
+  `blockersFor`: `dependenciesOf` (forward, resolved, card order),
+  `blockingCards` (reverse, scanned like `openIssuesFor`), `dependencyCycle`,
+  and `dependencyOptions`. `CardDetail` gets data, not the model — it decides
+  nothing about the graph.
+- `dependencyCycle(model, cardId, dependencyId)` returns the loop the new edge
+  would close, so the refusal names it: `c0124 → c003 → c0124`. It walks each
+  id once, which also means it terminates on a board that *already* contains a
+  cycle (hand-edited YAML can produce one, and then this is the screen you
+  would use to break it).
+- The open question — hide loop-closing candidates or let them be picked and
+  explain — resolved as: keep them in the picker and refuse with the chain.
+  The acceptance criterion asks for a shown reason, and a silently short list
+  teaches nothing. Self is the exception: it is not offered at all, though
+  `dependencyCycle` still calls it a loop.
+- Writing needed nothing new: `depends` joined `CardFieldChanges`, and
+  `formatFlowList` already produced `[a, b]` for `tags`. Clearing the last
+  dependency writes `depends: []`, matching what clearing tags does.
+- The reverse list has no controls at all — an entry there lives in *another*
+  card's file, and one card's detail must not write another's.
+
 ## Log
 
 - 2026-07-22 raised alongside [[c0123]]: dependencies drive companion dispatch
@@ -115,3 +138,5 @@ card that owns them.
   adding cycle detection.
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 both sections, add/remove, cycle refusal; `depends` made writable
+  — 27 tests across the graph, the write path and the detail

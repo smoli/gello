@@ -371,6 +371,86 @@ export function blockersFor(model: BoardModel, card: Card): Blocker[] {
   });
 }
 
+// --- the dependency graph (c0124) -----------------------------------------------
+//
+// `depends` drives companion dispatch but had no reader in the app. These
+// resolve it both ways for the card detail, and keep a new dependency from
+// closing a loop — a cycle deadlocks every card in it, silently and forever.
+
+/** One entry of a card's `depends`, resolved against the board. */
+export interface Dependency {
+  id: string;
+  /** The card it names, or null when the board has no card with that id. */
+  card: Card | null;
+}
+
+/** A card that could be added as a dependency, and what that would cost. */
+export interface DependencyOption {
+  id: string;
+  title: string;
+  /** The loop adding it would close, or null when it closes none. */
+  cycle: string[] | null;
+}
+
+/** A card's dependencies, in the order the card lists them. */
+export function dependenciesOf(model: BoardModel, card: Card): Dependency[] {
+  return card.depends.map((id) => ({ id, card: findCardById(model, id) }));
+}
+
+/** The cards whose `depends` name `id` — the ones this card is holding up.
+ *  Derived like openIssuesFor, never written into the card itself. */
+export function blockingCards(model: BoardModel, id: string): Card[] {
+  return allCards(model).filter((card) => card.depends.includes(id));
+}
+
+/**
+ * The loop that adding `dependencyId` to `cardId` would close, or null when it
+ * closes none. The chain runs from the new dependency back to the card, so
+ * `[c003, c004, c001]` reads "c003 depends on c004, which depends on c001".
+ * A card naming itself is the shortest loop of all.
+ *
+ * Tolerates a board that already contains a cycle: every id is walked once.
+ */
+export function dependencyCycle(
+  model: BoardModel,
+  cardId: string,
+  dependencyId: string,
+): string[] | null {
+  if (dependencyId === cardId) return [cardId];
+  const seen = new Set<string>();
+  const walk = (id: string, chain: string[]): string[] | null => {
+    if (seen.has(id)) return null;
+    seen.add(id);
+    const card = findCardById(model, id);
+    if (card === null) return null; // an id with no card depends on nothing
+    for (const next of card.depends) {
+      if (next === cardId) return [...chain, id, cardId];
+      const loop = walk(next, [...chain, id]);
+      if (loop !== null) return loop;
+    }
+    return null;
+  };
+  return walk(dependencyId, []);
+}
+
+/**
+ * The cards this one could be made to depend on — everything but itself and
+ * what it already depends on. The ones that would close a loop are flagged
+ * rather than dropped, so picking one can explain the refusal (c0124).
+ */
+export function dependencyOptions(model: BoardModel, card: Card): DependencyOption[] {
+  return allCards(model)
+    .filter(
+      (candidate) =>
+        candidate.id !== card.id && !card.depends.includes(candidate.id),
+    )
+    .map((candidate) => ({
+      id: candidate.id,
+      title: candidate.title,
+      cycle: dependencyCycle(model, card.id, candidate.id),
+    }));
+}
+
 /**
  * c0088: immutably add a freshly captured card to the standalone `cards/` set,
  * keeping sort order. Capture gives it `status: inbox`, so it lands in the inbox

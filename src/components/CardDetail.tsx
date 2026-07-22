@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
+import type { Dependency, DependencyOption } from "../lib/board";
 import { splitLogSection } from "../lib/markdown";
 import {
   parseGelloQuestion,
@@ -48,6 +49,9 @@ export function CardDetail({
   refCard,
   openIssues,
   followUps,
+  dependencies = [],
+  blocking = [],
+  dependencyOptions = [],
   startInEdit,
   onSaveImage,
   loadImage,
@@ -71,6 +75,12 @@ export function CardDetail({
   openIssues: Card[];
   /** c0115: open follow-up tasks pointing at this card. */
   followUps: Card[];
+  /** c0124: this card's own `depends`, resolved against the board. */
+  dependencies?: Dependency[];
+  /** c0124: the cards waiting on this one — derived, so read-only here. */
+  blocking?: Card[];
+  /** c0124: what this card could be made to depend on, loop-closers flagged. */
+  dependencyOptions?: DependencyOption[];
   /** Open directly in edit mode (c035: fresh report-issue cards). */
   startInEdit?: boolean;
   /** c011: persist a pasted/dropped image; returns its board-relative path. */
@@ -107,6 +117,8 @@ export function CardDetail({
   const [conflict, setConflict] = useState(false);
   // c0062: two-step guard for the destructive delete
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // c0124: why the last pick was turned down (a loop), shown next to the picker
+  const [dependencyRefusal, setDependencyRefusal] = useState<string | null>(null);
   // c011: image paste/drop on the editor textarea (shared with quick capture)
   const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
   // c038: a click "on the backdrop" only counts if the press started there —
@@ -125,6 +137,26 @@ export function CardDetail({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [editing, onClose]);
+
+  /** c0124: take the pick unless it would close a loop — a cycle leaves every
+   *  card in it blocked forever, with nothing on the board saying why. */
+  const addDependency = (id: string) => {
+    const option = dependencyOptions.find((candidate) => candidate.id === id);
+    if (!option) return;
+    if (option.cycle !== null) {
+      setDependencyRefusal(
+        `Would create a cycle: ${[card.id, ...option.cycle].join(" → ")}`,
+      );
+      return;
+    }
+    setDependencyRefusal(null);
+    onChangeFields({ depends: [...card.depends, id] });
+  };
+
+  const removeDependency = (id: string) => {
+    setDependencyRefusal(null);
+    onChangeFields({ depends: card.depends.filter((dep) => dep !== id) });
+  };
 
   const startEdit = () => {
     setBodyDraft(editableBody);
@@ -419,6 +451,88 @@ export function CardDetail({
                 onClick={() => onOpenCardId(followUp.id)}
               >
                 {followUp.id} — {followUp.title}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* c0124: `depends` used to be visible only in the raw Markdown. The
+            full picture belongs here — every dependency and where it stands —
+            unlike the card front (c0123), which names only what still blocks. */}
+        {(dependencies.length > 0 || dependencyOptions.length > 0) && (
+          <div className="card-backlinks card-depends">
+            <span className="field-label">Depends on:</span>
+            {dependencies.map(({ id, card: dependency }) => (
+              <span
+                key={id}
+                className={
+                  dependency === null || dependency.status !== "done"
+                    ? "card-depends-entry card-depends-open"
+                    : "card-depends-entry"
+                }
+              >
+                {dependency !== null ? (
+                  <>
+                    <button
+                      type="button"
+                      className="card-link"
+                      onClick={() => onOpenCardId(id)}
+                    >
+                      {id} — {dependency.title}
+                    </button>
+                    <span className="card-depends-status">{dependency.status}</span>
+                  </>
+                ) : (
+                  <span className="card-ref-dangling">
+                    {id} (not found on this board)
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="card-depends-remove"
+                  aria-label={`Remove dependency ${id}`}
+                  title="Remove this dependency"
+                  onClick={() => removeDependency(id)}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {dependencyOptions.length > 0 && (
+              <select
+                aria-label="Add dependency"
+                className="card-depends-add"
+                value=""
+                onChange={(event) => addDependency(event.target.value)}
+              >
+                <option value="">Add dependency…</option>
+                {dependencyOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.id} — {option.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            {dependencyRefusal !== null && (
+              <span role="alert" className="card-depends-refusal">
+                {dependencyRefusal}
+              </span>
+            )}
+          </div>
+        )}
+        {/* c0124: the other direction — who finishing this card would release.
+            Derived from their files, so it is read-only: a dependency is
+            removed from the card that declares it. */}
+        {blocking.length > 0 && (
+          <div className="card-backlinks">
+            <span className="field-label">Blocking:</span>
+            {blocking.map((blocked) => (
+              <button
+                key={blocked.path}
+                type="button"
+                className="card-link"
+                onClick={() => onOpenCardId(blocked.id)}
+              >
+                {blocked.id} — {blocked.title}
               </button>
             ))}
           </div>

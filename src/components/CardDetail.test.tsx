@@ -384,6 +384,130 @@ describe("CardDetail", () => {
     expect(screen.getByText(/not found/i)).toBeInTheDocument();
   });
 
+  // c0124: `depends` was parsed and then never shown anywhere in the app.
+
+  describe("c0124: dependencies", () => {
+    const dependent = (id: string, title: string, status: string) => ({
+      ...fixture(),
+      id,
+      title,
+      status,
+      path: `cards/${id}-x.md`,
+    });
+
+    const withDepends = (overrides = {}) =>
+      renderDetail({
+        card: { ...fixture(), depends: ["c001"] },
+        dependencies: [{ id: "c001", card: dependent("c001", "The groundwork", "review") }],
+        ...overrides,
+      });
+
+    const dependsSection = () =>
+      screen.getByText(/depends on/i).closest(".card-backlinks") as HTMLElement;
+
+    it("lists what the card depends on, each opening that card", () => {
+      const props = withDepends();
+      const section = dependsSection();
+
+      fireEvent.click(within(section).getByRole("button", { name: /The groundwork/ }));
+      expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c001");
+    });
+
+    it("tells an unfinished dependency apart from a satisfied one", () => {
+      withDepends({
+        card: { ...fixture(), depends: ["c001", "c002"] },
+        dependencies: [
+          { id: "c001", card: dependent("c001", "Still going", "review") },
+          { id: "c002", card: dependent("c002", "Finished", "done") },
+        ],
+      });
+      const section = dependsSection();
+
+      const open = within(section).getByText(/Still going/).closest(".card-depends-entry")!;
+      const settled = within(section).getByText(/Finished/).closest(".card-depends-entry")!;
+      expect(open).toHaveClass("card-depends-open");
+      expect(settled).not.toHaveClass("card-depends-open");
+      // the detail is the full picture — each dependency says where it stands
+      expect(open).toHaveTextContent("review");
+      expect(settled).toHaveTextContent("done");
+    });
+
+    it("shows a dependency no card answers to as missing, like a dangling ref", () => {
+      withDepends({
+        card: { ...fixture(), depends: ["c404"] },
+        dependencies: [{ id: "c404", card: null }],
+      });
+      const section = dependsSection();
+
+      expect(within(section).getByText(/c404/)).toBeInTheDocument();
+      expect(within(section).getByText(/not found/i)).toBeInTheDocument();
+      // nothing to open
+      expect(
+        within(section).queryByRole("button", { name: /c404 —/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("adds a dependency picked from the list", () => {
+      const props = withDepends({
+        dependencyOptions: [
+          { id: "c003", title: "Later work", cycle: null },
+        ],
+      });
+
+      fireEvent.change(screen.getByLabelText("Add dependency"), {
+        target: { value: "c003" },
+      });
+
+      expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({
+        depends: ["c001", "c003"],
+      });
+    });
+
+    it("refuses one that would close a loop, and says which", () => {
+      const props = withDepends({
+        dependencyOptions: [
+          { id: "c003", title: "Circular", cycle: ["c003", "c009"] },
+        ],
+      });
+
+      fireEvent.change(screen.getByLabelText("Add dependency"), {
+        target: { value: "c003" },
+      });
+
+      expect(props.onChangeFields).not.toHaveBeenCalled();
+      const refusal = screen.getByRole("alert");
+      expect(refusal).toHaveTextContent(/cycle/i);
+      // names the loop it would close, so the refusal is actionable
+      expect(refusal).toHaveTextContent(/c009 → c003 → c009/);
+    });
+
+    it("removes a dependency", () => {
+      const props = withDepends();
+
+      fireEvent.click(screen.getByRole("button", { name: /remove dependency c001/i }));
+
+      expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({ depends: [] });
+    });
+
+    it("lists the cards this one is blocking, with nothing to edit there", () => {
+      const props = withDepends({
+        blocking: [dependent("c005", "Waiting on me", "ready")],
+      });
+      const section = screen.getByText(/blocking/i).closest(".card-backlinks") as HTMLElement;
+
+      fireEvent.click(within(section).getByRole("button", { name: /Waiting on me/ }));
+      expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c005");
+      // derived from other cards' files — removing here would write theirs
+      expect(within(section).queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
+      expect(within(section).queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("hides the blocking section when nothing depends on this card", () => {
+      withDepends({ blocking: [] });
+      expect(screen.queryByText(/blocking/i)).not.toBeInTheDocument();
+    });
+  });
+
   it("lists open issues pointing at this card", () => {
     const props = renderDetail({
       openIssues: [

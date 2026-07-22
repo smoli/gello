@@ -499,6 +499,24 @@ describe("App", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("c0124: adding a dependency writes only the edited card's file", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.change(screen.getByLabelText("Add dependency"), {
+      target: { value: "c005" },
+    });
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/cards/c001-hello.md",
+        expect.stringContaining("depends: [c005]"),
+      ),
+    );
+  });
+
   it("persists a status change from the detail view", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);
