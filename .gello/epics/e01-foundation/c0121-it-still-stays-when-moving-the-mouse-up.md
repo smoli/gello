@@ -1,12 +1,12 @@
 ---
 id: c0121
 title: It still stays when moving the mouse up
-status: in-progress
+status: review
 ref: c0120
 epic: e01
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T07:11:55
+status-changed: 2026-07-22T07:21:19
 ---
 
 I'd rather not ship a third guess at this. c0120 was already a fix reasoned from the code that didn't hold, and I can't observe the real behaviour from here: no browser automation in the repo, `pnpm tauri dev` can't start (port 1420 is your own dev server, up ~23h), and jsdom has no layout or real pointer, so this class of bug can't be reproduced in the suite. Reading the code, I ruled out the things that would explain it — there's no geometric asymmetry between moving up and moving down (same 8px gap, the insert zone between cards is height-0 and `pointer-events: none`), it isn't the coarse-pointer fallback, and after c0120 the reveal doesn't consult CSS `:hover` at all.
@@ -100,3 +100,4 @@ a checked-in harness if this keeps coming up.
   the real defect was one boolean per card. Replaced with a single board-level
   `hoveredPath`, so an enter evicts the previous card without needing a leave.
   985 tests green.
+- 2026-07-22 status → review (agent)
