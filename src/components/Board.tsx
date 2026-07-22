@@ -138,6 +138,13 @@ export function Board({
   const [selectedTags, setSelectedTags] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // c0121: which card's follow-up trigger is revealed, as one board-level value
+  // rather than a boolean per card. WKWebView drops the mouseleave when the
+  // pointer exits a card upward (Chrome delivers both), which stranded a
+  // per-card flag lit forever. One shared value means the *enter* on the next
+  // card evicts the previous one on its own — the leave is a bonus, not a
+  // requirement, and two cards can never be lit at once.
+  const [hoveredPath, setHoveredPath] = useState<string | null>(null);
   const [dragging, setDragging] = useState<Card | null>(null);
   // c0108: name of the column the pointer is over during a drag, for its
   // stronger highlight. Cleared when the drag ends (setDragState(null)).
@@ -147,6 +154,11 @@ export function Board({
     setDragging(card);
     if (!card) setOverColumn(null);
   };
+
+  /** Leave only clears the reveal if this card still owns it — a late leave
+   *  from the card we just left must not unlight the one now hovered. */
+  const endHover = (path: string) =>
+    setHoveredPath((current) => (current === path ? null : current));
 
   const statusCards = useMemo(() => collectStatusCards(model), [model]);
   const tagsInUse = useMemo(() => collectTags(model), [model]);
@@ -370,6 +382,9 @@ export function Board({
               onMoveByKey={moveByKey}
               onSelect={onSelectCard}
               onFollowUp={onFollowUpCard}
+              hoveredPath={hoveredPath}
+              onHover={setHoveredPath}
+              onHoverEnd={endHover}
               onDragState={setDragState}
               onBgContextMenu={bgContext}
               loadImage={loadImage}
@@ -461,6 +476,9 @@ function Column({
   onMoveByKey,
   onSelect,
   onFollowUp,
+  hoveredPath,
+  onHover,
+  onHoverEnd,
   onDragState,
   onBgContextMenu,
   loadImage,
@@ -501,6 +519,10 @@ function Column({
   onSelect?: (card: Card) => void;
   /** c0118: forwarded to each card front's follow-up trigger. */
   onFollowUp?: (card: Card) => void;
+  /** c0121: path of the one card whose trigger is revealed, board-wide. */
+  hoveredPath: string | null;
+  onHover: (path: string) => void;
+  onHoverEnd: (path: string) => void;
   onDragState: (card: Card | null) => void;
   /** c0060: right-click on the track's own (background) area. */
   onBgContextMenu?: (event: React.MouseEvent) => void;
@@ -568,6 +590,9 @@ function Column({
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
                 onFollowUp={onFollowUp}
+                revealFollowUp={hoveredPath === entry.card.path}
+                onHover={onHover}
+                onHoverEnd={onHoverEnd}
                 onDragState={onDragState}
                 loadImage={loadImage}
                 tagColors={tagColors}
@@ -642,6 +667,9 @@ function CardFront({
   onMoveByKey,
   onSelect,
   onFollowUp,
+  revealFollowUp,
+  onHover,
+  onHoverEnd,
   onDragState,
   loadImage,
   tagColors,
@@ -658,6 +686,10 @@ function CardFront({
   onSelect?: (card: Card) => void;
   /** c0118: start a follow-up from this card's front (review/done only). */
   onFollowUp?: (card: Card) => void;
+  /** c0121: this card owns the board's single follow-up reveal. */
+  revealFollowUp: boolean;
+  onHover: (path: string) => void;
+  onHoverEnd: (path: string) => void;
   onDragState: (card: Card | null) => void;
   /** c012: resolve this card's first image to a data URL for the thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
@@ -676,13 +708,6 @@ function CardFront({
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
-  // c0120: the follow-up trigger's reveal is owned here rather than left to
-  // `.card-front:hover`. The board re-renders under the pointer all the time
-  // (companion poll, activity lines, watcher reconcile), and WebKit does not
-  // re-resolve :hover for a subtree it just re-rendered until the hit-test
-  // target changes again — so the trigger stayed lit on the card the pointer
-  // had already left. Real enter/leave events don't have that problem.
-  const [hovered, setHovered] = useState(false);
   const className = [
     "card-front",
     isOrigin ? "card-origin" : "",
@@ -697,13 +722,13 @@ function CardFront({
       tabIndex={0}
       aria-label={`${card.id}: ${card.title}`}
       onClick={() => onSelect?.(card)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => onHover(card.path)}
+      onMouseLeave={() => onHoverEnd(card.path)}
       onDragStart={(event) => {
         event.dataTransfer.setData(CARD_DRAG_TYPE, card.path);
         event.dataTransfer.effectAllowed = "move";
         // the card leaves the pointer without a mouseleave once it's dragging
-        setHovered(false);
+        onHoverEnd(card.path);
         onDragState(card);
       }}
       onDragEnd={() => onDragState(null)}
@@ -742,7 +767,7 @@ function CardFront({
           {onFollowUp && (card.status === "review" || card.status === "done") && (
             <button
               type="button"
-              className={`card-followup${hovered ? " card-followup-visible" : ""}`}
+              className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
               aria-label={`Follow up on ${card.id}`}
               title="Follow up — creates a task in ready, which a running companion starts on"
               onClick={(event) => {

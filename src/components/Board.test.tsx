@@ -175,6 +175,31 @@ describe("Board", () => {
         expect(shown("Finished card")).toBe(false);
       });
 
+      it("c0121: entering another card clears the first even if no mouseleave arrives", () => {
+        // WKWebView does not deliver the leave when the pointer exits a card
+        // upward (verified in Chrome, where both directions are fine). Only the
+        // enter on the next card can be relied on, so it alone must evict.
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        fireEvent.mouseEnter(front("Reviewing card"));
+        expect(shown("Reviewing card")).toBe(true);
+
+        fireEvent.mouseEnter(front("Finished card")); // no mouseLeave first
+        expect(shown("Reviewing card")).toBe(false);
+        expect(shown("Finished card")).toBe(true);
+      });
+
+      it("c0121: at most one card is ever revealed", () => {
+        render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+        fireEvent.mouseEnter(front("Reviewing card"));
+        fireEvent.mouseEnter(front("Finished card"));
+        fireEvent.mouseEnter(front("Reviewing card"));
+
+        const lit = ["Reviewing card", "Finished card"].filter(shown);
+        expect(lit).toEqual(["Reviewing card"]);
+      });
+
       it("clears the reveal when the card starts being dragged", () => {
         render(<Board model={model} onFollowUpCard={vi.fn()} />);
 
