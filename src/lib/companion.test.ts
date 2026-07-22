@@ -19,6 +19,7 @@ describe("parseCompanionState", () => {
       waiting: ["c002"],
       runs: [{ cardId: "c003", phase: "running" }],
       updated: "2026-07-19T10:00:00",
+      pickupDelay: 10,
     });
     expect(parseCompanionState(raw)).toEqual({
       status: "waiting",
@@ -26,6 +27,7 @@ describe("parseCompanionState", () => {
       waiting: ["c002"],
       runs: [{ cardId: "c003", phase: "running" }],
       updated: "2026-07-19T10:00:00",
+      pickupDelay: 10,
     });
   });
 
@@ -38,7 +40,14 @@ describe("parseCompanionState", () => {
 
   it("falls back to idle for an unknown status and empties missing arrays", () => {
     const s = parseCompanionState(JSON.stringify({ status: "bogus" }));
-    expect(s).toEqual({ status: "idle", ready: [], waiting: [], runs: [], updated: "" });
+    expect(s).toEqual({
+      status: "idle",
+      ready: [],
+      waiting: [],
+      runs: [],
+      updated: "",
+      pickupDelay: 0,
+    });
   });
 
   it("drops malformed runs but keeps the valid ones", () => {
@@ -134,9 +143,28 @@ describe("parseCompanionState", () => {
   });
 });
 
+// c0117: the app ticks the pickup countdown client-side, so it needs the
+// configured delay from the state file.
+describe("pickupDelay parsing", () => {
+  it("keeps the published delay", () => {
+    expect(parseCompanionState(JSON.stringify({ pickupDelay: 10 }))?.pickupDelay).toBe(10);
+  });
+
+  it("keeps a zero delay rather than treating it as absent", () => {
+    expect(parseCompanionState(JSON.stringify({ pickupDelay: 0 }))?.pickupDelay).toBe(0);
+  });
+
+  it("falls back to no delay when it is missing or nonsense", () => {
+    for (const value of [undefined, "10", -1, null, {}]) {
+      const raw = JSON.stringify({ status: "idle", pickupDelay: value });
+      expect(parseCompanionState(raw)?.pickupDelay).toBe(0);
+    }
+  });
+});
+
 describe("isCompanionLive", () => {
   function state(updated: string): CompanionState {
-    return { status: "running", ready: [], waiting: [], runs: [], updated };
+    return { status: "running", ready: [], waiting: [], runs: [], updated, pickupDelay: 0 };
   }
   const now = Date.parse("2026-07-20T12:00:30");
 

@@ -69,6 +69,7 @@ describe("TitleBar", () => {
     waiting: [],
     runs: [{ cardId: "c001", phase: "running" as const }],
     updated: localNow(),
+    pickupDelay: 0,
   };
 
   it("c0110: offers Start companion when no companion is running", () => {
@@ -95,6 +96,7 @@ describe("TitleBar", () => {
     const stale = {
       ...freshRunner,
       updated: "2000-01-01T00:00:00", // long past the stale window
+      pickupDelay: 0,
     };
     render(
       <TitleBar root="/x/.gello" branch="main" runner={stale} onStartCompanion={vi.fn()} />,
@@ -113,7 +115,7 @@ describe("TitleBar", () => {
       <TitleBar
         root="/x/.gello"
         branch="main"
-        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "", pickupDelay: 0 }}
       />,
     );
     const icon = screen.getByRole("button", { name: "Companion: running (1 active)" });
@@ -123,7 +125,7 @@ describe("TitleBar", () => {
       <TitleBar
         root="/x/.gello"
         branch="main"
-        runner={{ status: "waiting", ready: [], waiting: ["c002"], runs: [], updated: "" }}
+        runner={{ status: "waiting", ready: [], waiting: ["c002"], runs: [], updated: "", pickupDelay: 0 }}
       />,
     );
     expect(
@@ -145,6 +147,7 @@ describe("TitleBar", () => {
             { cardId: "c002", phase: "waiting-for-input" },
           ],
           updated: "",
+          pickupDelay: 0,
         }}
       />,
     );
@@ -161,7 +164,7 @@ describe("TitleBar", () => {
       <TitleBar
         root="/x/.gello"
         branch="main"
-        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "", pickupDelay: 0 }}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
@@ -176,7 +179,7 @@ describe("TitleBar", () => {
       <TitleBar
         root="/x/.gello"
         branch="main"
-        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "", pickupDelay: 0 }}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
@@ -191,7 +194,7 @@ describe("TitleBar", () => {
       <TitleBar
         root="/x/.gello"
         branch="main"
-        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "" }}
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "", pickupDelay: 0 }}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Companion/ }));

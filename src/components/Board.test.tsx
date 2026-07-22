@@ -81,6 +81,7 @@ describe("Board", () => {
       waiting: [],
       runs: [{ cardId: "c001", phase: "running" as const, activity: { name: "Edit", arg: "src/runner.ts" } }],
       updated: localNow(),
+      pickupDelay: 0,
     };
     render(<Board model={model} runner={runner} />);
 
@@ -224,6 +225,7 @@ describe("Board", () => {
       waiting: [],
       runs: [{ cardId: "c001", phase: "running" as const }],
       updated: localNow(),
+      pickupDelay: 0,
     };
     render(<Board model={model} runner={runner} />);
     const card1 = screen.getByText("Thinking card").closest("article")!;
@@ -244,6 +246,7 @@ describe("Board", () => {
       waiting: ["c001"],
       runs: [{ cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Bash", arg: "x" } }],
       updated: localNow(),
+      pickupDelay: 0,
     };
     render(<Board model={model} runner={runner} />);
     const parked = screen.getByText("Parked card").closest("article")!;
@@ -265,6 +268,7 @@ describe("Board", () => {
         },
       ],
       updated,
+      pickupDelay: 0,
     };
   }
 
@@ -276,6 +280,51 @@ describe("Board", () => {
     render(<Board model={model} runner={runnerFor(updated)} />);
     return screen.getByText("Editing runner.ts");
   }
+
+  // c0117: the grace period before pickup is only useful if you can see it.
+  function readyBoard() {
+    return loadBoard([
+      file("board.yaml", "columns: [ready, in-progress]\n"),
+      file(
+        "cards/c001-wait.md",
+        `---\nid: c001\ntitle: Waiting card\nstatus: ready\nstatus-changed: ${localNow()}\n---\nbody\n`,
+      ),
+    ]);
+  }
+
+  it("c0117: shows a countdown while a queued card waits out its grace period", () => {
+    const runner = {
+      status: "idle" as const,
+      ready: ["c001"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 10,
+    };
+    render(<Board model={readyBoard()} runner={runner} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+  });
+
+  it("c0117: shows no countdown when no companion is attached", () => {
+    render(<Board model={readyBoard()} runner={null} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).queryByText(/picking up/)).not.toBeInTheDocument();
+  });
+
+  it("c0117: shows no countdown when the companion dispatches immediately", () => {
+    const runner = {
+      status: "idle" as const,
+      ready: ["c001"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 0,
+    };
+    render(<Board model={readyBoard()} runner={runner} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).queryByText(/picking up/)).not.toBeInTheDocument();
+  });
 
   it("c0113: a live activity line is marked for the sweep", () => {
     const line = activityLine(localNow());

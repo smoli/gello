@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   columnComparator,
   MANUAL_COLUMNS,
@@ -11,6 +11,7 @@ import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
+import { pickupCountdown } from "../lib/pickup";
 import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
@@ -149,6 +150,20 @@ export function Board({
   // c0108: name of the column the pointer is over during a drag, for its
   // stronger highlight. Cleared when the drag ends (setDragState(null)).
   const [overColumn, setOverColumn] = useState<string | null>(null);
+
+  // c0117: the pickup countdown ticks client-side once a second. The key is
+  // built from the queue rather than the state object, which the 2s poll
+  // replaces wholesale — depending on that would restart the interval every
+  // poll and make the countdown stutter. With no companion, no delay or an
+  // empty queue there is nothing to tick, so nothing re-renders.
+  const pickupKey =
+    runner && runner.pickupDelay > 0 ? runner.ready.join(",") : "";
+  const [, setPickupTick] = useState(0);
+  useEffect(() => {
+    if (pickupKey === "") return;
+    const id = setInterval(() => setPickupTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [pickupKey]);
 
   const setDragState = (card: Card | null) => {
     setDragging(card);
@@ -705,6 +720,10 @@ function CardFront({
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
   const activity = cardActivity(runner ?? null, card.id, Date.now());
+  // c0117: before that, the grace period the companion is still waiting out.
+  // Mutually exclusive with the activity line — a card cannot be both queued
+  // for pickup and already running.
+  const countdown = pickupCountdown(runner ?? null, card.id, card.statusChanged, Date.now());
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
@@ -798,6 +817,17 @@ function CardFront({
           }
         >
           {activity.label}
+        </p>
+      )}
+      {/* c0117: the pickup grace period, counting down. Shares the activity
+          line's look so the two live elements read as one system. */}
+      {countdown !== null && (
+        <p
+          className="card-activity card-activity-pending"
+          role="status"
+          title="Drag the card out of this column to cancel"
+        >
+          picking up in {countdown}s
         </p>
       )}
       {thumbSrc && loadImage && (

@@ -68,6 +68,7 @@ function state(over: Partial<CompanionState> = {}): CompanionState {
     ready: [],
     waiting: [],
     runs: [],
+    pickupDelay: 0,
     updated: "2026-07-20T12:00:00",
     ...over,
   };

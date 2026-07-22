@@ -49,6 +49,10 @@ export interface CompanionState {
   waiting: string[];
   runs: RunState[];
   updated: string;
+  /** c0117: the companion's configured pickup grace period, in seconds. The app
+   *  ticks the countdown itself from this plus the card's `status-changed`, so
+   *  no extra polling is needed. `0` means the companion dispatches at once. */
+  pickupDelay: number;
 }
 
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
@@ -154,6 +158,12 @@ export function parseCompanionState(raw: string): CompanionState | null {
     waiting: stringArray(record.waiting),
     runs,
     updated: typeof record.updated === "string" ? record.updated : "",
+    pickupDelay:
+      typeof record.pickupDelay === "number" &&
+      Number.isFinite(record.pickupDelay) &&
+      record.pickupDelay >= 0
+        ? record.pickupDelay
+        : 0,
   };
 }
 

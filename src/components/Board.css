@@ -567,3 +567,11 @@ button.tag-chip {
   gap: 0.4rem;
   flex-shrink: 0;
 }
+
+/* c0117: the pickup grace period counting down. Shares .card-activity's shape
+   so the card's two live elements read as one system; kept still rather than
+   swept — the number is already moving, and two motions would compete. */
+.card-activity-pending {
+  opacity: 0.6;
+  font-style: italic;
+}
