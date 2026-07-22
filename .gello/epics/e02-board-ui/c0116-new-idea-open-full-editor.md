@@ -1,10 +1,10 @@
 ---
 id: c0116
 title: New Idea open full editor
-status: review
+status: done
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T08:14:00
+status-changed: 2026-07-22T08:49:44
 epic: e02
 ---
 
@@ -115,3 +115,4 @@ not collapse when the textarea loses focus.
 - 2026-07-22 capture panel grows on body focus; Escape confirms a written
   body — 15 tests over the acceptance criteria, all modes
 - 2026-07-22 status → review (agent)
+- 2026-07-22 status → done (app)
