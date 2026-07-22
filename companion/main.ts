@@ -150,10 +150,11 @@ function main(): void {
   // is denied (a `-p` agent can't answer an approval prompt); the `auto`
   // default approves autonomously while still honoring deny-rules.
   const config = loadConfig(root);
-  const { agent: agentName, scope, trigger, permissionMode, level } = config;
+  const { agent: agentName, scope, trigger, permissionMode, level, pickupDelay } = config;
   log(
     `watching board at ${root} (agent: ${agentName}, scope: ${scope}, ` +
-      `trigger: ${trigger}, permissions: ${permissionMode}, level: ${level})`,
+      `trigger: ${trigger}, permissions: ${permissionMode}, level: ${level}, ` +
+      `pickup delay: ${pickupDelay}s)`,
   );
 
   // c0104: a run's parsed events go to two persistent surfaces. The terminal
@@ -195,6 +196,7 @@ function main(): void {
     permissionMode,
     wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
     level,
+    pickupDelayMs: pickupDelay * 1000,
     emit,
     appendRunLog,
     spawn: nodeSpawner,
@@ -214,13 +216,13 @@ function main(): void {
         runStartedAt.delete(cardId);
       }
       runs = next;
-      publish(root, model, runs, trigger);
+      publish(root, model, runs, trigger, pickupDelay);
       dashboard?.draw();
     },
     log,
   });
 
-  publish(root, model, runs, trigger);
+  publish(root, model, runs, trigger, pickupDelay);
 
   if (mode === "tui") {
     const titleOf = (cardId: string) =>
@@ -296,7 +298,7 @@ function main(): void {
       }
       model = next;
       runner.sync(next);
-      publish(root, next, runs, trigger);
+      publish(root, next, runs, trigger, pickupDelay);
     }, 150);
   });
 }
@@ -312,6 +314,7 @@ function publish(
   model: BoardModel,
   runs: RunState[],
   trigger: string,
+  pickupDelay: number,
 ): void {
   const ready = cardsEnteringReady(null, model, trigger).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
@@ -321,6 +324,7 @@ function publish(
     waiting,
     runs,
     status: overallStatus(runs, waiting),
+    pickupDelay,
   };
   try {
     writeStateFile(root, state);

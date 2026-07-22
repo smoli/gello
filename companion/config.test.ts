@@ -36,6 +36,7 @@ describe("loadConfig", () => {
       trigger: "backlog",
       permissionMode: "default",
       level: "verbose",
+      pickupDelay: DEFAULT_CONFIG.pickupDelay, // unset in this file
     });
   });
 
@@ -54,6 +55,7 @@ describe("loadConfig", () => {
       GELLO_COMPANION_TRIGGER: "ready",
       GELLO_COMPANION_PERMISSION_MODE: "auto",
       GELLO_COMPANION_LEVEL: "quiet",
+      GELLO_COMPANION_PICKUP_DELAY: "3",
     });
     expect(cfg).toEqual({
       agent: "claude",
@@ -61,6 +63,7 @@ describe("loadConfig", () => {
       trigger: "ready",
       permissionMode: "auto",
       level: "quiet",
+      pickupDelay: 3,
     });
   });
 
@@ -108,5 +111,42 @@ describe("loadConfig", () => {
     const root = tempGello();
     writeConfig(root, "agent: [unterminated\n");
     expect(() => loadConfig(root, {})).toThrow(/companion\.yaml/);
+  });
+});
+
+// c0117: a grace period before a card entering the trigger status is picked up,
+// so an accidental drag can be undone before real tokens are spent.
+describe("pickupDelay", () => {
+  it("defaults to 10 seconds", () => {
+    expect(DEFAULT_CONFIG.pickupDelay).toBe(10);
+  });
+
+  it("reads the delay from companion.yaml and lets the env override it", () => {
+    const root = tempGello();
+    writeConfig(root, "pickupDelay: 30\n");
+    expect(loadConfig(root, {}).pickupDelay).toBe(30);
+    expect(loadConfig(root, { GELLO_COMPANION_PICKUP_DELAY: "5" }).pickupDelay).toBe(5);
+  });
+
+  it("takes 0 as immediate dispatch, not as absent", () => {
+    const root = tempGello();
+    writeConfig(root, "pickupDelay: 0\n");
+    expect(loadConfig(root, {}).pickupDelay).toBe(0);
+    expect(loadConfig(root, { GELLO_COMPANION_PICKUP_DELAY: "0" }).pickupDelay).toBe(0);
+  });
+
+  it("falls back to the default on a value that is not a usable number", () => {
+    const root = tempGello();
+    writeConfig(root, "pickupDelay: soon\n");
+    expect(loadConfig(root, {}).pickupDelay).toBe(DEFAULT_CONFIG.pickupDelay);
+    expect(loadConfig(root, { GELLO_COMPANION_PICKUP_DELAY: "abc" }).pickupDelay).toBe(
+      DEFAULT_CONFIG.pickupDelay,
+    );
+  });
+
+  it("refuses a negative delay, which would mean nothing", () => {
+    const root = tempGello();
+    writeConfig(root, "pickupDelay: -5\n");
+    expect(loadConfig(root, {}).pickupDelay).toBe(DEFAULT_CONFIG.pickupDelay);
   });
 });

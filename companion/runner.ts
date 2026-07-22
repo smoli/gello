@@ -17,7 +17,7 @@ import { withAwaitingCleared } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
 import { writeCardAtomic, type RunState } from "./core.ts";
 import { StreamSink, type Activity, type AgentEvent, type Level, type RunUsage } from "./stream.ts";
-import { Throttle, type Scheduler } from "./throttle.ts";
+import { Throttle, realScheduler, type Scheduler, type TimerId } from "./throttle.ts";
 import {
   resolveSession,
   recordSession,
@@ -66,6 +66,13 @@ export interface BlockedCard {
   missing: string[];
 }
 
+/** A trigger-status card still inside its pickup grace period (c0117). */
+export interface DelayedCard {
+  card: Card;
+  /** How much longer it must wait, so the runner knows when to re-check. */
+  msRemaining: number;
+}
+
 export interface DispatchPlan {
   /** Ready cards to start now, in board order, within the WIP budget. */
   dispatch: Card[];
@@ -74,6 +81,29 @@ export interface DispatchPlan {
   /** Ready cards waiting on a dependency, with the ids they wait on. Reported
    *  rather than silently dropped — see i0119. */
   blocked: BlockedCard[];
+  /** Ready cards still inside the c0117 grace period, soonest first. */
+  delayed: DelayedCard[];
+}
+
+/** How the pickup grace period is evaluated (c0117). Defaults to no delay, so
+ *  a caller that does not care keeps the pre-c0117 behaviour. */
+export interface PickupOptions {
+  now: number;
+  pickupDelayMs: number;
+}
+
+/**
+ * How much longer a card must sit before it may be picked up (c0117).
+ *
+ * `status-changed` already records when it entered, so no new state is needed.
+ * A card with no parseable stamp is treated as eligible: it is not a fresh
+ * drag, and blocking it forever would be worse than starting it.
+ */
+export function pickupWait(card: Card, now: number, pickupDelayMs: number): number {
+  if (pickupDelayMs <= 0) return 0;
+  const since = card.statusChanged === null ? NaN : Date.parse(card.statusChanged);
+  if (Number.isNaN(since)) return 0;
+  return Math.max(0, pickupDelayMs - (now - since));
 }
 
 /**
@@ -88,6 +118,7 @@ export function planDispatch(
   activeCardIds: string[],
   wipLimit: number,
   trigger: string = READY,
+  pickup: PickupOptions = { now: 0, pickupDelayMs: 0 },
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
@@ -96,18 +127,29 @@ export function planDispatch(
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
   const blocked: BlockedCard[] = [];
+  const delayed: DelayedCard[] = [];
   const candidates: Card[] = [];
   for (const card of waiting) {
     const missing = missingDepends(index, card);
-    if (missing.length) blocked.push({ card, missing });
+    if (missing.length) {
+      blocked.push({ card, missing });
+      continue;
+    }
+    // c0117: the grace period gates a dependency-satisfied card. Checked after
+    // `depends` so a blocked card is still reported as blocked, not as waiting
+    // on a timer it is not actually waiting on.
+    const msRemaining = pickupWait(card, pickup.now, pickup.pickupDelayMs);
+    if (msRemaining > 0) delayed.push({ card, msRemaining });
     else candidates.push(card);
   }
+  delayed.sort((a, b) => a.msRemaining - b.msRemaining);
 
   const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds));
   return {
     dispatch: candidates.slice(0, budget),
     queued: candidates.slice(budget),
     blocked,
+    delayed,
   };
 }
 
@@ -230,9 +272,14 @@ export interface RunnerOptions {
    *  ~1s — a glimpse tolerates a second of lag. */
   activityThrottleMs?: number;
   /** c0109: clock + timer surface for the activity throttle. Injected so tests
-   *  drive it deterministically; defaults to real time. */
+   *  drive it deterministically; defaults to real time. c0117 reuses both for
+   *  the pickup grace period, which is why that delay needs no real waiting in
+   *  a test. */
   now?: () => number;
   scheduler?: Scheduler;
+  /** c0117: how long a card must sit in the trigger status before it is picked
+   *  up (ms). `0` (the default) dispatches immediately. */
+  pickupDelayMs?: number;
 }
 
 interface ActiveRun {
@@ -255,6 +302,8 @@ export class Runner {
   /** c0109: coalesces activity-driven state writes to ~1s, however fast the
    *  agent emits tool calls. Lifecycle changes publish immediately (bypass it). */
   private readonly activityThrottle: Throttle;
+  /** c0117: pending wake-up for the soonest card inside its grace period. */
+  private pickupTimer: TimerId | undefined;
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
@@ -273,16 +322,49 @@ export class Runner {
    * companion that was down while the human answered still sees it on startup.
    */
   sync(next: BoardModel): void {
+    // c0117: a resume is exempt from the grace period — you cannot accidentally
+    // answer a question, and delaying it would tax every turn of the Q&A loop.
     for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
-    const { dispatch, queued, blocked } = planDispatch(
+    const { dispatch, queued, blocked, delayed } = planDispatch(
       next,
       [...this.active.keys()],
       this.opts.wipLimit,
       this.opts.trigger ?? READY,
+      { now: this.now(), pickupDelayMs: this.opts.pickupDelayMs ?? 0 },
     );
     this.reportHeldBack(queued, blocked);
     for (const card of dispatch) this.start(card, false);
+    this.schedulePickupRecheck(delayed);
     this.publish();
+  }
+
+  private now(): number {
+    return (this.opts.now ?? Date.now)();
+  }
+
+  /**
+   * Wake up when the soonest delayed card becomes eligible (c0117). The watcher
+   * only fires on a file change, and a card sitting untouched in the trigger
+   * status produces none — so without this the grace period would never end.
+   */
+  private schedulePickupRecheck(delayed: DelayedCard[]): void {
+    const scheduler = this.opts.scheduler ?? realScheduler;
+    if (this.pickupTimer !== undefined) {
+      scheduler.clear(this.pickupTimer);
+      this.pickupTimer = undefined;
+    }
+    if (delayed.length === 0) return;
+    this.pickupTimer = scheduler.set(() => {
+      this.pickupTimer = undefined;
+      let model: BoardModel;
+      try {
+        model = this.opts.reload();
+      } catch (error) {
+        this.log(`reload for pickup re-check failed: ${(error as Error).message}`);
+        return;
+      }
+      this.sync(model);
+    }, delayed[0].msRemaining); // sorted soonest-first
   }
 
   /**

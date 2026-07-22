@@ -104,6 +104,9 @@ export interface CompanionState {
   runs: RunState[];
   /** ISO timestamp of the last update. */
   updated: string;
+  /** c0117: the configured pickup grace period, in seconds. Published so the
+   *  app can tick a countdown client-side; `0` means immediate dispatch. */
+  pickupDelay: number;
 }
 
 export interface RunState {
@@ -121,7 +124,7 @@ export interface RunState {
 }
 
 export function initialState(now: string): CompanionState {
-  return { status: "idle", ready: [], waiting: [], runs: [], updated: now };
+  return { status: "idle", ready: [], waiting: [], runs: [], updated: now, pickupDelay: 0 };
 }
 
 /** Absolute path of the companion state file (`<root>/.companion/state.json`). */

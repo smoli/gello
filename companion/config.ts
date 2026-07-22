@@ -29,6 +29,10 @@ export interface CompanionConfig {
    *  `normal` (plus tool calls and a token/cost summary), or `verbose` (plus
    *  the agent's assistant text). */
   level: Level;
+  /** c0117: seconds a card must sit in the trigger status before it is picked
+   *  up, so an accidental drag can be undone before an agent spends real
+   *  tokens. `0` dispatches immediately (the pre-c0117 behaviour). */
+  pickupDelay: number;
 }
 
 export const DEFAULT_CONFIG: CompanionConfig = {
@@ -37,6 +41,7 @@ export const DEFAULT_CONFIG: CompanionConfig = {
   trigger: "ready",
   permissionMode: "auto",
   level: "normal",
+  pickupDelay: 10,
 };
 
 /** Absolute path of the per-project config file (`<root>/companion.yaml`). */
@@ -54,6 +59,17 @@ function coerceLevel(value: unknown, fallback: Level): Level {
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+/** A non-negative seconds value, or the fallback. `0` is meaningful (dispatch
+ *  immediately), so it must survive — hence an explicit finite/negative check
+ *  rather than a truthiness test. */
+function coerceDelay(value: unknown, fallback: number): number {
+  const seconds = typeof value === "string" ? Number(value) : value;
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) {
+    return fallback;
+  }
+  return seconds;
 }
 
 /** The parsed file layer: the mapping, or null when the file is absent. Throws
@@ -115,5 +131,10 @@ export function loadConfig(
     DEFAULT_CONFIG.level,
   );
 
-  return { agent, scope, trigger, permissionMode, level };
+  const pickupDelay = coerceDelay(
+    env.GELLO_COMPANION_PICKUP_DELAY ?? file.pickupDelay,
+    DEFAULT_CONFIG.pickupDelay,
+  );
+
+  return { agent, scope, trigger, permissionMode, level, pickupDelay };
 }

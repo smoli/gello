@@ -46,6 +46,8 @@ interface CardSpec {
   status: string;
   depends?: string[];
   order?: number;
+  /** c0117: when the card entered its status, for the pickup grace period. */
+  statusChanged?: string;
   /** Question markdown parked as a `gelloquestion` fence (awaiting: input). */
   parked?: string;
   /** Answered question, un-fenced in place by the app (awaiting: answered). */
@@ -60,6 +62,7 @@ function cardFile(id: string, s: CardSpec): string {
     `status: ${s.status}`,
     s.depends ? `depends: [${s.depends.join(", ")}]` : null,
     s.order !== undefined ? `order: ${s.order}` : null,
+    s.statusChanged ? `status-changed: ${s.statusChanged}` : null,
     awaiting ? `awaiting: ${awaiting}` : null,
   ]
     .filter(Boolean)
@@ -201,6 +204,76 @@ describe("planDispatch", () => {
   });
 });
 
+// c0117: a card must sit in the trigger status for the grace period before it
+// is picked up, so an accidental drag can be undone before tokens are spent.
+describe("planDispatch — pickup delay", () => {
+  const T0 = Date.parse("2026-07-22T10:00:00");
+  const stamped = (status: string, statusChanged: string, order = 1) => ({
+    status,
+    order,
+    statusChanged,
+  });
+
+  it("holds a card back until the delay has elapsed", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0 + 5_000, pickupDelayMs: 10_000 });
+
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.delayed.map((d) => d.card.id)).toEqual(["c001"]);
+    expect(plan.delayed[0].msRemaining).toBe(5_000);
+  });
+
+  it("dispatches once the delay has elapsed", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0 + 10_000, pickupDelayMs: 10_000 });
+
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(plan.delayed).toEqual([]);
+  });
+
+  it("dispatches immediately when the delay is zero", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 0 });
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("treats a card with no status-changed as eligible, never blocked forever", () => {
+    const model = board({ c001: { status: "ready", order: 1 } });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("treats an unparseable status-changed as eligible", () => {
+    const model = board({ c001: stamped("ready", "not a date") });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("still honours the WIP limit — the delay is an extra gate, not a swap", () => {
+    const model = board({
+      c001: stamped("ready", "2026-07-22T09:00:00", 1),
+      c002: stamped("ready", "2026-07-22T09:00:00", 2),
+      c003: stamped("ready", "2026-07-22T09:00:00", 3),
+    });
+    // all three are past the delay, but the budget is 2
+    const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+    expect(plan.queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("does not count a delayed card against the dependency report", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
+    expect(plan.blocked).toEqual([]);
+    expect(plan.queued).toEqual([]);
+  });
+
+  it("defaults to no delay, so existing callers are unchanged", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    expect(planDispatch(model, [], 2).dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+});
+
 describe("classifyExit", () => {
   it("non-zero exit is an error", () => {
     const model = board({ c001: { status: "in-progress" } });
@@ -310,8 +383,8 @@ class FakeProc implements SpawnedRun {
 
 /** A manual clock + scheduler so the activity throttle is deterministic and
  *  leaves no real timers pending between tests. */
-function fakeClock() {
-  let now = 0;
+function fakeClock(start = 0) {
+  let now = start;
   let nextId = 1;
   const pending = new Map<number, { at: number; fn: () => void }>();
   const scheduler: Scheduler = {
@@ -343,6 +416,9 @@ function makeRunner(
   initial: BoardModel,
   sessions?: Record<string, string>,
   level: Level = "normal",
+  /** c0117: the pickup grace period, and a clock aligned with the fixtures'
+   *  `status-changed` stamps so the wait is comparable. */
+  pickup: { pickupDelayMs?: number; clockStart?: number } = {},
 ) {
   const spawned: FakeProc[] = [];
   const writes: { path: string; raw: string }[] = [];
@@ -354,7 +430,7 @@ function makeRunner(
   const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
   const logs: string[] = [];
-  const clock = fakeClock();
+  const clock = fakeClock(pickup.clockStart ?? 0);
   const runner = new Runner({
     // the agent runs in the repo; card paths resolve against .gello
     cwd: "/project",
@@ -385,6 +461,7 @@ function makeRunner(
     log: (line) => logs.push(line),
     now: clock.now,
     scheduler: clock.scheduler,
+    pickupDelayMs: pickup.pickupDelayMs ?? 0,
   });
   return {
     runner,
@@ -738,7 +815,92 @@ describe("Runner — run observability (c0104)", () => {
     expect(h.emitted).toEqual([]);
   });
 
-  // c0112: the TUI gives each run its own pane, so lines must be routable by
+  // c0117: the grace period, driven entirely by the fake scheduler — no test
+// here waits on real time.
+describe("Runner — pickup delay (c0117)", () => {
+  const T0 = Date.parse("2026-07-22T10:00:00");
+  const STAMP = "2026-07-22T10:00:00";
+  const opts = { pickupDelayMs: 10_000, clockStart: T0 };
+
+  it("does not dispatch a card still inside its grace period", () => {
+    const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+  });
+
+  it("dispatches once the delay elapses, without another file change", () => {
+    // the watcher will not fire again while the card sits untouched, so the
+    // runner has to wake itself
+    const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+
+    h.advance(10_000); // fires the runner's own re-check
+    expect(h.spawned).toHaveLength(1);
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("never dispatches a card dragged back out inside the window", () => {
+    const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    // the human notices and drags it back to backlog
+    const pulled = board({ c001: { status: "backlog", statusChanged: "2026-07-22T10:00:05" } });
+    h.setModel(pulled);
+    h.advance(10_000);
+
+    expect(h.spawned).toHaveLength(0);
+  });
+
+  it("restarts the countdown when the card comes back in", () => {
+    const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    // out at +5s, then back in at +8s with a fresh stamp
+    h.setModel(board({ c001: { status: "backlog", statusChanged: "2026-07-22T10:00:05" } }));
+    h.advance(5_000);
+    const returned = board({
+      c001: { status: "ready", order: 1, statusChanged: "2026-07-22T10:00:08" },
+    });
+    h.setModel(returned);
+    h.runner.sync(returned);
+
+    h.advance(5_000); // now +10s overall, but only 2s since it came back
+    expect(h.spawned).toHaveLength(0);
+
+    h.advance(8_000); // past the fresh stamp's window
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // criterion: resuming an answered question is a deliberate act, not a drag
+  it("resumes an answered card immediately, with no grace period", () => {
+    const answered = board({
+      c001: {
+        status: "in-progress",
+        statusChanged: STAMP,
+        answered: "### Which db?\n\n- [x] Postgres\n",
+      },
+    });
+    const h = makeRunner(answered, { "card:c001": "sid-1" }, "normal", opts);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(1); // no advance() needed
+    expect(h.spawned[0].spec.args[0]).toBe("--resume");
+  });
+
+  it("dispatches immediately when the delay is configured off", () => {
+    const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
+    const h = makeRunner(start, undefined, "normal", { pickupDelayMs: 0, clockStart: T0 });
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+  });
+});
+
+// c0112: the TUI gives each run its own pane, so lines must be routable by
   // card rather than merged into one stream.
   it("routes each concurrent run's lines to its own card, never interleaving", () => {
     const start = board({
