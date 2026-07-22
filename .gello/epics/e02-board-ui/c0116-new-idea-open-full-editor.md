@@ -1,11 +1,12 @@
 ---
 id: c0116
 title: New Idea open full editor
-status: discuss
+status: backlog
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T06:45:18
+status-changed: 2026-07-22T06:53:26
 epic: e02
+order: 10
 ---
 
 ## What
@@ -84,3 +85,4 @@ not collapse when the textarea loses focus.
   card from a focus event); all three capture modes, which is cheap because
   `CaptureForm` is already shared; Escape confirms before discarding a
   non-empty body.
+- 2026-07-22 status → backlog (app)
