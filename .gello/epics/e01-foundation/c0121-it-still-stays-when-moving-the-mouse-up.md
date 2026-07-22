@@ -79,18 +79,24 @@ Earlier, ruled out by reading the code:
 - **Not stale CSS `:hover`** any more — after c0120 the reveal does not consult
   `:hover` at all.
 
-What I cannot do here: observe it. There is no browser automation in the repo
-(no Playwright, no chromium-cli), `pnpm tauri dev` cannot start because port
-1420 is held by the human's own long-running dev server, and jsdom has no
-layout, no stylesheets and no real pointer, so this class of bug is not
-reproducible in the test suite. c0120 was already one fix reasoned from the
-code that did not hold; a third guess is not worth shipping.
+That list is what made the static approach a dead end — and why the harness was
+worth building. The reveal stayed a hover reveal; the human chose to keep
+chasing it rather than drop it, and the evidence made the fix obvious.
 
-Two failures on a hover-reveal affordance also raises the question of whether
-the reveal should exist at all — an always-visible but quiet trigger has no
-hover state to strand, and still satisfies c0118's "small, does not compete
-with the title/badges/tags".
+Worth knowing for next time: the app *can* be driven headlessly. Chrome over
+CDP with `window.__TAURI_INTERNALS__.invoke` stubbed renders the real board
+against the dev server, with real pointer input. It is not WKWebView, so it
+will not show WebKit-specific delivery bugs — but it proves whether logic is
+sound, which is exactly what was needed here. Could become a project skill or
+a checked-in harness if this keeps coming up.
 
 ## Log
 
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 asked (agent) / answered (human): keep chasing it — the trigger
+  stays forever on the way up and clears when moving down.
+- 2026-07-22 fixed (agent): reproduced over CDP in Chrome, where c0120 was
+  already correct both ways — so WKWebView drops the upward `mouseleave` and
+  the real defect was one boolean per card. Replaced with a single board-level
+  `hoveredPath`, so an enter evicts the previous card without needing a leave.
+  985 tests green.
