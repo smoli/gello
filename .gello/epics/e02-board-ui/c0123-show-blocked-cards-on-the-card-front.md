@@ -57,22 +57,22 @@ separate gap.
 
 ## Acceptance criteria
 
-- [ ] A card in `ready` or `in-progress` whose `depends` are not all `done`
+- [x] A card in `ready` or `in-progress` whose `depends` are not all `done`
       shows a blocked line below its title
-- [ ] The line names only the unfinished dependencies; satisfied ones are not
+- [x] The line names only the unfinished dependencies; satisfied ones are not
       listed
-- [ ] Each named id is clickable and opens that card
-- [ ] Clicking an id does not also open the blocked card's own detail behind it
-- [ ] The line renders as a third treatment of the existing status-line slot,
+- [x] Each named id is clickable and opens that card
+- [x] Clicking an id does not also open the blocked card's own detail behind it
+- [x] The line renders as a third treatment of the existing status-line slot,
       alongside the activity line and the pickup countdown
-- [ ] When a live activity line or a pickup countdown is present, that takes the
+- [x] When a live activity line or a pickup countdown is present, that takes the
       slot; blocked shows when neither is
-- [ ] A dependency id that matches no card on the board is shown as missing,
+- [x] A dependency id that matches no card on the board is shown as missing,
       not merely unfinished
-- [ ] Cards in any other status show nothing, whatever their dependencies
-- [ ] It is derived from the board model alone and renders with no companion
+- [x] Cards in any other status show nothing, whatever their dependencies
+- [x] It is derived from the board model alone and renders with no companion
       running
-- [ ] The line keeps its single-line truncation when several dependencies are
+- [x] The line keeps its single-line truncation when several dependencies are
       unfinished
 
 ## Discussion
