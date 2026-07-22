@@ -11,6 +11,36 @@ status-changed: 2026-07-22T06:56:16
 
 Reduces clicks
 
+## What
+
+A follow-up (c0115) currently costs three clicks from the board: open the card,
+press **Follow up**, type. Put the trigger on the card front so reviewing work
+and queueing more work happen in the same place.
+
+## Acceptance criteria
+
+- [ ] A card front whose status is `review` or `done` shows a small follow-up
+      trigger; a card in any other status shows none
+- [ ] Clicking the trigger opens the follow-up draft straight from the board,
+      without opening the card detail first
+- [ ] The trigger's click does not fall through to the card (the detail view
+      does not open behind the draft)
+- [ ] Submitting that draft creates exactly what c0115 creates — a task with
+      `ref` to the card, the card's epic, landing in `ready`
+- [ ] The draft still states that the card lands in `ready`, so the click that
+      can start an agent run stays legible (c0115)
+- [ ] The trigger is keyboard reachable and carries an accessible name naming
+      the card it follows up on
+- [ ] The trigger stays quiet: it does not compete with the card's title,
+      badges or tags
+
+## Notes
+
+- The card arrived with no acceptance criteria (it was itself dashed off
+  through the c0115 follow-up flow). The criteria above are my reading of
+  "a small trigger for creating it on the card front"; the design calls behind
+  them are in Discussion.
+
 ## Log
 
 - 2026-07-22 status → in-progress (agent)
