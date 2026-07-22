@@ -1,12 +1,11 @@
 ---
 id: c0116
 title: New Idea open full editor
-status: backlog
+status: ready
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T08:08:28
+status-changed: 2026-07-22T08:09:07
 epic: e02
-order: 10
 ---
 
 ## What
@@ -90,3 +89,4 @@ not collapse when the textarea loses focus.
 - 2026-07-22 status → backlog (app)
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → backlog (app)
+- 2026-07-22 status → ready (app)
