@@ -1,12 +1,12 @@
 ---
 id: c0125
 title: Don’t show the countdown, if the card is blocked
-status: in-progress
+status: review
 ref: c0117
 epic: e08
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T21:13:05
+status-changed: 2026-07-22T21:21:55
 ---
 
 But show it after the block is gone
@@ -49,3 +49,4 @@ But show it after the block is gone
   status-gated (a custom trigger would otherwise still have counted down on a
   blocked card). One c0123 precedence assertion reversed on purpose. Noted a
   pre-existing red on `main` from c0121 that this card leaves alone.
+- 2026-07-22 status → review (agent)
