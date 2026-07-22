@@ -1,10 +1,10 @@
 ---
 id: c0117
 title: Have a delay for a companion before picking up a card
-status: ready
+status: in-progress
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T07:20:13
+status-changed: 2026-07-22T07:20:28
 epic: e08
 ---
 
@@ -100,3 +100,4 @@ so the countdown restarts.
   deliberately left to its own card.
 - 2026-07-22 status → backlog (app)
 - 2026-07-22 status → ready (app)
+- 2026-07-22 status → in-progress (agent)
