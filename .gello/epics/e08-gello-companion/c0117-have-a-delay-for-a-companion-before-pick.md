@@ -134,3 +134,9 @@ so the countdown restarts.
 - 2026-07-22 status → backlog (app)
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 (agent) implemented in two commits: the companion-side gate
+  (`pickupDelay` config, `pickupWait`, `planDispatch.delayed`, a self-scheduled
+  re-check on the injected `Scheduler`) and the card-front countdown
+  (`pickup.ts`, ticked once a second). Resumes stay immediate. All eleven
+  criteria pass; 1019 tests, typecheck and lint green, and a live scratch run
+  confirmed a ready card sat undispatched inside its window.
