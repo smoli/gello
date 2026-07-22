@@ -1,12 +1,12 @@
 ---
 id: c0122
 title: Make it the standard editor for new cards
-status: in-progress
+status: review
 ref: c0116
 epic: e02
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T08:37:21
+status-changed: 2026-07-22T08:43:43
 ---
 
 Also when using the + New Idea button the editor is not vertically aligned
@@ -53,3 +53,4 @@ capture buttons, report-issue and follow-up all open the same centred editor.
 - 2026-07-22 status → in-progress (agent)
 - 2026-07-22 capture opens in the editor for every entry point; centring moved
   to a shared overlay, which is what the alignment bug was
+- 2026-07-22 status → review (agent)
