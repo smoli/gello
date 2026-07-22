@@ -66,6 +66,39 @@ so the countdown restarts.
       replacement
 - [x] The delay is unit-tested with a fake scheduler (no real-time waiting)
 
+## Notes
+
+- 2026-07-22 (agent) Built exactly on what already existed, as the card
+  intended: `status-changed` answers "how long has it waited", the throttle's
+  injectable `Scheduler` answers "wake me later", `CompanionConfig` answers
+  "how long", and `isCompanionLive` answers "is anyone watching".
+  - **Gate** — `pickupWait(card, now, delayMs)` is pure; `planDispatch` reports
+    a new `delayed[]` (soonest first) alongside `queued`/`blocked`. It is
+    checked *after* `depends`, so a blocked card is still reported as blocked
+    rather than as waiting on a timer it is not on. The options argument
+    defaults to no delay, so every pre-c0117 caller is unchanged.
+  - **Waking up** — the runner schedules one re-check at the soonest eligible
+    moment and cancels it on every sync. Because the `Scheduler` is injected,
+    all six delay tests run on a fake clock; none waits on real time.
+  - **Countdown** — `pickupCountdown` in a new `pickup.ts`, ticked once a second
+    in `Board`. The interval is keyed on the *queue*, not the state object: the
+    2s poll replaces that object wholesale, so keying on it would restart the
+    interval every poll and make the countdown stutter.
+- **Two open questions, decided** (veto welcome): the countdown does **not**
+  sweep like c0113's activity line — the number is already moving and two
+  motions would compete — but it reuses `.card-activity`'s shape so the card's
+  live elements read as one system. No "start now" affordance: it is a second
+  control surface for a 10s wait, and dragging the card out and back already
+  restarts it.
+- **Verified live**, not only in tests: a scratch board with a card in `ready`
+  and the default 10s delay, killed after 4s. The state file showed
+  `pickupDelay: 10` and `ready: ["c001"]` with `runs: []` — detected, and
+  deliberately not dispatched inside the window.
+- Adding a required field to `CompanionState` rippled into fixtures across four
+  test files. Kept it required rather than optional: the parser always produces
+  a number, and an optional field would have let a `undefined` slip into the
+  countdown arithmetic.
+
 ## Discussion
 
 - **No delay on resume** (human's call): the hazard is an accidental drag, and
