@@ -249,3 +249,210 @@ describe("QuickCapture", () => {
     expect(onDiscard).toHaveBeenCalledOnce();
   });
 });
+
+// c0116: the panel is cramped for anything longer than a sentence — focusing
+// the body grows it in place. Nothing about *when* a card is written changes.
+
+const panel = () => document.querySelector(".quick-capture") as HTMLElement;
+const isExpanded = () => panel().classList.contains("quick-capture-expanded");
+
+describe("c0116: focusing the body expands the capture panel", () => {
+  const openIdea = (props = {}) => {
+    const all = { onCreate: vi.fn(), onCreateEpic: vi.fn(), ...props };
+    render(<QuickCapture {...all} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    return all;
+  };
+
+  it("expands when the Details textarea takes focus", () => {
+    openIdea();
+    expect(isExpanded()).toBe(false);
+
+    fireEvent.focus(screen.getByLabelText("Details"));
+
+    expect(isExpanded()).toBe(true);
+    // the field itself grows, not just the panel around it
+    expect(
+      Number(screen.getByLabelText("Details").getAttribute("rows")),
+    ).toBeGreaterThan(3);
+  });
+
+  it("carries the text already typed into the expanded editor", () => {
+    openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Dark mode" } });
+    fireEvent.change(screen.getByLabelText("Details"), { target: { value: "first line" } });
+
+    fireEvent.focus(screen.getByLabelText("Details"));
+
+    expect(screen.getByLabelText("Title")).toHaveValue("Dark mode");
+    expect(screen.getByLabelText("Details")).toHaveValue("first line");
+  });
+
+  it("stays expanded once the textarea loses focus", () => {
+    openIdea();
+    const details = screen.getByLabelText("Details");
+    fireEvent.focus(details);
+    fireEvent.blur(details);
+    expect(isExpanded()).toBe(true);
+
+    // and back up in the title, still expanded
+    fireEvent.focus(screen.getByLabelText("Title"));
+    expect(isExpanded()).toBe(true);
+  });
+
+  it("writes nothing on focus — only Add creates the card", () => {
+    const { onCreate } = openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Still a draft" } });
+    fireEvent.focus(screen.getByLabelText("Details"));
+
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Still a draft", "", "task");
+  });
+
+  it("opens each capture unexpanded again", () => {
+    const { onCreate } = openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "One" } });
+    fireEvent.focus(screen.getByLabelText("Details"));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onCreate).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    expect(isExpanded()).toBe(false);
+  });
+
+  it("expands in issue mode too", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    fireEvent.focus(screen.getByLabelText("Details"));
+    expect(isExpanded()).toBe(true);
+  });
+
+  it("expands in epic mode, where the body field is the Goal", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new epic/i }));
+    fireEvent.focus(screen.getByLabelText("Goal"));
+    expect(isExpanded()).toBe(true);
+  });
+
+  it("keeps plain Enter a newline and mod+Enter a submit while expanded", () => {
+    const { onCreate } = openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Big idea" } });
+    const details = screen.getByLabelText("Details");
+    fireEvent.focus(details);
+    fireEvent.change(details, { target: { value: "line one" } });
+
+    fireEvent.keyDown(details, { key: "Enter" });
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(details, { key: "Enter", metaKey: true });
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Big idea", "line one", "task");
+  });
+
+  it("i0013: an image pasted into the expanded editor still lands", async () => {
+    const onSaveImage = vi.fn().mockResolvedValue("../assets/c0008/shot.png");
+    openIdea({ onSaveImage });
+    const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
+    fireEvent.focus(details);
+
+    const file = new File([new Uint8Array([1])], "shot.png", { type: "image/png" });
+    fireEvent.paste(details, {
+      clipboardData: {
+        items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+        files: [file],
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(onSaveImage).toHaveBeenCalledExactlyOnceWith("task", file);
+      expect(details.value).toBe("![shot](../assets/c0008/shot.png)");
+    });
+  });
+});
+
+describe("c0116: Escape guards a draft that has content", () => {
+  const openIdea = () => {
+    const props = { onCreate: vi.fn(), onCreateEpic: vi.fn(), onDiscard: vi.fn() };
+    render(<QuickCapture {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    return props;
+  };
+  const confirmPrompt = () =>
+    screen.queryByRole("group", { name: "confirm discard" });
+
+  it("closes at once when the body is empty, title typed or not", () => {
+    const { onDiscard } = openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Just a line" } });
+
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(onDiscard).toHaveBeenCalledOnce();
+  });
+
+  it("asks before throwing a written body away", () => {
+    const { onDiscard } = openIdea();
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "a paragraph worth keeping" } });
+
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    expect(confirmPrompt()).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument(); // still open
+    expect(onDiscard).not.toHaveBeenCalled();
+  });
+
+  it("discards on confirm", () => {
+    const { onDiscard } = openIdea();
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "a paragraph" } });
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(onDiscard).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the draft and its text on Keep", () => {
+    const { onDiscard } = openIdea();
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "a paragraph" } });
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+
+    expect(confirmPrompt()).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Details")).toHaveValue("a paragraph");
+    expect(onDiscard).not.toHaveBeenCalled();
+  });
+
+  it("a second Escape dismisses the prompt rather than confirming it", () => {
+    // a reflex double-tap must not blow straight through the guard
+    const { onDiscard } = openIdea();
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "a paragraph" } });
+    fireEvent.keyDown(details, { key: "Escape" });
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    expect(confirmPrompt()).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Details")).toHaveValue("a paragraph");
+    expect(onDiscard).not.toHaveBeenCalled();
+  });
+
+  it("does not let Escape reach a card detail behind the panel", () => {
+    const onOuterEscape = vi.fn();
+    render(
+      <div onKeyDown={(event) => event.key === "Escape" && onOuterEscape()}>
+        <QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "content" } });
+    fireEvent.keyDown(details, { key: "Escape" });
+
+    expect(onOuterEscape).not.toHaveBeenCalled();
+  });
+});

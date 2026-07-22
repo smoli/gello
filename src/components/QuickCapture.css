@@ -47,6 +47,35 @@
   font-size: 0.8rem;
 }
 
+/* c0116: the same panel with room to write — centred, wide, and tall enough
+   for paragraphs. It grows on body focus and stays grown until the capture
+   closes. The top-right corner is fine for one line, not for a description. */
+.quick-capture-expanded {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(760px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  font-size: 0.85rem;
+  padding: 1rem;
+  box-shadow: 0 16px 48px color-mix(in srgb, CanvasText 30%, transparent);
+}
+
+.quick-capture-expanded textarea {
+  min-height: 45vh;
+  font-family: ui-monospace, monospace;
+  line-height: 1.5;
+}
+
+.quick-capture-discard-confirm {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
 /* report-issue draft (c040): centered above the card-detail dialog (z 10) */
 .issue-draft-overlay {
   position: fixed;
@@ -61,6 +90,13 @@
 .issue-draft-overlay .quick-capture {
   position: static;
   width: min(380px, 92vw);
+}
+
+/* c0116: this overlay already centres the panel, so expanding it here is only
+   a size change — the centring transform would push it off-centre instead. */
+.issue-draft-overlay .quick-capture-expanded {
+  width: min(760px, 92vw);
+  transform: none;
 }
 
 .quick-capture-mode {

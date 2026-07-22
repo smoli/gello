@@ -112,3 +112,5 @@ not collapse when the textarea loses focus.
 - 2026-07-22 status → backlog (app)
 - 2026-07-22 status → ready (app)
 - 2026-07-22 status → in-progress (agent)
+- 2026-07-22 capture panel grows on body focus; Escape confirms a written
+  body — 15 tests over the acceptance criteria, all modes
