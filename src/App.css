@@ -35,9 +35,10 @@ body,
   padding-top: calc(0.75rem + var(--titlebar-height));
 }
 
-/* quick-capture buttons clear the titlebar */
-.app-shell-frameless .quick-capture-buttons,
-.app-shell-frameless .quick-capture {
+/* quick-capture buttons clear the titlebar. c0122: the capture panel itself is
+   no longer listed here — it is centred by its overlay, and this rule (two
+   classes) used to outrank the panel's own centring and pull it off-screen. */
+.app-shell-frameless .quick-capture-buttons {
   top: calc(0.7rem + var(--titlebar-height));
 }
 

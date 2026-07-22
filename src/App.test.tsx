@@ -1190,8 +1190,9 @@ describe("App", () => {
     // nothing on disk yet — it's a draft form carrying the ref context
     expect(writeMock).not.toHaveBeenCalled();
     expect(screen.getByText(/issue for c006/i)).toBeInTheDocument();
-    // rendered in its own overlay above the card-detail dialog (c040)
-    const overlay = document.querySelector(".issue-draft-overlay");
+    // rendered in its own overlay above the card-detail dialog (c040; c0122
+    // shares that overlay with every other capture)
+    const overlay = document.querySelector(".capture-overlay");
     expect(overlay).not.toBeNull();
     expect(overlay!.querySelector(".quick-capture")).not.toBeNull();
 

@@ -250,13 +250,13 @@ describe("QuickCapture", () => {
   });
 });
 
-// c0116: the panel is cramped for anything longer than a sentence — focusing
-// the body grows it in place. Nothing about *when* a card is written changes.
+// c0122: the capture *is* the editor now — every new card opens in the same
+// centred panel. c0116 grew it on body focus; that step is gone.
 
 const panel = () => document.querySelector(".quick-capture") as HTMLElement;
-const isExpanded = () => panel().classList.contains("quick-capture-expanded");
+const overlay = () => document.querySelector(".capture-overlay");
 
-describe("c0116: focusing the body expands the capture panel", () => {
+describe("c0122: every capture opens in the full editor", () => {
   const openIdea = (props = {}) => {
     const all = { onCreate: vi.fn(), onCreateEpic: vi.fn(), ...props };
     render(<QuickCapture {...all} />);
@@ -264,83 +264,61 @@ describe("c0116: focusing the body expands the capture panel", () => {
     return all;
   };
 
-  it("expands when the Details textarea takes focus", () => {
+  it("centres the panel in an overlay instead of positioning it itself", () => {
+    // c0122: the corner panel positioned itself, which collided with the
+    // frameless shell's own `top` rule and left it hanging off the top edge.
+    // An overlay that centres its child has no such rule to lose to.
     openIdea();
-    expect(isExpanded()).toBe(false);
+    expect(overlay()).not.toBeNull();
+    expect(overlay()!.contains(panel())).toBe(true);
+  });
 
-    fireEvent.focus(screen.getByLabelText("Details"));
-
-    expect(isExpanded()).toBe(true);
-    // the field itself grows, not just the panel around it
+  it("gives the body room straight away, with no focus step", () => {
+    openIdea();
     expect(
       Number(screen.getByLabelText("Details").getAttribute("rows")),
     ).toBeGreaterThan(3);
   });
 
-  it("carries the text already typed into the expanded editor", () => {
-    openIdea();
-    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Dark mode" } });
-    fireEvent.change(screen.getByLabelText("Details"), { target: { value: "first line" } });
-
-    fireEvent.focus(screen.getByLabelText("Details"));
-
-    expect(screen.getByLabelText("Title")).toHaveValue("Dark mode");
-    expect(screen.getByLabelText("Details")).toHaveValue("first line");
+  it("opens in the editor for an issue capture", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    expect(overlay()!.contains(panel())).toBe(true);
   });
 
-  it("stays expanded once the textarea loses focus", () => {
-    openIdea();
-    const details = screen.getByLabelText("Details");
-    fireEvent.focus(details);
-    fireEvent.blur(details);
-    expect(isExpanded()).toBe(true);
-
-    // and back up in the title, still expanded
-    fireEvent.focus(screen.getByLabelText("Title"));
-    expect(isExpanded()).toBe(true);
+  it("opens in the editor for an epic capture, where the body is the Goal", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new epic/i }));
+    expect(overlay()!.contains(panel())).toBe(true);
+    expect(Number(screen.getByLabelText("Goal").getAttribute("rows"))).toBeGreaterThan(3);
   });
 
-  it("writes nothing on focus — only Add creates the card", () => {
-    const { onCreate } = openIdea();
-    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Still a draft" } });
-    fireEvent.focus(screen.getByLabelText("Details"));
-
-    expect(onCreate).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Still a draft", "", "task");
-  });
-
-  it("opens each capture unexpanded again", () => {
+  it("opens every capture the same way, not just the first", () => {
     const { onCreate } = openIdea();
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "One" } });
-    fireEvent.focus(screen.getByLabelText("Details"));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(onCreate).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
-    expect(isExpanded()).toBe(false);
+    expect(overlay()!.contains(panel())).toBe(true);
   });
 
-  it("expands in issue mode too", () => {
-    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+  it("still writes nothing until Add", () => {
+    const { onCreate } = openIdea();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Still a draft" } });
     fireEvent.focus(screen.getByLabelText("Details"));
-    expect(isExpanded()).toBe(true);
+    fireEvent.change(screen.getByLabelText("Details"), { target: { value: "typing" } });
+
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Still a draft", "typing", "task");
   });
 
-  it("expands in epic mode, where the body field is the Goal", () => {
-    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /new epic/i }));
-    fireEvent.focus(screen.getByLabelText("Goal"));
-    expect(isExpanded()).toBe(true);
-  });
-
-  it("keeps plain Enter a newline and mod+Enter a submit while expanded", () => {
+  it("keeps plain Enter a newline and mod+Enter a submit", () => {
     const { onCreate } = openIdea();
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Big idea" } });
     const details = screen.getByLabelText("Details");
-    fireEvent.focus(details);
     fireEvent.change(details, { target: { value: "line one" } });
 
     fireEvent.keyDown(details, { key: "Enter" });
@@ -350,11 +328,10 @@ describe("c0116: focusing the body expands the capture panel", () => {
     expect(onCreate).toHaveBeenCalledExactlyOnceWith("Big idea", "line one", "task");
   });
 
-  it("i0013: an image pasted into the expanded editor still lands", async () => {
+  it("i0013: an image pasted into the editor still lands", async () => {
     const onSaveImage = vi.fn().mockResolvedValue("../assets/c0008/shot.png");
     openIdea({ onSaveImage });
     const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
-    fireEvent.focus(details);
 
     const file = new File([new Uint8Array([1])], "shot.png", { type: "image/png" });
     fireEvent.paste(details, {

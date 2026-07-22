@@ -30,40 +30,36 @@
   border-color: color-mix(in srgb, #8b5cf6 40%, transparent);
 }
 
-.quick-capture {
+/* c0122: one editor for every new card — quick capture, report-issue and
+   follow-up drafts all render this. The overlay centres it (c040 already did
+   this for report-issue); the panel places nothing itself, so the frameless
+   shell's `top` rule for the corner buttons can't drag it off-centre. */
+.capture-overlay {
   position: fixed;
-  top: 0.7rem;
-  right: 0.75rem;
-  z-index: 5;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+.quick-capture {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: min(320px, 90vw);
-  padding: 0.75rem;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
-  background: Canvas;
-  box-shadow: 0 8px 24px color-mix(in srgb, CanvasText 20%, transparent);
-  font-size: 0.8rem;
-}
-
-/* c0116: the same panel with room to write — centred, wide, and tall enough
-   for paragraphs. It grows on body focus and stays grown until the capture
-   closes. The top-right corner is fine for one line, not for a description. */
-.quick-capture-expanded {
-  top: 50%;
-  left: 50%;
-  right: auto;
-  transform: translate(-50%, -50%);
   width: min(760px, 92vw);
   max-height: 88vh;
   overflow-y: auto;
-  font-size: 0.85rem;
   padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
   box-shadow: 0 16px 48px color-mix(in srgb, CanvasText 30%, transparent);
+  font-size: 0.85rem;
 }
 
-.quick-capture-expanded textarea {
+.quick-capture textarea {
   min-height: 45vh;
   font-family: ui-monospace, monospace;
   line-height: 1.5;
@@ -74,29 +70,6 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.78rem;
-}
-
-/* report-issue draft (c040): centered above the card-detail dialog (z 10) */
-.issue-draft-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, CanvasText 20%, transparent);
-}
-
-.issue-draft-overlay .quick-capture {
-  position: static;
-  width: min(380px, 92vw);
-}
-
-/* c0116: this overlay already centres the panel, so expanding it here is only
-   a size change — the centring transform would push it off-centre instead. */
-.issue-draft-overlay .quick-capture-expanded {
-  width: min(760px, 92vw);
-  transform: none;
 }
 
 .quick-capture-mode {

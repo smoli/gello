@@ -1279,30 +1279,30 @@ function App() {
           />
         )}
         {refDraft && (
-          <div className="issue-draft-overlay">
-            <CaptureForm
-              heading={
-                refDraft.kind === "issue"
-                  ? `New issue for ${refDraft.source.id}`
-                  : `Follow-up to ${refDraft.source.id}`
-              }
-              // c0115: one click here can start real agent work, so say where
-              // the card lands rather than letting a run be a surprise
-              note={
-                refDraft.kind === "followup"
-                  ? "Lands in ready — a running companion will start on it."
-                  : undefined
-              }
-              onSubmit={submitIssueDraft}
-              onCancel={() => {
-                handleDiscardIssueDraft();
-                setRefDraft(null);
-              }}
-              onSaveImage={(file) =>
-                handleIssueImage(refDraft.source, refDraft.kind, file)
-              }
-            />
-          </div>
+          // c0122: CaptureForm brings its own centred overlay (c040's, now
+          // shared with quick capture), so there is no wrapper here
+          <CaptureForm
+            heading={
+              refDraft.kind === "issue"
+                ? `New issue for ${refDraft.source.id}`
+                : `Follow-up to ${refDraft.source.id}`
+            }
+            // c0115: one click here can start real agent work, so say where
+            // the card lands rather than letting a run be a surprise
+            note={
+              refDraft.kind === "followup"
+                ? "Lands in ready — a running companion will start on it."
+                : undefined
+            }
+            onSubmit={submitIssueDraft}
+            onCancel={() => {
+              handleDiscardIssueDraft();
+              setRefDraft(null);
+            }}
+            onSaveImage={(file) =>
+              handleIssueImage(refDraft.source, refDraft.kind, file)
+            }
+          />
         )}
         {pendingTriage && (
           <MilestonePicker
