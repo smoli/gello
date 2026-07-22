@@ -50,7 +50,9 @@ legible rather than surprising.
       the parent's `epic`, filed in the parent's folder
 - [ ] The new follow-up's status is `ready`
 - [ ] With a companion running, a new follow-up is dispatched without any
-      further action
+      further action, once the WIP limit and the existing `ready` queue allow
+- [ ] A follow-up is created without an `order`, so it queues behind cards
+      already ordered in `ready` rather than preempting them
 - [ ] The parent's detail lists **Open issues** and **Follow-ups** as separate
       sections, each showing only cards that are not `done`
 - [ ] A follow-up's detail shows the existing clickable back-link to its parent
@@ -77,11 +79,15 @@ legible rather than surprising.
   provenance concept — `ref` (c024) already means exactly this.
 - **No body seeding**: the `ref` field and its back-link already state the
   parentage, so pre-filling "Follow-up to cNNNN" in the body would duplicate it.
-- **Open — queue position**: `planDispatch` orders `ready` by
-  `order ?? Infinity`, so a fresh follow-up with no `order` sorts **last** and
-  would be picked up *after* every other ready card. That directly undercuts
-  the chat-like immediacy — a follow-up probably needs to jump the queue
-  (lowest `order`), which should be decided before this is built.
+- **Queue position: no jumping** (human's call). `planDispatch` orders `ready`
+  by `order ?? Infinity`, so a follow-up created without an `order` sorts
+  **last** — it waits behind whatever is already queued. That is deliberate: a
+  ready column you ordered on purpose should not be preempted by a
+  just-typed follow-up. It is also the zero-implementation default, so nothing
+  special is needed. In practice the immediacy survives: while reviewing
+  finished work the ready column is usually short or empty, so the follow-up
+  starts right away anyway. Rejected: giving follow-ups the lowest `order` to
+  push them to the front of the queue.
 - **Open**: whether a follow-up inherits the parent's **tags** (report-issue
   does not today; same-area work argues yes); whether creating a follow-up
   should touch the parent's status (probably not — they are independent).
@@ -94,3 +100,5 @@ legible rather than surprising.
   unchanged and always available; the parent lists Open issues and Follow-ups
   as separate sections. Implementation is `createIssueFor`/`openIssuesFor`
   generalised beyond `type: issue`.
+- 2026-07-22 queue position settled (human): follow-ups take the default
+  position and sort last in `ready` — an ordered ready column is not preempted.
