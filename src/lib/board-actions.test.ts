@@ -10,6 +10,7 @@ import {
   archiveCard,
   unarchiveCard,
   createIssueFor,
+  createFollowUpFor,
   createCard,
   addGelloQuestion,
   answerGelloQuestion,
@@ -506,6 +507,78 @@ describe("issue creation (c024)", () => {
     expect(written).toContain("ref: c005\n");
     expect(written).toContain("epic: m02\n");
     expect(written).toContain("Repro: click it.");
+  });
+
+  it("creates a follow-up task next to the source, in ready, in the c-namespace (c0115)", async () => {
+    const source = parseCard(
+      "milestones/m02-board-ui/c005-view.md",
+      "---\nid: c005\ntitle: The view\nstatus: review\nmilestone: m02\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Also handle the empty state", body: "Nothing renders yet." },
+      "2026-07-22",
+    );
+
+    // a task, not an issue: c-namespace id and no explicit type line
+    expect(card.type).toBe("task");
+    expect(card.id).toBe("c0008");
+    expect(card.ref).toBe("c005");
+    expect(card.status).toBe("ready");
+    expect(card.epic).toBe("m02");
+    expect(card.path).toBe(
+      "milestones/m02-board-ui/c0008-also-handle-the-empty-state.md",
+    );
+    await persisted;
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("status: ready\n");
+    expect(written).toContain("ref: c005\n");
+    expect(written).toContain("epic: m02\n");
+    expect(written).not.toContain("type:");
+    expect(written).toContain("Nothing renders yet.");
+  });
+
+  it("leaves a follow-up unordered so it queues behind ordered ready cards (c0115)", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: done\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Second pass", body: "" },
+      "2026-07-22",
+    );
+
+    expect(card.order).toBeNull();
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).not.toContain("order:");
+  });
+
+  it("reuses an id reserved for an image pasted into the follow-up draft (c0115)", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: review\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Has a screenshot", body: "", id: "c0042" },
+      "2026-07-22",
+    );
+
+    expect(card.id).toBe("c0042");
+    expect(card.path).toBe("cards/c0042-has-a-screenshot.md");
   });
 
   it("creates a issue for an inbox source card in the inbox", async () => {

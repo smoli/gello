@@ -72,6 +72,13 @@
   opacity: 0.65;
 }
 
+/* c0115: says what submitting sets off (a follow-up starts a companion run) */
+.quick-capture-note {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
 .quick-capture label {
   display: flex;
   flex-direction: column;

@@ -8,6 +8,7 @@ import {
   findCardById,
   nextCardId,
   nextIssueId,
+  openFollowUpsFor,
   openIssuesFor,
   withCardTriaged,
   withNewEpic,
@@ -20,7 +21,8 @@ import {
   answerGelloQuestion,
   archiveCard,
   unarchiveCard,
-  createIssueFor,
+  createRefCardFor,
+  type RefCardKind,
   createCard,
   createEpic,
   deleteCard,
@@ -144,8 +146,11 @@ function App() {
   const [migrating, setMigrating] = useState(false);
   const [migrateError, setMigrateError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  // report-issue draft target (c037): the form is open, nothing on disk yet
-  const [issueSource, setIssueSource] = useState<Card | null>(null);
+  // report-issue / follow-up draft target (c037, c0115): the form is open,
+  // nothing on disk yet. The kind decides the id namespace, type and status.
+  const [refDraft, setRefDraft] = useState<{ source: Card; kind: RefCardKind } | null>(
+    null,
+  );
   // board background (c047): data URL for an image config.background
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
   // c0060: live preview override (color/gradient) + picker position
@@ -158,7 +163,8 @@ function App() {
   // i0013: an id reserved when an image is pasted into a quick-create draft
   // before the card exists, so the asset folder and the eventual card agree.
   const reservedCreate = useRef<{ type: "task" | "issue"; id: string } | null>(null);
-  // i0022: id reserved when an image is pasted into a report-issue draft
+  // i0022: id reserved when an image is pasted into a report-issue/follow-up
+  // draft (c0115: allocated in the namespace the draft's kind will use)
   const reservedIssue = useRef<string | null>(null);
   // i0005: a milestone-less inbox card dropped on a triage column, awaiting a
   // milestone pick (or dismissal → apply status only, stay in inbox).
@@ -986,9 +992,16 @@ function App() {
   // i0022: pasting an image into a report-issue draft. The issue has no file
   // yet (c037), so reserve its id once and save under it; the issue is born in
   // the source card's folder, so the link depth follows the source's path.
-  const handleIssueImage = async (source: Card, file: File): Promise<string> => {
+  const handleIssueImage = async (
+    source: Card,
+    kind: RefCardKind,
+    file: File,
+  ): Promise<string> => {
     if (!board) throw new Error("no board loaded");
-    const id = reservedIssue.current ?? nextIssueId(board.model);
+    // c0115: a follow-up is a task, so it reserves a c-id, not an i-id
+    const id =
+      reservedIssue.current ??
+      (kind === "issue" ? nextIssueId(board.model) : nextCardId(board.model));
     reservedIssue.current = id;
     return `${assetLinkPrefix(source.path)}${await persistImage(id, file)}`;
   };
@@ -996,21 +1009,23 @@ function App() {
     reservedIssue.current = null;
   };
 
-  /** Draft submitted (c037) — only now does the issue come into existence. */
+  /** Draft submitted (c037) — only now does the issue/follow-up come into
+   *  existence, through the one shared creation path (c0115). */
   const submitIssueDraft = (title: string, body: string) => {
-    if (!board || !issueSource) return;
+    if (!board || !refDraft) return;
     // i0022: create under the id reserved for any pasted image, so its link resolves
     const id = reservedIssue.current ?? undefined;
     reservedIssue.current = null;
     let created: Card | null = null;
     applyAction(
       () => {
-        const result = createIssueFor(
+        const result = createRefCardFor(
           board.root,
           board.model,
-          issueSource,
+          refDraft.source,
           { title, body, id },
           todayIsoDate(),
+          refDraft.kind,
         );
         created = result.card;
         return result;
@@ -1027,7 +1042,7 @@ function App() {
               ),
             },
     );
-    setIssueSource(null);
+    setRefDraft(null);
     if (created !== null) setSelectedPath((created as Card).path);
   };
 
@@ -1261,16 +1276,29 @@ function App() {
             onClose={() => setManagingTags(false)}
           />
         )}
-        {issueSource && (
+        {refDraft && (
           <div className="issue-draft-overlay">
             <CaptureForm
-              heading={`New issue for ${issueSource.id}`}
+              heading={
+                refDraft.kind === "issue"
+                  ? `New issue for ${refDraft.source.id}`
+                  : `Follow-up to ${refDraft.source.id}`
+              }
+              // c0115: one click here can start real agent work, so say where
+              // the card lands rather than letting a run be a surprise
+              note={
+                refDraft.kind === "followup"
+                  ? "Lands in ready — a running companion will start on it."
+                  : undefined
+              }
               onSubmit={submitIssueDraft}
               onCancel={() => {
                 handleDiscardIssueDraft();
-                setIssueSource(null);
+                setRefDraft(null);
               }}
-              onSaveImage={(file) => handleIssueImage(issueSource, file)}
+              onSaveImage={(file) =>
+                handleIssueImage(refDraft.source, refDraft.kind, file)
+              }
             />
           </div>
         )}
@@ -1412,7 +1440,8 @@ function App() {
             onAnswerQuestion={(newBody) =>
               void handleAnswerQuestion(selected.card, newBody)
             }
-            onReportIssue={() => setIssueSource(selected.card)}
+            onReportIssue={() => setRefDraft({ source: selected.card, kind: "issue" })}
+            onFollowUp={() => setRefDraft({ source: selected.card, kind: "followup" })}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
               if (target) setSelectedPath(target.path);
@@ -1426,6 +1455,7 @@ function App() {
                 : null
             }
             openIssues={openIssuesFor(board.model, selected.card.id)}
+            followUps={openFollowUpsFor(board.model, selected.card.id)}
             onClose={() => setSelectedPath(null)}
           />
         )}

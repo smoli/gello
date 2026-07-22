@@ -9,12 +9,16 @@ import "./QuickCapture.css";
  */
 export function CaptureForm({
   heading,
+  note,
   detailsLabel = "Details",
   onSubmit,
   onCancel,
   onSaveImage,
 }: {
   heading: string;
+  /** c0115: one line under the heading saying what submitting will set off —
+   *  a follow-up lands in ready, where a running companion picks it up. */
+  note?: string;
   /** i0028: label for the second field — "Goal" in epic mode, else "Details". */
   detailsLabel?: string;
   onSubmit: (title: string, body: string) => void;
@@ -62,6 +66,7 @@ export function CaptureForm({
       }}
     >
       <p className="quick-capture-mode">{heading}</p>
+      {note && <p className="quick-capture-note">{note}</p>}
       <label>
         Title
         <input

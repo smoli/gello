@@ -42,9 +42,11 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     onSaveEdit: vi.fn().mockResolvedValue("saved" as const),
     onTriage: vi.fn(),
     onReportIssue: vi.fn(),
+    onFollowUp: vi.fn(),
     onOpenCardId: vi.fn(),
     refCard: null,
     openIssues: [],
+    followUps: [],
     milestoneOptions: [
       { folder: "m01-alpha", milestoneId: "m01", label: "Alpha" },
       { folder: "m03-card-detail", milestoneId: "m03", label: "Card detail & capture" },
@@ -300,18 +302,49 @@ describe("CardDetail", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows a report-issue action only for review/done cards (c024)", () => {
+  // c0115 widened this: something can break at any point in a card's life, so
+  // report-issue is no longer gated to review/done the way it was in c024.
+  it("shows a report-issue action on a card in any status (c0115)", () => {
     const props = renderDetail(); // fixture card is in-progress
+    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    expect(props.onReportIssue).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    const props2 = renderDetail({ card: { ...fixture(), status: "review" } });
+    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
+    expect(props2.onReportIssue).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Follow up only on a review or done card (c0115)", () => {
+    renderDetail(); // in-progress: more work is not "follow-up" yet
     expect(
-      screen.queryByRole("button", { name: /report issue/i }),
+      screen.queryByRole("button", { name: /follow up/i }),
     ).not.toBeInTheDocument();
     cleanup();
 
-    const reviewCard = { ...fixture(), status: "review" };
-    const props2 = renderDetail({ card: reviewCard });
-    fireEvent.click(screen.getByRole("button", { name: /report issue/i }));
-    expect(props2.onReportIssue).toHaveBeenCalledTimes(1);
-    expect(props.onReportIssue).not.toHaveBeenCalled();
+    for (const status of ["review", "done"]) {
+      const props = renderDetail({ card: { ...fixture(), status } });
+      fireEvent.click(screen.getByRole("button", { name: /follow up/i }));
+      expect(props.onFollowUp).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
+  });
+
+  it("lists open issues and follow-ups as separate sections (c0115)", () => {
+    const props = renderDetail({
+      openIssues: [
+        { ...fixture(), id: "i0007", title: "Broke the filter", path: "cards/i0007-x.md" },
+      ],
+      followUps: [
+        { ...fixture(), id: "c0050", title: "Handle empty state", path: "cards/c0050-x.md" },
+      ],
+    });
+
+    expect(screen.getByText(/open issues/i)).toBeInTheDocument();
+    expect(screen.getByText(/follow-ups/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Handle empty state/ }));
+    expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c0050");
   });
 
   it("renders a issue's ref as a link to the referenced card", () => {
@@ -326,6 +359,19 @@ describe("CardDetail", () => {
     });
 
     expect(screen.getByText("issue")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /c001/ }));
+    expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c001");
+  });
+
+  it("labels a follow-up's back-link by intent, not as 'found in' (c0115)", () => {
+    const followUp = { ...fixture(), type: "task", ref: "c001" };
+    const props = renderDetail({
+      card: followUp,
+      refCard: { exists: true, title: "The finished card" },
+    });
+
+    expect(screen.getByText(/follow-up to/i)).toBeInTheDocument();
+    expect(screen.queryByText(/found in/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /c001/ }));
     expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c001");
   });

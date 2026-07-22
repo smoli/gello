@@ -108,6 +108,25 @@ describe("planDispatch", () => {
     expect(queued.map((c) => c.id)).toEqual(["c003"]);
   });
 
+  it("queues an unordered follow-up behind cards already ordered in ready (c0115)", () => {
+    // a follow-up is created without an `order`, so it sorts last
+    const model = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+      c0115: { status: "ready" },
+    });
+    const { dispatch, queued } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+    expect(queued.map((c) => c.id)).toEqual(["c0115"]);
+  });
+
+  it("dispatches a fresh follow-up with no further action when a slot is free (c0115)", () => {
+    // the common case while reviewing finished work: the ready column is empty
+    const model = board({ c0115: { status: "ready" } });
+    const { dispatch } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c0115"]);
+  });
+
   it("counts existing in-progress work against the budget", () => {
     const model = board({
       c001: { status: "in-progress" },

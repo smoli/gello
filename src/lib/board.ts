@@ -333,6 +333,17 @@ export function openIssuesFor(model: BoardModel, id: string): Card[] {
 }
 
 /**
+ * c0115: follow-up tasks pointing at `id` via ref that are not done. The
+ * counterpart to openIssuesFor over the same backlinks: an issue is an
+ * unresolved problem, a follow-up is planned extra work on finished work.
+ */
+export function openFollowUpsFor(model: BoardModel, id: string): Card[] {
+  return allCards(model).filter(
+    (card) => card.type !== "issue" && card.ref === id && card.status !== "done",
+  );
+}
+
+/**
  * c0088: immutably add a freshly captured card to the standalone `cards/` set,
  * keeping sort order. Capture gives it `status: inbox`, so it lands in the inbox
  * column; it has no epic. (Was withNewInboxCard, when the inbox was a folder.)

@@ -296,11 +296,57 @@ export function createEpic(
   return { epic: parsed.epic, folder, persisted };
 }
 
+/** c0115: the two kinds of card born from another card. An issue reports a
+ *  problem and waits in backlog; a follow-up is more work on finished work and
+ *  goes straight to ready, where a running companion picks it up. */
+export type RefCardKind = "issue" | "followup";
+
+/** Per-kind id namespace, card type and landing status. A follow-up writes no
+ *  `type:` line — task is the default (c024) — and no `order`, so it sorts
+ *  last in ready rather than preempting an ordered queue. */
+const REF_CARD_KINDS: Record<
+  RefCardKind,
+  { type?: string; status: string; nextId: (model: BoardModel) => string }
+> = {
+  issue: { type: "issue", status: "backlog", nextId: nextIssueId }, // c043: i-namespace
+  followup: { status: "ready", nextId: nextCardId },
+};
+
 /**
- * Report a issue against a card (c024/c037): the issue is born next to its
- * source — same folder, source's milestone, `ref` pre-filled, status
- * backlog. Called only on draft submit; escaping the draft creates nothing.
+ * Create a card against another card (c024/c037, generalized in c0115): the new
+ * card is born next to its source — same folder, source's epic, `ref`
+ * pre-filled — with the kind deciding its id namespace, type and status.
+ * Called only on draft submit; escaping the draft creates nothing.
  */
+export function createRefCardFor(
+  root: string,
+  model: BoardModel,
+  source: Card,
+  input: { title: string; body: string; id?: string },
+  today: string,
+  kind: RefCardKind,
+): MoveResult {
+  const { type, status, nextId } = REF_CARD_KINDS[kind];
+  // i0022: reuse the id reserved when an image was pasted into the draft, so
+  // the new file and that image's asset folder match; else allocate fresh.
+  const id = input.id ?? nextId(model);
+  const folder = source.path.slice(0, source.path.lastIndexOf("/"));
+  const path = `${folder}/${id}-${slugify(input.title)}.md`;
+  const raw = newCardRaw(id, input.title, input.body, today, {
+    type,
+    status,
+    ref: source.id,
+    epic: source.epic ?? undefined,
+  });
+  const parsed = parseCard(path, raw, model.config);
+  if (!parsed.ok) {
+    throw new Error(`new ${kind} would be invalid: ${parsed.invalid.reason}`);
+  }
+  const persisted = writeFileAtomic(`${root}/${path}`, raw);
+  return { card: parsed.card, persisted };
+}
+
+/** Report a issue against a card (c024/c037) — an `issue` in backlog. */
 export function createIssueFor(
   root: string,
   model: BoardModel,
@@ -308,22 +354,19 @@ export function createIssueFor(
   input: { title: string; body: string; id?: string },
   today: string,
 ): MoveResult {
-  // i0022: reuse the id reserved when an image was pasted into the draft, so
-  // the issue file and that image's asset folder match; else allocate fresh.
-  const id = input.id ?? nextIssueId(model); // c043: i-namespace
-  const folder = source.path.slice(0, source.path.lastIndexOf("/"));
-  const path = `${folder}/${id}-${slugify(input.title)}.md`;
-  const raw = newCardRaw(id, input.title, input.body, today, {
-    type: "issue",
-    ref: source.id,
-    epic: source.epic ?? undefined,
-  });
-  const parsed = parseCard(path, raw, model.config);
-  if (!parsed.ok) {
-    throw new Error(`new issue would be invalid: ${parsed.invalid.reason}`);
-  }
-  const persisted = writeFileAtomic(`${root}/${path}`, raw);
-  return { card: parsed.card, persisted };
+  return createRefCardFor(root, model, source, input, today, "issue");
+}
+
+/** c0115: follow up on a finished card — a task in `ready`, so a running
+ *  companion starts on it without any further action. */
+export function createFollowUpFor(
+  root: string,
+  model: BoardModel,
+  source: Card,
+  input: { title: string; body: string; id?: string },
+  today: string,
+): MoveResult {
+  return createRefCardFor(root, model, source, input, today, "followup");
 }
 
 /**

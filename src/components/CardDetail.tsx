@@ -43,9 +43,11 @@ export function CardDetail({
   onSaveEdit,
   onTriage,
   onReportIssue,
+  onFollowUp,
   onOpenCardId,
   refCard,
   openIssues,
+  followUps,
   startInEdit,
   onSaveImage,
   loadImage,
@@ -62,9 +64,13 @@ export function CardDetail({
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, epicId: string | null) => void;
   onReportIssue: () => void;
+  /** c0115: start a follow-up task for this finished card. */
+  onFollowUp: () => void;
   onOpenCardId: (id: string) => void;
   refCard: RefCardInfo | null;
   openIssues: Card[];
+  /** c0115: open follow-up tasks pointing at this card. */
+  followUps: Card[];
   /** Open directly in edit mode (c035: fresh report-issue cards). */
   startInEdit?: boolean;
   /** c011: persist a pasted/dropped image; returns its board-relative path. */
@@ -205,9 +211,18 @@ export function CardDetail({
             )}
           </div>
           <div className="card-detail-actions">
+            {/* c0115: a problem can surface at any point, so report-issue is
+                offered on every card; follow-up is about work already finished. */}
+            <button type="button" onClick={onReportIssue}>
+              Report issue
+            </button>
             {(card.status === "review" || card.status === "done") && (
-              <button type="button" onClick={onReportIssue}>
-                Report issue
+              <button
+                type="button"
+                onClick={onFollowUp}
+                title="Creates a task in ready — a running companion starts on it"
+              >
+                Follow up
               </button>
             )}
             {!editing && (
@@ -359,7 +374,8 @@ export function CardDetail({
         )}
         {card.ref && (
           <div className="card-ref">
-            found in:{" "}
+            {/* c0115: an issue was found in its parent; a follow-up follows it */}
+            {card.type === "issue" ? "found in: " : "follow-up to: "}
             {refCard?.exists ? (
               <button
                 type="button"
@@ -386,6 +402,23 @@ export function CardDetail({
                 onClick={() => onOpenCardId(issue.id)}
               >
                 {issue.id} — {issue.title}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* c0115: kept separate from open issues — an unresolved problem reads
+            differently from planned extra work. */}
+        {followUps.length > 0 && (
+          <div className="card-backlinks">
+            <span className="field-label">Follow-ups from this card:</span>
+            {followUps.map((followUp) => (
+              <button
+                key={followUp.path}
+                type="button"
+                className="card-link"
+                onClick={() => onOpenCardId(followUp.id)}
+              >
+                {followUp.id} — {followUp.title}
               </button>
             ))}
           </div>

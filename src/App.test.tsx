@@ -1212,6 +1212,74 @@ describe("App", () => {
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
   });
 
+  it("c0115: follow-up drafts first, then creates a ready task ref'd to the parent", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    // c006 is in review, so it offers Follow up
+    fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: /follow up/i }));
+
+    // a draft, nothing on disk yet; the form says where the card will land
+    expect(writeMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/follow-up to c006/i)).toBeInTheDocument();
+    expect(screen.getByText(/lands in ready.*companion/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Handle the empty state" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    // a task in the c-namespace, born in the parent's folder, straight to ready
+    const [path, written] = writeMock.mock.calls[0];
+    expect(path).toBe("/repo/.gello/milestones/m02-board-ui/c0007-handle-the-empty-state.md");
+    expect(written).toContain("ref: c006");
+    expect(written).toContain("status: ready");
+    expect(written).not.toContain("type: issue");
+
+    // the new follow-up opens, with the back-link to its parent
+    const dialog = screen.getByRole("dialog", { name: "c0007" });
+    fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
+    expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+  });
+
+  it("c0115: the parent lists open issues and follow-ups separately", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [ready, review, done]\n" },
+        {
+          path: "cards/c001-parent.md",
+          content: "---\nid: c001\ntitle: The parent\nstatus: review\n---\nx\n",
+        },
+        {
+          path: "cards/i0001-broke.md",
+          content:
+            "---\nid: i0001\ntitle: Something broke\nstatus: ready\ntype: issue\nref: c001\n---\nx\n",
+        },
+        {
+          path: "cards/c0002-more.md",
+          content: "---\nid: c0002\ntitle: More work needed\nstatus: ready\nref: c001\n---\nx\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("The parent")).closest("article")!);
+
+    const dialog = screen.getByRole("dialog", { name: "c001" });
+    expect(within(dialog).getByText(/open issues/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/follow-ups/i)).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /Something broke/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /More work needed/ }),
+    ).toBeInTheDocument();
+  });
+
   it("i0022: an image pasted into the report-issue draft is saved under the reserved issue id, milestone-depth link", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

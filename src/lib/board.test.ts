@@ -8,6 +8,7 @@ import {
   nextCardId,
   nextIssueId,
   nextEpicId,
+  openFollowUpsFor,
   openIssuesFor,
   withCardTriaged,
   withNewEpic,
@@ -474,6 +475,36 @@ describe("issue refs (c024)", () => {
   it("computes open issues pointing at a card, excluding done ones", () => {
     expect(openIssuesFor(model, "c001").map((c) => c.id)).toEqual(["c002"]);
     expect(openIssuesFor(model, "c005")).toEqual([]);
+  });
+});
+
+describe("follow-up refs (c0115)", () => {
+  function issue(id: string, ref: string, status = "backlog"): string {
+    return `---\nid: ${id}\ntitle: Issue ${id}\nstatus: ${status}\ntype: issue\nref: ${ref}\n---\nbody\n`;
+  }
+  function followUp(id: string, ref: string, status = "ready"): string {
+    return `---\nid: ${id}\ntitle: Follow-up ${id}\nstatus: ${status}\nref: ${ref}\n---\nbody\n`;
+  }
+
+  const model = loadBoard([
+    file("epics/e01-x/c001-task.md", card("c001", "review")),
+    file("epics/e01-x/i0001-issue-open.md", issue("i0001", "c001")),
+    file("epics/e01-x/i0002-issue-done.md", issue("i0002", "c001", "done")),
+    file("epics/e01-x/c010-followup-open.md", followUp("c010", "c001")),
+    file("epics/e01-x/c011-followup-done.md", followUp("c011", "c001", "done")),
+    file("epics/e01-x/c012-followup-other.md", followUp("c012", "c099")),
+  ]);
+
+  it("keeps follow-up tasks out of the open-issues list", () => {
+    expect(openIssuesFor(model, "c001").map((c) => c.id)).toEqual(["i0001"]);
+  });
+
+  it("lists open follow-up tasks pointing at a card, excluding done ones", () => {
+    expect(openFollowUpsFor(model, "c001").map((c) => c.id)).toEqual(["c010"]);
+  });
+
+  it("does not report follow-ups aimed at another card", () => {
+    expect(openFollowUpsFor(model, "c002")).toEqual([]);
   });
 });
 
