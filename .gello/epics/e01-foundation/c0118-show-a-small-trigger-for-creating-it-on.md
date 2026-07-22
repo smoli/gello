@@ -1,12 +1,12 @@
 ---
 id: c0118
 title: Show a small trigger for creating it on the card front
-status: review
+status: done
 ref: c0115
 epic: e01
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T07:03:43
+status-changed: 2026-07-22T08:37:26
 ---
 
 Reduces clicks
@@ -81,3 +81,4 @@ and queueing more work happen in the same place.
   opening the c0115 draft. 979 tests green. Not screenshot-verified — the dev
   port was held by the human's own instance.
 - 2026-07-22 status → review (agent)
+- 2026-07-22 status → done (app)
