@@ -92,6 +92,55 @@ describe("Board", () => {
     expect(within(idle).queryByText(/Editing|Thinking/)).not.toBeInTheDocument();
   });
 
+  describe("c0118: follow-up trigger on the card front", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, review, done]\n"),
+      file("cards/c001-queued.md", card("c001", "Queued card", "ready")),
+      file("cards/c002-running.md", card("c002", "Running card", "in-progress")),
+      file("cards/c003-reviewing.md", card("c003", "Reviewing card", "review")),
+      file("cards/c004-finished.md", card("c004", "Finished card", "done")),
+    ]);
+    const front = (title: string) => screen.getByText(title).closest("article")!;
+    const trigger = (title: string) =>
+      within(front(title)).queryByRole("button", { name: /follow up/i });
+
+    it("offers the trigger on review and done cards only", () => {
+      render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+      expect(trigger("Reviewing card")).toBeInTheDocument();
+      expect(trigger("Finished card")).toBeInTheDocument();
+      expect(trigger("Queued card")).not.toBeInTheDocument();
+      expect(trigger("Running card")).not.toBeInTheDocument();
+    });
+
+    it("names the card it follows up on, for keyboard and screen-reader use", () => {
+      render(<Board model={model} onFollowUpCard={vi.fn()} />);
+
+      expect(trigger("Reviewing card")).toHaveAccessibleName(/c003/);
+    });
+
+    it("raises the follow-up for that card without opening the detail view", () => {
+      const onFollowUpCard = vi.fn();
+      const onSelectCard = vi.fn();
+      render(
+        <Board model={model} onFollowUpCard={onFollowUpCard} onSelectCard={onSelectCard} />,
+      );
+
+      fireEvent.click(trigger("Finished card")!);
+
+      expect(onFollowUpCard).toHaveBeenCalledTimes(1);
+      expect(onFollowUpCard.mock.calls[0][0].id).toBe("c004");
+      // the click must not fall through to the card front behind it
+      expect(onSelectCard).not.toHaveBeenCalled();
+    });
+
+    it("shows no trigger at all when the board has no follow-up handler", () => {
+      render(<Board model={model} />);
+
+      expect(trigger("Reviewing card")).not.toBeInTheDocument();
+    });
+  });
+
   it("c0109: shows Thinking… for a running run with no tool call yet", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [in-progress]\n"),

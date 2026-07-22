@@ -74,6 +74,7 @@ export function Board({
   model,
   onMoveCard,
   onSelectCard,
+  onFollowUpCard,
   onInboxStatusDrop,
   onReorderCard,
   onRenumber,
@@ -112,6 +113,9 @@ export function Board({
   /** c0060: right-click on empty board background (not a card). */
   onBackgroundContextMenu?: (x: number, y: number) => void;
   onSelectCard?: (card: Card) => void;
+  /** c0118: start a follow-up straight from a finished card's front. Absent →
+   *  no trigger is rendered. */
+  onFollowUpCard?: (card: Card) => void;
   /**
    * i0005: a milestone-less inbox card was dropped on a triage column. The
    * host opens an inline milestone picker; `status` is the dropped-on column.
@@ -365,6 +369,7 @@ export function Board({
               }
               onMoveByKey={moveByKey}
               onSelect={onSelectCard}
+              onFollowUp={onFollowUpCard}
               onDragState={setDragState}
               onBgContextMenu={bgContext}
               loadImage={loadImage}
@@ -455,6 +460,7 @@ function Column({
   onDropAt,
   onMoveByKey,
   onSelect,
+  onFollowUp,
   onDragState,
   onBgContextMenu,
   loadImage,
@@ -493,6 +499,8 @@ function Column({
   onDropAt: (cardPath: string, zoneIndex: number) => void;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  /** c0118: forwarded to each card front's follow-up trigger. */
+  onFollowUp?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
   /** c0060: right-click on the track's own (background) area. */
   onBgContextMenu?: (event: React.MouseEvent) => void;
@@ -559,6 +567,7 @@ function Column({
                 isOrigin={draggingPath === entry.card.path}
                 onMoveByKey={onMoveByKey}
                 onSelect={onSelect}
+                onFollowUp={onFollowUp}
                 onDragState={onDragState}
                 loadImage={loadImage}
                 tagColors={tagColors}
@@ -632,6 +641,7 @@ function CardFront({
   isOrigin,
   onMoveByKey,
   onSelect,
+  onFollowUp,
   onDragState,
   loadImage,
   tagColors,
@@ -646,6 +656,8 @@ function CardFront({
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
   onSelect?: (card: Card) => void;
+  /** c0118: start a follow-up from this card's front (review/done only). */
+  onFollowUp?: (card: Card) => void;
   onDragState: (card: Card | null) => void;
   /** c012: resolve this card's first image to a data URL for the thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
@@ -711,6 +723,25 @@ function CardFront({
           )}
           {card.type !== "task" && (
             <span className={`card-type type-${card.type}`}>{card.type}</span>
+          )}
+          {/* c0118: queue more work without opening the card first. Gated to
+              review/done like the detail-view action (c0115), and it opens the
+              same draft — it never creates a card outright, so the note about
+              landing in ready still gets its say before any agent starts. */}
+          {onFollowUp && (card.status === "review" || card.status === "done") && (
+            <button
+              type="button"
+              className="card-followup"
+              aria-label={`Follow up on ${card.id}`}
+              title="Follow up — creates a task in ready, which a running companion starts on"
+              onClick={(event) => {
+                // the whole front is clickable; keep this from opening the card
+                event.stopPropagation();
+                onFollowUp(card);
+              }}
+            >
+              +
+            </button>
           )}
         </span>
       </div>

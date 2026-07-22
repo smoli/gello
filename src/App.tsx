@@ -1256,6 +1256,8 @@ function App() {
           }
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
+          // c0118: the card-front trigger opens the same c0115 draft
+          onFollowUpCard={(card) => setRefDraft({ source: card, kind: "followup" })}
           query={query}
           showArchived={showArchived}
           loadImage={showThumbnails ? handleLoadImage : undefined}

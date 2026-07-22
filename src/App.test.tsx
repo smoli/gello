@@ -1219,7 +1219,12 @@ describe("App", () => {
     render(<App />);
     // c006 is in review, so it offers Follow up
     fireEvent.click((await screen.findByText("Reviewed card")).closest("article")!);
-    fireEvent.click(screen.getByRole("button", { name: /follow up/i }));
+    // c0118 put a trigger on the card front too — this is the detail action
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "c006" })).getByRole("button", {
+        name: /follow up/i,
+      }),
+    );
 
     // a draft, nothing on disk yet; the form says where the card will land
     expect(writeMock).not.toHaveBeenCalled();
@@ -1242,6 +1247,43 @@ describe("App", () => {
     const dialog = screen.getByRole("dialog", { name: "c0007" });
     fireEvent.click(within(dialog).getByRole("button", { name: /c006 —/ }));
     expect(screen.getByRole("dialog", { name: "c006" })).toBeInTheDocument();
+  });
+
+  it("c0118: the card-front trigger drafts a follow-up without opening the card", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Reviewed card");
+
+    // straight from the board: no card detail opened first
+    fireEvent.click(screen.getByRole("button", { name: "Follow up on c006" }));
+    expect(screen.queryByRole("dialog", { name: "c006" })).not.toBeInTheDocument();
+
+    // the same c0115 draft, still saying where the card lands
+    expect(screen.getByText(/follow-up to c006/i)).toBeInTheDocument();
+    expect(screen.getByText(/lands in ready.*companion/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Tighten the spacing" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    const [path, written] = writeMock.mock.calls[0];
+    expect(path).toBe("/repo/.gello/milestones/m02-board-ui/c0007-tighten-the-spacing.md");
+    expect(written).toContain("ref: c006");
+    expect(written).toContain("status: ready");
+  });
+
+  it("c0118: offers no card-front trigger on a card that is not review/done", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    await screen.findByText("Hello board"); // c001, status inbox
+
+    expect(
+      screen.queryByRole("button", { name: "Follow up on c001" }),
+    ).not.toBeInTheDocument();
   });
 
   it("c0115: the parent lists open issues and follow-ups separately", async () => {
