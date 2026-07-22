@@ -1,11 +1,11 @@
 ---
 id: c0123
 title: Show on the card front when a card is blocked by a dependency
-status: ready
+status: in-progress
 epic: e02
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T18:48:40
+status-changed: 2026-07-22T18:49:09
 ---
 
 ## What
@@ -109,3 +109,4 @@ separate gap.
   naming the unfinished dependencies, each clickable; shown in `ready` and
   `in-progress`; the WIP-limit hold stays out of scope as a companion fact.
 - 2026-07-22 status → ready (app)
+- 2026-07-22 status → in-progress (agent)
