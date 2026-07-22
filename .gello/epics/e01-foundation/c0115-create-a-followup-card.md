@@ -1,10 +1,10 @@
 ---
 id: c0115
 title: Create a followup card
-status: discuss
+status: in-progress
 created: 2026-07-22
 updated: 2026-07-22
-status-changed: 2026-07-22T06:36:44
+status-changed: 2026-07-22T06:45:25
 epic: e01
 ---
 
@@ -102,3 +102,5 @@ legible rather than surprising.
   generalised beyond `type: issue`.
 - 2026-07-22 queue position settled (human): follow-ups take the default
   position and sort last in `ready` — an ordered ready column is not preempted.
+- 2026-07-22 status → ready (app)
+- 2026-07-22 status → in-progress (agent)
