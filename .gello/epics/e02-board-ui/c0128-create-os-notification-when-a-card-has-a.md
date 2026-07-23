@@ -1,10 +1,10 @@
 ---
 id: c0128
 title: Create OS notification when a card has an open question
-status: in-progress
+status: review
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T07:24:05
+status-changed: 2026-07-23T07:34:49
 epic: e02
 ---
 
@@ -128,3 +128,4 @@ a separate concern.
 - 2026-07-23 edge-triggered OS notification on a companion park: pure
   newlyParkedIds (8 tests) + notify/focus seams + App wiring (2 tests);
   tauri-plugin-notification wired and building
+- 2026-07-23 status → review (agent)
