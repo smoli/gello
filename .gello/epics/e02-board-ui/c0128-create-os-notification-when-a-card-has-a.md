@@ -51,20 +51,20 @@ a separate concern.
 
 ## Acceptance criteria
 
-- [ ] A card newly entering the companion state's `waiting` set fires one OS
+- [x] A card newly entering the companion state's `waiting` set fires one OS
       notification naming the card (id + title)
-- [ ] A card that stays in `waiting` across polls does not re-notify
-- [ ] Parks already present in `waiting` when the app loads do not notify
-- [ ] The notification fires whether or not the window is focused
-- [ ] Clicking the notification focuses/raises the window and opens that card's
+- [x] A card that stays in `waiting` across polls does not re-notify
+- [x] Parks already present in `waiting` when the app loads do not notify
+- [x] The notification fires whether or not the window is focused
+- [x] Clicking the notification focuses/raises the window and opens that card's
       detail
-- [ ] A card only in a discussion open-question state (not in `waiting`) never
+- [x] A card only in a discussion open-question state (not in `waiting`) never
       notifies
-- [ ] Notification permission is requested lazily; if denied, no notification
+- [x] Notification permission is requested lazily; if denied, no notification
       is attempted and the rest of the app is unaffected
-- [ ] The transition detection (which ids newly parked) is a pure,
+- [x] The transition detection (which ids newly parked) is a pure,
       unit-tested function, separate from the Tauri notification call
-- [ ] No notification when there is no companion / no state file
+- [x] No notification when there is no companion / no state file
 
 ## Discussion
 
