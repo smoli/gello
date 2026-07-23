@@ -1,0 +1,63 @@
+/* c0131: mirrors the milestone picker's look — a small centred column chooser. */
+.followup-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 22%, transparent);
+}
+
+.followup-picker {
+  width: 240px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 0.8rem;
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  box-shadow: 0 12px 34px color-mix(in srgb, CanvasText 30%, transparent);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.followup-picker-hint {
+  margin: 0;
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+}
+
+.followup-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.followup-picker-list button {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.followup-picker-list button:hover {
+  background: color-mix(in srgb, #4c8bf5 18%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
+}
+
+.followup-picker-cancel-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: color-mix(in srgb, CanvasText 60%, transparent);
+}
