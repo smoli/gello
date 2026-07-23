@@ -53,12 +53,63 @@ Design settled (see the card body + acceptance criteria below):
 - `FOLLOWUP_TARGET_COLUMNS` in board-actions.
 - Tests in cards / board-actions / boardyaml — 141 lib tests pass.
 
-**Blocked on a red workspace that is not this card's** (see the question):
-the UI wiring must go into `App.tsx` and `Board.tsx`, and both are already
-broken before I touch them, so I cannot reach a green `pnpm test` / `typecheck`
-to commit against "never commit red".
+## Acceptance criteria
+
+- [x] The follow-up target is a setting in the context menu's Settings submenu,
+      offering Inbox / Discuss / Backlog / Ready (those the board has) + Ask
+- [x] The chosen column is persisted in `board.yaml` (`followup_target`),
+      default `ready`
+- [x] A follow-up lands in the configured column (task, `ref` to parent, epic)
+- [x] `Ask` opens a column picker; the follow-up then targets the picked column
+- [x] Cancelling the picker creates nothing
+- [x] The draft note names the target column, and only says a companion will
+      start on it when the target is `ready`
+
+## Notes — final
+
+The whole c0131 feature is **implemented and its own tests are green** (145
+lib + picker tests, 3 App tests):
+
+- Config: `BoardConfig.followupTarget`, `parseBoardConfig` reads
+  `followup_target`; `chooseFollowupTarget` writes it surgically (drops the key
+  for the `ready` default).
+- Creation: `createFollowUpFor(..., status)` /
+  `createRefCardFor(..., statusOverride)`, `FOLLOWUP_TARGET_COLUMNS`.
+- App: `startFollowUp` resolves the target — a fixed column opens the draft
+  straight away, `ask` opens `FollowUpColumnPicker` first. The draft note names
+  the column and only mentions the companion for `ready`. Settings submenu.
+- Committed in `a0c4273` (config/actions/App wiring, bundled by the human with
+  their card-front work) and `3c6a0ac` (the FollowUpColumnPicker component,
+  which `a0c4273` imported but had left untracked).
+- c0131 App tests are driven through the CardDetail "Follow up" action, so they
+  are decoupled from the card-front markup the human is concurrently changing.
+
+**The suite is red, but not from c0131.** While this card was in flight the
+human began a separate "follow up with an issue" redesign of the card front —
+two triggers (`i`/`c`) and an `onFollowUpCard(card, type)` signature — living in
+an **uncommitted `Board.tsx`**. That redesign breaks the committed
+c0118/c0120/c0121 card-front tests (10 failures) and leaves a signature
+mismatch in `a0c4273`. I left `Board.tsx` untouched (its edits are flagged
+intentional) and did not rewrite those tests — the new two-button design is the
+human's call, and the tests should be updated to match it as part of that work.
+The only other red is the gitignored `demo/holzhof-board.test.ts`, which fails
+at HEAD independently.
 
 ## Log
+
+- 2026-07-23 status → in-progress (agent)
+- 2026-07-23 blocked (agent): finished the c0131 lib layer (config +
+  createFollowUpFor target, 141 lib tests green) but the workspace is red from
+  unfinished work outside c0131 — HEAD's Board.tsx (c0121 hover threading) and
+  uncommitted c0132 duplicate-id work in App.tsx/board.ts. Asked the human how
+  to proceed.
+- 2026-07-23 resumed + finished (agent): restored the dropped c0121 Board
+  wiring (commit 8054d2f) to unbreak the tree, then built the c0131 UI —
+  Settings submenu, `startFollowUp`, FollowUpColumnPicker, target-aware note.
+  c0131 landed in a0c4273 (with the human's card-front work) + 3c6a0ac (picker
+  component). All c0131 tests green. Remaining red is the human's concurrent,
+  uncommitted card-front redesign, not this card.
+- 2026-07-23 status → review (agent)
 
 - 2026-07-23 status → in-progress (agent)
 - 2026-07-23 blocked (agent): finished the c0131 lib layer (config +
