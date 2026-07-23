@@ -7,10 +7,8 @@ epic: e01
 created: 2026-07-23
 updated: 2026-07-23
 status-changed: 2026-07-23T20:08:40
-awaiting: input
 ---
 
-```gelloquestion
 Before I wire up c0131's UI, I need a call from you — the workspace is red from work that isn't this card, and I can't commit c0131 green through it.
 
 **What I found (verified, not guessed):**
@@ -23,9 +21,8 @@ I won't finish or commit someone else's unfinished feature silently, and I won't
 
 - [ ] **I complete the c0121 Board.tsx threading** (it's my own earlier work — a ~3-line fix to pass `revealFollowUp`/`onHover` down to `CardFront`), **`git stash` the uncommitted c0132 App.tsx/board.ts work** so I build on a green base, finish c0131, and commit it. You'd `git stash pop` to get c0132 back. *(my recommendation — unblocks everything, touches no unfinished c0132 logic)*
 - [ ] **Commit only the green c0131 lib slice now** (cards.ts, board-actions.ts + tests) and leave the UI for a follow-up once the tree is green. Note: a checkout of that commit is still red because HEAD's Board.tsx is broken, so this doesn't really satisfy "never commit red" either — it just banks the lib work.
-- [ ] **Leave c0131 as-is (lib work uncommitted on disk); you'll get the tree green first** (finish/park c0121 and c0132), then resume me.
+- [x] **Leave c0131 as-is (lib work uncommitted on disk); you'll get the tree green first** (finish/park c0121 and c0132), then resume me.
 - [ ] Something else (say what)
-```
 
 * Inbox
 * Discuss
