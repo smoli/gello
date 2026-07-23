@@ -76,11 +76,15 @@ export function CaptureForm({
           // Enter in the Details textarea stays a newline). This is the ONLY
           // handler for mod+Enter — the title input handles only plain Enter
           // (i0016), so one keypress can't submit twice. Ignore IME Enter.
-          if (
+          // c0129: Cmd/Ctrl+S also confirms, matching the edit editor's save
+          // (CardDetail) — the two look alike now (c0122), so the same reflex
+          // works in both. preventDefault stops the browser's save-page dialog.
+          const modEnter =
             event.key === "Enter" &&
             (event.metaKey || event.ctrlKey) &&
-            !event.nativeEvent.isComposing
-          ) {
+            !event.nativeEvent.isComposing;
+          const modS = event.key === "s" && (event.metaKey || event.ctrlKey);
+          if (modEnter || modS) {
             event.preventDefault();
             submit();
           }

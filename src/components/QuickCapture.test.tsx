@@ -185,6 +185,66 @@ describe("QuickCapture", () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 
+  // c0129: the capture and edit editors look alike now (c0122), but one
+  // confirmed with Cmd+Enter and the other saved with Cmd+S. Cmd/Ctrl+S
+  // confirms a new card too, so the same reflex works in both.
+
+  it("c0129: Cmd+S submits from the Details textarea", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Save me" } });
+    const details = screen.getByLabelText("Details");
+    fireEvent.change(details, { target: { value: "some notes" } });
+
+    // plain s is just a character, no submit
+    fireEvent.keyDown(details, { key: "s" });
+    expect(onCreate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(details, { key: "s", metaKey: true });
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Save me", "some notes", "task");
+  });
+
+  it("c0129: Ctrl+S also submits", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Ctrl save" } });
+    fireEvent.keyDown(screen.getByLabelText("Details"), { key: "s", ctrlKey: true });
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Ctrl save", "", "task");
+  });
+
+  it("c0129: Cmd+S in the Title field submits exactly once", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Only once" } });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "s", metaKey: true });
+    expect(onCreate).toHaveBeenCalledTimes(1);
+    expect(onCreate).toHaveBeenCalledWith("Only once", "", "task");
+  });
+
+  it("c0129: Cmd+S prevents the browser's save-page default", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Guarded" } });
+    // fireEvent returns false when the handler called preventDefault
+    const notDefaulted = fireEvent.keyDown(screen.getByLabelText("Details"), {
+      key: "s",
+      metaKey: true,
+    });
+    expect(notDefaulted).toBe(false);
+  });
+
+  it("c0129: Cmd+S with an empty title does not submit", () => {
+    const onCreate = vi.fn();
+    render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    fireEvent.keyDown(screen.getByLabelText("Details"), { key: "s", metaKey: true });
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument(); // still open
+  });
+
   it("c0064: Ctrl+Enter also submits", () => {
     const onCreate = vi.fn();
     render(<QuickCapture onCreate={onCreate} onCreateEpic={vi.fn()} />);
