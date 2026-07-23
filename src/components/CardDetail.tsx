@@ -119,6 +119,11 @@ export function CardDetail({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   // c0124: why the last pick was turned down (a loop), shown next to the picker
   const [dependencyRefusal, setDependencyRefusal] = useState<string | null>(null);
+  // c0127: the tokenized add-dependency input — what has been typed and which
+  // suggestion is highlighted. A dropdown of every card does not scale; typing
+  // narrows it, email-recipient style.
+  const [depQuery, setDepQuery] = useState("");
+  const [depActive, setDepActive] = useState(0);
   // c011: image paste/drop on the editor textarea (shared with quick capture)
   const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
   // c038: a click "on the backdrop" only counts if the press started there —
@@ -138,6 +143,22 @@ export function CardDetail({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [editing, onClose]);
 
+  // c0127: the cards matching what has been typed, capped so a long board does
+  // not fill the panel — narrowing further is a keystroke away. Match id or
+  // title, case-insensitively; nothing shows until something is typed.
+  const DEP_SUGGESTION_CAP = 8;
+  const depTrimmed = depQuery.trim().toLowerCase();
+  const depSuggestions =
+    depTrimmed === ""
+      ? []
+      : dependencyOptions
+          .filter(
+            (option) =>
+              option.id.toLowerCase().includes(depTrimmed) ||
+              option.title.toLowerCase().includes(depTrimmed),
+          )
+          .slice(0, DEP_SUGGESTION_CAP);
+
   /** c0124: take the pick unless it would close a loop — a cycle leaves every
    *  card in it blocked forever, with nothing on the board saying why. */
   const addDependency = (id: string) => {
@@ -150,12 +171,38 @@ export function CardDetail({
       return;
     }
     setDependencyRefusal(null);
+    // c0127: a taken pick empties the field, so the next one starts fresh
+    setDepQuery("");
+    setDepActive(0);
     onChangeFields({ depends: [...card.depends, id] });
   };
 
   const removeDependency = (id: string) => {
     setDependencyRefusal(null);
     onChangeFields({ depends: card.depends.filter((dep) => dep !== id) });
+  };
+
+  /** c0127: keyboard on the add-dependency input — arrows move the highlight,
+   *  Enter takes it, Escape drops the suggestions without closing the dialog. */
+  const dependencyInputKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setDepActive((i) => Math.min(depSuggestions.length - 1, i + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setDepActive((i) => Math.max(0, i - 1));
+    } else if (event.key === "Enter") {
+      const pick = depSuggestions[depActive];
+      if (pick) {
+        event.preventDefault();
+        addDependency(pick.id);
+      }
+    } else if (event.key === "Escape" && depQuery !== "") {
+      // stop the window-level Escape from closing the whole dialog (c023)
+      event.stopPropagation();
+      setDepQuery("");
+      setDepActive(0);
+    }
   };
 
   const startEdit = () => {
@@ -498,19 +545,48 @@ export function CardDetail({
               </span>
             ))}
             {dependencyOptions.length > 0 && (
-              <select
-                aria-label="Add dependency"
-                className="card-depends-add"
-                value=""
-                onChange={(event) => addDependency(event.target.value)}
-              >
-                <option value="">Add dependency…</option>
-                {dependencyOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.id} — {option.title}
-                  </option>
-                ))}
-              </select>
+              // c0127: type-to-filter instead of a dropdown of every card. The
+              // resolved dependencies above are the tokens; this adds another.
+              <span className="card-depends-add">
+                <input
+                  type="text"
+                  aria-label="Add dependency"
+                  className="card-depends-input"
+                  placeholder="Add dependency…"
+                  value={depQuery}
+                  onChange={(event) => {
+                    setDepQuery(event.target.value);
+                    setDepActive(0);
+                    setDependencyRefusal(null);
+                  }}
+                  onKeyDown={dependencyInputKeyDown}
+                />
+                {depSuggestions.length > 0 && (
+                  <ul
+                    className="card-depends-suggestions"
+                    role="listbox"
+                    aria-label="Dependency suggestions"
+                  >
+                    {depSuggestions.map((option, i) => (
+                      <li key={option.id} className="card-depends-suggestion-row">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={i === depActive}
+                          className={
+                            i === depActive
+                              ? "card-depends-suggestion card-depends-suggestion-active"
+                              : "card-depends-suggestion"
+                          }
+                          onClick={() => addDependency(option.id)}
+                        >
+                          {option.id} — {option.title}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </span>
             )}
             {dependencyRefusal !== null && (
               <span role="alert" className="card-depends-refusal">

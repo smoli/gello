@@ -258,15 +258,66 @@
   color: #e5484d;
 }
 
+/* c0127: the tokenized add control — the input, with its suggestion list
+   anchored below it. Positioned so the list overlays the body, not pushing it. */
 .card-depends-add {
+  position: relative;
+  display: inline-block;
+}
+
+.card-depends-input {
   font: inherit;
   font-size: 0.78rem;
-  padding: 0.1rem 0.3rem;
+  padding: 0.15rem 0.4rem;
   border-radius: 6px;
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
   background: Canvas;
   color: CanvasText;
+}
+
+.card-depends-suggestions {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  margin: 0.2rem 0 0;
+  padding: 0.2rem;
+  list-style: none;
+  min-width: max(100%, 220px);
+  max-height: 40vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 25%, transparent);
+}
+
+.card-depends-suggestion-row {
+  margin: 0;
+}
+
+.card-depends-suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: CanvasText;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the highlight the arrow keys move; hover matches it so mouse and keyboard
+   land on the same look */
+.card-depends-suggestion-active,
+.card-depends-suggestion:hover {
+  background: color-mix(in srgb, #4c8bf5 20%, Canvas);
 }
 
 .card-depends-refusal {

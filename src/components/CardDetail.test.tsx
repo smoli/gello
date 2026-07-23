@@ -447,38 +447,92 @@ describe("CardDetail", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("adds a dependency picked from the list", () => {
-      const props = withDepends({
-        dependencyOptions: [
-          { id: "c003", title: "Later work", cycle: null },
-        ],
-      });
+    // c0127: a bare dropdown does not scale to a board with many cards. The
+    // add control is a tokenized input — type, get suggestions, pick one.
 
-      fireEvent.change(screen.getByLabelText("Add dependency"), {
-        target: { value: "c003" },
-      });
+    const manyOptions = [
+      { id: "c003", title: "Later work", cycle: null },
+      { id: "c004", title: "Design the schema", cycle: null },
+      { id: "c005", title: "Wire the backend", cycle: null },
+    ];
+    const addInput = () => screen.getByLabelText("Add dependency");
+    const suggestions = () =>
+      screen.queryByRole("listbox", { name: /dependency suggestions/i });
+    const suggestionFor = (name: RegExp) =>
+      within(suggestions()!).getByRole("option", { name });
+
+    it("c0127: shows no suggestions until something is typed", () => {
+      withDepends({ dependencyOptions: manyOptions });
+      expect(suggestions()).not.toBeInTheDocument();
+    });
+
+    it("c0127: suggests the cards matching what was typed, by id or title", () => {
+      withDepends({ dependencyOptions: manyOptions });
+
+      fireEvent.change(addInput(), { target: { value: "sch" } });
+      expect(suggestionFor(/Design the schema/)).toBeInTheDocument();
+      expect(within(suggestions()!).queryByRole("option", { name: /Later work/ })).toBeNull();
+
+      fireEvent.change(addInput(), { target: { value: "c005" } });
+      expect(suggestionFor(/Wire the backend/)).toBeInTheDocument();
+    });
+
+    it("c0127: adds the dependency picked from the suggestions", () => {
+      const props = withDepends({ dependencyOptions: manyOptions });
+
+      fireEvent.change(addInput(), { target: { value: "later" } });
+      fireEvent.click(suggestionFor(/Later work/));
 
       expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({
         depends: ["c001", "c003"],
       });
     });
 
-    it("refuses one that would close a loop, and says which", () => {
+    it("c0127: Enter picks the highlighted suggestion", () => {
+      const props = withDepends({ dependencyOptions: manyOptions });
+
+      fireEvent.change(addInput(), { target: { value: "c" } });
+      fireEvent.keyDown(addInput(), { key: "ArrowDown" }); // move to the second
+      fireEvent.keyDown(addInput(), { key: "Enter" });
+
+      expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({
+        depends: ["c001", "c004"],
+      });
+    });
+
+    it("c0127: clears the typed text and the suggestions after adding", () => {
+      withDepends({ dependencyOptions: manyOptions });
+
+      fireEvent.change(addInput(), { target: { value: "later" } });
+      fireEvent.click(suggestionFor(/Later work/));
+
+      expect(addInput()).toHaveValue("");
+      expect(suggestions()).not.toBeInTheDocument();
+    });
+
+    it("c0127: refuses a pick that would close a loop, and says which", () => {
       const props = withDepends({
-        dependencyOptions: [
-          { id: "c003", title: "Circular", cycle: ["c003", "c009"] },
-        ],
+        dependencyOptions: [{ id: "c003", title: "Circular", cycle: ["c003", "c009"] }],
       });
 
-      fireEvent.change(screen.getByLabelText("Add dependency"), {
-        target: { value: "c003" },
-      });
+      fireEvent.change(addInput(), { target: { value: "circ" } });
+      fireEvent.click(suggestionFor(/Circular/));
 
       expect(props.onChangeFields).not.toHaveBeenCalled();
       const refusal = screen.getByRole("alert");
       expect(refusal).toHaveTextContent(/cycle/i);
       // names the loop it would close, so the refusal is actionable
       expect(refusal).toHaveTextContent(/c009 → c003 → c009/);
+    });
+
+    it("c0127: Escape clears the suggestions without closing the dialog", () => {
+      const props = withDepends({ dependencyOptions: manyOptions });
+
+      fireEvent.change(addInput(), { target: { value: "later" } });
+      fireEvent.keyDown(addInput(), { key: "Escape" });
+
+      expect(suggestions()).not.toBeInTheDocument();
+      expect(props.onClose).not.toHaveBeenCalled();
     });
 
     it("removes a dependency", () => {
@@ -499,7 +553,7 @@ describe("CardDetail", () => {
       expect(props.onOpenCardId).toHaveBeenCalledExactlyOnceWith("c005");
       // derived from other cards' files — removing here would write theirs
       expect(within(section).queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
-      expect(within(section).queryByRole("combobox")).not.toBeInTheDocument();
+      expect(within(section).queryByRole("textbox")).not.toBeInTheDocument();
     });
 
     it("hides the blocking section when nothing depends on this card", () => {

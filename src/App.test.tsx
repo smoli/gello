@@ -505,9 +505,11 @@ describe("App", () => {
 
     render(<App />);
     fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    // c0127: type into the tokenized input, then pick the suggestion
     fireEvent.change(screen.getByLabelText("Add dependency"), {
-      target: { value: "c005" },
+      target: { value: "Board card" },
     });
+    fireEvent.click(screen.getByRole("option", { name: /c005 — Board card/ }));
 
     await waitFor(() =>
       expect(writeMock).toHaveBeenCalledExactlyOnceWith(
