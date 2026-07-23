@@ -1,10 +1,10 @@
 ---
 id: c0128
 title: Create OS notification when a card has an open question
-status: ready
+status: in-progress
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T07:23:48
+status-changed: 2026-07-23T07:24:05
 epic: e02
 ---
 
@@ -98,3 +98,4 @@ a separate concern.
   card. Needs the Tauri notification plugin wired.
 - 2026-07-23 status → backlog (app)
 - 2026-07-23 status → ready (app)
+- 2026-07-23 status → in-progress (agent)
