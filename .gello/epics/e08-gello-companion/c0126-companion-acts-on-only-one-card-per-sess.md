@@ -64,6 +64,42 @@ so a serialised epic does not look stalled.
 - [x] It is unit-tested with the fake spawner: two same-epic cards serialise,
       two cross-epic cards do not
 
+## Notes
+
+- 2026-07-23 (agent) **The gate, framed on the session key.** `planDispatch`
+  keeps a `heldBy: Map<sessionKey, cardId>`, seeded with every active run's key
+  and extended as it claims each candidate's key in board order. A candidate
+  whose key is already held goes to a new `sessionHeld[]` naming the holder,
+  instead of `dispatch`. Because it counts keys claimed *this plan*, two fresh
+  same-epic cards no longer both dispatch — which is the "already in use"
+  collision the card set out to close. Ordered after `depends` and the pickup
+  delay, so a blocked or delayed card is reported under its own reason.
+  - Scope in, keys out: `sessionKey(card, scope)` decides everything, so card
+    scope (unique keys) serialises nothing and epic scope serialises the epic
+    with one rule — criteria 2/4/5 fall out for free.
+  - `scope` is a trailing `planDispatch` parameter defaulting to `card`, so every
+    prior caller and test is unchanged.
+- **One thing the card's mechanism didn't spell out, but a criterion needs.**
+  Criterion 2 wants the next card to start after the first ends "(done, error,
+  or aborted)". A *done* card is moved by the agent and wakes the watcher, but an
+  *errored* card is left exactly as-is and produces no file event — so the
+  freed session would sit unused until an unrelated board change. `handleExit`
+  now reconciles (`sync`) on a terminal exit; a parked exit still only publishes,
+  since it keeps its session. This also tightens the pre-existing WIP-queue drain.
+- **Verified with the fake spawner** (criterion 10): two same-epic cards spawn
+  one at a time and the second starts once the first ends; two cross-epic cards
+  spawn together; a parked card holds its epic across resume until it truly
+  finishes; an errored holder frees the epic with no board change; and the hold
+  is logged as `session busy with c001`.
+- **Left for a follow-up** (the card's own "Open"): publishing the session-hold
+  *reason* into `state.json` so the card front can show it — the same gap the
+  WIP-limit hold has. Out of scope here; this card reports the hold in the
+  terminal, matching i0119.
+- **Pre-existing red on `main`, untouched**: `Board.tsx`'s c0121 follow-up-hover
+  wiring fails `tsc` and 4 tests, and `demo/holzhof-board.test.ts` has one
+  failure — all reproduce with this card's commits stashed (noted first in
+  c0125). This is a companion-only change; those files were not touched.
+
 ## Discussion
 
 - **Enforce, not remove** (human's call): serialising an epic matches how its
