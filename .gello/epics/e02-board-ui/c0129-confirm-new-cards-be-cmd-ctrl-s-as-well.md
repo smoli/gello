@@ -1,10 +1,10 @@
 ---
 id: c0129
 title: Confirm new Cards be CMD/CTRL+S as well
-status: in-progress
+status: review
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T06:59:41
+status-changed: 2026-07-23T07:03:19
 epic: e02
 ---
 
@@ -37,3 +37,4 @@ Right now. New cards are confirmed via CMD+ENTER, edited cards with CMD+S, that 
 - 2026-07-23 status → in-progress (agent)
 - 2026-07-23 Cmd/Ctrl+S now also confirms a capture draft, alongside
   Cmd+Enter; mirrors the edit editor's save — 5 tests
+- 2026-07-23 status → review (agent)
