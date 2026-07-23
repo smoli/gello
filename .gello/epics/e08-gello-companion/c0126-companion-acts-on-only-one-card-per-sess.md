@@ -1,10 +1,10 @@
 ---
 id: c0126
 title: Companion acts on only one card per session id
-status: ready
+status: in-progress
 created: 2026-07-22
 updated: 2026-07-23
-status-changed: 2026-07-23T07:05:51
+status-changed: 2026-07-23T07:06:12
 epic: e08
 ---
 
@@ -95,3 +95,4 @@ so a serialised epic does not look stalled.
   card holds its session; the gate composes with WIP and `depends` and reports
   the hold. Also closes the same-epic dispatch collision.
 - 2026-07-23 status → ready (app)
+- 2026-07-23 status → in-progress (agent)
