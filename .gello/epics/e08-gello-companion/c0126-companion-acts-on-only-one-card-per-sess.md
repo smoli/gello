@@ -1,10 +1,10 @@
 ---
 id: c0126
 title: Companion acts on only one card per session id
-status: discuss
+status: ready
 created: 2026-07-22
 updated: 2026-07-23
-status-changed: 2026-07-23T06:53:04
+status-changed: 2026-07-23T07:05:51
 epic: e08
 ---
 
@@ -94,3 +94,4 @@ so a serialised epic does not look stalled.
   epic scope one card per epic at a time, cross-epic still parallel; a parked
   card holds its session; the gate composes with WIP and `depends` and reports
   the hold. Also closes the same-epic dispatch collision.
+- 2026-07-23 status → ready (app)
