@@ -1,12 +1,12 @@
 ---
 id: c0127
 title: Selecting dependency via drop down is bad UX
-status: in-progress
+status: review
 ref: c0124
 epic: e02
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T06:51:26
+status-changed: 2026-07-23T06:57:24
 ---
 
 With many cards in the project using just a drop down is not feasible.
@@ -52,3 +52,4 @@ Similar to the recipients fields in E-Mail composers
 - 2026-07-23 replaced the dependency dropdown with a type-to-filter tokenized
   input (arrow/Enter/Escape, cycle refusal kept) — 8 tests, reworked the two
   c0124 select tests to match
+- 2026-07-23 status → review (agent)
