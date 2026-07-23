@@ -1,12 +1,12 @@
 ---
 id: c0131
 title: Make a setting to choose where the follow up card should go
-status: in-progress
+status: review
 ref: c0118
 epic: e01
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T20:08:40
+status-changed: 2026-07-23T22:08:46
 ---
 
 Before I wire up c0131's UI, I need a call from you — the workspace is red from work that isn't this card, and I can't commit c0131 green through it.
@@ -117,3 +117,4 @@ at HEAD independently.
   unfinished work outside c0131 — HEAD's Board.tsx (c0121 hover threading) and
   uncommitted c0132 duplicate-id work in App.tsx/board.ts. Asked the human how
   to proceed.
+- 2026-07-23 status → review (agent)
