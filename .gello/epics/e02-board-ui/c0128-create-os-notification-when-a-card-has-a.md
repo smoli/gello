@@ -1,12 +1,11 @@
 ---
 id: c0128
 title: Create OS notification when a card has an open question
-status: backlog
+status: ready
 created: 2026-07-23
 updated: 2026-07-23
-status-changed: 2026-07-23T07:14:18
+status-changed: 2026-07-23T07:23:48
 epic: e02
-order: 10
 ---
 
 ## What
@@ -98,3 +97,4 @@ a separate concern.
   always fires regardless of focus; clicking focuses the app and opens the
   card. Needs the Tauri notification plugin wired.
 - 2026-07-23 status → backlog (app)
+- 2026-07-23 status → ready (app)
