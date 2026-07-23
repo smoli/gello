@@ -1,10 +1,10 @@
 ---
 id: c0126
 title: Companion acts on only one card per session id
-status: in-progress
+status: review
 created: 2026-07-22
 updated: 2026-07-23
-status-changed: 2026-07-23T07:06:12
+status-changed: 2026-07-23T07:16:39
 epic: e08
 ---
 
@@ -138,3 +138,4 @@ so a serialised epic does not look stalled.
   errored holder still frees its epic. All ten criteria pass; 312 companion
   tests, lint green (typecheck/other suites carry the pre-existing c0121 red,
   untouched here).
+- 2026-07-23 status → review (agent)
