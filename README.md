@@ -2,7 +2,9 @@
 
 A local, Markdown-native Kanban board for agentic software development.
 
-![gello board](assets/gello-ui.png)
+![gello board](assets/gello-ui.png) 
+[Background Photo](https://stocksnap.io/photo/house-home-6KJ12UWOKQ) by [Mike Birdy](https://stocksnap.io/author/29629)
+
 
 gello turns a project's plan into a Kanban board. Every card is a Markdown file.
 The files in `.gello/` are the single source of truth; the desktop app

@@ -46,6 +46,8 @@ interface CardSpec {
   status: string;
   depends?: string[];
   order?: number;
+  /** c0126: epic membership, for the per-session-id dispatch gate. */
+  epic?: string;
   /** c0117: when the card entered its status, for the pickup grace period. */
   statusChanged?: string;
   /** Question markdown parked as a `gelloquestion` fence (awaiting: input). */
@@ -61,6 +63,7 @@ function cardFile(id: string, s: CardSpec): string {
     `title: Card ${id}`,
     `status: ${s.status}`,
     s.depends ? `depends: [${s.depends.join(", ")}]` : null,
+    s.epic ? `epic: ${s.epic}` : null,
     s.order !== undefined ? `order: ${s.order}` : null,
     s.statusChanged ? `status-changed: ${s.statusChanged}` : null,
     awaiting ? `awaiting: ${awaiting}` : null,
@@ -274,6 +277,96 @@ describe("planDispatch — pickup delay", () => {
   });
 });
 
+// c0126: one active run per session id. Under epic scope every card in an epic
+// shares `epic:<id>`, so only one runs at a time; cards in different epics (or
+// standalone) keep distinct keys and parallelise.
+describe("planDispatch — session gate", () => {
+  it("serialises two ready cards in one epic under epic scope", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const plan = planDispatch(model, [], 4, "ready", undefined, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]); // only the first
+    expect(plan.sessionHeld.map((h) => h.card.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld[0].heldBy).toBe("c001"); // names who holds it
+  });
+
+  it("runs cards in different epics concurrently up to the WIP limit", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e02" },
+    });
+    const plan = planDispatch(model, [], 4, "ready", undefined, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("holds a ready card whose epic already has an active run", () => {
+    const model = board({
+      c001: { status: "in-progress", epic: "e01" }, // the active card, on the board
+      c002: { status: "ready", order: 1, epic: "e01" },
+    });
+    const plan = planDispatch(model, ["c001"], 4, "ready", undefined, "epic");
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.sessionHeld.map((h) => h.card.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld[0].heldBy).toBe("c001");
+  });
+
+  it("does not block a standalone card by an epic card's session, or vice versa", () => {
+    const model = board({
+      c001: { status: "in-progress", epic: "e01" },
+      c002: { status: "ready", order: 1 }, // standalone → card:c002
+    });
+    const plan = planDispatch(model, ["c001"], 4, "ready", undefined, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("never serialises under card scope — every key is unique", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const plan = planDispatch(model, [], 4, "ready", undefined, "card");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("composes with the WIP limit — a session-free card can still be WIP-queued", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" }, // session-held behind c001
+      c003: { status: "ready", order: 3, epic: "e02" },
+      c004: { status: "ready", order: 4, epic: "e03" },
+    });
+    const plan = planDispatch(model, [], 2, "ready", undefined, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001", "c003"]); // WIP 2
+    expect(plan.queued.map((c) => c.id)).toEqual(["c004"]); // over budget, not session
+    expect(plan.sessionHeld.map((h) => h.card.id)).toEqual(["c002"]); // session, not WIP
+  });
+
+  it("composes with the depends gate — a blocked card is reported blocked, not session-held", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01", depends: ["c009"] }, // c009 not done
+    });
+    const plan = planDispatch(model, [], 4, "ready", undefined, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(plan.blocked.map((b) => b.card.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]); // depends wins the report
+  });
+
+  it("defaults to no serialisation, so existing callers are unchanged", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    // no scope argument → card scope → both dispatch
+    expect(planDispatch(model, [], 4).dispatch.map((c) => c.id)).toEqual(["c001", "c002"]);
+  });
+});
+
 describe("classifyExit", () => {
   it("non-zero exit is an error", () => {
     const model = board({ c001: { status: "in-progress" } });
@@ -419,6 +512,8 @@ function makeRunner(
   /** c0117: the pickup grace period, and a clock aligned with the fixtures'
    *  `status-changed` stamps so the wait is comparable. */
   pickup: { pickupDelayMs?: number; clockStart?: number } = {},
+  /** c0126: session scope for the dispatch gate (default `card`). */
+  scope: "card" | "epic" = "card",
 ) {
   const spawned: FakeProc[] = [];
   const writes: { path: string; raw: string }[] = [];
@@ -438,7 +533,7 @@ function makeRunner(
     writeCard: (path, raw) => writes.push({ path, raw }),
     askServer: { command: "tsx", args: ["/repo/companion/mcp-main.ts"], env: {} },
     adapter: claudeAdapter,
-    scope: "card",
+    scope,
     wipLimit: 2,
     level,
     emit: (line, cardId) => {
@@ -815,7 +910,118 @@ describe("Runner — run observability (c0104)", () => {
     expect(h.emitted).toEqual([]);
   });
 
-  // c0117: the grace period, driven entirely by the fake scheduler — no test
+  // c0126: one active run per session id, exercised through the real dispatch
+// flow with the fake spawner (criterion 10).
+describe("Runner — one run per session id (c0126)", () => {
+  it("serialises two same-epic cards: only one spawns, the second after it ends", () => {
+    const start = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.sync(start);
+
+    // only the first card's run started; the second is session-held
+    expect(h.spawned).toHaveLength(1);
+    expect(h.spawned[0].spec.args[h.spawned[0].spec.args.length - 1]).toContain("c001");
+    expect(h.last()).toEqual(["c001:running"]);
+
+    // the first finishes; a fresh sync now frees the epic's session
+    h.setModel(board({ c001: { status: "review", epic: "e01" }, c002: { status: "ready", order: 2, epic: "e01" } }));
+    h.spawned[0].exit(0);
+    h.runner.sync(h.reloadModel());
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+  });
+
+  it("reports a session-held card, naming who holds the session (i0119-style)", () => {
+    const start = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.sync(start);
+    // c002 is held; the reason names c001 so a serialised epic doesn't look stalled
+    expect(h.logs.join("\n")).toMatch(/c002 held: session busy with c001/);
+  });
+
+  it("frees the epic when the holder errors, with no board change to prompt it", () => {
+    // an errored card is left exactly as-is, so nothing on disk changes — the
+    // next same-epic card must still start once the session is free (criterion 2)
+    const start = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // c001 crashes; the board is unchanged (c001 still in-progress on disk)
+    h.setModel(board({
+      c001: { status: "in-progress", epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    }));
+    h.spawned[0].exit(1); // no explicit sync — the runner must reconcile itself
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+  });
+
+  it("runs two cross-epic cards concurrently", () => {
+    const start = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e02" },
+    });
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.last().sort()).toEqual(["c001:running", "c002:running"]);
+  });
+
+  it("a parked same-epic card keeps its session — the next card waits until it resumes and finishes", () => {
+    const ready = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    const h = makeRunner(ready, undefined, "normal", {}, "epic");
+    h.runner.sync(ready);
+    expect(h.spawned).toHaveLength(1); // c002 session-held behind c001
+
+    // c001 parks a question and exits clean → it stays active, holding the session
+    const parked = board({
+      c001: { status: "in-progress", epic: "e01", parked: "### Which db?\n\n- [ ] Postgres\n" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+
+    // c002 still may not start — the parked card holds the epic's session
+    expect(h.spawned).toHaveLength(1);
+    expect(h.last()).toContain("c001:waiting-for-input");
+
+    // the human answers; c001 resumes (its own held session does not block it)
+    const answered = board({
+      c001: { status: "in-progress", epic: "e01", answered: "### Which db?\n\n- [x] Postgres\n" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    h.setModel(answered);
+    h.runner.sync(answered);
+    expect(h.spawned).toHaveLength(2); // c001 resumed
+    expect(h.spawned[1].spec.args[0]).toBe("--resume");
+
+    // c001 finishes for real → c002 is finally free to run
+    h.setModel(board({ c001: { status: "review", epic: "e01" }, c002: { status: "ready", order: 2, epic: "e01" } }));
+    h.spawned[1].exit(0);
+    h.runner.sync(h.reloadModel());
+    expect(h.spawned).toHaveLength(3);
+    expect(h.spawned[2].spec.args[h.spawned[2].spec.args.length - 1]).toContain("c002");
+  });
+});
+
+// c0117: the grace period, driven entirely by the fake scheduler — no test
 // here waits on real time.
 describe("Runner — pickup delay (c0117)", () => {
   const T0 = Date.parse("2026-07-22T10:00:00");

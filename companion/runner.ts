@@ -22,6 +22,7 @@ import {
   resolveSession,
   recordSession,
   newSessionId,
+  sessionKey,
   type SessionMap,
   type SessionScope,
 } from "./sessions.ts";
@@ -73,6 +74,14 @@ export interface DelayedCard {
   msRemaining: number;
 }
 
+/** A trigger-status card held because another run holds its session id (c0126). */
+export interface SessionHeldCard {
+  card: Card;
+  /** The card currently holding that session — an active run, or an earlier
+   *  candidate in the same plan. Named in the held-back report. */
+  heldBy: string;
+}
+
 export interface DispatchPlan {
   /** Ready cards to start now, in board order, within the WIP budget. */
   dispatch: Card[];
@@ -83,6 +92,8 @@ export interface DispatchPlan {
   blocked: BlockedCard[];
   /** Ready cards still inside the c0117 grace period, soonest first. */
   delayed: DelayedCard[];
+  /** Ready cards held because their session id is already in use (c0126). */
+  sessionHeld: SessionHeldCard[];
 }
 
 /** How the pickup grace period is evaluated (c0117). Defaults to no delay, so
@@ -119,6 +130,7 @@ export function planDispatch(
   wipLimit: number,
   trigger: string = READY,
   pickup: PickupOptions = { now: 0, pickupDelayMs: 0 },
+  scope: SessionScope = "card",
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
@@ -126,8 +138,17 @@ export function planDispatch(
     .filter((c) => c.status === trigger && !active.has(c.id))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
+  // c0126: a session id is single-threaded. Seed the held keys with every
+  // active run's key, so a candidate whose session is already in use waits.
+  const heldBy = new Map<string, string>();
+  for (const activeId of active) {
+    const card = index.get(activeId);
+    if (card) heldBy.set(sessionKey(card, scope), activeId);
+  }
+
   const blocked: BlockedCard[] = [];
   const delayed: DelayedCard[] = [];
+  const sessionHeld: SessionHeldCard[] = [];
   const candidates: Card[] = [];
   for (const card of waiting) {
     const missing = missingDepends(index, card);
@@ -139,8 +160,22 @@ export function planDispatch(
     // `depends` so a blocked card is still reported as blocked, not as waiting
     // on a timer it is not actually waiting on.
     const msRemaining = pickupWait(card, pickup.now, pickup.pickupDelayMs);
-    if (msRemaining > 0) delayed.push({ card, msRemaining });
-    else candidates.push(card);
+    if (msRemaining > 0) {
+      delayed.push({ card, msRemaining });
+      continue;
+    }
+    // c0126: at most one run per session id — counting both active runs and
+    // candidates already claimed *this* plan, so two fresh same-epic cards
+    // don't both dispatch and collide on `--resume`. Checked after the grace
+    // period, so a delayed card is reported delayed rather than session-held.
+    const key = sessionKey(card, scope);
+    const holder = heldBy.get(key);
+    if (holder !== undefined) {
+      sessionHeld.push({ card, heldBy: holder });
+      continue;
+    }
+    heldBy.set(key, card.id);
+    candidates.push(card);
   }
   delayed.sort((a, b) => a.msRemaining - b.msRemaining);
 
@@ -150,6 +185,7 @@ export function planDispatch(
     queued: candidates.slice(budget),
     blocked,
     delayed,
+    sessionHeld,
   };
 }
 
@@ -325,14 +361,15 @@ export class Runner {
     // c0117: a resume is exempt from the grace period — you cannot accidentally
     // answer a question, and delaying it would tax every turn of the Q&A loop.
     for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
-    const { dispatch, queued, blocked, delayed } = planDispatch(
+    const { dispatch, queued, blocked, delayed, sessionHeld } = planDispatch(
       next,
       [...this.active.keys()],
       this.opts.wipLimit,
       this.opts.trigger ?? READY,
       { now: this.now(), pickupDelayMs: this.opts.pickupDelayMs ?? 0 },
+      this.opts.scope,
     );
-    this.reportHeldBack(queued, blocked);
+    this.reportHeldBack(queued, blocked, sessionHeld);
     for (const card of dispatch) this.start(card, false);
     this.schedulePickupRecheck(delayed);
     this.publish();
@@ -373,10 +410,19 @@ export class Runner {
    * from a companion that failed to start. `sync` runs on every watcher tick,
    * so each card's reason is logged when it changes, not on every pass.
    */
-  private reportHeldBack(queued: Card[], blocked: BlockedCard[]): void {
+  private reportHeldBack(
+    queued: Card[],
+    blocked: BlockedCard[],
+    sessionHeld: SessionHeldCard[],
+  ): void {
     const reasons = new Map<string, string>();
     for (const { card, missing } of blocked) {
       reasons.set(card.id, `waiting on ${missing.join(", ")} (not done)`);
+    }
+    // c0126: the epic's session is busy — name who holds it, so a serialised
+    // epic reads as "waiting its turn", not stalled.
+    for (const { card, heldBy } of sessionHeld) {
+      reasons.set(card.id, `session busy with ${heldBy}`);
     }
     for (const card of queued) {
       reasons.set(card.id, `at the in-progress WIP limit (${this.opts.wipLimit})`);
@@ -501,30 +547,41 @@ export class Runner {
     const run = this.active.get(cardId);
     if (!run) return;
 
-    let card: Card | undefined;
+    let next: BoardModel | undefined;
     try {
-      card = byId(this.opts.reload()).get(cardId);
+      next = this.opts.reload();
     } catch (error) {
       this.log(`reload after ${cardId} exit failed: ${(error as Error).message}`);
     }
+    const card = next ? byId(next).get(cardId) : undefined;
     const phase = classifyExit(card, code);
 
     if (phase === "waiting-for-input") {
       // A parked run stays in the state file — carry its usage so the popover
-      // can show what the turn cost while it waits on the human.
+      // can show what the turn cost while it waits on the human. It keeps its
+      // slot and its session (c0126), so there is nothing to re-dispatch.
       this.active.set(cardId, { ...run, phase, usage: usage ?? run.usage });
       this.log(`${cardId} parked → waiting for input`);
-    } else {
-      this.active.delete(cardId);
-      if (phase === "error") {
-        // The card is left exactly as the agent left it — recoverable; the
-        // companion never rewrites it. The error surfaces via the state file.
-        this.log(`${cardId} run errored (exit ${code}); card left as-is`);
-      } else {
-        this.log(`${cardId} done`);
-      }
+      this.publish();
+      return;
     }
-    this.publish();
+
+    this.active.delete(cardId);
+    if (phase === "error") {
+      // The card is left exactly as the agent left it — recoverable; the
+      // companion never rewrites it. The error surfaces via the state file.
+      this.log(`${cardId} run errored (exit ${code}); card left as-is`);
+    } else {
+      this.log(`${cardId} done`);
+    }
+    // c0126: the run freed its session (and a WIP slot), so reconcile now — the
+    // next same-epic or WIP-queued card should start rather than wait for an
+    // unrelated board change. A `done` card was moved by the agent and would
+    // wake the watcher anyway, but an errored card is left in place and produces
+    // no file event, so this is the only prompt it gets. Falls back to a plain
+    // publish if the reload failed above.
+    if (next) this.sync(next);
+    else this.publish();
   }
 
   private publish(): void {
