@@ -46,22 +46,22 @@ so a serialised epic does not look stalled.
 
 ## Acceptance criteria
 
-- [ ] A card is not dispatched while another active run holds the same session
+- [x] A card is not dispatched while another active run holds the same session
       id (per `sessionKey` under the current scope)
-- [ ] Under `scope: epic`, two ready cards in one epic run one at a time; the
+- [x] Under `scope: epic`, two ready cards in one epic run one at a time; the
       second dispatches only after the first ends (done, error, or aborted)
-- [ ] Cards in different epics still run concurrently up to the WIP limit
-- [ ] A standalone card (no epic) is never blocked by an epic card's session,
+- [x] Cards in different epics still run concurrently up to the WIP limit
+- [x] A standalone card (no epic) is never blocked by an epic card's session,
       and vice versa
-- [ ] Under `scope: card`, no card is ever blocked by another's session
-- [ ] A `waiting-for-input` (parked) card keeps its session held — same-epic
+- [x] Under `scope: card`, no card is ever blocked by another's session
+- [x] A `waiting-for-input` (parked) card keeps its session held — same-epic
       cards do not start until it resumes and finishes
-- [ ] Resuming the parked card itself is not blocked by its own held session
-- [ ] The session gate composes with the WIP limit and the `depends` gate, not
+- [x] Resuming the parked card itself is not blocked by its own held session
+- [x] The session gate composes with the WIP limit and the `depends` gate, not
       instead of them
-- [ ] A card held only because its session is busy is reported (i0119-style),
+- [x] A card held only because its session is busy is reported (i0119-style),
       naming the card currently holding it
-- [ ] It is unit-tested with the fake spawner: two same-epic cards serialise,
+- [x] It is unit-tested with the fake spawner: two same-epic cards serialise,
       two cross-epic cards do not
 
 ## Discussion
