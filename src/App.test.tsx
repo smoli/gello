@@ -847,6 +847,35 @@ describe("App", () => {
     expect((written.match(/^status-changed:/gm) ?? []).length).toBe(1);
   });
 
+  it("c0132: 'Fix duplicate id' reassigns a fresh id and writes the duplicate's file", async () => {
+    const twin = "---\nid: c003\ntitle: Twin\nstatus: backlog\n---\ny\n";
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog]\n" },
+        { path: "cards/a-owner.md", content: "---\nid: c003\ntitle: Owner\nstatus: backlog\n---\nx\n" },
+        { path: "cards/b-twin.md", content: twin },
+      ]),
+    });
+    readMock.mockResolvedValue(twin); // the handler reads current disk bytes first
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    const lane = await screen.findByRole("region", { name: "needs attention" });
+    fireEvent.click(within(lane).getByRole("button", { name: /fix duplicate id/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith("/repo/.gello/cards/b-twin.md", expect.any(String)),
+    );
+    const written = writeMock.mock.calls[writeMock.mock.calls.length - 1][1] as string;
+    // a fresh id in the same namespace, no longer clashing with c003
+    expect(written).toMatch(/^id: c\d+$/m);
+    expect(written).not.toContain("id: c003");
+    // only the id line changed — the owner's file is never written
+    expect(writeMock).toHaveBeenCalledTimes(1);
+  });
+
   it("c0101: answering a parked question un-fences the body and marks it answered", async () => {
     const raw =
       "---\nid: c009\ntitle: Parked\nstatus: in-progress\nawaiting: input\nupdated: 2026-07-18\n---\n" +

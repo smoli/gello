@@ -228,7 +228,7 @@ export function loadBoard(files: BoardFile[]): BoardModel {
     if (ownerPath === undefined) {
       owner.set(card.id, card.path);
     } else {
-      duplicate.set(card.path, `duplicate id ${card.id}, also used by ${ownerPath}`);
+      duplicate.set(card.path, duplicateIdReason(card.id, ownerPath));
     }
   }
   const dedup = (cards: Card[]): Card[] =>
@@ -341,6 +341,25 @@ export function openFollowUpsFor(model: BoardModel, id: string): Card[] {
   return allCards(model).filter(
     (card) => card.type !== "issue" && card.ref === id && card.status !== "done",
   );
+}
+
+// --- duplicate ids (c031 detection, c0132 repair) -------------------------------
+
+/** The needs-attention reason for a duplicate id — built and parsed in one
+ *  place so the c0132 repair can recover the clashing id from it. */
+function duplicateIdReason(id: string, ownerPath: string): string {
+  return `duplicate id ${id}, also used by ${ownerPath}`;
+}
+
+const DUPLICATE_ID_REASON_RE = /^duplicate id (\S+),/;
+
+/**
+ * c0132: the clashing id if this needs-attention entry is a duplicate-id case,
+ * else null. The board (Fix duplicate id) shows the repair on a non-null
+ * result; the app reads the namespace from the id to allocate a fresh one.
+ */
+export function duplicateIdOf(entry: InvalidFile): string | null {
+  return DUPLICATE_ID_REASON_RE.exec(entry.reason)?.[1] ?? null;
 }
 
 /** An unfinished dependency, the reason a card will not be picked up (c0123). */

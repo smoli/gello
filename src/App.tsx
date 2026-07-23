@@ -13,6 +13,7 @@ import {
   blockingCards,
   dependenciesOf,
   dependencyOptions,
+  duplicateIdOf,
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
@@ -120,6 +121,7 @@ const AUTO_COMMIT_DEFAULT_MS = 30_000;
 type Theme = "system" | "light" | "dark";
 import {
   collapseDuplicateFrontmatterKeys,
+  reassignCardId,
   parseCard,
   type Card,
   type CardFieldChanges,
@@ -908,6 +910,26 @@ function App() {
     }
   };
 
+  // c0132: a card sharing another's id sits in needs-attention. Give the
+  // duplicate (never the owner) a fresh id in its own namespace and write it
+  // back; the watcher then reloads it as a valid card. The owner is untouched.
+  const handleRepairDuplicateId = async (entry: InvalidFile) => {
+    if (!board) return;
+    const clashing = duplicateIdOf(entry);
+    if (clashing === null) return;
+    const newId = clashing.startsWith("i")
+      ? nextIssueId(board.model)
+      : nextCardId(board.model);
+    const path = `${board.root}/${entry.path}`;
+    const current = await readFileRaw(path).catch(() => entry.raw);
+    try {
+      await writeFileAtomic(path, reassignCardId(current, newId));
+      setError(null);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   // c0101: answer a parked gelloquestion — the app un-fences the body and
   // clears `awaiting` in one write (answerGelloQuestion); the companion resumes.
   const handleAnswerQuestion = async (card: Card, newBody: string) => {
@@ -1290,6 +1312,7 @@ function App() {
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
           onRepairDuplicates={(entry) => void handleRepairDuplicates(entry)}
+          onRepairDuplicateId={(entry) => void handleRepairDuplicateId(entry)}
           onManageTags={() => setManagingTags(true)}
           toolbarLeading={
             <ProjectMenu

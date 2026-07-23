@@ -22,6 +22,7 @@ import {
   dependenciesOf,
   dependencyCycle,
   dependencyOptions,
+  duplicateIdOf,
   planManualInsert,
   wipState,
   type BoardFile,
@@ -1095,6 +1096,32 @@ describe("the dependency graph (c0124)", () => {
         "c003",
       ]);
     });
+  });
+});
+
+describe("duplicateIdOf (c0132)", () => {
+  it("returns the clashing id for a duplicate-id needs-attention entry", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/a-c003.md", "---\nid: c003\ntitle: Owner\nstatus: backlog\n---\nx\n"),
+      file("cards/b-c003.md", "---\nid: c003\ntitle: Twin\nstatus: backlog\n---\ny\n"),
+    ]);
+    // the second by path order is the duplicate sent to needs-attention
+    expect(model.invalid).toHaveLength(1);
+    expect(duplicateIdOf(model.invalid[0])).toBe("c003");
+  });
+
+  it("returns null for an entry that is not a duplicate-id case", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/c001-broken.md", "---\nid: [unclosed\n---\nbody\n"),
+    ]);
+    expect(model.invalid).toHaveLength(1);
+    expect(duplicateIdOf(model.invalid[0])).toBeNull();
+  });
+
+  it("reads the id from the reason regardless of namespace", () => {
+    expect(duplicateIdOf({ path: "x.md", raw: "", reason: "duplicate id i0007, also used by cards/y.md" })).toBe("i0007");
   });
 });
 

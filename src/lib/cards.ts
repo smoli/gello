@@ -486,6 +486,16 @@ export function collapseDuplicateFrontmatterKeys(raw: string): string | null {
   return raw.slice(0, split.prefixLength).replace(split.block, newBlock) + split.body;
 }
 
+/**
+ * c0132: rewrite the `id:` frontmatter to `newId` — the one-click repair for a
+ * duplicate-id needs-attention entry, where the caller has allocated a fresh id
+ * in the right namespace. Surgical: every other line survives byte-for-byte,
+ * and `updated` is left alone (a structural repair, not an edit).
+ */
+export function reassignCardId(raw: string, newId: string): string {
+  return setFrontmatterRawValue(raw, "id", formatScalar(newId));
+}
+
 /** Remove one `field: …` line from the frontmatter block, if present. */
 function removeFrontmatterField(raw: string, field: string): string {
   const split = splitFrontmatter(raw);

@@ -3,6 +3,7 @@ import {
   blockersFor,
   openDependencies,
   columnComparator,
+  duplicateIdOf,
   findCardById,
   MANUAL_COLUMNS,
   planManualInsert,
@@ -96,6 +97,7 @@ export function Board({
   onRenumber,
   onNewEpic,
   onRepairDuplicates,
+  onRepairDuplicateId,
   onManageTags,
   background,
   darkChips = false,
@@ -115,6 +117,9 @@ export function Board({
   onNewEpic?: () => void;
   /** i0034: repair a needs-attention card with duplicate frontmatter keys. */
   onRepairDuplicates?: (entry: InvalidFile) => void;
+  /** c0132: repair a needs-attention card that shares another card's id, by
+   *  reassigning it a fresh one. */
+  onRepairDuplicateId?: (entry: InvalidFile) => void;
   /** c0058: open the tag management surface (colours + rename). */
   onManageTags?: () => void;
   /** c0066: fulltext filter, now owned by the top bar's search box. */
@@ -434,7 +439,11 @@ export function Board({
         })}
       </div>
       {model.invalid.length > 0 && (
-        <NeedsAttentionLane entries={model.invalid} onRepairDuplicates={onRepairDuplicates} />
+        <NeedsAttentionLane
+          entries={model.invalid}
+          onRepairDuplicates={onRepairDuplicates}
+          onRepairDuplicateId={onRepairDuplicateId}
+        />
       )}
     </div>
   );
@@ -443,9 +452,11 @@ export function Board({
 function NeedsAttentionLane({
   entries,
   onRepairDuplicates,
+  onRepairDuplicateId,
 }: {
   entries: InvalidFile[];
   onRepairDuplicates?: (entry: InvalidFile) => void;
+  onRepairDuplicateId?: (entry: InvalidFile) => void;
 }) {
   return (
     <section className="needs-attention" aria-label="needs attention">
@@ -459,6 +470,7 @@ function NeedsAttentionLane({
             key={entry.path}
             entry={entry}
             onRepairDuplicates={onRepairDuplicates}
+            onRepairDuplicateId={onRepairDuplicateId}
           />
         ))}
       </div>
@@ -469,15 +481,20 @@ function NeedsAttentionLane({
 function InvalidFileEntry({
   entry,
   onRepairDuplicates,
+  onRepairDuplicateId,
 }: {
   entry: InvalidFile;
   onRepairDuplicates?: (entry: InvalidFile) => void;
+  onRepairDuplicateId?: (entry: InvalidFile) => void;
 }) {
   const [showRaw, setShowRaw] = useState(false);
   // i0034: offer a one-click repair only when the file has collapsible
   // duplicate frontmatter keys (the "Map keys must be unique" case)
   const canRepair =
     onRepairDuplicates != null && collapseDuplicateFrontmatterKeys(entry.raw) !== null;
+  // c0132: offer the id repair only on a duplicate-id entry (the two repair
+  // cases are mutually exclusive — a dup-id file is otherwise valid YAML)
+  const canRepairId = onRepairDuplicateId != null && duplicateIdOf(entry) !== null;
   return (
     <article className="invalid-entry">
       <div className="invalid-entry-header">
@@ -489,6 +506,11 @@ function InvalidFileEntry({
           {canRepair && (
             <button type="button" onClick={() => onRepairDuplicates?.(entry)}>
               Fix duplicate keys
+            </button>
+          )}
+          {canRepairId && (
+            <button type="button" onClick={() => onRepairDuplicateId?.(entry)}>
+              Fix duplicate id
             </button>
           )}
           <button type="button" onClick={() => setShowRaw((v) => !v)}>

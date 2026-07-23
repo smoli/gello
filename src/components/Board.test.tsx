@@ -871,6 +871,38 @@ describe("needs-attention lane", () => {
       expect.objectContaining({ path: "cards/c001-dup.md" }),
     );
   });
+
+  it("c0132: offers 'Fix duplicate id' on a duplicate-id entry, opening its own repair", () => {
+    const onRepairDuplicateId = vi.fn();
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/a-twin.md", "---\nid: c003\ntitle: Owner\nstatus: backlog\n---\nx\n"),
+      file("cards/b-twin.md", "---\nid: c003\ntitle: Twin\nstatus: backlog\n---\ny\n"),
+    ]);
+    render(<Board model={model} onRepairDuplicateId={onRepairDuplicateId} />);
+    const lane = screen.getByRole("region", { name: "needs attention" });
+
+    // exactly the one duplicate (the second by path order) gets the button
+    const repair = within(lane).getAllByRole("button", { name: /fix duplicate id/i });
+    expect(repair).toHaveLength(1);
+    // and it is not the duplicate-keys button
+    expect(within(lane).queryByRole("button", { name: /fix duplicate keys/i })).toBeNull();
+
+    fireEvent.click(repair[0]);
+    expect(onRepairDuplicateId).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ path: "cards/b-twin.md" }),
+    );
+  });
+
+  it("c0132: shows no 'Fix duplicate id' button on a plain malformed card", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/c001-broken.md", "---\nid: [unclosed\n---\nbody\n"),
+    ]);
+    render(<Board model={model} onRepairDuplicateId={vi.fn()} />);
+    const lane = screen.getByRole("region", { name: "needs attention" });
+    expect(within(lane).queryByRole("button", { name: /fix duplicate id/i })).toBeNull();
+  });
 });
 
 function fakeDataTransfer() {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BOARD_CONFIG,
   collapseDuplicateFrontmatterKeys,
+  reassignCardId,
   newCardRaw,
   newEpicRaw,
   parseBoardConfig,
@@ -702,6 +703,35 @@ describe("collapseDuplicateFrontmatterKeys (i0034)", () => {
     const fixed = collapseDuplicateFrontmatterKeys(dup)!;
     expect(fixed).toContain("\r\n");
     expect((fixed.match(/^status-changed:/gm) ?? []).length).toBe(1);
+  });
+});
+
+describe("reassignCardId (c0132)", () => {
+  it("rewrites the id, leaving every other line byte-identical", () => {
+    const raw =
+      "---\nid: c003\ntitle: Twin\nstatus: backlog\ntags: [ui]\n---\n## What\n\nbody\n";
+    const fixed = reassignCardId(raw, "c0135");
+    expect(fixed).toBe(raw.replace("id: c003", "id: c0135"));
+  });
+
+  it("the reassigned card parses with its new id", () => {
+    const raw = "---\nid: c003\ntitle: Twin\nstatus: backlog\n---\nbody\n";
+    const parsed = parseCard("cards/c003-twin.md", reassignCardId(raw, "c0140"));
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.card.id).toBe("c0140");
+  });
+
+  it("does not bump updated — it is a structural repair, not an edit", () => {
+    const raw =
+      "---\nid: c003\ntitle: Twin\nstatus: backlog\nupdated: 2026-07-01\n---\nbody\n";
+    expect(reassignCardId(raw, "c0150")).toContain("updated: 2026-07-01");
+  });
+
+  it("preserves CRLF line endings", () => {
+    const raw = "---\r\nid: i003\r\ntitle: X\r\nstatus: backlog\r\n---\r\nbody\r\n";
+    const fixed = reassignCardId(raw, "i0009");
+    expect(fixed).toContain("\r\n");
+    expect(fixed).toContain("id: i0009");
   });
 });
 
