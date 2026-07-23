@@ -355,6 +355,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        // c0128: OS notifications when a companion run parks a question
+        .plugin(tauri_plugin_notification::init())
         // c048: persist and restore the window size/position across restarts
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // i0017: macOS keeps its native traffic lights (titleBarStyle Overlay);

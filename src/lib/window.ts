@@ -11,6 +11,20 @@ export async function startWindowDrag(): Promise<void> {
   }
 }
 
+// c0128: raise and focus the window — used when an OS notification for a
+// parked question is clicked, so the app comes forward on the answer. No-op
+// outside Tauri.
+export async function focusWindow(): Promise<void> {
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const window = getCurrentWindow();
+    await window.unminimize();
+    await window.setFocus();
+  } catch {
+    /* not in Tauri */
+  }
+}
+
 // i0017: custom window controls for the frameless Windows/Linux chrome. All
 // no-op / safe defaults outside a Tauri window (plain browser / tests).
 

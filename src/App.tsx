@@ -67,7 +67,13 @@ import {
   writeNewFiles,
   type LoadedBoard,
 } from "./lib/board-io";
-import { readCompanionState, type CompanionState } from "./lib/companion";
+import {
+  readCompanionState,
+  newlyParkedIds,
+  type CompanionState,
+} from "./lib/companion";
+import { notifyPark, onNotificationOpen } from "./lib/notify";
+import { focusWindow } from "./lib/window";
 import {
   assetLinkPrefix,
   bytesToBase64,
@@ -490,10 +496,24 @@ function App() {
   const refreshDirtyRef = useRef(refreshDirty);
   refreshDirtyRef.current = refreshDirty;
 
-  /** c0100: refresh the title-bar companion indicator from its state file. */
+  // c0128: the previous poll's `waiting` set, so a park is notified on the
+  // transition into waiting (edge, not level). null = not yet baselined: the
+  // first observation after load/project-switch is taken as the baseline and
+  // never notifies, so pre-existing parks don't burst banners.
+  const prevWaitingRef = useRef<string[] | null>(null);
+
+  /** c0100: refresh the title-bar companion indicator from its state file.
+   *  c0128: also fire an OS notification for any card newly parked on a
+   *  question since the last poll. */
   const refreshCompanion = async () => {
     if (!board) return;
-    setRunner(await readCompanionState(board.root));
+    const next = await readCompanionState(board.root);
+    for (const id of newlyParkedIds(prevWaitingRef.current, next)) {
+      const card = findCardById(board.model, id);
+      void notifyPark(id, card?.title ?? id);
+    }
+    prevWaitingRef.current = next?.waiting ?? [];
+    setRunner(next);
   };
   const refreshCompanionRef = useRef(refreshCompanion);
   refreshCompanionRef.current = refreshCompanion;
@@ -622,6 +642,9 @@ function App() {
   // refresh above) is simpler and more robust than an OS watch that would have
   // to track the .companion dir coming and going.
   useEffect(() => {
+    // c0128: re-baseline for the newly opened project — its already-parked
+    // cards are pre-existing, not fresh parks to announce.
+    prevWaitingRef.current = null;
     if (!board) {
       setRunner(null);
       return;
@@ -630,6 +653,25 @@ function App() {
     const id = setInterval(() => void refreshCompanionRef.current(), 2000);
     return () => clearInterval(id);
   }, [root]);
+
+  // c0128: clicking a park notification focuses the window and opens that card.
+  // Registered once; it reads the latest board through a ref so a project
+  // switch doesn't strand the listener on a stale model.
+  const openCardByIdRef = useRef((_id: string) => {});
+  openCardByIdRef.current = (id: string) => {
+    const target = board ? findCardById(board.model, id) : null;
+    if (target) setSelectedPath(target.path);
+  };
+  useEffect(() => {
+    let unlisten = () => {};
+    void onNotificationOpen((cardId) => {
+      void focusWindow();
+      openCardByIdRef.current(cardId);
+    }).then((off) => {
+      unlisten = off;
+    });
+    return () => unlisten();
+  }, []);
 
   // c0083: flush any pending (debounced) board commit before the window closes,
   // so the last batch is never left uncommitted. Best-effort; no-op outside Tauri.

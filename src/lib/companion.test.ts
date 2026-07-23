@@ -4,6 +4,7 @@ import {
   companionStatePath,
   readCompanionState,
   isCompanionLive,
+  newlyParkedIds,
   STALE_MS,
   type CompanionState,
 } from "./companion";
@@ -185,6 +186,53 @@ describe("isCompanionLive", () => {
     // real companions always write a parseable timestamp; only a corrupt file
     // hits this — keep showing status rather than hiding it behind Start.
     expect(isCompanionLive(state(""), now)).toBe(true);
+  });
+});
+
+describe("newlyParkedIds (c0128)", () => {
+  const waiting = (...ids: string[]): CompanionState => ({
+    status: "waiting",
+    ready: [],
+    waiting: ids,
+    runs: [],
+    updated: "2026-07-23T10:00:00",
+    pickupDelay: 0,
+  });
+
+  it("baseline: the first observation (prev null) never notifies", () => {
+    // opening the app never bursts banners for parks that were already there
+    expect(newlyParkedIds(null, waiting("c001", "c002"))).toEqual([]);
+    expect(newlyParkedIds(null, null)).toEqual([]);
+  });
+
+  it("fires for a card that just entered waiting", () => {
+    expect(newlyParkedIds([], waiting("c005"))).toEqual(["c005"]);
+  });
+
+  it("fires only for the newcomer among cards already waiting", () => {
+    expect(newlyParkedIds(["c001"], waiting("c001", "c005"))).toEqual(["c005"]);
+  });
+
+  it("does not re-fire for a card that stays parked across polls", () => {
+    expect(newlyParkedIds(["c001"], waiting("c001"))).toEqual([]);
+  });
+
+  it("says nothing when a card leaves waiting and none is new", () => {
+    expect(newlyParkedIds(["c001", "c002"], waiting("c001"))).toEqual([]);
+  });
+
+  it("reports several newcomers at once", () => {
+    expect(newlyParkedIds([], waiting("c005", "c006"))).toEqual(["c005", "c006"]);
+  });
+
+  it("says nothing when the companion has gone (next null)", () => {
+    expect(newlyParkedIds(["c001"], null)).toEqual([]);
+  });
+
+  it("fires once the companion appears after an observed-empty baseline", () => {
+    // companion started after the app: baseline was empty, not null, so the
+    // first real park still notifies
+    expect(newlyParkedIds([], waiting("c005"))).toEqual(["c005"]);
   });
 });
 

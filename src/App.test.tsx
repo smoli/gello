@@ -24,6 +24,8 @@ import {
   watchGitHead,
 } from "./lib/board-io";
 import { writeFileAtomic } from "./lib/fs";
+import { readCompanionState, type CompanionState } from "./lib/companion";
+import { notifyPark } from "./lib/notify";
 import App from "./App";
 
 vi.mock("./lib/board-io", () => ({
@@ -55,6 +57,12 @@ vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 vi.mock("./lib/companion", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./lib/companion")>()),
   readCompanionState: vi.fn().mockResolvedValue(null),
+}));
+// c0128: the OS-notification seam is a Tauri boundary — stub it so the wiring
+// (which cards newly park → notifyPark) is assertable without a Tauri runtime.
+vi.mock("./lib/notify", () => ({
+  notifyPark: vi.fn(),
+  onNotificationOpen: vi.fn().mockResolvedValue(() => {}),
 }));
 const loadMock = vi.mocked(loadBoardFromDisk);
 const readMock = vi.mocked(readFileRaw);
@@ -517,6 +525,60 @@ describe("App", () => {
         expect.stringContaining("depends: [c005]"),
       ),
     );
+  });
+
+  // c0128: OS notification when a companion run parks a question. The poll
+  // reads the state file; the board-watch callback also refreshes it, which is
+  // the synchronous hook these tests drive.
+  const companionWaiting = (waiting: string[]): CompanionState => ({
+    status: "waiting",
+    ready: [],
+    waiting,
+    runs: [],
+    updated: "2026-07-23T10:00:00",
+    pickupDelay: 0,
+  });
+  const fireWatch = async () => {
+    const cb = watchMock.mock.calls[0][1] as (paths: string[]) => void;
+    await act(async () => {
+      cb(["cards/c001-hello.md"]);
+      await Promise.resolve();
+    });
+  };
+
+  it("c0128: fires one notification when a card newly parks, naming it", async () => {
+    vi.mocked(notifyPark).mockClear();
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    const readState = vi.mocked(readCompanionState);
+    readState.mockResolvedValue(null); // baseline: nothing parked at load
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    await act(async () => void (await Promise.resolve()));
+
+    // a card parks on the next observation
+    readState.mockResolvedValueOnce(companionWaiting(["c005"]));
+    await fireWatch();
+    await waitFor(() =>
+      expect(notifyPark).toHaveBeenCalledExactlyOnceWith("c005", "Board card"),
+    );
+
+    // it stays parked across the next poll — no second banner
+    readState.mockResolvedValueOnce(companionWaiting(["c005"]));
+    await fireWatch();
+    expect(notifyPark).toHaveBeenCalledTimes(1);
+  });
+
+  it("c0128: does not notify for a park already present when the app loads", async () => {
+    vi.mocked(notifyPark).mockClear();
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(readCompanionState).mockResolvedValue(companionWaiting(["c005"]));
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    await act(async () => void (await Promise.resolve()));
+
+    expect(notifyPark).not.toHaveBeenCalled();
   });
 
   it("persists a status change from the detail view", async () => {

@@ -76,6 +76,29 @@ export function isCompanionLive(state: CompanionState | null, now: number): bool
   return Number.isNaN(t) || now - t <= STALE_MS;
 }
 
+/**
+ * c0128: the card ids that have *newly* entered `waiting` since the previous
+ * observation — the edge into a parked question, so a park fires one banner,
+ * not one every poll while it sits unanswered.
+ *
+ * `prevWaiting` is the previous observation's waiting set, or `null` when
+ * nothing has been observed yet (the app just loaded). The `null` case is the
+ * baseline: it returns nothing, so opening the app never bursts banners for
+ * parks that were already there. A caller keeps this state between polls,
+ * storing `next?.waiting ?? []` after each call — so the absence of a companion
+ * counts as an observed-empty set, not a reset to baseline.
+ *
+ * Pure: the transition detection is all here, apart from the OS notification.
+ */
+export function newlyParkedIds(
+  prevWaiting: readonly string[] | null,
+  next: CompanionState | null,
+): string[] {
+  if (prevWaiting === null) return [];
+  const before = new Set(prevWaiting);
+  return (next?.waiting ?? []).filter((id) => !before.has(id));
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
 }
