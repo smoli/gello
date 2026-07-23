@@ -1,11 +1,11 @@
 ---
 id: c0124
 title: Show a card's dependencies in the card detail
-status: review
+status: done
 epic: e02
 created: 2026-07-22
-updated: 2026-07-22
-status-changed: 2026-07-22T19:32:10
+updated: 2026-07-23
+status-changed: 2026-07-23T06:59:20
 ---
 
 ## What
@@ -141,3 +141,4 @@ card that owns them.
 - 2026-07-22 both sections, add/remove, cycle refusal; `depends` made writable
   — 27 tests across the graph, the write path and the detail
 - 2026-07-22 status → review (agent)
+- 2026-07-23 status → done (app)
