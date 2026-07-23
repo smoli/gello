@@ -1398,6 +1398,83 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  // c0131 is driven through the CardDetail "Follow up" action rather than the
+  // card-front trigger, so these tests are decoupled from the card front's
+  // exact markup and exercise the same startFollowUp path.
+  function followupBoard(target: string) {
+    return {
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        {
+          path: "board.yaml",
+          content: `columns: [inbox, discuss, backlog, ready, review, done]\nfollowup_target: ${target}\n`,
+        },
+        {
+          path: "cards/c006-reviewed.md",
+          content: "---\nid: c006\ntitle: Reviewed card\nstatus: review\n---\nx\n",
+        },
+      ]),
+    };
+  }
+  const openFollowUp = () => {
+    fireEvent.click(screen.getByText("Reviewed card").closest("article")!);
+    const detail = screen.getByRole("dialog", { name: "c006" });
+    fireEvent.click(within(detail).getByRole("button", { name: /follow up/i }));
+  };
+
+  it("c0131: a configured target column lands the follow-up there, note without the companion line", async () => {
+    loadMock.mockResolvedValueOnce(followupBoard("backlog"));
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Reviewed card");
+    openFollowUp();
+
+    // backlog does not auto-dispatch, so no companion clause
+    expect(screen.getByText("Lands in backlog.")).toBeInTheDocument();
+    expect(screen.queryByText(/companion/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Later work" } });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock.mock.calls[0][1]).toContain("status: backlog");
+  });
+
+  it("c0131: the ask target opens a column picker, then targets the picked column", async () => {
+    loadMock.mockResolvedValueOnce(followupBoard("ask"));
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Reviewed card");
+    openFollowUp();
+
+    // the picker appears — no draft yet
+    const picker = screen.getByRole("dialog", { name: /follow up on c006/i });
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    fireEvent.click(within(picker).getByRole("button", { name: "discuss" }));
+
+    // now the draft, targeting the picked column
+    expect(screen.getByText("Lands in discuss.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Think more" } });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock.mock.calls[0][1]).toContain("status: discuss");
+  });
+
+  it("c0131: cancelling the ask picker creates nothing", async () => {
+    loadMock.mockResolvedValueOnce(followupBoard("ask"));
+
+    render(<App />);
+    await screen.findByText("Reviewed card");
+    openFollowUp();
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: /follow up on c006/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
   it("c0115: the parent lists open issues and follow-ups separately", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",

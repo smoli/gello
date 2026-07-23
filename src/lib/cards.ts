@@ -21,6 +21,9 @@ export interface BoardConfig {
   /** c0111: surface tags on the board (card-front chips, toolbar filter, and
    *  the Manage-tags button). False hides all three; `tags:` is untouched. */
   showTags: boolean;
+  /** c0131: column a follow-up (c0115) lands in — a status name, or "ask" to
+   *  pick per follow-up. Defaults to "ready" (the c0115 behaviour). */
+  followupTarget: string;
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
@@ -33,6 +36,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   background: null,
   tagColors: {},
   showTags: true,
+  followupTarget: "ready",
 };
 
 export interface Card {
@@ -300,6 +304,7 @@ export function parseBoardConfig(raw: string): {
     background: null,
     tagColors: {},
     showTags: true,
+    followupTarget: "ready",
   });
 
   let data: unknown;
@@ -344,6 +349,13 @@ export function parseBoardConfig(raw: string): {
   // c0111: hide all board tag surfaces when explicitly false.
   const showTags = record["show_tags"];
   if (typeof showTags === "boolean") config.showTags = showTags;
+
+  // c0131: where a follow-up lands — a status name or "ask". Any string is
+  // kept; the app offers only the columns that exist, so a stale value is inert.
+  const followupTarget = record["followup_target"];
+  if (typeof followupTarget === "string" && followupTarget.trim() !== "") {
+    config.followupTarget = followupTarget;
+  }
 
   // c0058: per-tag colour overrides — a { tag: "#hex" } mapping.
   const tagColors = record["tag_colors"];

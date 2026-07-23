@@ -56,6 +56,16 @@ describe("setBoardKey", () => {
     expect(back).not.toContain("show_tags");
     expect(parseBoardConfig(back).config.showTags).toBe(true);
   });
+
+  it("c0131: writes and clears the follow-up target, round-tripping", () => {
+    const set = setBoardKey(RAW, "followup_target", "backlog");
+    expect(set).toContain("followup_target: backlog\n");
+    expect(parseBoardConfig(set).config.followupTarget).toBe("backlog");
+    // clearing returns to the default target (ready)
+    const back = removeBoardKey(set, "followup_target");
+    expect(back).not.toContain("followup_target");
+    expect(parseBoardConfig(back).config.followupTarget).toBe("ready");
+  });
 });
 
 describe("setTagColor / removeTagColor", () => {

@@ -135,6 +135,7 @@ describe("parseCard", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
 
@@ -433,6 +434,7 @@ describe("card types and refs (c024)", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
 
@@ -778,6 +780,24 @@ describe("parseBoardConfig", () => {
 
     expect(error).toBeNull();
     expect(config).toEqual(DEFAULT_BOARD_CONFIG);
+  });
+
+  it("c0131: defaults the follow-up target to ready", () => {
+    expect(DEFAULT_BOARD_CONFIG.followupTarget).toBe("ready");
+    expect(parseBoardConfig("").config.followupTarget).toBe("ready");
+  });
+
+  it("c0131: reads a configured follow-up target column", () => {
+    expect(parseBoardConfig("followup_target: backlog\n").config.followupTarget).toBe(
+      "backlog",
+    );
+    expect(parseBoardConfig("followup_target: ask\n").config.followupTarget).toBe("ask");
+  });
+
+  it("c0131: ignores a non-string follow-up target", () => {
+    expect(parseBoardConfig("followup_target: [a, b]\n").config.followupTarget).toBe(
+      "ready",
+    );
   });
 
   it("parses an optional background image path (c047)", () => {

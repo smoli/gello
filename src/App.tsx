@@ -27,6 +27,7 @@ import {
   unarchiveCard,
   createRefCardFor,
   type RefCardKind,
+  FOLLOWUP_TARGET_COLUMNS,
   createCard,
   createEpic,
   deleteCard,
@@ -90,6 +91,7 @@ import { ProjectMenu } from "./components/ProjectMenu";
 import { BackgroundPicker } from "./components/BackgroundPicker";
 import { ContextMenu } from "./components/ContextMenu";
 import { MilestonePicker } from "./components/MilestonePicker";
+import { FollowUpColumnPicker } from "./components/FollowUpColumnPicker";
 import { projectFolder } from "./lib/status";
 import { readRawOrNull } from "./lib/safe-read";
 import {
@@ -158,10 +160,15 @@ function App() {
   const [migrateError, setMigrateError] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // report-issue / follow-up draft target (c037, c0115): the form is open,
-  // nothing on disk yet. The kind decides the id namespace, type and status.
-  const [refDraft, setRefDraft] = useState<{ source: Card; kind: RefCardKind } | null>(
-    null,
-  );
+  // nothing on disk yet. The kind decides the id namespace and type; c0131 adds
+  // `status` so a follow-up lands in the configured (or picked) column.
+  const [refDraft, setRefDraft] = useState<{
+    source: Card;
+    kind: RefCardKind;
+    status?: string;
+  } | null>(null);
+  // c0131: a follow-up whose target is "ask" — the column picker is open for it.
+  const [followUpAsk, setFollowUpAsk] = useState<Card | null>(null);
   // board background (c047): data URL for an image config.background
   const [backgroundUrl, setBackgroundUrl] = useState<string | undefined>(undefined);
   // c0060: live preview override (color/gradient) + picker position
@@ -464,6 +471,26 @@ function App() {
       : removeBoardKey(board.model.configRaw, "show_tags");
     void writeBoardYaml(raw);
   };
+  // c0131: persist the follow-up target column (or "ask"). "ready" is the
+  // default, so it drops the key rather than writing it — a clean board.yaml.
+  const chooseFollowupTarget = (value: string) => {
+    if (!board) return;
+    const raw =
+      value === "ready"
+        ? removeBoardKey(board.model.configRaw, "followup_target")
+        : setBoardKey(board.model.configRaw, "followup_target", value);
+    void writeBoardYaml(raw);
+  };
+  // c0131: begin a follow-up. A fixed target opens the draft straight away; the
+  // "ask" target opens the column picker first, then the draft.
+  const startFollowUp = (source: Card, type: string = 'c') => {
+    if (!board) return;
+    const target = board.model.config.followupTarget;
+    if (target === "ask") setFollowUpAsk(source);
+    else setRefDraft({ source, kind: type === 'i'? "issue" : "followup", status: target });
+  };
+
+
   const pickBackgroundImage = async () => {
     if (!board) return;
     const source = await pickImageFile();
@@ -1093,6 +1120,7 @@ function App() {
           { title, body, id },
           todayIsoDate(),
           refDraft.kind,
+          refDraft.status, // c0131: the chosen/configured follow-up column
         );
         created = result.card;
         return result;
@@ -1325,7 +1353,7 @@ function App() {
           onMoveCard={handleMove}
           onSelectCard={(card) => setSelectedPath(card.path)}
           // c0118: the card-front trigger opens the same c0115 draft
-          onFollowUpCard={(card) => setRefDraft({ source: card, kind: "followup" })}
+          onFollowUpCard={(card, type: string) => startFollowUp(card, type)}
           query={query}
           showArchived={showArchived}
           loadImage={showThumbnails ? handleLoadImage : undefined}
@@ -1346,6 +1374,21 @@ function App() {
             onClose={() => setManagingTags(false)}
           />
         )}
+        {followUpAsk && (
+          // c0131: "ask" target — pick the column, then open the draft for it.
+          <FollowUpColumnPicker
+            sourceId={followUpAsk.id}
+            columns={FOLLOWUP_TARGET_COLUMNS.filter((col) =>
+              board.model.config.columns.includes(col),
+            )}
+            onPick={(column) => {
+              const source = followUpAsk;
+              setFollowUpAsk(null);
+              setRefDraft({ source, kind: "followup", status: column });
+            }}
+            onCancel={() => setFollowUpAsk(null)}
+          />
+        )}
         {refDraft && (
           // c0122: CaptureForm brings its own centred overlay (c040's, now
           // shared with quick capture), so there is no wrapper here
@@ -1356,10 +1399,16 @@ function App() {
                 : `Follow-up to ${refDraft.source.id}`
             }
             // c0115: one click here can start real agent work, so say where
-            // the card lands rather than letting a run be a surprise
+            // the card lands rather than letting a run be a surprise. c0131: the
+            // column is configurable, so name it — and only ready dispatches a
+            // running companion, so drop that clause for the other columns.
             note={
               refDraft.kind === "followup"
-                ? "Lands in ready — a running companion will start on it."
+                ? `Lands in ${refDraft.status ?? "ready"}.${
+                    (refDraft.status ?? "ready") === "ready"
+                      ? " A running companion will start on it."
+                      : ""
+                  }`
                 : undefined
             }
             onSubmit={submitIssueDraft}
@@ -1474,6 +1523,26 @@ function App() {
                       onSelect: () => chooseAutoCommitWindow(seconds * 1000),
                     })),
                   },
+                  {
+                    // c0131: where a follow-up (c0115) lands — a column, or Ask
+                    // to pick per follow-up. Only the early columns the board
+                    // actually has are offered (review/done make no sense).
+                    label: "Follow-up target",
+                    items: [
+                      ...FOLLOWUP_TARGET_COLUMNS.filter((col) =>
+                        board.model.config.columns.includes(col),
+                      ).map((col) => ({
+                        label: col.charAt(0).toUpperCase() + col.slice(1),
+                        checked: board.model.config.followupTarget === col,
+                        onSelect: () => chooseFollowupTarget(col),
+                      })),
+                      {
+                        label: "Ask each time…",
+                        checked: board.model.config.followupTarget === "ask",
+                        onSelect: () => chooseFollowupTarget("ask"),
+                      },
+                    ],
+                  },
                 ],
               },
             ]}
@@ -1511,7 +1580,7 @@ function App() {
               void handleAnswerQuestion(selected.card, newBody)
             }
             onReportIssue={() => setRefDraft({ source: selected.card, kind: "issue" })}
-            onFollowUp={() => setRefDraft({ source: selected.card, kind: "followup" })}
+            onFollowUp={() => startFollowUp(selected.card)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
               if (target) setSelectedPath(target.path);

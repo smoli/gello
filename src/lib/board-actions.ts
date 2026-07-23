@@ -296,6 +296,11 @@ export function createEpic(
   return { epic: parsed.epic, folder, persisted };
 }
 
+/** c0131: the columns a follow-up may target, in board order. The setting
+ *  offers those of these that the board actually has, plus "ask". Only early
+ *  workflow stages — a follow-up into review/done makes no sense. */
+export const FOLLOWUP_TARGET_COLUMNS = ["inbox", "discuss", "backlog", "ready"] as const;
+
 /** c0115: the two kinds of card born from another card. An issue reports a
  *  problem and waits in backlog; a follow-up is more work on finished work and
  *  goes straight to ready, where a running companion picks it up. */
@@ -325,8 +330,12 @@ export function createRefCardFor(
   input: { title: string; body: string; id?: string },
   today: string,
   kind: RefCardKind,
+  // c0131: land the card in this column instead of the kind's default. Used for
+  // the configurable follow-up target; issues always keep their backlog default.
+  statusOverride?: string,
 ): MoveResult {
-  const { type, status, nextId } = REF_CARD_KINDS[kind];
+  const { type, status: defaultStatus, nextId } = REF_CARD_KINDS[kind];
+  const status = statusOverride ?? defaultStatus;
   // i0022: reuse the id reserved when an image was pasted into the draft, so
   // the new file and that image's asset folder match; else allocate fresh.
   const id = input.id ?? nextId(model);
@@ -357,16 +366,18 @@ export function createIssueFor(
   return createRefCardFor(root, model, source, input, today, "issue");
 }
 
-/** c0115: follow up on a finished card — a task in `ready`, so a running
- *  companion starts on it without any further action. */
+/** c0115: follow up on a finished card — a task that lands in `status`
+ *  (default `ready`, where a running companion starts on it; c0131 makes the
+ *  column configurable). */
 export function createFollowUpFor(
   root: string,
   model: BoardModel,
   source: Card,
   input: { title: string; body: string; id?: string },
   today: string,
+  status: string = "ready",
 ): MoveResult {
-  return createRefCardFor(root, model, source, input, today, "followup");
+  return createRefCardFor(root, model, source, input, today, "followup", status);
 }
 
 /**

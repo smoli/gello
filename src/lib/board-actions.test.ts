@@ -293,6 +293,7 @@ describe("custom-column statuses (c033)", () => {
     background: null,
     tagColors: {},
     showTags: true,
+    followupTarget: "ready",
   };
 
   function discussCard() {
@@ -540,6 +541,45 @@ describe("issue creation (c024)", () => {
     expect(written).toContain("epic: m02\n");
     expect(written).not.toContain("type:");
     expect(written).toContain("Nothing renders yet.");
+  });
+
+  it("c0131: lands a follow-up in the given target column instead of ready", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: done\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Sort it out", body: "" },
+      "2026-07-23",
+      "backlog",
+    );
+
+    expect(card.status).toBe("backlog");
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("status: backlog\n");
+  });
+
+  it("c0131: still defaults a follow-up to ready when no target is given", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: review\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "More", body: "" },
+      "2026-07-23",
+    );
+
+    expect(card.status).toBe("ready");
   });
 
   it("leaves a follow-up unordered so it queues behind ordered ready cards (c0115)", async () => {
