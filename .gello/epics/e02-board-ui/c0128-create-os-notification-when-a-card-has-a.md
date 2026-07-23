@@ -89,6 +89,32 @@ a separate concern.
   attention — a run erroring, or all work finishing — or stay strictly to
   parked questions; the notification's exact wording.
 
+## Notes
+
+- The transition detection is `newlyParkedIds(prevWaiting, next)` in
+  `companion.ts` — a plain set difference, unit-tested. The baseline lives in
+  the same signature: `prevWaiting === null` means "not observed yet" and
+  returns nothing, so the first poll after load/project-switch never notifies.
+  The App keeps `prevWaiting` between polls, storing `next?.waiting ?? []` — so
+  a *gone* companion counts as observed-empty, not a reset to baseline, and a
+  companion that starts *after* the app still fires on its first real park.
+- Everything Tauri is behind two thin seams that no-op outside a Tauri window,
+  like `window.ts`: `notifyPark`/`onNotificationOpen` in `notify.ts` and
+  `focusWindow` in `window.ts`. They are not unit-tested (the boundary is not);
+  the App *wiring* to them is, by mocking `notify` and driving the poll.
+- The `waiting` set is companion-published from `awaiting: input`, so a
+  discussion open-question never enters it — the exclusion the card wants comes
+  for free, no new classification.
+- Plugin wiring added: `tauri-plugin-notification` (Rust, in `lib.rs`), its JS
+  counterpart, and `notification:default` in the capability. Permission is
+  requested lazily inside `notifyPark`; denied → it returns and the badge
+  (c0100) still carries the signal.
+- **Honest limitation:** the click→focus→open path is wired
+  (`onAction` + the card id in the notification's `extra`, then `focusWindow` +
+  open), but a body-click callback is not exercisable headless and its
+  delivery depends on the plugin/OS. The banner-per-park path is the tested,
+  load-bearing part; the click is best-effort on top. Worth a real-app check.
+
 ## Log
 
 - 2026-07-23 status → discuss (app)
@@ -99,3 +125,6 @@ a separate concern.
 - 2026-07-23 status → backlog (app)
 - 2026-07-23 status → ready (app)
 - 2026-07-23 status → in-progress (agent)
+- 2026-07-23 edge-triggered OS notification on a companion park: pure
+  newlyParkedIds (8 tests) + notify/focus seams + App wiring (2 tests);
+  tauri-plugin-notification wired and building
