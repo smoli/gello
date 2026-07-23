@@ -132,3 +132,9 @@ so a serialised epic does not look stalled.
   the hold. Also closes the same-epic dispatch collision.
 - 2026-07-23 status → ready (app)
 - 2026-07-23 status → in-progress (agent)
+- 2026-07-23 (agent) implemented the per-session-id gate in `planDispatch`
+  (`sessionHeld[]`, keyed on `sessionKey` under the scope) and reported it via
+  the i0119 held-back line; `handleExit` now reconciles on a terminal exit so an
+  errored holder still frees its epic. All ten criteria pass; 312 companion
+  tests, lint green (typecheck/other suites carry the pre-existing c0121 red,
+  untouched here).
