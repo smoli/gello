@@ -35,3 +35,5 @@ Right now. New cards are confirmed via CMD+ENTER, edited cards with CMD+S, that 
 
 - 2026-07-23 status → ready (app)
 - 2026-07-23 status → in-progress (agent)
+- 2026-07-23 Cmd/Ctrl+S now also confirms a capture draft, alongside
+  Cmd+Enter; mirrors the edit editor's save — 5 tests
