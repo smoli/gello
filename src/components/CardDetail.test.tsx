@@ -56,8 +56,10 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
     onClose: vi.fn(),
     ...overrides,
   };
-  render(<CardDetail {...props} />);
-  return props;
+  const view = render(<CardDetail {...props} />);
+  // i0122: expose rerender for the flicker regression, without changing the
+  // shape existing callers rely on (they read props fields off the return).
+  return Object.assign(props, { rerender: () => view.rerender(<CardDetail {...props} />) });
 }
 
 describe("CardDetail", () => {
@@ -68,6 +70,25 @@ describe("CardDetail", () => {
     expect(screen.getByText("bold")).toBeInTheDocument();
     expect(screen.getByText(/const code = true/)).toBeInTheDocument();
     expect(screen.getByAltText("screenshot")).toBeInTheDocument();
+  });
+
+  it("i0122: a re-render does not remount and reload the body image (flicker)", async () => {
+    // the periodic re-render (e.g. the 2s companion poll) must not tear down
+    // and re-resolve the image — that empty→image flash is the flicker.
+    const loadImage = vi.fn().mockResolvedValue("data:image/png;base64,QUJD");
+    const view = renderDetail({ loadImage });
+
+    const img = await screen.findByAltText("screenshot");
+    expect(img).toBeInTheDocument();
+    expect(loadImage).toHaveBeenCalledTimes(1);
+
+    view.rerender();
+    view.rerender();
+    await Promise.resolve();
+
+    // still the same element, resolved once — never unmounted and reloaded
+    expect(screen.getByAltText("screenshot")).toBe(img);
+    expect(loadImage).toHaveBeenCalledTimes(1);
   });
 
   it("shows id and title in the header", () => {

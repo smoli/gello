@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
@@ -126,6 +127,35 @@ export function CardDetail({
   const [depActive, setDepActive] = useState(0);
   // c011: image paste/drop on the editor textarea (shared with quick capture)
   const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
+
+  // i0122: the markdown `components` map must keep a stable identity across
+  // renders — a fresh `img` renderer each render is a new component *type*, so
+  // React tears down and remounts every AssetImage on any re-render (e.g. the
+  // 2s companion poll), and the remount reloads the image: an empty→image flash
+  // that reads as a flicker. `loadImage` rides through a ref so its per-render
+  // identity never busts the memo; AssetImage only calls it when `src` changes.
+  const loadImageRef = useRef(loadImage);
+  loadImageRef.current = loadImage;
+  const markdownComponents = useMemo<Components>(
+    () => ({
+      // c011: local asset links can't load from the webview origin — resolve
+      // them to a data URL via loadImage
+      img: ({ src, alt }) => (
+        <AssetImage
+          src={typeof src === "string" ? src : ""}
+          alt={alt ?? ""}
+          // pass a loader only when one exists, so AssetImage keeps its "no
+          // loadImage → show the src as-is" path (c012); the ref keeps it current
+          loadImage={
+            loadImageRef.current
+              ? (source) => loadImageRef.current?.(source) ?? Promise.resolve(null)
+              : undefined
+          }
+        />
+      ),
+    }),
+    [],
+  );
   // c038: a click "on the backdrop" only counts if the press started there —
   // otherwise a text selection drifting outside the dialog would close it
   const pressStartedOnBackdrop = useRef(false);
@@ -628,20 +658,7 @@ export function CardDetail({
           </div>
         )}
         <div className="card-detail-body" hidden={editing}>
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              // c011: local asset links can't load from the webview origin —
-              // resolve them to a data URL via loadImage
-              img: ({ src, alt }) => (
-                <AssetImage
-                  src={typeof src === "string" ? src : ""}
-                  alt={alt ?? ""}
-                  loadImage={loadImage}
-                />
-              ),
-            }}
-          >
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
             {question ? stripGelloQuestion(card.body) : card.body}
           </ReactMarkdown>
         </div>
