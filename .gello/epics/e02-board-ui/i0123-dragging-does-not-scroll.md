@@ -1,11 +1,11 @@
 ---
 id: i0123
 title: Dragging does not scroll
-status: review
+status: done
 type: issue
 created: 2026-07-24
 updated: 2026-07-24
-status-changed: 2026-07-24T21:54:27
+status-changed: 2026-07-24T22:08:56
 epic: e02
 ---
 
@@ -52,3 +52,4 @@ When raging a card to or within a column that have a scroll bar, dragging does n
 - 2026-07-24 edge auto-scroll while dragging: pure edgeScrollDelta (9 tests) +
   a rAF loop in Board scrolling the column under the pointer
 - 2026-07-24 status → review (agent)
+- 2026-07-24 status → done (app)
