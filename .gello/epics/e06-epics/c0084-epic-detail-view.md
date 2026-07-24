@@ -4,9 +4,10 @@ title: Epic detail view (goal / DoD editor + child rollup)
 status: backlog
 type: task
 created: 2026-07-18
-updated: 2026-07-18
+updated: 2026-07-24
 epic: e06
 depends: [i0028]
+order: 20
 ---
 
 ## What
