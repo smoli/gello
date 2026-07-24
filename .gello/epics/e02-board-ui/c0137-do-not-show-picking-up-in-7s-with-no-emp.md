@@ -1,6 +1,6 @@
 ---
 id: c0137
-title: Do. not show picking up in 7s with no empty WIP slot
+title: Do not show picking up in 7s with no empty WIP slot
 status: ready
 created: 2026-07-24
 updated: 2026-07-24
