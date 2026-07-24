@@ -1,12 +1,12 @@
 ---
 id: c0131
 title: Make a setting to choose where the follow up card should go
-status: review
+status: done
 ref: c0118
 epic: e01
 created: 2026-07-23
-updated: 2026-07-23
-status-changed: 2026-07-23T22:08:46
+updated: 2026-07-24
+status-changed: 2026-07-24T07:18:47
 ---
 
 Before I wire up c0131's UI, I need a call from you — the workspace is red from work that isn't this card, and I can't commit c0131 green through it.
@@ -118,3 +118,4 @@ at HEAD independently.
   uncommitted c0132 duplicate-id work in App.tsx/board.ts. Asked the human how
   to proceed.
 - 2026-07-23 status → review (agent)
+- 2026-07-24 status → done (app)

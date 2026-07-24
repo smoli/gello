@@ -1,10 +1,10 @@
 ---
 id: c0132
 title: Add a function to fix duplcate ids
-status: review
+status: done
 created: 2026-07-23
-updated: 2026-07-23
-status-changed: 2026-07-23T20:21:51
+updated: 2026-07-24
+status-changed: 2026-07-24T07:18:44
 epic: e02
 ---
 
@@ -51,3 +51,4 @@ It is checked and a warning is presented. But there’s now way to fix it. Add a
 - 2026-07-23 "Fix duplicate id" button in needs-attention: reassignCardId +
   duplicateIdOf (pure, unit-tested) wired through Board and App — 10 tests
 - 2026-07-23 status → review (agent)
+- 2026-07-24 status → done (app)
