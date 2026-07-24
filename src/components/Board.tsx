@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { edgeScrollDelta } from "../lib/autoscroll";
 import {
   blockersFor,
   openDependencies,
@@ -26,6 +27,11 @@ import "./Board.css";
 
 // i0028: sentinel value for the epic filter's "+ New epic" action option
 const NEW_EPIC_OPTION = "__new_epic__";
+
+// i0123: drag auto-scroll — how deep the edge band is and its top speed per
+// frame. 60px is roughly a card's height, so the band is reachable without
+// overshooting; 16px/frame (~960px/s at 60fps) crosses a long column briskly.
+const EDGE_SCROLL = { zone: 60, maxSpeed: 16 };
 
 // c0059: drag the window from a pure-background surface — only when the
 // element's own area is clicked (target === currentTarget), so cards,
@@ -189,6 +195,36 @@ export function Board({
     setDragging(card);
     if (!card) setOverColumn(null);
   };
+
+  // i0123: while a card is being dragged, auto-scroll the column under the
+  // pointer when it nears the top/bottom edge. HTML5 dnd delivers `dragover`
+  // only while the pointer moves, so a rAF loop keeps scrolling from the last
+  // pointer position when it holds still at the edge. The pointer coordinates
+  // ride in a ref so recording them never triggers a re-render.
+  const dragPointer = useRef({ x: 0, y: 0, seen: false });
+  const isDragging = dragging !== null;
+  useEffect(() => {
+    if (!isDragging) return;
+    dragPointer.current.seen = false;
+    const onDragOver = (event: DragEvent) => {
+      dragPointer.current = { x: event.clientX, y: event.clientY, seen: true };
+    };
+    window.addEventListener("dragover", onDragOver);
+    let raf = requestAnimationFrame(function tick() {
+      raf = requestAnimationFrame(tick);
+      const { x, y, seen } = dragPointer.current;
+      if (!seen) return;
+      const under = document.elementFromPoint(x, y);
+      const container = under?.closest<HTMLElement>(".column-cards");
+      if (!container) return;
+      const delta = edgeScrollDelta(container.getBoundingClientRect(), y, EDGE_SCROLL);
+      if (delta !== 0) container.scrollTop += delta;
+    });
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      cancelAnimationFrame(raf);
+    };
+  }, [isDragging]);
 
   /** c0123: a blocker named on a card front opens that card. */
   const openBlocker = (id: string) => {
