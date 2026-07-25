@@ -1,10 +1,10 @@
 ---
 id: c0133
 title: New skill turning concept into epics
-status: discuss
+status: ready
 created: 2026-07-24
-updated: 2026-07-24
-status-changed: 2026-07-24T07:19:43
+updated: 2026-07-25
+status-changed: 2026-07-25T18:37:46
 epic: e06
 ---
 
@@ -102,3 +102,4 @@ embedded template must carry the `gello-managed` footer like the others.
   epics and handing off to gello-plan; reads concept.md or interviews to write
   one; scaffolds `.gello/` if missing (matching scaffold.ts); two-phase
   human-gated; must be registered in ALL_SKILLS to be installable.
+- 2026-07-25 status → ready (app)
