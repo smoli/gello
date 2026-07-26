@@ -6,23 +6,20 @@ created: 2026-07-24
 updated: 2026-07-26
 status-changed: 2026-07-26T09:06:06
 epic: e06
-awaiting: input
 ---
 
-```gelloquestion
 **Skill name?** It fixes the folder (`.claude/skills/<name>/`), the `name:`/`description:` frontmatter, and the `ALL_SKILLS` export. Recommendation: `gello-epics` — the siblings are named for what they produce or do, and "epics" says both the output and the stopping point.
 
 - [ ] `gello-epics` (recommended)
 - [ ] `gello-structure`
 - [ ] `gello-scope`
-- [ ] `gello-concept`
+- [x] `gello-concept`
 - [ ] something else — write it below
 
 Two other open points from the Discussion I'll decide myself unless you say otherwise:
 
 - **No inter-epic order/dependency field.** `Epic` (`src/lib/cards.ts`) has only `id`/`title`/`status`; adding a frontmatter field is a schema change beyond this card. Sequencing goes in the proposal and the epic's Goal prose, with card `depends` doing the real wiring later.
 - **Scaffold drift:** the skill body is a template string in `skills.ts`, so I'll interpolate the actual `BOARD_YAML` / convention-snippet constants from `scaffold.ts` into it and add a test that the two stay identical — no hand-copied variant to re-sync.
-```
 
 ## What
 
