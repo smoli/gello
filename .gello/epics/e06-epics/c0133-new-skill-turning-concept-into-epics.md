@@ -1,10 +1,10 @@
 ---
 id: c0133
 title: New skill turning concept into epics
-status: in-progress
+status: review
 created: 2026-07-24
 updated: 2026-07-26
-status-changed: 2026-07-26T09:06:06
+status-changed: 2026-07-26T09:16:02
 epic: e06
 ---
 
@@ -144,3 +144,4 @@ embedded template must carry the `gello-managed` footer like the others.
 - 2026-07-26 implemented: `CONCEPT_SKILL` in `src/lib/skills.ts` + `ALL_SKILLS`,
   generated `.claude/skills/gello-concept/SKILL.md`, scaffold constants exported
   from `scaffold.ts`, 13 tests in `skills.test.ts`, README skill list
+- 2026-07-26 status → review (agent)
