@@ -169,7 +169,7 @@ The board doubles as the agent's task list. An agent:
 
 The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
 `AGENTS.md` when that file exists) at board init. The app can also install
-three gello-managed agent skills into a project (under `.claude/skills/`,
+four gello-managed agent skills into a project (under `.claude/skills/`,
 `.pi/`, or `.agents/`); it prompts to add or update them when they're missing
 or out-of-date:
 
@@ -183,6 +183,10 @@ or out-of-date:
 - **`gello-plan`** — break an epic into dependent child cards: interview the
   human, draft a stepwise plan + dependency graph into `epic.md`, then create
   the wired child cards only after you approve (plan → approve → create).
+- **`gello-concept`** — start a new project: read `concept.md` (or interview
+  you and write one), propose the epic breakdown, and create one
+  `epics/eNN-slug/epic.md` per epic once you approve. It scaffolds `.gello/`
+  if there is none, stops at epics, and hands off to `gello-plan` for cards.
 
 ## Companion (agent runner)
 

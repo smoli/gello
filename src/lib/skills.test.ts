@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { BOARD_YAML, CONVENTION_SNIPPET, scaffoldFiles } from "./scaffold";
 import {
   ALL_SKILLS,
+  CONCEPT_SKILL,
   DISCUSS_SKILL,
   ONBOARD_SKILL,
   PLAN_SKILL,
   SKILL_VERSION,
+  type SkillTemplate,
   dirsNeedingInstall,
   installDecision,
   managedSkillFile,
@@ -41,10 +44,11 @@ describe("dirsNeedingInstall (i0009)", () => {
 });
 
 describe("ALL_SKILLS (c029)", () => {
-  it("ships the discuss, onboard, and plan skills, each with a distinct folder", () => {
+  it("ships the discuss, onboard, plan, and concept skills, each with a distinct folder", () => {
     expect(ALL_SKILLS).toContain(DISCUSS_SKILL);
     expect(ALL_SKILLS).toContain(ONBOARD_SKILL);
     expect(ALL_SKILLS).toContain(PLAN_SKILL);
+    expect(ALL_SKILLS).toContain(CONCEPT_SKILL);
     const folders = ALL_SKILLS.map((s) => s.folder);
     expect(new Set(folders).size).toBe(folders.length);
   });
@@ -86,6 +90,94 @@ describe("ALL_SKILLS (c029)", () => {
     expect(body).toContain("epics/"); // the epic folder home
     // nothing created before approval
     expect(body).toMatch(/before .*approv|only .*approv|approv.* before/);
+  });
+});
+
+describe("concept skill (c0133)", () => {
+  /** Body as one lowercase line — the templates are hard-wrapped prose, so a
+   *  phrase assertion must not depend on where a line happens to break. */
+  const flat = (skill: SkillTemplate) =>
+    skill.body.toLowerCase().replace(/\s+/g, " ");
+
+  it("is a gello-concept folder at the current version and round-trips", () => {
+    expect(CONCEPT_SKILL.folder).toBe("gello-concept");
+    expect(CONCEPT_SKILL.version).toBe(SKILL_VERSION);
+    const file = managedSkillFile(CONCEPT_SKILL);
+    expect(file).toContain("name: gello-concept");
+    expect(installDecision(file, CONCEPT_SKILL)).toBe("skip");
+  });
+
+  it("has a description triggering on a new project / concept → epics", () => {
+    const description = /^description: (.*)$/m.exec(CONCEPT_SKILL.body)?.[1];
+    expect(description).toBeDefined();
+    const text = (description ?? "").toLowerCase();
+    expect(text).toContain("concept");
+    expect(text).toContain("epic");
+    expect(text).toMatch(/new project|starting a project|start a project/);
+  });
+
+  it("is two-phase and human-gated: no epic before approval", () => {
+    const body = CONCEPT_SKILL.body.toLowerCase();
+    expect(body).toContain("approv");
+    expect(body).toMatch(/before .*approv|only .*approv|approv.* before/);
+  });
+
+  it("reads an existing concept.md and never overwrites it", () => {
+    const body = CONCEPT_SKILL.body.toLowerCase();
+    expect(body).toContain(".gello/concept.md");
+    expect(body).toMatch(/never (overwrite|rewrite)|do not (overwrite|rewrite)/);
+  });
+
+  it("interviews and writes concept.md when there is none", () => {
+    const body = CONCEPT_SKILL.body.toLowerCase();
+    expect(body).toContain("interview");
+    expect(body).toMatch(/write .*concept\.md/);
+  });
+
+  it("embeds the app's scaffold verbatim rather than a hand-copied variant", () => {
+    // c0133: interpolated from scaffold.ts so the skill cannot drift from the
+    // board the app itself initializes.
+    expect(CONCEPT_SKILL.body).toContain(BOARD_YAML);
+    expect(CONCEPT_SKILL.body).toContain(CONVENTION_SNIPPET);
+  });
+
+  it("documents every file the app's scaffold creates", () => {
+    for (const file of scaffoldFiles("/p")) {
+      expect(CONCEPT_SKILL.body).toContain(file.path.replace("/p/.gello/", ""));
+    }
+  });
+
+  it("nests the embedded CLAUDE.md snippet in a fence that survives its own code blocks", () => {
+    // CONVENTION_SNIPPET contains ```bash fences — a 3-backtick wrapper would
+    // terminate early and mangle the rest of the SKILL.md.
+    const start = CONCEPT_SKILL.body.indexOf(CONVENTION_SNIPPET);
+    const opener = CONCEPT_SKILL.body.lastIndexOf("````", start);
+    expect(opener).toBeGreaterThan(-1);
+    expect(CONCEPT_SKILL.body.slice(opener, start)).not.toContain("\n```\n");
+  });
+
+  it("writes epic.md files with the epic contract gello-plan reads", () => {
+    const body = CONCEPT_SKILL.body;
+    expect(body).toContain("epics/eNN-<slug>/epic.md");
+    expect(body).toContain("status: backlog");
+    expect(body).toContain("## Goal");
+    expect(body).toContain("## Definition of done");
+  });
+
+  it("never reuses or renumbers an epic id", () => {
+    expect(flat(CONCEPT_SKILL)).toMatch(
+      /never reuse or renumber|never reused or renumbered/,
+    );
+  });
+
+  it("creates no cards and hands off to gello-plan", () => {
+    const body = flat(CONCEPT_SKILL);
+    expect(body).toContain("gello-plan");
+    expect(body).toMatch(/create no card|no card files/);
+  });
+
+  it("requires each epic to trace back to the concept", () => {
+    expect(CONCEPT_SKILL.body.toLowerCase()).toContain("trace");
   });
 });
 

@@ -6,7 +6,9 @@ export interface ScaffoldFile {
   content: string;
 }
 
-const BOARD_YAML = `columns: [inbox, discuss, backlog, ready, in-progress, review, done]
+/** The board config a fresh board starts with. Exported so the gello-concept
+ *  skill (c0133) can embed the app's own scaffold instead of a copy. */
+export const BOARD_YAML = `columns: [inbox, discuss, backlog, ready, in-progress, review, done]
 types: [task, issue]
 wip_limits:
   in-progress: 2
@@ -36,7 +38,9 @@ export function scaffoldFiles(projectRoot: string): ScaffoldFile[] {
 /** Marker identifying the gello convention block in a CLAUDE.md. */
 export const CONVENTION_MARKER = "<!-- gello-convention -->";
 
-const CONVENTION_SNIPPET = `${CONVENTION_MARKER}
+/** The convention block added to CLAUDE.md / AGENTS.md (embedded by the
+ *  gello-concept skill, c0133). */
+export const CONVENTION_SNIPPET = `${CONVENTION_MARKER}
 ## Working the gello board
 
 This project uses **gello** — a Markdown-native Kanban board in \`.gello/\`.
