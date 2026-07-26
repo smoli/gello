@@ -108,6 +108,29 @@ embedded template must carry the `gello-managed` footer like the others.
   periodic re-sync); whether the app's "initialize board" flow should offer to
   run this skill next.
 
+## Notes
+
+- Named `gello-concept` (human's answer to the parked question).
+- `BOARD_YAML` and `CONVENTION_SNIPPET` are now exported from
+  `src/lib/scaffold.ts` and interpolated into the skill body, so the scaffold
+  step cannot drift from the app's. A test asserts the body contains both
+  constants and every path `scaffoldFiles()` creates.
+- The embedded CLAUDE.md snippet needs a 4-backtick fence — it contains its own
+  ` ```bash ` block, which would close a 3-backtick wrapper. A test pins this.
+- No `SKILL_VERSION` bump: a new skill has no file on disk, so every install
+  target already decides `install`. Bumping would only churn the three existing
+  managed files.
+- `.claude/skills/gello-concept/SKILL.md` is generated from the template
+  (`managedSkillFile(CONCEPT_SKILL)`), like its siblings.
+- No inter-epic order/dependency field: `Epic` carries only `id`/`title`/
+  `status`, and adding a field is a schema change beyond this card. Sequencing
+  goes in the proposal and each Goal; `depends` wires cards later.
+- Still open from the Discussion, not in this card's scope: whether the app's
+  "initialize board" flow should offer to run this skill next.
+- Pre-existing test failures on `main` (unrelated, present before this change):
+  11 in `demo/holzhof-board.test.ts` (invalid-card fixture) and the c0118
+  follow-up-trigger tests in `Board.test.tsx` / `App.test.tsx`.
+
 ## Log
 
 - 2026-07-24 status → discuss (app)
@@ -117,3 +140,7 @@ embedded template must carry the `gello-managed` footer like the others.
   human-gated; must be registered in ALL_SKILLS to be installable.
 - 2026-07-25 status → ready (app)
 - 2026-07-26 status → in-progress (agent)
+- 2026-07-26 asked the human for the skill name; answered `gello-concept`
+- 2026-07-26 implemented: `CONCEPT_SKILL` in `src/lib/skills.ts` + `ALL_SKILLS`,
+  generated `.claude/skills/gello-concept/SKILL.md`, scaffold constants exported
+  from `scaffold.ts`, 13 tests in `skills.test.ts`, README skill list
