@@ -65,24 +65,24 @@ embedded template must carry the `gello-managed` footer like the others.
 
 ## Acceptance criteria
 
-- [ ] A new skill exists under `.claude/skills/` with a SKILL.md whose
+- [x] A new skill exists under `.claude/skills/` with a SKILL.md whose
       description triggers on starting a project / a concept / turning a concept
       into epics
-- [ ] It is registered in `ALL_SKILLS` (`src/lib/skills.ts`) so the app's skill
+- [x] It is registered in `ALL_SKILLS` (`src/lib/skills.ts`) so the app's skill
       installer offers it, with the `gello-managed` footer
-- [ ] Two-phase and human-gated: it proposes the epic list and creates nothing
+- [x] Two-phase and human-gated: it proposes the epic list and creates nothing
       until the human approves
-- [ ] It reads `.gello/concept.md` when present and does not overwrite it
-- [ ] With no concept.md, it interviews the human and writes one before
+- [x] It reads `.gello/concept.md` when present and does not overwrite it
+- [x] With no concept.md, it interviews the human and writes one before
       decomposing
-- [ ] It scaffolds `.gello/` (board.yaml + CLAUDE.md) when absent, matching the
+- [x] It scaffolds `.gello/` (board.yaml + CLAUDE.md) when absent, matching the
       output of `src/lib/scaffold.ts`
-- [ ] On approval it creates one `epics/eNN-slug/epic.md` per epic, each with a
+- [x] On approval it creates one `epics/eNN-slug/epic.md` per epic, each with a
       unique sequential `eNN` id, `status: backlog`, a `## Goal`, and a
       `## Definition of done`
-- [ ] Existing epic ids are never reused or renumbered
-- [ ] It creates no cards and ends by pointing at `gello-plan`
-- [ ] Each epic's Goal / Definition of done traces to the concept
+- [x] Existing epic ids are never reused or renumbered
+- [x] It creates no cards and ends by pointing at `gello-plan`
+- [x] Each epic's Goal / Definition of done traces to the concept
 
 ## Discussion
 
