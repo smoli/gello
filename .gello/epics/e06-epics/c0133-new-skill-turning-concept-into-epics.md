@@ -1,10 +1,10 @@
 ---
 id: c0133
 title: New skill turning concept into epics
-status: ready
+status: in-progress
 created: 2026-07-24
-updated: 2026-07-25
-status-changed: 2026-07-25T18:37:46
+updated: 2026-07-26
+status-changed: 2026-07-26T09:06:06
 epic: e06
 ---
 
@@ -103,3 +103,4 @@ embedded template must carry the `gello-managed` footer like the others.
   one; scaffolds `.gello/` if missing (matching scaffold.ts); two-phase
   human-gated; must be registered in ALL_SKILLS to be installable.
 - 2026-07-25 status → ready (app)
+- 2026-07-26 status → in-progress (agent)
