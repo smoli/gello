@@ -1,12 +1,12 @@
 ---
 id: c0140
 title: "Start next — advance the dependency frontier"
-status: ready
+status: in-progress
 epic: e02
 depends: [c0139]
 created: 2026-07-24
 updated: 2026-07-27
-status-changed: 2026-07-27T19:27:54
+status-changed: 2026-07-27T19:37:31
 ---
 
 ## What
@@ -55,3 +55,4 @@ backlog" auto-drive (that is a separate workflow choice).
 - 2026-07-24 created from the "picking the right card in a deep graph" design
   discussion (ideas #1 + #4); depends on c0139's startable predicate.
 - 2026-07-27 status → ready (app)
+- 2026-07-27 status → in-progress (agent)
