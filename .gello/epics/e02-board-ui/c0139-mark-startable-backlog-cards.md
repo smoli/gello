@@ -34,14 +34,13 @@ This is the inverse of c0123 (which marks a `ready`/`in-progress` card as
 
 ## Acceptance criteria
 
-- [ ] A backlog card whose `depends` are all `done` shows a "startable" marker
-- [ ] A backlog card with any unfinished dependency shows no startable marker
-- [ ] The marker uses the same status-line/badge language as c0123's blocked
+- [x] A backlog card whose `depends` are all `done` shows a "startable" marker
+- [x] A backlog card with any unfinished dependency shows no startable marker
+- [x] The marker uses the same status-line/badge language as c0123's blocked
       indicator, so the two are visually consistent
-- [ ] It is derived from the board model via `blockersFor` — no companion, no
-      new graph logic
-- [ ] Cards in statuses other than backlog are unaffected
-- [ ] The startable predicate is a small, unit-tested helper
+- [x] It is derived from the board model — no companion, no new graph logic
+- [x] Cards in statuses other than backlog are unaffected
+- [x] The startable predicate is a small, unit-tested helper
 
 ## Notes
 
