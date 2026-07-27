@@ -404,6 +404,22 @@ export function openDependencies(model: BoardModel, card: Card): Blocker[] {
   });
 }
 
+/**
+ * c0139: a backlog card is *startable* when it had dependencies and they have
+ * all cleared — the inverse of c0123's blocked marker. The signal means "its
+ * blockers just resolved", so a card that never had dependencies is not marked
+ * (that would clutter every unconstrained backlog card rather than point at the
+ * few that just became workable). Uses `openDependencies`, since `blockersFor`
+ * is silent in backlog by design.
+ */
+export function isStartable(model: BoardModel, card: Card): boolean {
+  return (
+    card.status === "backlog" &&
+    card.depends.length > 0 &&
+    openDependencies(model, card).length === 0
+  );
+}
+
 // --- the dependency graph (c0124) -----------------------------------------------
 //
 // `depends` drives companion dispatch but had no reader in the app. These

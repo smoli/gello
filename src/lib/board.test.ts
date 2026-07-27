@@ -23,6 +23,7 @@ import {
   dependencyCycle,
   dependencyOptions,
   duplicateIdOf,
+  isStartable,
   planManualInsert,
   wipState,
   type BoardFile,
@@ -932,6 +933,60 @@ describe("blockersFor (c0123)", () => {
       dep("c003", "done"),
     );
     expect(idsFor(model, "c004")).toEqual(["c001", "c002"]);
+  });
+});
+
+describe("isStartable (c0139)", () => {
+  const dep = (id: string, status: string, depends?: string) =>
+    file(
+      `cards/${id}-x.md`,
+      `---\nid: ${id}\ntitle: Card ${id}\nstatus: ${status}\n${
+        depends ? `depends: [${depends}]\n` : ""
+      }---\nbody\n`,
+    );
+  const boardOf = (...files: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\n"),
+      ...files,
+    ]);
+  const startable = (model: ReturnType<typeof loadBoard>, id: string) =>
+    isStartable(model, findCardById(model, id)!);
+
+  it("marks a backlog card whose dependencies are all done", () => {
+    const model = boardOf(dep("c002", "backlog", "c001"), dep("c001", "done"));
+    expect(startable(model, "c002")).toBe(true);
+  });
+
+  it("does not mark a backlog card with an unfinished dependency", () => {
+    const model = boardOf(dep("c002", "backlog", "c001"), dep("c001", "review"));
+    expect(startable(model, "c002")).toBe(false);
+  });
+
+  it("does not mark a backlog card whose dependency is missing", () => {
+    const model = boardOf(dep("c002", "backlog", "c404"));
+    expect(startable(model, "c002")).toBe(false);
+  });
+
+  it("does not mark a backlog card that never had dependencies", () => {
+    // c0139: the signal means 'its blockers just resolved', not 'unconstrained'
+    const model = boardOf(dep("c001", "backlog"));
+    expect(startable(model, "c001")).toBe(false);
+  });
+
+  it("needs every dependency done, not just some", () => {
+    const model = boardOf(
+      dep("c003", "backlog", "c001, c002"),
+      dep("c001", "done"),
+      dep("c002", "ready"),
+    );
+    expect(startable(model, "c003")).toBe(false);
+  });
+
+  it("only applies in backlog — other statuses are never startable", () => {
+    for (const status of ["inbox", "ready", "in-progress", "review", "done"]) {
+      const model = boardOf(dep("c002", status, "c001"), dep("c001", "done"));
+      expect(startable(model, "c002")).toBe(false);
+    }
   });
 });
 

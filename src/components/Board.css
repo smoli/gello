@@ -601,3 +601,10 @@ button.tag-chip {
   opacity: 0.75;
   font-style: italic;
 }
+
+/* c0139: the inverse of blocked — a backlog card ready to start. Quiet green,
+   the counterpart to the amber blocked line; no sweep, it is a resting state. */
+.card-activity-startable {
+  opacity: 0.85;
+  color: #3a8a4f;
+}

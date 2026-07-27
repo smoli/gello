@@ -486,6 +486,52 @@ describe("Board", () => {
     expect(within(front).getByText(/waiting on/i)).toBeInTheDocument();
   });
 
+  // c0139: the inverse of blocked — a backlog card whose dependencies have all
+  // cleared is startable, and says so, so you pick from the marked set.
+
+  function startableBoard(status = "backlog", depStatus = "done") {
+    return loadBoard([
+      file("board.yaml", "columns: [backlog, ready, in-progress, review, done]\n"),
+      file(
+        "cards/c002-ready-to-go.md",
+        `---\nid: c002\ntitle: Cleared card\nstatus: ${status}\ndepends: [c001]\n---\nbody\n`,
+      ),
+      file("cards/c001-dep.md", card("c001", "The dependency", depStatus)),
+    ]);
+  }
+  const clearedFront = () => screen.getByText("Cleared card").closest("article")!;
+
+  it("c0139: marks a backlog card whose dependencies are all done", () => {
+    render(<Board model={startableBoard()} />);
+    expect(within(clearedFront()).getByText(/startable/i)).toBeInTheDocument();
+  });
+
+  it("c0139: uses the same status-line language as the blocked indicator", () => {
+    render(<Board model={startableBoard()} />);
+    // shares .card-activity (the truncating base) with c0123's blocked line
+    expect(within(clearedFront()).getByText(/startable/i)).toHaveClass("card-activity");
+  });
+
+  it("c0139: does not mark a backlog card that still has an open dependency", () => {
+    render(<Board model={startableBoard("backlog", "review")} />);
+    expect(within(clearedFront()).queryByText(/startable/i)).not.toBeInTheDocument();
+  });
+
+  it("c0139: does not mark a backlog card that never had dependencies", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog]\n"),
+      file("cards/c001-plain.md", card("c001", "Plain card", "backlog")),
+    ]);
+    render(<Board model={model} />);
+    const front = screen.getByText("Plain card").closest("article")!;
+    expect(within(front).queryByText(/startable/i)).not.toBeInTheDocument();
+  });
+
+  it("c0139: leaves a card in another status unmarked, cleared deps or not", () => {
+    render(<Board model={startableBoard("ready")} />);
+    expect(within(clearedFront()).queryByText(/startable/i)).not.toBeInTheDocument();
+  });
+
   it("renders the configured columns in order", () => {
     const custom = loadBoard([file("board.yaml", "columns: [todo, doing, shipped]\n")]);
     render(<Board model={custom} />);

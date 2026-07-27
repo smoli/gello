@@ -6,6 +6,7 @@ import {
   columnComparator,
   duplicateIdOf,
   findCardById,
+  isStartable,
   MANUAL_COLUMNS,
   planManualInsert,
   wipState,
@@ -58,6 +59,9 @@ interface BoardCard {
    *  companion's dispatch gate is not status-scoped the way `blockers` is (its
    *  trigger is configurable), so the pickup countdown asks this instead. */
   blocked: boolean;
+  /** c0139: a backlog card whose dependencies have all cleared — the inverse of
+   *  `blockers`, marked so you pick from the workable set. */
+  startable: boolean;
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
@@ -81,6 +85,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
       filterKey: group.folder,
       blockers: blockersFor(model, card),
       blocked: openDependencies(model, card).length > 0,
+      startable: isStartable(model, card),
     })),
   );
   const standaloneCards: BoardCard[] = model.cards.map((card) => ({
@@ -89,6 +94,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
     filterKey: "no-epic",
     blockers: blockersFor(model, card),
     blocked: openDependencies(model, card).length > 0,
+    startable: isStartable(model, card),
   }));
   return [...standaloneCards, ...epicCards];
 }
@@ -802,7 +808,7 @@ function CardFront({
   /** i0114: shade the chip fills dark in dark mode. */
   darkChips: boolean;
 }) {
-  const { card, epicLabel, blockers, blocked } = entry;
+  const { card, epicLabel, blockers, blocked, startable } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
@@ -974,6 +980,19 @@ function CardFront({
               )}
             </Fragment>
           ))}
+        </p>
+      )}
+      {/* c0139: the inverse of blocked — a backlog card whose dependencies have
+          all cleared. Shares the status-line language so startable and blocked
+          read as one system. A backlog card has no activity/countdown/blocked
+          line (those are ready/in-progress), so the slot is free. */}
+      {startable && (
+        <p
+          className="card-activity card-activity-startable"
+          role="status"
+          title="Startable — every dependency is done"
+        >
+          startable
         </p>
       )}
       {thumbSrc && loadImage && (
