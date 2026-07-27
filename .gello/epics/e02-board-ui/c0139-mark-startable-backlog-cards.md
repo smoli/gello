@@ -1,13 +1,12 @@
 ---
 id: c0139
 title: Mark startable backlog cards
-status: ready
+status: in-progress
 epic: e02
 depends: []
 created: 2026-07-24
 updated: 2026-07-27
-status-changed: 2026-07-27T19:28:00
-order: 10
+status-changed: 2026-07-27T19:28:25
 ---
 
 ## What
@@ -54,3 +53,4 @@ to pick the card to advance.
 - 2026-07-24 created from the "picking the right card in a deep graph" design
   discussion (ideas #1 + #4); pairs with c0140.
 - 2026-07-27 status → ready (app)
+- 2026-07-27 status → in-progress (agent)
