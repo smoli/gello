@@ -1,12 +1,12 @@
 ---
 id: c0139
 title: Mark startable backlog cards
-status: review
+status: done
 epic: e02
 depends: []
 created: 2026-07-24
 updated: 2026-07-27
-status-changed: 2026-07-27T19:35:16
+status-changed: 2026-07-27T19:37:19
 ---
 
 ## What
@@ -75,3 +75,4 @@ to pick the card to advance.
   a quiet green "startable" card-front line — 11 tests. Resolved the open
   no-deps point as not-startable, per the card's recommendation.
 - 2026-07-27 status → review (agent)
+- 2026-07-27 status → done (app)
