@@ -32,15 +32,15 @@ faster way to open the gate, not a way to bypass it.
 
 ## Acceptance criteria
 
-- [ ] A "Start next" action moves the top startable backlog card to `ready`
-- [ ] "Top" respects the manual `order`; among equal/unordered cards the tie is
+- [x] A "Start next" action moves the top startable backlog card to `ready`
+- [x] "Top" respects the manual `order`; among equal/unordered cards the tie is
       broken deterministically
-- [ ] A card with unfinished dependencies is never chosen
-- [ ] With an epic filter active, only that epic's cards are considered
-- [ ] When nothing is startable, the action is unavailable and says why
-- [ ] The move is an ordinary status change (stamps `status-changed`), so c0117
+- [x] A card with unfinished dependencies is never chosen
+- [x] With an epic filter active, only that epic's cards are considered
+- [x] When nothing is startable, the action is unavailable and says why
+- [x] The move is an ordinary status change (stamps `status-changed`), so c0117
       and dispatch behave as with a manual move
-- [ ] The selection ("which card is next") is a pure, unit-tested function
+- [x] The selection ("which card is next") is a pure, unit-tested function
 
 ## Notes
 
