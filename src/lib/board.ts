@@ -420,6 +420,19 @@ export function isStartable(model: BoardModel, card: Card): boolean {
   );
 }
 
+/**
+ * c0140: the backlog card "Start next" advances — the startable one (c0139)
+ * that sorts first by the board's manual backlog order (c056) — or null when
+ * none of `candidates` is startable. Pure selection: the caller supplies the
+ * candidate set (the whole board, or one epic when a filter is active), so the
+ * same predicate and order that mark and sort the backlog decide what advances.
+ */
+export function nextStartable(model: BoardModel, candidates: Card[]): Card | null {
+  const startable = candidates.filter((card) => isStartable(model, card));
+  if (startable.length === 0) return null;
+  return [...startable].sort(columnComparator("backlog"))[0];
+}
+
 // --- the dependency graph (c0124) -----------------------------------------------
 //
 // `depends` drives companion dispatch but had no reader in the app. These

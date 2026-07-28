@@ -7,6 +7,7 @@ import {
   duplicateIdOf,
   findCardById,
   isStartable,
+  nextStartable,
   MANUAL_COLUMNS,
   planManualInsert,
   wipState,
@@ -265,6 +266,20 @@ export function Board({
       cardMatchesQuery(c.card, query),
   );
 
+  // c0140: "Start next" advances the top startable backlog card (c0139) to
+  // ready in one click. Scope is the active epic filter (byEpic), not the type/
+  // tag/search filters — advance the frontier of the whole epic you are on.
+  const startNextCard = useMemo(
+    () => (onMoveCard ? nextStartable(model, byEpic.map((c) => c.card)) : null),
+    [model, byEpic, onMoveCard],
+  );
+  const backlogInScope = byEpic.some((c) => c.card.status === "backlog");
+  const startNextTitle = startNextCard
+    ? `Start next: ${startNextCard.id} — ${startNextCard.title}`
+    : backlogInScope
+      ? "No backlog card is startable — every one still has an unfinished dependency"
+      : "The backlog is empty";
+
   const toggleTag = (tag: string) =>
     setSelectedTags((current) => {
       const next = new Set(current);
@@ -400,6 +415,19 @@ export function Board({
               </option>
             ))}
           </select>
+          {/* c0140: advance the top startable backlog card to ready in one
+              click; disabled with the reason in its tooltip when none is. */}
+          {onMoveCard && (
+            <button
+              type="button"
+              className="start-next-button"
+              disabled={startNextCard === null}
+              title={startNextTitle}
+              onClick={() => startNextCard && onMoveCard(startNextCard, "ready")}
+            >
+              Start next
+            </button>
+          )}
           {showTags && tagsInUse.length > 0 && (
             <div className="tag-filter" role="group" aria-label="Tag filter">
               {tagsInUse.map(({ tag }) => {

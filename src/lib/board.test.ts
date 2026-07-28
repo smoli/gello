@@ -24,6 +24,7 @@ import {
   dependencyOptions,
   duplicateIdOf,
   isStartable,
+  nextStartable,
   planManualInsert,
   wipState,
   type BoardFile,
@@ -987,6 +988,80 @@ describe("isStartable (c0139)", () => {
       const model = boardOf(dep("c002", status, "c001"), dep("c001", "done"));
       expect(startable(model, "c002")).toBe(false);
     }
+  });
+});
+
+describe("nextStartable (c0140)", () => {
+  // a backlog card with dependencies, plus optional order/created for ordering
+  const bk = (
+    id: string,
+    depends: string,
+    extra: { order?: number; created?: string } = {},
+  ) =>
+    file(
+      `cards/${id}-x.md`,
+      `---\nid: ${id}\ntitle: Card ${id}\nstatus: backlog\ndepends: [${depends}]\n${
+        extra.order !== undefined ? `order: ${extra.order}\n` : ""
+      }${extra.created ? `created: ${extra.created}\n` : ""}---\nbody\n`,
+    );
+  const done = (id: string) =>
+    file(`cards/${id}-x.md`, `---\nid: ${id}\ntitle: Card ${id}\nstatus: done\n---\nbody\n`);
+  const boardOf = (...files: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [inbox, backlog, ready, in-progress, review, done]\n"),
+      ...files,
+    ]);
+  const cards = (model: ReturnType<typeof loadBoard>) =>
+    model.cards.concat(model.epics.flatMap((g) => g.cards));
+
+  it("picks the startable backlog card with the lowest manual order", () => {
+    const model = boardOf(
+      done("d1"),
+      bk("c003", "d1", { order: 30 }),
+      bk("c001", "d1", { order: 10 }),
+      bk("c002", "d1", { order: 20 }),
+    );
+    expect(nextStartable(model, cards(model))?.id).toBe("c001");
+  });
+
+  it("ranks ordered cards before unordered ones, then created/id (deterministic)", () => {
+    const model = boardOf(
+      done("d1"),
+      bk("c003", "d1", { created: "2026-07-10" }), // unranked, older
+      bk("c002", "d1", { order: 5 }), // ranked → wins
+      bk("c004", "d1", { created: "2026-07-11" }), // unranked, newer
+    );
+    expect(nextStartable(model, cards(model))?.id).toBe("c002");
+  });
+
+  it("never chooses a card with an unfinished dependency", () => {
+    const model = boardOf(
+      bk("c001", "open", { order: 1 }), // blocked: dep `open` is not done
+      file("cards/open-x.md", "---\nid: open\ntitle: Open\nstatus: review\n---\nbody\n"),
+      done("d1"),
+      bk("c002", "d1", { order: 2 }), // startable
+    );
+    expect(nextStartable(model, cards(model))?.id).toBe("c002");
+  });
+
+  it("returns null when nothing is startable", () => {
+    const model = boardOf(
+      file("cards/open-x.md", "---\nid: open\ntitle: Open\nstatus: review\n---\nbody\n"),
+      bk("c001", "open", { order: 1 }), // still blocked
+      file("cards/c009-plain.md", "---\nid: c009\ntitle: Plain\nstatus: backlog\n---\nbody\n"),
+    );
+    expect(nextStartable(model, cards(model))).toBeNull();
+  });
+
+  it("only considers backlog cards, whatever their dependencies", () => {
+    const model = boardOf(
+      done("d1"),
+      file(
+        "cards/c001-ready.md",
+        "---\nid: c001\ntitle: Ready\nstatus: ready\ndepends: [d1]\n---\nbody\n",
+      ),
+    );
+    expect(nextStartable(model, cards(model))).toBeNull();
   });
 });
 

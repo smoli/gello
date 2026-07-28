@@ -532,6 +532,82 @@ describe("Board", () => {
     expect(within(clearedFront()).queryByText(/startable/i)).not.toBeInTheDocument();
   });
 
+  // c0140: "Start next" advances the top startable backlog card to ready in one
+  // click, so you don't hand-pick from a deep graph.
+
+  function startNextBoard() {
+    return loadBoard([
+      file("board.yaml", "columns: [backlog, ready, done]\n"),
+      file("cards/d1-done.md", card("d1", "Groundwork", "done")),
+      // two startable backlog cards (deps cleared), c001 ranked ahead of c002
+      file(
+        "cards/c001-first.md",
+        "---\nid: c001\ntitle: First up\nstatus: backlog\ndepends: [d1]\norder: 10\n---\nbody\n",
+      ),
+      file(
+        "cards/c002-second.md",
+        "---\nid: c002\ntitle: Second up\nstatus: backlog\ndepends: [d1]\norder: 20\n---\nbody\n",
+      ),
+    ]);
+  }
+  const startNextButton = () => screen.getByRole("button", { name: /start next/i });
+
+  it("c0140: moves the top startable backlog card to ready", () => {
+    const onMoveCard = vi.fn();
+    render(<Board model={startNextBoard()} onMoveCard={onMoveCard} />);
+
+    fireEvent.click(startNextButton());
+
+    expect(onMoveCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+      "ready",
+    );
+  });
+
+  it("c0140: is disabled and says why when nothing is startable", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, ready, review]\n"),
+      file("cards/open-x.md", card("open", "Open dep", "review")),
+      file(
+        "cards/c001-blocked.md",
+        "---\nid: c001\ntitle: Blocked\nstatus: backlog\ndepends: [open]\n---\nbody\n",
+      ),
+    ]);
+    render(<Board model={model} onMoveCard={vi.fn()} />);
+
+    const button = startNextButton();
+    expect(button).toBeDisabled();
+    expect(button.getAttribute("title")).toMatch(/startable/i);
+  });
+
+  it("c0140: considers only the active epic's cards", () => {
+    const onMoveCard = vi.fn();
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, ready, done]\n"),
+      file("cards/d1-done.md", card("d1", "Groundwork", "done")),
+      // standalone startable card, ranked first overall
+      file(
+        "cards/c001-standalone.md",
+        "---\nid: c001\ntitle: Standalone\nstatus: backlog\ndepends: [d1]\norder: 5\n---\nbody\n",
+      ),
+      file("epics/e01-a/epic.md", "---\nid: e01\ntitle: Alpha\n---\ngoal\n"),
+      file(
+        "epics/e01-a/c002-inepic.md",
+        "---\nid: c002\ntitle: In epic\nstatus: backlog\ndepends: [d1]\norder: 50\n---\nbody\n",
+      ),
+    ]);
+    render(<Board model={model} onMoveCard={onMoveCard} />);
+
+    // filter to the epic — the standalone c001 must now be out of scope
+    fireEvent.change(screen.getByLabelText("Epic filter"), { target: { value: "e01-a" } });
+    fireEvent.click(startNextButton());
+
+    expect(onMoveCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c002" }),
+      "ready",
+    );
+  });
+
   it("renders the configured columns in order", () => {
     const custom = loadBoard([file("board.yaml", "columns: [todo, doing, shipped]\n")]);
     render(<Board model={custom} />);
