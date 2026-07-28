@@ -29,7 +29,22 @@ I the popexel repo there’s this card that is not depending on any other card. 
 
 ![image](../../assets/i0124/image.png)
 
+## Resolution
+
+Chose **A**: `isStartable` now marks any unblocked backlog card, including one
+with no dependencies. Dropped the c0139 `depends.length > 0` gate — the
+predicate is simply `status === "backlog" && no open dependency`. So a plain
+no-dependency backlog card shows the green "startable" line, and "Start next"
+(c0140) will advance it. c0123's blocked marker is unchanged (a card with no
+deps was never blocked).
+
+Not addressed (out of scope, as flagged): the `ready` card in the screenshot
+(c0094) still shows no marker — the marker is backlog-only, and a `ready` card
+is one already advanced past the startable stage.
+
 ## Log
 
 - 2026-07-28 status → ready (app)
 - 2026-07-28 status → in-progress (agent)
+- 2026-07-28 human chose A; dropped the no-dependency exclusion from
+  isStartable — any unblocked backlog card is now startable. Tests flipped.
