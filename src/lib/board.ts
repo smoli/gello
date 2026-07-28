@@ -604,6 +604,20 @@ export function withUpdatedCard(model: BoardModel, updated: Card): BoardModel {
   };
 }
 
+/**
+ * c0084: immutably replace one epic (matched by its `epic.md` path) — the
+ * optimistic update after editing its title, status, goal or DoD. The group's
+ * cards are untouched.
+ */
+export function withUpdatedEpic(model: BoardModel, updated: Epic): BoardModel {
+  return {
+    ...model,
+    epics: model.epics.map((group) =>
+      group.epic?.path === updated.path ? { ...group, epic: updated } : group,
+    ),
+  };
+}
+
 // --- ID derivation -------------------------------------------------------------
 
 function maxIdNumber(candidates: string[], prefix: string): number {

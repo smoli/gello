@@ -765,6 +765,123 @@ describe("App", () => {
     expect(screen.getByText("No cards yet.")).toBeInTheDocument();
   });
 
+  it("c0084: opens an epic from the toolbar and edits its goal and definition of done", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValue(undefined);
+    // c015: the conflict check reads the file first — hand back what it was
+    // based on, so the save is not treated as a conflict
+    readMock.mockImplementation(async (path: string) =>
+      path.endsWith("milestone.md") ? "---\nid: m02\ntitle: Board UI\n---\ngoal\n" : "",
+    );
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /open epic/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: "m02" });
+    // the rollup lists the epic's cards, grouped by status
+    expect(within(dialog).getByText("Board card")).toBeInTheDocument();
+    expect(within(dialog).getByText("0 of 2 done")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Goal"), {
+      target: { value: "A board you can drag." },
+    });
+    fireEvent.change(screen.getByLabelText("Definition of done"), {
+      target: { value: "- [ ] drag works" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/milestones/m02-board-ui/milestone.md",
+        expect.stringContaining("A board you can drag."),
+      ),
+    );
+    const written = writeMock.mock.calls[0][1] as string;
+    expect(written).toContain("## Definition of done\n\n- [ ] drag works");
+    expect(written).toContain("id: m02");
+    // the edit shows in the view without a reload
+    expect(await within(dialog).findByText("A board you can drag.")).toBeInTheDocument();
+  });
+
+  it("c0084: an epic status change is written surgically", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValue(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /open epic/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: "m02" });
+    fireEvent.change(within(dialog).getByLabelText("Status"), {
+      target: { value: "in-progress" },
+    });
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/milestones/m02-board-ui/milestone.md",
+        expect.stringContaining("status: in-progress"),
+      ),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("goal"); // body untouched
+  });
+
+  it("c0084: an external edit to epic.md reconciles into the open detail", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    readMock.mockResolvedValue(
+      "---\nid: m02\ntitle: Board UI\n---\n\n## Goal\n\nRewritten by an agent.\n",
+    );
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /open epic/i }));
+    await screen.findByRole("dialog", { name: "m02" });
+
+    // the watcher reports the agent's rewrite of the epic file
+    const onChange = watchMock.mock.calls[0][1] as (paths: string[]) => void;
+    await act(async () => {
+      onChange(["milestones/m02-board-ui/milestone.md"]);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText("Rewritten by an agent.")).toBeInTheDocument();
+  });
+
+  it("c0084: a child card finishing on disk moves it in the open rollup", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    readMock.mockResolvedValue(
+      "---\nid: c005\ntitle: Board card\nstatus: done\nmilestone: m02\n---\nx\n",
+    );
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /open epic/i }));
+    const dialog = await screen.findByRole("dialog", { name: "m02" });
+    expect(within(dialog).getByText("0 of 2 done")).toBeInTheDocument();
+
+    const onChange = watchMock.mock.calls[0][1] as (paths: string[]) => void;
+    await act(async () => {
+      onChange(["milestones/m02-board-ui/c005-board-card.md"]);
+      await Promise.resolve();
+    });
+
+    expect(await within(dialog).findByText("1 of 2 done")).toBeInTheDocument();
+    expect(
+      within(within(dialog).getByLabelText("done cards")).getByText("Board card"),
+    ).toBeInTheDocument();
+  });
+
   it("i0028: create-on-triage makes an epic and assigns the dragged card to it", async () => {
     const fixture = loadedFixture();
     loadMock.mockResolvedValueOnce(fixture);

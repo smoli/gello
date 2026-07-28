@@ -10,6 +10,8 @@ import {
   parseEpic,
   replaceCardBody,
   replaceCardBodyKeepingDates,
+  replaceEpicBody,
+  updateEpicFields,
   updateCardFields,
 } from "./cards";
 
@@ -916,5 +918,84 @@ Body.
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.card.created).toBe("2026-07-17T10:15:00");
+  });
+});
+
+describe("epic writes (c0084)", () => {
+  const EPIC_RAW = `---
+id: e07
+title: Dark mode
+status: backlog
+owner: sam
+---
+
+## Goal
+
+Ship dark theme.
+
+## Definition of done
+
+- [ ] toggle works
+`;
+
+  function epic() {
+    const result = parseEpic("epics/e07-dark-mode/epic.md", EPIC_RAW);
+    if (!result.ok) throw new Error("fixture must parse");
+    return result.epic;
+  }
+
+  it("updateEpicFields edits title and status surgically", () => {
+    const { epic: updated, raw } = updateEpicFields(epic(), {
+      title: "Dark theme",
+      status: "in-progress",
+    });
+
+    expect(raw).toContain("title: Dark theme");
+    expect(raw).toContain("status: in-progress");
+    expect(updated.title).toBe("Dark theme");
+    expect(updated.status).toBe("in-progress");
+    // untouched lines survive: unknown fields, id, and the whole body
+    expect(raw).toContain("owner: sam");
+    expect(raw).toContain("id: e07");
+    expect(raw.slice(raw.indexOf("\n---\n") + 5)).toBe(
+      EPIC_RAW.slice(EPIC_RAW.indexOf("\n---\n") + 5),
+    );
+  });
+
+  it("updateEpicFields adds no `updated` field — an epic has none", () => {
+    const { raw } = updateEpicFields(epic(), { status: "done" });
+
+    expect(raw).not.toContain("updated:");
+  });
+
+  it("updateEpicFields quotes a title YAML would misread", () => {
+    const { epic: updated } = updateEpicFields(epic(), { title: "Fix: [it]" });
+
+    expect(updated.title).toBe("Fix: [it]");
+  });
+
+  it("updateEpicFields with no changes returns the raw unchanged", () => {
+    expect(updateEpicFields(epic(), {}).raw).toBe(EPIC_RAW);
+  });
+
+  it("replaceEpicBody swaps the body and keeps the frontmatter byte-for-byte", () => {
+    const { epic: updated, raw } = replaceEpicBody(
+      epic(),
+      "\n## Goal\n\nNew goal.\n\n## Definition of done\n\n- [x] shipped\n",
+    );
+
+    expect(updated.body).toContain("New goal.");
+    expect(raw.startsWith(EPIC_RAW.slice(0, EPIC_RAW.indexOf("\n---\n") + 5))).toBe(true);
+    expect(raw).toContain("owner: sam");
+    expect(raw).not.toContain("Ship dark theme.");
+  });
+
+  it("both helpers return an epic that re-parses from its own raw", () => {
+    const { epic: renamed, raw } = updateEpicFields(epic(), { title: "Renamed" });
+    const reparsed = parseEpic(renamed.path, raw);
+
+    expect(reparsed.ok).toBe(true);
+    if (reparsed.ok) expect(reparsed.epic.title).toBe("Renamed");
+    expect(renamed.raw).toBe(raw);
   });
 });

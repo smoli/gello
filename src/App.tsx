@@ -19,6 +19,7 @@ import {
   withNewStandaloneCard,
   withoutCard,
   withUpdatedCard,
+  withUpdatedEpic,
   type BoardModel,
 } from "./lib/board";
 import {
@@ -38,8 +39,12 @@ import {
   reorderCard,
   saveCardEdit,
   saveCardFields,
+  saveEpicEdit,
+  saveEpicFields,
   todayIsoDate,
   triageCard,
+  type EpicEdit,
+  type EpicSaveResult,
   type MoveResult,
 } from "./lib/board-actions";
 import type { CardEdit } from "./components/CardDetail";
@@ -125,8 +130,11 @@ import {
   collapseDuplicateFrontmatterKeys,
   reassignCardId,
   parseCard,
+  parseEpic,
   type Card,
   type CardFieldChanges,
+  type Epic,
+  type EpicFieldChanges,
 } from "./lib/cards";
 import { writeFileAtomic } from "./lib/fs";
 import type { InvalidFile } from "./lib/cards";
@@ -920,6 +928,68 @@ function App() {
     return "saved";
   };
 
+  /**
+   * c0084: apply an epic write and its optimistic model update, rolling the
+   * model back if the write fails. The epic twin of `applyAction`.
+   */
+  const applyEpicAction = (action: () => EpicSaveResult) => {
+    if (!board) return;
+    const before = board.model;
+    try {
+      const { epic: updated, persisted } = action();
+      setBoard((current) =>
+        current ? { ...current, model: withUpdatedEpic(current.model, updated) } : current,
+      );
+      setError(null);
+      persisted.catch((failure: unknown) => {
+        setBoard((current) => (current ? { ...current, model: before } : current));
+        setError(failure instanceof Error ? failure.message : String(failure));
+      });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
+  /** c0084: an epic frontmatter change (status) from the detail view. */
+  const handleEpicFields = (epic: Epic, changes: EpicFieldChanges) => {
+    if (!board) return;
+    applyEpicAction(() => saveEpicFields(board.root, epic, changes));
+  };
+
+  /**
+   * c0084: save the epic's title, goal and definition of done. Same pre-write
+   * conflict policy as a card edit (c015): if `epic.md` changed on disk since
+   * this edit was based on it, surface a conflict instead of clobbering, and
+   * refresh the model so "discard" shows the newer version.
+   */
+  const handleSaveEpicEdit = async (
+    epic: Epic,
+    edit: EpicEdit,
+    force: boolean,
+  ): Promise<SaveBodyResult> => {
+    if (!board) return "conflict";
+    if (!force) {
+      try {
+        const diskRaw = await readFileRaw(`${board.root}/${epic.path}`);
+        if (diskRaw !== epic.raw) {
+          const parsed = parseEpic(epic.path, diskRaw);
+          if (parsed.ok) {
+            setBoard((current) =>
+              current
+                ? { ...current, model: withUpdatedEpic(current.model, parsed.epic) }
+                : current,
+            );
+          }
+          return "conflict";
+        }
+      } catch {
+        return "conflict";
+      }
+    }
+    applyEpicAction(() => saveEpicEdit(board.root, epic, edit));
+    return "saved";
+  };
+
   // i0034: repair a needs-attention card with duplicate frontmatter keys —
   // collapse them (last value wins) and write the file back; the watcher then
   // reloads it as a valid card. Reads current disk bytes so the fix is exact.
@@ -1339,6 +1409,7 @@ function App() {
           onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
+          onOpenEpic={(folder) => setSelectedEpicFolder(folder)}
           onRepairDuplicates={(entry) => void handleRepairDuplicates(entry)}
           onRepairDuplicateId={(entry) => void handleRepairDuplicateId(entry)}
           onManageTags={() => setManagingTags(true)}
@@ -1604,13 +1675,18 @@ function App() {
         )}
         {selectedEpicFolder &&
           (() => {
-            // i0028: minimal epic view for the selected epic group
+            // i0028/c0084: the selected epic's detail — goal + definition of
+            // done editor and its card rollup
             const group = board.model.epics.find((g) => g.folder === selectedEpicFolder);
             if (!group?.epic) return null;
+            const epic = group.epic;
             return (
               <EpicDetail
-                epic={group.epic}
+                epic={epic}
                 cards={group.cards}
+                columns={board.model.config.columns}
+                onChangeFields={(changes) => handleEpicFields(epic, changes)}
+                onSaveEdit={(edit, force) => handleSaveEpicEdit(epic, edit, force)}
                 onClose={() => setSelectedEpicFolder(null)}
                 onSelectCard={(card) => {
                   setSelectedEpicFolder(null);

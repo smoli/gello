@@ -31,10 +31,36 @@
   min-width: 0;
 }
 .epic-detail-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.72rem;
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, CanvasText 10%, transparent);
+  opacity: 0.8;
+}
+.epic-detail-status select {
+  font: inherit;
+  font-size: 0.78rem;
+}
+.epic-detail-title-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1.05rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
+.epic-detail-header button {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
 }
 .epic-detail-close {
   font: inherit;
@@ -51,14 +77,75 @@
   padding: 0.75rem;
   border-radius: 8px;
   background: color-mix(in srgb, CanvasText 5%, transparent);
-  font: inherit;
   font-size: 0.85rem;
-  white-space: pre-wrap;
   word-break: break-word;
 }
+.epic-detail-body h3 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+.epic-detail-body h3:first-child {
+  margin-top: 0;
+}
+.epic-detail-body p {
+  margin: 0 0 0.5rem;
+}
+.epic-detail-body ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+/* c0084: the goal / definition-of-done editor */
+.epic-detail-editor {
+  margin-bottom: 1rem;
+}
+.epic-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.epic-detail-field textarea {
+  min-height: 5rem;
+  resize: vertical;
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 1;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+}
 .epic-detail-rollup h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
+}
+.epic-detail-progress {
+  margin-left: auto;
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
+.epic-detail-group h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0.25rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
 }
 .epic-detail-count {
   font-size: 0.72rem;
@@ -94,10 +181,10 @@
 .epic-detail-cards button:hover {
   background: color-mix(in srgb, CanvasText 8%, transparent);
 }
-.epic-detail-card-status {
+.epic-detail-card-id {
   font-size: 0.68rem;
   opacity: 0.6;
-  min-width: 4.5rem;
+  min-width: 3.2rem;
 }
 .epic-detail-card-title {
   flex: 1;
@@ -105,9 +192,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.epic-detail-note {
-  margin: 1rem 0 0;
-  font-size: 0.72rem;
-  opacity: 0.55;
 }

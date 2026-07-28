@@ -391,6 +391,25 @@ button.tag-chip {
   flex-wrap: wrap;
 }
 
+/* c0084: open the filtered epic's detail — the toolbar pill language, sized
+   for a single glyph. */
+.toolbar-open-epic {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, CanvasText 12%, transparent);
+}
+
+.board-with-bg .toolbar-open-epic {
+  background: color-mix(in srgb, Canvas 85%, transparent);
+}
+
 .tag-filter {
   display: flex;
   gap: 0.3rem;

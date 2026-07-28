@@ -9,15 +9,18 @@ import {
   parseEpic,
   replaceCardBody,
   replaceCardBodyKeepingDates,
+  replaceEpicBody,
   updateCardFields,
+  updateEpicFields,
   type BoardConfig,
   type Card,
   type CardFieldChanges,
   type Epic,
+  type EpicFieldChanges,
 } from "./cards";
 import { writeFileAtomic } from "./fs";
 import { withAwaitingCleared, withQuestionAdded } from "./gello-question";
-import { appendLogLine, retargetAssetLinks } from "./markdown";
+import { appendLogLine, replaceSection, retargetAssetLinks } from "./markdown";
 import { planTagRename } from "./tags";
 
 export interface MoveResult {
@@ -294,6 +297,58 @@ export function createEpic(
   }
   const persisted = writeFileAtomic(`${root}/${path}`, raw);
   return { epic: parsed.epic, folder, persisted };
+}
+
+/** c0084: an epic edit from the detail view — the frontmatter title plus the
+ *  two body sections the view owns. */
+export interface EpicEdit {
+  title: string;
+  goal: string;
+  definitionOfDone: string;
+}
+
+/** c0084: an epic write, shaped like MoveResult (optimistic value + landing). */
+export interface EpicSaveResult {
+  epic: Epic;
+  persisted: Promise<void>;
+}
+
+export const GOAL_HEADING = "Goal";
+export const DOD_HEADING = "Definition of done";
+
+/**
+ * c0084: persist an epic edit as ONE atomic write — the title a surgical
+ * frontmatter edit, goal and definition-of-done surgical section replacements.
+ * Sections the view does not own (a gello-plan `## Plan`) are preserved.
+ */
+export function saveEpicEdit(
+  root: string,
+  epic: Epic,
+  edit: EpicEdit,
+): EpicSaveResult {
+  let current = epic;
+  if (edit.title !== epic.title) {
+    current = updateEpicFields(current, { title: edit.title }).epic;
+  }
+  const body = replaceSection(
+    replaceSection(current.body, GOAL_HEADING, edit.goal),
+    DOD_HEADING,
+    edit.definitionOfDone,
+  );
+  const { epic: updated, raw } = replaceEpicBody(current, body);
+  const persisted = writeFileAtomic(`${root}/${epic.path}`, raw);
+  return { epic: updated, persisted };
+}
+
+/** c0084: persist an epic frontmatter change (status, title) on its own. */
+export function saveEpicFields(
+  root: string,
+  epic: Epic,
+  changes: EpicFieldChanges,
+): EpicSaveResult {
+  const { epic: updated, raw } = updateEpicFields(epic, changes);
+  const persisted = writeFileAtomic(`${root}/${epic.path}`, raw);
+  return { epic: updated, persisted };
 }
 
 /** c0131: the columns a follow-up may target, in board order. The setting

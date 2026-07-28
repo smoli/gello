@@ -109,6 +109,7 @@ export function Board({
   onReorderCard,
   onRenumber,
   onNewEpic,
+  onOpenEpic,
   onRepairDuplicates,
   onRepairDuplicateId,
   onManageTags,
@@ -128,6 +129,8 @@ export function Board({
   onMoveCard?: MoveCardHandler;
   /** i0028: create a new epic from the filter's "+ New epic" option. */
   onNewEpic?: () => void;
+  /** c0084: open the detail view of the epic the filter is narrowed to. */
+  onOpenEpic?: (folder: string) => void;
   /** i0034: repair a needs-attention card with duplicate frontmatter keys. */
   onRepairDuplicates?: (entry: InvalidFile) => void;
   /** c0132: repair a needs-attention card that shares another card's id, by
@@ -403,6 +406,19 @@ export function Board({
             {model.cards.length > 0 && <option value="no-epic">No epic</option>}
             {onNewEpic && <option value={NEW_EPIC_OPTION}>+ New epic…</option>}
           </select>
+          {/* c0084: with one epic in focus, its detail (goal, definition of
+              done, card rollup) is one click away. */}
+          {onOpenEpic && model.epics.some((group) => group.folder === filter) && (
+            <button
+              type="button"
+              className="toolbar-open-epic"
+              aria-label="Open epic"
+              title="Epic goal, definition of done and cards"
+              onClick={() => onOpenEpic(filter)}
+            >
+              ⓘ
+            </button>
+          )}
           <select
             aria-label="Type filter"
             value={typeFilter}

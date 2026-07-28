@@ -517,14 +517,15 @@ describe("Board", () => {
     expect(within(clearedFront()).queryByText(/startable/i)).not.toBeInTheDocument();
   });
 
-  it("c0139: does not mark a backlog card that never had dependencies", () => {
+  it("i0124: marks a backlog card with no dependencies — it is unblocked", () => {
+    // i0124 reversed the c0139 exclusion: any unblocked backlog card is marked
     const model = loadBoard([
       file("board.yaml", "columns: [backlog]\n"),
       file("cards/c001-plain.md", card("c001", "Plain card", "backlog")),
     ]);
     render(<Board model={model} />);
     const front = screen.getByText("Plain card").closest("article")!;
-    expect(within(front).queryByText(/startable/i)).not.toBeInTheDocument();
+    expect(within(front).getByText(/startable/i)).toBeInTheDocument();
   });
 
   it("c0139: leaves a card in another status unmarked, cleared deps or not", () => {
@@ -704,6 +705,30 @@ describe("Board", () => {
     fireEvent.change(filter, { target: { value: "all" } });
     expect(screen.getByText("Third card")).toBeInTheDocument();
     expect(screen.getByText("Inbox idea")).toBeInTheDocument();
+  });
+
+  it("c0084: opens the filtered epic's detail from the toolbar", () => {
+    const onOpenEpic = vi.fn();
+    render(<Board model={MODEL} onOpenEpic={onOpenEpic} />);
+
+    // nothing to open while the filter spans every epic
+    expect(screen.queryByRole("button", { name: /open epic/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m01-alpha" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /open epic/i }));
+
+    expect(onOpenEpic).toHaveBeenCalledExactlyOnceWith("m01-alpha");
+  });
+
+  it("c0084: offers no epic-detail button for the No-epic filter", () => {
+    render(<Board model={MODEL} onOpenEpic={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "no-epic" },
+    });
+
+    expect(screen.queryByRole("button", { name: /open epic/i })).not.toBeInTheDocument();
   });
 
   it("c0077: renders standalone cards (no epic label) and the No-epic filter isolates them", () => {

@@ -14,6 +14,7 @@ import {
   withNewEpic,
   withNewStandaloneCard,
   withUpdatedCard,
+  withUpdatedEpic,
   withoutCard,
   blockersFor,
   openDependencies,
@@ -294,6 +295,33 @@ describe("withNewEpic (i0028)", () => {
     if (!parsed.ok) throw new Error("fixture must parse");
     const next = withNewEpic(model, parsed.epic, existing.folder);
     expect(next).toBe(model);
+  });
+});
+
+describe("withUpdatedEpic (c0084)", () => {
+  it("replaces the epic of its group, matched by path, keeping the cards", () => {
+    const model = loadBoard(SYNTHETIC);
+    const group = model.epics.find((g) => g.folder === "m01-alpha")!;
+    const parsed = parseEpic(group.epic!.path, "---\nid: m01\ntitle: Renamed\n---\n");
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withUpdatedEpic(model, parsed.epic);
+
+    const updated = next.epics.find((g) => g.folder === "m01-alpha")!;
+    expect(updated.epic!.title).toBe("Renamed");
+    expect(updated.cards).toEqual(group.cards);
+    // every other group is untouched
+    expect(next.epics.find((g) => g.folder === "m02-beta")).toBe(
+      model.epics.find((g) => g.folder === "m02-beta"),
+    );
+  });
+
+  it("leaves the model alone when no group owns that path", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseEpic("epics/e99-ghost/epic.md", "---\nid: e99\ntitle: Ghost\n---\n");
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    expect(withUpdatedEpic(model, parsed.epic).epics).toEqual(model.epics);
   });
 });
 

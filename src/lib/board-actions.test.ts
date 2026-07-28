@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./fs";
 import { removeDir, removeFile } from "./board-io";
 import { loadBoard } from "./board";
-import { parseCard, DEFAULT_BOARD_CONFIG } from "./cards";
+import { parseCard, parseEpic, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
   archiveCard,
   unarchiveCard,
@@ -23,6 +23,8 @@ import {
   saveCardBody,
   saveCardEdit,
   saveCardFields,
+  saveEpicEdit,
+  saveEpicFields,
   triageCard,
 } from "./board-actions";
 
@@ -1281,5 +1283,96 @@ describe("renameTag (c0058)", () => {
     );
     expect(results).toEqual([]);
     expect(writeMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveEpicEdit / saveEpicFields (c0084)", () => {
+  const EPIC_RAW = `---
+id: e07
+title: Dark mode
+status: backlog
+---
+
+## Goal
+
+Ship dark theme.
+
+## Definition of done
+
+- [ ] toggle works
+
+## Plan (steps + dependencies)
+
+1. Toggle — the switch
+`;
+
+  function epic() {
+    const parsed = parseEpic("epics/e07-dark-mode/epic.md", EPIC_RAW);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.epic;
+  }
+
+  beforeEach(() => {
+    writeMock.mockReset();
+    writeMock.mockResolvedValue(undefined);
+  });
+
+  it("writes title, goal and definition of done as one atomic write", async () => {
+    const { epic: updated, persisted } = saveEpicEdit("/repo/.gello", epic(), {
+      title: "Dark theme",
+      goal: "Ship a full dark theme.",
+      definitionOfDone: "- [x] toggle works\n- [ ] respects the OS setting",
+    });
+    await persisted;
+
+    expect(writeMock).toHaveBeenCalledOnce();
+    const [path, written] = writeMock.mock.calls[0];
+    expect(path).toBe("/repo/.gello/epics/e07-dark-mode/epic.md");
+    expect(written).toContain("title: Dark theme");
+    expect(written).toContain("Ship a full dark theme.");
+    expect(written).toContain("- [ ] respects the OS setting");
+    expect(written).not.toContain("Ship dark theme.");
+    expect(updated.title).toBe("Dark theme");
+    expect(updated.raw).toBe(written);
+  });
+
+  it("leaves sections it does not edit — a gello-plan Plan section survives", async () => {
+    const { persisted } = saveEpicEdit("/repo/.gello", epic(), {
+      title: "Dark mode",
+      goal: "New goal.",
+      definitionOfDone: "- [ ] toggle works",
+    });
+    await persisted;
+
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("## Plan (steps + dependencies)\n\n1. Toggle — the switch\n");
+  });
+
+  it("creates a missing section rather than dropping the text", async () => {
+    const parsed = parseEpic("epics/e08-x/epic.md", "---\nid: e08\ntitle: X\n---\n");
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { persisted } = saveEpicEdit("/repo/.gello", parsed.epic, {
+      title: "X",
+      goal: "A goal.",
+      definitionOfDone: "- [ ] a criterion",
+    });
+    await persisted;
+
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("## Goal\n\nA goal.\n");
+    expect(written).toContain("## Definition of done\n\n- [ ] a criterion\n");
+  });
+
+  it("saveEpicFields writes a status change surgically", async () => {
+    const { epic: updated, persisted } = saveEpicFields("/repo/.gello", epic(), {
+      status: "in-progress",
+    });
+    await persisted;
+
+    const written = writeMock.mock.calls[0][1];
+    expect(written).toContain("status: in-progress");
+    expect(written).toContain("Ship dark theme."); // body untouched
+    expect(updated.status).toBe("in-progress");
   });
 });

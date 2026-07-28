@@ -60,6 +60,63 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** The `## <heading>` line itself — matched case-insensitively, since an epic
+ *  written by hand may say "Definition of Done" (c0084). */
+function sectionHeadingRe(heading: string): RegExp {
+  return new RegExp(`^##[ \\t]+${escapeRegExp(heading)}[ \\t]*$`, "mi");
+}
+
+/** Where one section's content sits in `body`: after its heading line up to the
+ *  next `## ` heading (or the end). Null when the body has no such heading. */
+function sectionRange(
+  body: string,
+  heading: string,
+): { headingLine: string; start: number; contentAt: number; end: number } | null {
+  const match = sectionHeadingRe(heading).exec(body);
+  if (!match) return null;
+  const contentAt = match.index + match[0].length;
+  const next = /^## /m.exec(body.slice(contentAt));
+  return {
+    headingLine: match[0],
+    start: match.index,
+    contentAt,
+    end: next ? contentAt + next.index : body.length,
+  };
+}
+
+/**
+ * c0084: the content of one `## <heading>` section, trimmed and without the
+ * heading line. "" when the section is missing or empty.
+ */
+export function readSection(body: string, heading: string): string {
+  const range = sectionRange(body, heading);
+  return range ? body.slice(range.contentAt, range.end).trim() : "";
+}
+
+/**
+ * c0084: replace one `## <heading>` section's content, appending the section
+ * at the end when the body has none. Everything outside the section — other
+ * sections, their spacing — is preserved byte-for-byte, and the existing
+ * heading keeps its own spelling.
+ */
+export function replaceSection(
+  body: string,
+  heading: string,
+  content: string,
+): string {
+  const trimmed = content.trim();
+  const range = sectionRange(body, heading);
+  if (!range) {
+    const base = body === "" ? "" : body.replace(/\s*$/, "\n");
+    return `${base}\n## ${heading}\n${trimmed ? `\n${trimmed}\n` : ""}`;
+  }
+  const rest = body.slice(range.end);
+  const section = trimmed
+    ? `${range.headingLine}\n\n${trimmed}\n`
+    : `${range.headingLine}\n`;
+  return `${body.slice(0, range.start)}${section}${rest ? `\n${rest}` : ""}`;
+}
+
 /**
  * Rewrite relative asset-link targets when a card file changes folder depth
  * (triage: inbox/ → milestones/<m>/). Only markdown link/image targets that

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   appendLogLine,
   countTaskItems,
+  readSection,
+  replaceSection,
   retargetAssetLinks,
   splitLogSection,
 } from "./markdown";
@@ -118,5 +120,79 @@ describe("splitLogSection (c041)", () => {
 
     expect(editable).toBe("\nplain body\n");
     expect(log).toBe("");
+  });
+});
+
+describe("readSection / replaceSection (c0084)", () => {
+  const EPIC_BODY =
+    "\n## Goal\n\nShip dark theme.\n\n## Definition of done\n\n- [ ] toggle works\n";
+
+  it("reads a section's content without its heading", () => {
+    expect(readSection(EPIC_BODY, "Goal")).toBe("Ship dark theme.");
+    expect(readSection(EPIC_BODY, "Definition of done")).toBe("- [ ] toggle works");
+  });
+
+  it("matches the heading case-insensitively", () => {
+    expect(readSection(EPIC_BODY, "definition of DONE")).toBe("- [ ] toggle works");
+  });
+
+  it("returns an empty string for a missing or empty section", () => {
+    expect(readSection(EPIC_BODY, "Plan")).toBe("");
+    expect(readSection("\n## Goal\n\n", "Goal")).toBe("");
+  });
+
+  it("replaces a section and leaves every other line byte-for-byte", () => {
+    const result = replaceSection(EPIC_BODY, "Goal", "Ship a dark theme, fully.");
+
+    expect(result).toBe(
+      "\n## Goal\n\nShip a dark theme, fully.\n\n## Definition of done\n\n- [ ] toggle works\n",
+    );
+  });
+
+  it("replaces the last section without adding trailing blank lines", () => {
+    const result = replaceSection(EPIC_BODY, "Definition of done", "- [x] done");
+
+    expect(result).toBe(
+      "\n## Goal\n\nShip dark theme.\n\n## Definition of done\n\n- [x] done\n",
+    );
+  });
+
+  it("keeps the heading's own spelling when replacing", () => {
+    const result = replaceSection("\n## Definition of Done\n\nx\n", "definition of done", "y");
+
+    expect(result).toBe("\n## Definition of Done\n\ny\n");
+  });
+
+  it("appends the section when the body has none", () => {
+    expect(replaceSection("\n## Goal\n\ng\n", "Definition of done", "- [ ] a")).toBe(
+      "\n## Goal\n\ng\n\n## Definition of done\n\n- [ ] a\n",
+    );
+  });
+
+  it("creates the section in an empty body", () => {
+    expect(replaceSection("", "Goal", "g")).toBe("\n## Goal\n\ng\n");
+  });
+
+  it("empties a section without removing its heading", () => {
+    expect(replaceSection(EPIC_BODY, "Goal", "  ")).toBe(
+      "\n## Goal\n\n## Definition of done\n\n- [ ] toggle works\n",
+    );
+  });
+
+  it("leaves sections it does not name alone, including a plan below", () => {
+    const withPlan = `${EPIC_BODY}\n## Plan (steps + dependencies)\n\n1. Card — x\n`;
+
+    const result = replaceSection(withPlan, "Goal", "New goal.");
+
+    expect(result).toContain("## Plan (steps + dependencies)\n\n1. Card — x\n");
+    expect(readSection(result, "Definition of done")).toBe("- [ ] toggle works");
+  });
+
+  it("round-trips: replacing a section with what it already holds is a no-op", () => {
+    for (const heading of ["Goal", "Definition of done"]) {
+      expect(replaceSection(EPIC_BODY, heading, readSection(EPIC_BODY, heading))).toBe(
+        EPIC_BODY,
+      );
+    }
   });
 });

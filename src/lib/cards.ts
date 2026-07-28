@@ -586,6 +586,44 @@ export function updateCardFields(
   return { card: reparse(card.path, raw, config), raw };
 }
 
+/** c0084: the epic frontmatter fields the detail view edits. An epic carries
+ *  only id/title/status (concept.md §4) — no `updated` to bump. */
+export type EpicFieldChanges = Partial<Pick<Epic, "title" | "status">>;
+
+/** c0084: apply frontmatter changes to an epic. Untouched lines — unknown
+ *  fields included — are preserved byte-for-byte. */
+export function updateEpicFields(
+  epic: Epic,
+  changes: EpicFieldChanges,
+): { epic: Epic; raw: string } {
+  let raw = epic.raw;
+  for (const [field, value] of Object.entries(changes)) {
+    if (value === undefined) continue;
+    raw = setFrontmatterField(raw, field, value);
+  }
+  return { epic: reparseEpic(epic.path, raw), raw };
+}
+
+/** c0084: replace an epic's body, leaving its frontmatter block untouched. */
+export function replaceEpicBody(
+  epic: Epic,
+  newBody: string,
+): { epic: Epic; raw: string } {
+  const split = splitFrontmatter(epic.raw);
+  if (!split) throw new Error("no frontmatter block found");
+  const raw = epic.raw.slice(0, split.prefixLength) + newBody;
+  return { epic: reparseEpic(epic.path, raw), raw };
+}
+
+function reparseEpic(path: string, raw: string): Epic {
+  const result = parseEpic(path, raw);
+  if (!result.ok) {
+    // Internal invariant: our own edits must always yield a parseable epic.
+    throw new Error(`edit produced an invalid epic: ${result.invalid.reason}`);
+  }
+  return result.epic;
+}
+
 /** Replace the card body, bump `updated`, keep the frontmatter block intact. */
 export function replaceCardBody(
   card: Card,
