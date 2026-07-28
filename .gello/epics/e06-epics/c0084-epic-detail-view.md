@@ -1,13 +1,13 @@
 ---
 id: c0084
 title: Epic detail view (goal / DoD editor + child rollup)
-status: in-progress
+status: review
 type: task
 created: 2026-07-18
 updated: 2026-07-28
 epic: e06
 depends: [i0028]
-status-changed: 2026-07-28T08:45:00
+status-changed: 2026-07-28T09:00:24
 ---
 
 ## What
@@ -69,3 +69,4 @@ minimal view; this card builds the real one.
   `saveEpicFields` (board-actions.ts), `withUpdatedEpic` (board.ts), the full
   EpicDetail (editor + status + grouped rollup), the board's open-epic button,
   and the App wiring with the c015 conflict check
+- 2026-07-28 status → review (agent)
