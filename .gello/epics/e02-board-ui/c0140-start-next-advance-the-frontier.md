@@ -1,12 +1,12 @@
 ---
 id: c0140
 title: "Start next — advance the dependency frontier"
-status: in-progress
+status: review
 epic: e02
 depends: [c0139]
 created: 2026-07-24
 updated: 2026-07-28
-status-changed: 2026-07-28T08:34:50
+status-changed: 2026-07-28T08:39:32
 ---
 
 ## What
@@ -80,3 +80,4 @@ backlog" auto-drive (that is a separate workflow choice).
 - 2026-07-28 nextStartable (pure selection, manual order) + a "Start next"
   toolbar button firing the existing move path — 8 tests. Reuses c0139's
   isStartable so the button advances a visibly-marked card.
+- 2026-07-28 status → review (agent)
