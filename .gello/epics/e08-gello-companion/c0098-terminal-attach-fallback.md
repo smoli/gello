@@ -1,11 +1,12 @@
 ---
 id: c0098
 title: Terminal/attach interaction (fallback)
-status: backlog
+status: inbox
 epic: e08
 depends: [c0094, c0095]
 created: 2026-07-19
-updated: 2026-07-19
+updated: 2026-07-28
+status-changed: 2026-07-28T08:45:08
 ---
 
 ## What
@@ -35,3 +36,4 @@ terminal.
 ## Log
 
 - 2026-07-19 created from the e08 companion breakdown
+- 2026-07-28 status → inbox (app)

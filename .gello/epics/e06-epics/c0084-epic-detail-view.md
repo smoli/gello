@@ -1,13 +1,13 @@
 ---
 id: c0084
 title: Epic detail view (goal / DoD editor + child rollup)
-status: ready
+status: in-progress
 type: task
 created: 2026-07-18
 updated: 2026-07-28
 epic: e06
 depends: [i0028]
-status-changed: 2026-07-28T08:44:46
+status-changed: 2026-07-28T08:45:00
 ---
 
 ## What
@@ -45,3 +45,4 @@ minimal view; this card builds the real one.
   i0028 ships epic creation + a minimal view; this replaces the stub with the
   full editor + child rollup.
 - 2026-07-28 status → ready (app)
+- 2026-07-28 status → in-progress (agent)
