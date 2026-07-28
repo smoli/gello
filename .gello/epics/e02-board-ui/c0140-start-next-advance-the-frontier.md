@@ -50,6 +50,25 @@ move-card path. Deliberately advances **one** card so the `ready` gate keeps its
 meaning — this is idea #4 from the design discussion, not the #6 "trigger on
 backlog" auto-drive (that is a separate workflow choice).
 
+- **Selection uses c0139's `isStartable` exactly**, not a broader "any backlog
+  card with no open deps". This keeps the button and the board consistent: it
+  advances one of the cards visibly marked *startable*, never an unmarked one.
+  The consequence — a backlog of only plain, dependency-free cards leaves
+  "Start next" disabled — is intended: those cards were never the frontier this
+  action is for; pick them by hand. Flag if you'd rather it advance any
+  unblocked backlog card (a one-line change to the predicate it filters on).
+- `nextStartable(model, candidates)` is the pure selection: filter to startable,
+  sort by `columnComparator("backlog")` (the same manual-order rule c056 uses),
+  take the first. Ordered cards rank before unordered, ties by created/id — so
+  the choice is deterministic.
+- **Scope is the epic filter only** (`byEpic`), not the type/tag/search filters:
+  "advance the frontier of the epic you are on", per the card. The button reuses
+  `onMoveCard(card, "ready")` — the exact call a drop-on-column makes — so the
+  move stamps `status-changed` and c0117/dispatch behave identically; no App
+  change was needed.
+- The disabled reason rides in the button's `title` (empty backlog vs nothing
+  startable); the visible label stays "Start next".
+
 ## Log
 
 - 2026-07-24 created from the "picking the right card in a deep graph" design
@@ -58,3 +77,6 @@ backlog" auto-drive (that is a separate workflow choice).
 - 2026-07-27 status → in-progress (agent)
 - 2026-07-28 status → ready (app)
 - 2026-07-28 status → in-progress (agent)
+- 2026-07-28 nextStartable (pure selection, manual order) + a "Start next"
+  toolbar button firing the existing move path — 8 tests. Reuses c0139's
+  isStartable so the button advances a visibly-marked card.
