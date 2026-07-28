@@ -1,12 +1,12 @@
 ---
 id: c0140
 title: "Start next — advance the dependency frontier"
-status: in-progress
+status: ready
 epic: e02
 depends: [c0139]
 created: 2026-07-24
-updated: 2026-07-27
-status-changed: 2026-07-27T19:37:31
+updated: 2026-07-28
+status-changed: 2026-07-28T08:34:28
 ---
 
 ## What
@@ -56,3 +56,4 @@ backlog" auto-drive (that is a separate workflow choice).
   discussion (ideas #1 + #4); depends on c0139's startable predicate.
 - 2026-07-27 status → ready (app)
 - 2026-07-27 status → in-progress (agent)
+- 2026-07-28 status → ready (app)
