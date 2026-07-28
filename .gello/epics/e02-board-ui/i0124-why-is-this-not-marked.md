@@ -8,10 +8,8 @@ epic: e02
 created: 2026-07-28
 updated: 2026-07-28
 status-changed: 2026-07-28T08:51:00
-awaiting: input
 ---
 
-```gelloquestion
 The card in the screenshot is **c0094 "Multipage data model"** — **Status: `ready`**, no dependencies, and it's *blocking* c0097.
 
 Two separate reasons it shows no "startable" marker, and I want to fix the right one:
@@ -21,12 +19,11 @@ Two separate reasons it shows no "startable" marker, and I want to fix the right
 
 So: what did you expect, and which behaviour should change?
 
-- [ ] **A — Mark any unblocked backlog card startable, including ones with no dependencies.** Simple and matches "it depends on nothing → it's startable", but *every* plain backlog card (most of them) then shows the green marker, and "Start next" would advance them too. This is the c0139 reversal.
+- [x] **A — Mark any unblocked backlog card startable, including ones with no dependencies.** Simple and matches "it depends on nothing → it's startable", but *every* plain backlog card (most of them) then shows the green marker, and "Start next" would advance them too. This is the c0139 reversal.
 - [ ] **B — Keep c0139 as-is** (only cards whose dependencies just cleared are marked); the no-dependency card is intentionally not marked. Close this as working-as-designed.
 - [ ] **C — Something about `ready` cards specifically** — e.g. you expected the marker (or a different signal) on this `ready` card, not a backlog one. If so, tell me what you'd want to see and where.
 
 My read is you want **A** (a no-dependency card is obviously workable), but it undoes the anti-clutter reason for c0139 and it *won't* change the `ready` card in your screenshot — so I'd rather you confirm than have me ship the wrong thing. If A, do you still want the marker suppressed for cards that have never had dependencies, or is marking every unblocked backlog card actually what you want?
-```
 
 I the popexel repo there’s this card that is not depending on any other card. Why is it not startable.
 
