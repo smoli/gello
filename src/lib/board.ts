@@ -405,19 +405,15 @@ export function openDependencies(model: BoardModel, card: Card): Blocker[] {
 }
 
 /**
- * c0139: a backlog card is *startable* when it had dependencies and they have
- * all cleared — the inverse of c0123's blocked marker. The signal means "its
- * blockers just resolved", so a card that never had dependencies is not marked
- * (that would clutter every unconstrained backlog card rather than point at the
- * few that just became workable). Uses `openDependencies`, since `blockersFor`
- * is silent in backlog by design.
+ * c0139: a backlog card is *startable* when nothing blocks it — no dependency
+ * still open. The inverse of c0123's blocked marker. i0124 dropped the earlier
+ * "must have had dependencies" gate: a card that depends on nothing is
+ * obviously workable, so it is startable too (the human's call — every
+ * unblocked backlog card is marked, not only ones whose blockers just cleared).
+ * Uses `openDependencies`, since `blockersFor` is silent in backlog by design.
  */
 export function isStartable(model: BoardModel, card: Card): boolean {
-  return (
-    card.status === "backlog" &&
-    card.depends.length > 0 &&
-    openDependencies(model, card).length === 0
-  );
+  return card.status === "backlog" && openDependencies(model, card).length === 0;
 }
 
 /**

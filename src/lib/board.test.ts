@@ -996,10 +996,11 @@ describe("isStartable (c0139)", () => {
     expect(startable(model, "c002")).toBe(false);
   });
 
-  it("does not mark a backlog card that never had dependencies", () => {
-    // c0139: the signal means 'its blockers just resolved', not 'unconstrained'
+  it("marks a backlog card with no dependencies — it is unblocked (i0124)", () => {
+    // i0124 reversed the c0139 exclusion: any unblocked backlog card is
+    // startable, including one that never had dependencies.
     const model = boardOf(dep("c001", "backlog"));
-    expect(startable(model, "c001")).toBe(false);
+    expect(startable(model, "c001")).toBe(true);
   });
 
   it("needs every dependency done, not just some", () => {
@@ -1073,10 +1074,11 @@ describe("nextStartable (c0140)", () => {
   });
 
   it("returns null when nothing is startable", () => {
+    // every backlog card is blocked; i0124: a plain no-dep backlog card would
+    // itself be startable, so there is none here
     const model = boardOf(
       file("cards/open-x.md", "---\nid: open\ntitle: Open\nstatus: review\n---\nbody\n"),
       bk("c001", "open", { order: 1 }), // still blocked
-      file("cards/c009-plain.md", "---\nid: c009\ntitle: Plain\nstatus: backlog\n---\nbody\n"),
     );
     expect(nextStartable(model, cards(model))).toBeNull();
   });
@@ -1090,6 +1092,13 @@ describe("nextStartable (c0140)", () => {
       ),
     );
     expect(nextStartable(model, cards(model))).toBeNull();
+  });
+
+  it("advances a plain no-dependency backlog card too (i0124)", () => {
+    const model = boardOf(
+      file("cards/c001-plain.md", "---\nid: c001\ntitle: Plain\nstatus: backlog\norder: 1\n---\nbody\n"),
+    );
+    expect(nextStartable(model, cards(model))?.id).toBe("c001");
   });
 });
 
