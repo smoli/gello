@@ -1,12 +1,11 @@
 ---
 id: c0141
 title: restart a stopped card
-status: backlog
+status: ready
 created: 2026-07-28
 updated: 2026-07-29
-status-changed: 2026-07-29T08:33:22
+status-changed: 2026-07-29T08:33:51
 epic: e08
-order: 0
 ---
 
 ## What
@@ -100,3 +99,4 @@ in-progress card already holds, so WIP is unaffected.
   cards (companion publishes owned sessions); needs a new app→companion control
   channel shared with c0119's stop.
 - 2026-07-29 status → backlog (app)
+- 2026-07-29 status → ready (app)
