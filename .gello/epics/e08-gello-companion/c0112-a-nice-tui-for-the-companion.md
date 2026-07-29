@@ -1,10 +1,10 @@
 ---
 id: c0112
 title: A nice TUI for the companion
-status: review
+status: done
 created: 2026-07-21
-updated: 2026-07-21
-status-changed: 2026-07-21T14:36:15
+updated: 2026-07-29
+status-changed: 2026-07-29T08:32:52
 epic: e08
 ---
 
@@ -275,3 +275,4 @@ header needs that added.
   terminal drawing an empty screen and `wip=Infinity`; both fixed with tests.
   All ten criteria pass; 925 tests, typecheck and lint green.
 - 2026-07-21 status → review (agent)
+- 2026-07-29 status → done (app)
