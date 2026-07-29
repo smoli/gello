@@ -1,11 +1,12 @@
 ---
 id: c0119
 title: Stop an in-flight companion run
-status: discuss
+status: backlog
 epic: e08
 created: 2026-07-22
-updated: 2026-07-22
-status-changed: 2026-07-22T07:05:00
+updated: 2026-07-29
+status-changed: 2026-07-29T08:33:27
+order: -10
 ---
 
 ## What
@@ -111,3 +112,4 @@ already learned, rather than re-paying a cold start on a half-done card.
   run is live, and an explicit stop in the runs popover); a distinct `aborted`
   phase rather than `error`; the card left exactly as the agent left it; the
   session retained so a re-dispatch resumes warm.
+- 2026-07-29 status → backlog (app)
