@@ -1,12 +1,12 @@
 ---
 id: c0125
 title: Don’t show the countdown, if the card is blocked
-status: review
+status: done
 ref: c0117
 epic: e08
 created: 2026-07-22
-updated: 2026-07-22
-status-changed: 2026-07-22T21:21:55
+updated: 2026-07-29
+status-changed: 2026-07-29T08:33:04
 ---
 
 But show it after the block is gone
@@ -50,3 +50,4 @@ But show it after the block is gone
   blocked card). One c0123 precedence assertion reversed on purpose. Noted a
   pre-existing red on `main` from c0121 that this card leaves alone.
 - 2026-07-22 status → review (agent)
+- 2026-07-29 status → done (app)
