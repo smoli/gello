@@ -1,13 +1,13 @@
 ---
 id: i0124
 title: Why is this not marked
-status: review
+status: done
 type: issue
 ref: c0139
 epic: e02
 created: 2026-07-28
-updated: 2026-07-28
-status-changed: 2026-07-28T09:04:38
+updated: 2026-07-29
+status-changed: 2026-07-29T08:31:33
 ---
 
 The card in the screenshot is **c0094 "Multipage data model"** — **Status: `ready`**, no dependencies, and it's *blocking* c0097.
@@ -49,3 +49,4 @@ is one already advanced past the startable stage.
 - 2026-07-28 human chose A; dropped the no-dependency exclusion from
   isStartable — any unblocked backlog card is now startable. Tests flipped.
 - 2026-07-28 status → review (agent)
+- 2026-07-29 status → done (app)
