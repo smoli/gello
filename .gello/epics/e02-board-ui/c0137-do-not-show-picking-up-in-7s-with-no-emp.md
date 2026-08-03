@@ -1,12 +1,12 @@
 ---
 id: c0137
 title: Do not show picking up in 7s with no empty WIP slot
-status: backlog
+status: ready
 created: 2026-07-24
-updated: 2026-07-24
-status-changed: 2026-07-24T21:50:19
+updated: 2026-07-30
+status-changed: 2026-07-30T22:08:04
 epic: e02
-order: 10
+order: 20
 ---
 
 If there are no open WIP slots then do. not show the countdown for new „ready“-cards. Instead show that it is waiting on a slot.
@@ -15,3 +15,4 @@ If there are no open WIP slots then do. not show the countdown for new „ready�
 
 - 2026-07-24 status → ready (app)
 - 2026-07-24 status → backlog (app)
+- 2026-07-30 status → ready (app)

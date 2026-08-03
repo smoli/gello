@@ -3,9 +3,10 @@ id: c0141
 title: restart a stopped card
 status: ready
 created: 2026-07-28
-updated: 2026-07-29
+updated: 2026-07-30
 status-changed: 2026-07-29T08:33:51
 epic: e08
+order: 10
 ---
 
 ## What
