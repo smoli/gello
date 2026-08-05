@@ -429,6 +429,18 @@ export function nextStartable(model: BoardModel, candidates: Card[]): Card | nul
   return [...startable].sort(columnComparator("backlog"))[0];
 }
 
+/**
+ * c0143: among ready cards waiting on a WIP slot (c0137), the id first in the
+ * dispatch order — the manual `ready` order the companion dispatches by (c056).
+ * That card is genuinely next when a slot frees, so it keeps the honest
+ * "waiting on a slot" line; everyone behind it shows a funny queue line. The
+ * caller supplies the already-filtered waiters. Null when nobody waits.
+ */
+export function nextSlotWaiter(waiters: Card[]): string | null {
+  if (waiters.length === 0) return null;
+  return [...waiters].sort(columnComparator("ready"))[0].id;
+}
+
 // --- the dependency graph (c0124) -----------------------------------------------
 //
 // `depends` drives companion dispatch but had no reader in the app. These

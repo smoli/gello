@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { loadBoard, type BoardFile } from "../lib/board";
+import { queueLine } from "../lib/queue-lines";
 import { Board } from "./Board";
 
 function file(path: string, content: string): BoardFile {
@@ -418,6 +419,63 @@ describe("Board", () => {
     const front = screen.getByText("Waiting card").closest("article")!;
     expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
     expect(within(front).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+  });
+
+  // c0143: a wall of identical "waiting on a slot" reads badly. Keep it on the
+  // one card actually next; give the rest a stable-per-id funny queue line.
+  function queueBoard(count: number) {
+    return loadBoard([
+      file("board.yaml", "columns: [ready, in-progress]\nwip_limits:\n  in-progress: 1\n"),
+      file("cards/run-x.md", `---\nid: run\ntitle: Running card\nstatus: in-progress\n---\nbody\n`),
+      ...Array.from({ length: count }, (_, i) =>
+        file(
+          `cards/q${i}-x.md`,
+          `---\nid: q${i}\ntitle: Queued ${i}\nstatus: ready\norder: ${(i + 1) * 10}\n---\nbody\n`,
+        ),
+      ),
+    ]);
+  }
+  const queueRunner = (ready: string[]) => ({
+    status: "running" as const,
+    ready,
+    waiting: [],
+    runs: [{ cardId: "run", phase: "running" as const }],
+    updated: localNow(),
+    pickupDelay: 0,
+  });
+  const frontOf = (title: string) => screen.getByText(title).closest("article")!;
+
+  it("c0143: exactly one waiter — the first in order — shows 'waiting on a slot'", () => {
+    render(<Board model={queueBoard(3)} runner={queueRunner(["q0", "q1", "q2"])} />);
+    // q0 has the lowest order → it is next
+    expect(within(frontOf("Queued 0")).getByText(/waiting on a slot/i)).toBeInTheDocument();
+    expect(within(frontOf("Queued 1")).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+    expect(within(frontOf("Queued 2")).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+    // only one honest line across the whole board
+    expect(screen.getAllByText(/^waiting on a slot$/i)).toHaveLength(1);
+  });
+
+  it("c0143: a non-top waiter shows a funny queue line from the list", () => {
+    render(<Board model={queueBoard(2)} runner={queueRunner(["q0", "q1"])} />);
+    const behind = frontOf("Queued 1");
+    expect(within(behind).getByText(queueLine("q1"))).toBeInTheDocument();
+    expect(within(behind).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+  });
+
+  it("c0143: a lone waiter is the top, so it keeps the honest line — no joke", () => {
+    render(<Board model={queueBoard(1)} runner={queueRunner(["q0"])} />);
+    const only = frontOf("Queued 0");
+    expect(within(only).getByText(/waiting on a slot/i)).toBeInTheDocument();
+    expect(within(only).queryByText(queueLine("q0"))).not.toBeInTheDocument();
+  });
+
+  it("c0143: a card's funny line is stable across re-renders", () => {
+    const model = queueBoard(2);
+    const runner = queueRunner(["q0", "q1"]);
+    const { rerender } = render(<Board model={model} runner={runner} />);
+    const first = within(frontOf("Queued 1")).getByText(queueLine("q1")).textContent;
+    rerender(<Board model={model} runner={{ ...runner }} />);
+    expect(within(frontOf("Queued 1")).getByText(queueLine("q1")).textContent).toBe(first);
   });
 
   it("c0113: a live activity line is marked for the sweep", () => {

@@ -7,6 +7,7 @@ import {
   duplicateIdOf,
   findCardById,
   isStartable,
+  nextSlotWaiter,
   nextStartable,
   MANUAL_COLUMNS,
   planManualInsert,
@@ -20,6 +21,7 @@ import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
 import { pickupCountdown, waitingForSlot } from "../lib/pickup";
+import { queueLine } from "../lib/queue-lines";
 import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
@@ -307,6 +309,18 @@ export function Board({
       ? "No backlog card is startable — every one still has an unfinished dependency"
       : "The backlog is empty";
 
+  // c0143: the one queued ready card genuinely next when a slot frees keeps the
+  // honest "waiting on a slot" line; the rest get a funny queue line. Computed
+  // board-wide (the companion dispatches board-wide), from all cards the c0137
+  // `waitingForSlot` marks, taking the first in dispatch order.
+  const slotWaiterTopId = useMemo(() => {
+    const now = Date.now();
+    const waiters = statusCards
+      .filter((c) => waitingForSlot(runner ?? null, c.card.id, now, c.blocked, c.slotFree))
+      .map((c) => c.card);
+    return nextSlotWaiter(waiters);
+  }, [statusCards, runner]);
+
   const toggleTag = (tag: string) =>
     setSelectedTags((current) => {
       const next = new Set(current);
@@ -544,6 +558,7 @@ export function Board({
               showTags={showTags}
               darkChips={darkChips}
               runner={runner}
+              slotWaiterTopId={slotWaiterTopId}
             />
           );
         })}
@@ -656,6 +671,7 @@ function Column({
   showTags,
   darkChips,
   runner,
+  slotWaiterTopId,
   wip,
 }: {
   name: string;
@@ -664,6 +680,9 @@ function Column({
   wip: WipState | null;
   /** c0109: companion state, forwarded to each card front for its activity line. */
   runner?: CompanionState | null;
+  /** c0143: id of the queued card next when a slot frees — it keeps the honest
+   *  "waiting on a slot"; the rest get a funny queue line. */
+  slotWaiterTopId?: string | null;
   /** c012: passed through to each card front for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c0058: per-tag colour overrides, forwarded to each card front's chips. */
@@ -772,6 +791,7 @@ function Column({
                 showTags={showTags}
                 darkChips={darkChips}
                 runner={runner}
+                slotWaiterTopId={slotWaiterTopId}
               />
             </Fragment>
           ))}
@@ -850,10 +870,13 @@ function CardFront({
   showTags,
   darkChips,
   runner,
+  slotWaiterTopId,
 }: {
   entry: BoardCard;
   /** c0109: companion state, for this card's live activity line (null → none). */
   runner?: CompanionState | null;
+  /** c0143: id of the card next when a slot frees — it keeps the honest line. */
+  slotWaiterTopId?: string | null;
   /** True while this card is the one being dragged (i0004 origin marker). */
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
@@ -1021,14 +1044,16 @@ function CardFront({
         </p>
       )}
       {/* c0137: every WIP slot is taken, so the companion cannot pick this up
-          yet — say so instead of a countdown that would never fire. */}
+          yet — say so instead of a countdown that would never fire.
+          c0143: only the card next in line keeps the honest line; the rest of
+          the queue get a stable-per-id funny line so the column reads with life. */}
       {waitingSlot && (
         <p
           className="card-activity card-activity-pending"
           role="status"
           title="Every in-progress slot is full — this starts when one frees up"
         >
-          waiting on a slot
+          {card.id === slotWaiterTopId ? "waiting on a slot" : queueLine(card.id)}
         </p>
       )}
       {/* c0123: why this card is going nowhere — the dependencies that are not

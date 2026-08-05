@@ -25,6 +25,7 @@ import {
   dependencyOptions,
   duplicateIdOf,
   isStartable,
+  nextSlotWaiter,
   nextStartable,
   planManualInsert,
   wipState,
@@ -1101,6 +1102,30 @@ describe("nextStartable (c0140)", () => {
       file("cards/c001-plain.md", "---\nid: c001\ntitle: Plain\nstatus: backlog\norder: 1\n---\nbody\n"),
     );
     expect(nextStartable(model, cards(model))?.id).toBe("c001");
+  });
+});
+
+describe("nextSlotWaiter (c0143)", () => {
+  const rdy = (id: string, order: number) => {
+    const result = parseCard(
+      `cards/${id}-x.md`,
+      `---\nid: ${id}\ntitle: Card ${id}\nstatus: ready\norder: ${order}\n---\nbody\n`,
+    );
+    if (!result.ok) throw new Error("fixture must parse");
+    return result.card;
+  };
+
+  it("returns the id first in dispatch (manual) order", () => {
+    const waiters = [rdy("c003", 30), rdy("c001", 10), rdy("c002", 20)];
+    expect(nextSlotWaiter(waiters)).toBe("c001");
+  });
+
+  it("returns the only card when there is one", () => {
+    expect(nextSlotWaiter([rdy("c009", 5)])).toBe("c009");
+  });
+
+  it("returns null when nobody is waiting", () => {
+    expect(nextSlotWaiter([])).toBeNull();
   });
 });
 
