@@ -1,11 +1,12 @@
 ---
 id: i0132
 title: Quoted paths misclassify the dirty indicator
-status: inbox
+status: ready
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:22:00
+status-changed: 2026-08-05T12:23:26
+epic: e10
 ---
 
 ## What
@@ -21,3 +22,7 @@ assets and hand-named files. Fix is likely `-c core.quotepath=false` on the
 status call, with a test covering a board file with an umlaut in its name.
 
 Found while working i0127.
+
+## Log
+
+- 2026-08-05 status → ready (app)
