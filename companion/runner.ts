@@ -54,6 +54,20 @@ export function occupiedSlots(model: BoardModel, activeCardIds: string[]): numbe
   return ids.size;
 }
 
+/**
+ * The in-progress WIP limit the board currently configures, or `Infinity` when
+ * it configures none.
+ *
+ * i0124: read from the board on every sync, never cached. board.yaml is edited
+ * while the companion runs, and a limit taken once at startup let a tightened
+ * one be exceeded — the app showed 2 of 1 while the runner still enforced the
+ * old value. It also covers a board.yaml that failed to parse at startup, which
+ * would otherwise pin the runner to `Infinity` for its whole life.
+ */
+export function wipLimitOf(model: BoardModel): number {
+  return model.config.wipLimits[IN_PROGRESS] ?? Infinity;
+}
+
 /** The `depends` of a card that are not `done` — an id absent from the board
  *  counts as missing. Empty means the card is dispatchable. */
 function missingDepends(index: Map<string, Card>, card: Card): string[] {
@@ -101,19 +115,32 @@ export interface DispatchPlan {
 export interface PickupOptions {
   now: number;
   pickupDelayMs: number;
+  /** i0124: when the companion first saw each card in the trigger status, by
+   *  card id. The clock for a card with no usable `status-changed`. */
+  firstSeen?: Map<string, number>;
 }
 
 /**
  * How much longer a card must sit before it may be picked up (c0117).
  *
- * `status-changed` already records when it entered, so no new state is needed.
- * A card with no parseable stamp is treated as eligible: it is not a fresh
- * drag, and blocking it forever would be worse than starting it.
+ * `status-changed` records when it entered, so normally no new state is needed.
+ * A card with no parseable stamp — an agent writes a new card straight into
+ * `ready`, and it never changed status — falls back to `firstSeen`, when the
+ * companion first saw it there (i0124). With neither it is eligible: blocking
+ * it forever would be worse than starting it.
  */
-export function pickupWait(card: Card, now: number, pickupDelayMs: number): number {
+export function pickupWait(
+  card: Card,
+  now: number,
+  pickupDelayMs: number,
+  firstSeen?: number,
+): number {
   if (pickupDelayMs <= 0) return 0;
-  const since = card.statusChanged === null ? NaN : Date.parse(card.statusChanged);
-  if (Number.isNaN(since)) return 0;
+  let since = card.statusChanged === null ? NaN : Date.parse(card.statusChanged);
+  if (Number.isNaN(since)) {
+    if (firstSeen === undefined) return 0;
+    since = firstSeen;
+  }
   return Math.max(0, pickupDelayMs - (now - since));
 }
 
@@ -159,7 +186,12 @@ export function planDispatch(
     // c0117: the grace period gates a dependency-satisfied card. Checked after
     // `depends` so a blocked card is still reported as blocked, not as waiting
     // on a timer it is not actually waiting on.
-    const msRemaining = pickupWait(card, pickup.now, pickup.pickupDelayMs);
+    const msRemaining = pickupWait(
+      card,
+      pickup.now,
+      pickup.pickupDelayMs,
+      pickup.firstSeen?.get(card.id),
+    );
     if (msRemaining > 0) {
       delayed.push({ card, msRemaining });
       continue;
@@ -273,7 +305,6 @@ export interface RunnerOptions {
   boardRoot: string;
   adapter: AgentAdapter;
   scope: SessionScope;
-  wipLimit: number;
   /** Status whose entry dispatches a run (c0099 config; default `ready`). */
   trigger?: string;
   /** Permission posture for headless agent runs (adapter-specific; see
@@ -334,6 +365,9 @@ export class Runner {
   /** Card id → the last held-back reason logged for it (i0119), so a reason is
    *  announced on change instead of on every watcher tick. */
   private heldBack = new Map<string, string>();
+  /** Card id → when it was first seen in the trigger status (i0124), the pickup
+   *  clock for a card with no usable `status-changed`. */
+  private readonly firstSeen = new Map<string, number>();
   private sessions: SessionMap;
   /** c0109: coalesces activity-driven state writes to ~1s, however fast the
    *  agent emits tool calls. Lifecycle changes publish immediately (bypass it). */
@@ -361,18 +395,44 @@ export class Runner {
     // c0117: a resume is exempt from the grace period — you cannot accidentally
     // answer a question, and delaying it would tax every turn of the Q&A loop.
     for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
+    const trigger = this.opts.trigger ?? READY;
+    const wipLimit = wipLimitOf(next);
+    this.noteFirstSeen(next, trigger);
     const { dispatch, queued, blocked, delayed, sessionHeld } = planDispatch(
       next,
       [...this.active.keys()],
-      this.opts.wipLimit,
-      this.opts.trigger ?? READY,
-      { now: this.now(), pickupDelayMs: this.opts.pickupDelayMs ?? 0 },
+      wipLimit,
+      trigger,
+      {
+        now: this.now(),
+        pickupDelayMs: this.opts.pickupDelayMs ?? 0,
+        firstSeen: this.firstSeen,
+      },
       this.opts.scope,
     );
-    this.reportHeldBack(queued, blocked, sessionHeld);
+    this.reportHeldBack(queued, blocked, sessionHeld, wipLimit);
     for (const card of dispatch) this.start(card, false);
     this.schedulePickupRecheck(delayed);
     this.publish();
+  }
+
+  /**
+   * Stamp when each trigger-status card was first seen there, and forget the
+   * ones that left (i0124). This is the pickup clock for a card whose
+   * `status-changed` is absent or unparseable; leaving the column resets it,
+   * the same way a real stamp would.
+   */
+  private noteFirstSeen(model: BoardModel, trigger: string): void {
+    const now = this.now();
+    const present = new Set<string>();
+    for (const card of allCards(model)) {
+      if (card.status !== trigger) continue;
+      present.add(card.id);
+      if (!this.firstSeen.has(card.id)) this.firstSeen.set(card.id, now);
+    }
+    for (const id of [...this.firstSeen.keys()]) {
+      if (!present.has(id)) this.firstSeen.delete(id);
+    }
   }
 
   private now(): number {
@@ -414,6 +474,7 @@ export class Runner {
     queued: Card[],
     blocked: BlockedCard[],
     sessionHeld: SessionHeldCard[],
+    wipLimit: number,
   ): void {
     const reasons = new Map<string, string>();
     for (const { card, missing } of blocked) {
@@ -425,7 +486,7 @@ export class Runner {
       reasons.set(card.id, `session busy with ${heldBy}`);
     }
     for (const card of queued) {
-      reasons.set(card.id, `at the in-progress WIP limit (${this.opts.wipLimit})`);
+      reasons.set(card.id, `at the in-progress WIP limit (${wipLimit})`);
     }
     for (const [cardId, reason] of reasons) {
       if (this.heldBack.get(cardId) !== reason) this.log(`${cardId} held: ${reason}`);

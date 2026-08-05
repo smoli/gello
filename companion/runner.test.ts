@@ -39,8 +39,12 @@ function resultLine(usage: Record<string, unknown>, extra: Record<string, unknow
 
 // --- board fixtures ---------------------------------------------------------
 
-const BOARD =
-  "columns: [inbox, backlog, ready, in-progress, review, done]\nwip_limits:\n  in-progress: 2\n";
+const COLUMNS = "columns: [inbox, backlog, ready, in-progress, review, done]\n";
+
+/** board.yaml with an in-progress WIP limit; `null` configures none (i0124). */
+function boardYaml(wipLimit: number | null): string {
+  return wipLimit === null ? COLUMNS : `${COLUMNS}wip_limits:\n  in-progress: ${wipLimit}\n`;
+}
 
 interface CardSpec {
   status: string;
@@ -78,9 +82,9 @@ function cardFile(id: string, s: CardSpec): string {
   return `---\n${fm}\n---\n\n## What\n\ntask${question}\n`;
 }
 
-function board(cards: Record<string, CardSpec>): BoardModel {
+function board(cards: Record<string, CardSpec>, wipLimit: number | null = 2): BoardModel {
   return loadBoard([
-    { path: "board.yaml", content: BOARD },
+    { path: "board.yaml", content: boardYaml(wipLimit) },
     ...Object.entries(cards).map(([id, s]) => ({
       path: `cards/${id}-x.md`,
       content: cardFile(id, s),
@@ -240,15 +244,46 @@ describe("planDispatch — pickup delay", () => {
     expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
   });
 
-  it("treats a card with no status-changed as eligible, never blocked forever", () => {
+  it("treats a card with no status-changed and no first-seen as eligible", () => {
     const model = board({ c001: { status: "ready", order: 1 } });
     const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
     expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
   });
 
-  it("treats an unparseable status-changed as eligible", () => {
+  it("treats an unparseable status-changed the same way", () => {
     const model = board({ c001: stamped("ready", "not a date") });
     const plan = planDispatch(model, [], 2, "ready", { now: T0, pickupDelayMs: 10_000 });
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  // i0124: an agent writes a new card straight into `ready`, so it carries no
+  // `status-changed` — first-seen is the clock that keeps the window honest.
+  it("falls back to first-seen when the stamp is missing", () => {
+    const model = board({ c001: { status: "ready", order: 1 } });
+    const firstSeen = new Map([["c001", T0]]);
+    const held = planDispatch(model, [], 2, "ready", {
+      now: T0 + 5_000,
+      pickupDelayMs: 10_000,
+      firstSeen,
+    });
+    expect(held.dispatch).toEqual([]);
+    expect(held.delayed[0].msRemaining).toBe(5_000);
+
+    const due = planDispatch(model, [], 2, "ready", {
+      now: T0 + 10_000,
+      pickupDelayMs: 10_000,
+      firstSeen,
+    });
+    expect(due.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("prefers a real status-changed over first-seen", () => {
+    const model = board({ c001: stamped("ready", "2026-07-22T10:00:00") });
+    const plan = planDispatch(model, [], 2, "ready", {
+      now: T0 + 10_000,
+      pickupDelayMs: 10_000,
+      firstSeen: new Map([["c001", T0 + 9_000]]), // seen late; the stamp wins
+    });
     expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
   });
 
@@ -534,7 +569,6 @@ function makeRunner(
     askServer: { command: "tsx", args: ["/repo/companion/mcp-main.ts"], env: {} },
     adapter: claudeAdapter,
     scope,
-    wipLimit: 2,
     level,
     emit: (line, cardId) => {
       emitted.push(line);
@@ -668,6 +702,62 @@ describe("Runner — why a ready card is not running", () => {
     const h = makeRunner(start);
     h.runner.sync(start);
     expect(h.logs).toEqual([]);
+  });
+});
+
+// i0124 — two cards ran against a limit of one. board.yaml is editable while
+// the companion runs (and may not have parsed at startup), so the limit has to
+// come from the board being synced, not from a snapshot taken at construction.
+describe("Runner — the WIP limit is the board's current one (i0124)", () => {
+  it("honours a limit tightened after the companion started", () => {
+    const start = board({ c001: { status: "ready", order: 1 } }); // limit 2
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // the human sets in-progress to 1 while c001 is still running, then a new
+    // card lands in ready
+    const tightened = board(
+      { c001: { status: "in-progress" }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(tightened);
+    h.runner.sync(tightened);
+
+    expect(h.spawned).toHaveLength(1);
+    expect(h.logs.join("\n")).toContain("c002 held: at the in-progress WIP limit (1)");
+  });
+
+  it("picks up a loosened limit without a restart", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const loosened = board(
+      { c001: { status: "in-progress" }, c002: { status: "ready", order: 2 } },
+      3,
+    );
+    h.setModel(loosened);
+    h.runner.sync(loosened);
+    expect(h.spawned).toHaveLength(2);
+  });
+
+  it("runs unbounded when board.yaml configures no limit", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1 },
+        c002: { status: "ready", order: 2 },
+        c003: { status: "ready", order: 3 },
+      },
+      null,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(3);
   });
 });
 
@@ -1102,6 +1192,38 @@ describe("Runner — pickup delay (c0117)", () => {
     const start = board({ c001: { status: "ready", order: 1, statusChanged: STAMP } });
     const h = makeRunner(start, undefined, "normal", { pickupDelayMs: 0, clockStart: T0 });
     h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // i0124 — an agent creating a card writes no `status-changed` (the card never
+  // changed status), and that skipped the grace period entirely.
+  it("times an unstamped card from when it was first seen in the trigger status", () => {
+    const start = board({ c001: { status: "ready", order: 1 } }); // no status-changed
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+
+    h.advance(10_000);
+    expect(h.spawned).toHaveLength(1); // eligible after the window, never stuck
+  });
+
+  it("restarts an unstamped card's countdown when it leaves and comes back", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    const pulled = board({ c001: { status: "backlog" } });
+    h.setModel(pulled);
+    h.runner.sync(pulled);
+    h.advance(5_000);
+    expect(h.spawned).toHaveLength(0);
+
+    h.setModel(start);
+    h.runner.sync(start);
+    h.advance(5_000); // 10s overall, but only 5s since it came back
+    expect(h.spawned).toHaveLength(0);
+
+    h.advance(5_000);
     expect(h.spawned).toHaveLength(1);
   });
 });

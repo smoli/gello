@@ -71,7 +71,6 @@ describe("i0115 — activity survives the companion → state.json → app seam"
       boardRoot: "/project/.gello",
       adapter: claudeAdapter,
       scope: "card",
-      wipLimit: 2,
       spawn: (spec) => {
         const proc = new FakeProc(spec);
         procs.push(proc);

@@ -13,8 +13,8 @@ import { isCompanionLive, type CompanionState } from "./companion";
  * no countdown to show: no companion attached (or a stale one), the delay
  * configured off, a card that is not queued, a run that has already started, a
  * card `blocked` by an open dependency (c0125), or a card with no usable
- * `status-changed` — which the companion itself treats as eligible immediately,
- * so inventing a window here would be a lie.
+ * `status-changed` — the companion times that one from when it first saw the
+ * card (i0124), which is not on the board, so there is no window to render.
  *
  * `blocked` is passed in rather than derived: this module knows the companion's
  * state, not the board. The caller supplies that board fact.

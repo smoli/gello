@@ -40,10 +40,8 @@ import { Dashboard, nodeScreen } from "./tui.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
 import { loadSessions, saveSessions } from "./sessions.ts";
 import { loadConfig } from "./config.ts";
-import { Runner, type SpawnedRun, type Spawner } from "./runner.ts";
+import { Runner, wipLimitOf, type SpawnedRun, type Spawner } from "./runner.ts";
 import type { BoardModel } from "../src/lib/board.ts";
-
-const IN_PROGRESS = "in-progress";
 
 function nowIso(): string {
   const d = new Date();
@@ -194,7 +192,6 @@ function main(): void {
     scope,
     trigger,
     permissionMode,
-    wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
     level,
     pickupDelayMs: pickupDelay * 1000,
     emit,
@@ -239,7 +236,7 @@ function main(): void {
         scope,
         trigger,
         permissionMode,
-        wipLimit: model.config.wipLimits[IN_PROGRESS] ?? Infinity,
+        wipLimit: wipLimitOf(model),
         startedAt,
         totals,
         board: boardSlice(model, trigger),
