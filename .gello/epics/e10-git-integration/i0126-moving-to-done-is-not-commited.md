@@ -1,11 +1,11 @@
 ---
 id: i0126
 title: Moving to done is not commited
-status: review
+status: done
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T11:57:16
+status-changed: 2026-08-05T12:06:19
 epic: e10
 ---
 
@@ -74,3 +74,4 @@ letter — so both spellings of the same directory compare equal.
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 status → review (agent)
+- 2026-08-05 status → done (app)
