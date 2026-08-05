@@ -52,6 +52,7 @@ vi.mock("./lib/board-io", () => ({
   gitWorktreeStatus: vi.fn(),
   startCompanion: vi.fn(),
   requestStopRun: vi.fn(),
+  requestRestartCard: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 // c0100: the title-bar companion poll reads its own state file; stub it at the
@@ -455,6 +456,7 @@ describe("App", () => {
     runs: [{ cardId, phase: "running" }],
     updated: localNow(),
     pickupDelay: 0,
+    owned: [],
   });
   const withRunningCard = async (cardId: string) => {
     loadMock.mockResolvedValueOnce(loadedFixture());
@@ -631,6 +633,7 @@ describe("App", () => {
     runs: [],
     updated: "2026-07-23T10:00:00",
     pickupDelay: 0,
+    owned: [],
   });
   const fireWatch = async () => {
     const cb = watchMock.mock.calls[0][1] as (paths: string[]) => void;
