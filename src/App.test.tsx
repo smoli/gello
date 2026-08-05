@@ -18,6 +18,7 @@ import {
   readFileRaw,
   removeDir,
   removeFile,
+  requestStopRun,
   writeAsset,
   writeNewFiles,
   watchBoard,
@@ -49,6 +50,8 @@ vi.mock("./lib/board-io", () => ({
   gitBoardChanges: vi.fn(),
   gitCommitBoard: vi.fn(),
   gitWorktreeStatus: vi.fn(),
+  startCompanion: vi.fn(),
+  requestStopRun: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 // c0100: the title-bar companion poll reads its own state file; stub it at the
@@ -118,6 +121,9 @@ describe("App", () => {
     vi.mocked(initBoard).mockResolvedValue("/x/.gello");
     vi.mocked(writeNewFiles).mockReset();
     vi.mocked(writeNewFiles).mockResolvedValue(undefined);
+    vi.mocked(requestStopRun).mockReset();
+    vi.mocked(requestStopRun).mockResolvedValue(undefined);
+    vi.mocked(readCompanionState).mockResolvedValue(null);
     vi.mocked(gitBoardChanges).mockReset();
     vi.mocked(gitBoardChanges).mockResolvedValue(null);
     vi.mocked(gitCommitBoard).mockReset();
@@ -428,6 +434,94 @@ describe("App", () => {
       expect.stringContaining("status: ready"),
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // c0119: dragging a card out of its running status stops the run — a
+  // destructive move, so it confirms first.
+  // the companion writes local time and the app parses it as local, so a fresh
+  // stamp must be local — not the UTC of toISOString() — or it reads as stale.
+  const localNow = (): string => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return (
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+      `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    );
+  };
+  const companionRunning = (cardId: string): CompanionState => ({
+    status: "running",
+    ready: [],
+    waiting: [],
+    runs: [{ cardId, phase: "running" }],
+    updated: localNow(),
+    pickupDelay: 0,
+  });
+  const withRunningCard = async (cardId: string) => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(readCompanionState).mockResolvedValue(companionRunning(cardId));
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    // wait until the poll has set the runner (the title-bar indicator appears)
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Companion: running/ })).toBeInTheDocument(),
+    );
+    return card;
+  };
+
+  it("c0119: dragging a card with a live run out confirms before stopping it", async () => {
+    const card = await withRunningCard("c005");
+    fireEvent.keyDown(card, { key: "ArrowRight" }); // move out → would stop the run
+
+    expect(screen.getByRole("dialog", { name: /Stop the running agent/i })).toBeInTheDocument();
+    // nothing has happened yet — no stop, no move
+    expect(vi.mocked(requestStopRun)).not.toHaveBeenCalled();
+    expect(writeMock).not.toHaveBeenCalled();
+  });
+
+  it("c0119: confirming stops the run and performs the move", async () => {
+    writeMock.mockResolvedValue(undefined);
+    const card = await withRunningCard("c005");
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Stop and move/i }));
+    await waitFor(() => expect(vi.mocked(requestStopRun)).toHaveBeenCalledWith("/repo/.gello", "c005"));
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/milestones/m02-board-ui/c005-board-card.md",
+        expect.stringContaining("status: ready"),
+      ),
+    );
+  });
+
+  it("c0119: declining leaves the run and the card untouched", async () => {
+    const card = await withRunningCard("c005");
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    expect(screen.queryByRole("dialog", { name: /Stop the running agent/i })).not.toBeInTheDocument();
+    expect(vi.mocked(requestStopRun)).not.toHaveBeenCalled();
+    expect(writeMock).not.toHaveBeenCalled();
+    // the card stays in its column
+    expect(
+      within(screen.getByRole("region", { name: "backlog" })).getByText("Board card"),
+    ).toBeInTheDocument();
+  });
+
+  it("c0119: dragging a card with no live run moves with no dialog", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(readCompanionState).mockResolvedValue(companionRunning("c001")); // a different card
+    writeMock.mockResolvedValueOnce(undefined);
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("region", { name: "ready" })).getByText("Board card"),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("dialog", { name: /Stop the running agent/i })).not.toBeInTheDocument();
+    expect(vi.mocked(requestStopRun)).not.toHaveBeenCalled();
   });
 
   it("opens the card detail on click and closes on Escape", async () => {

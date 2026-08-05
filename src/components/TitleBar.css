@@ -202,3 +202,27 @@
   color: #e5484d;
   opacity: 1;
 }
+/* c0119: a deliberate stop reads as neutral-muted, not the alarm red of error */
+.titlebar-runner-phase.phase-aborted {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+/* c0119: per-run stop in the runs popover. Muted until hovered, then the same
+   danger red as the destructive-drag dialog, since it ends live work. */
+.titlebar-runner-stop {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: color-mix(in srgb, CanvasText 65%, transparent);
+  cursor: pointer;
+}
+.titlebar-runner-stop:hover {
+  border-color: transparent;
+  background: #c0392b;
+  color: white;
+}

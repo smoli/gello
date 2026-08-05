@@ -200,6 +200,13 @@ function App() {
     status: string;
     order?: number;
   } | null>(null);
+  // c0119: a drag that would stop a live run, awaiting confirmation. The move is
+  // held until the human confirms; declining clears it and nothing happens.
+  const [pendingStop, setPendingStop] = useState<{
+    card: Card;
+    status: string;
+    order?: number;
+  } | null>(null);
   // git branch for the status bar (c0057); null = not a git repo
   const [branch, setBranch] = useState<string | null>(null);
   // c032: skill dirs to offer installation into (empty = no prompt)
@@ -788,12 +795,45 @@ function App() {
     return rebaseCard(card, typeof diskRaw === "string" ? diskRaw : null, board.model.config);
   };
 
-  const handleMove = async (card: Card, status: string, order?: number) => {
-    if (!board || card.status === status) return;
+  /** c0119: a live run for this card that a move would strand — running or
+   *  parked. Its presence makes a drag destructive, so the move confirms first. */
+  const liveRunFor = (cardId: string): boolean =>
+    (runner?.runs ?? []).some(
+      (run) =>
+        run.cardId === cardId &&
+        (run.phase === "running" || run.phase === "waiting-for-input"),
+    );
+
+  /** Persist a status move (the non-destructive path, once any confirm passed). */
+  const applyMove = async (card: Card, status: string, order?: number) => {
+    if (!board) return;
     const fresh = await rebaseOnDisk(card);
     applyAction(() =>
       moveCard(board.root, fresh, status, board.model.config, nowIsoDateTime(), order),
     );
+  };
+
+  const handleMove = async (card: Card, status: string, order?: number) => {
+    if (!board || card.status === status) return;
+    // c0119: dragging a card out of its running status stops the run. That is
+    // destructive (unlike the c0117 grace period that guards the drag *in*), so
+    // confirm before doing it. A card with no live run moves straight away.
+    if (liveRunFor(card.id)) {
+      setPendingStop({ card, status, order });
+      return;
+    }
+    await applyMove(card, status, order);
+  };
+
+  /** c0119: confirm the destructive drag — stop the run, then perform the move.
+   *  The stop and the move are independent writes (control file, card file);
+   *  the run drops to `aborted` on the next poll. */
+  const confirmStopAndMove = async () => {
+    const pending = pendingStop;
+    setPendingStop(null);
+    if (!pending) return;
+    await handleStopRun(pending.card.id);
+    await applyMove(pending.card, pending.status, pending.order);
   };
 
   /** Same-column reposition in a manual column (c056). */
@@ -1407,6 +1447,38 @@ function App() {
         {error && (
           <div role="alert" className="board-error">
             {error}
+          </div>
+        )}
+        {/* c0119: dragging a card out of its running status stops its agent —
+            confirm before destroying in-flight work. */}
+        {pendingStop && (
+          <div className="modal-scrim" role="presentation" onClick={() => setPendingStop(null)}>
+            <div
+              className="confirm-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Stop the running agent?"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2>Stop the running agent?</h2>
+              <p>
+                {pendingStop.card.id} has a live run. Moving it to{" "}
+                <strong>{pendingStop.status}</strong> stops the agent; the work it
+                has done so far is left on disk.
+              </p>
+              <div className="confirm-dialog-actions">
+                <button type="button" onClick={() => setPendingStop(null)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="confirm-dialog-danger"
+                  onClick={() => void confirmStopAndMove()}
+                >
+                  Stop and move
+                </button>
+              </div>
+            </div>
           </div>
         )}
         <QuickCapture

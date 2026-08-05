@@ -146,3 +146,55 @@ body,
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
 }
+
+/* c0119: confirm dialog for a destructive drag (stopping a live run). Mirrors
+   the milestone picker's centred-over-scrim treatment. */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 22%, transparent);
+}
+.confirm-dialog {
+  background: Canvas;
+  color: CanvasText;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  max-width: 24rem;
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 28%, transparent);
+}
+.confirm-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+.confirm-dialog p {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.confirm-dialog-actions button {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+/* the destructive action reads as such — it destroys in-flight work */
+.confirm-dialog-danger {
+  border-color: transparent;
+  background: #c0392b;
+  color: white;
+}
