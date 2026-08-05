@@ -48,23 +48,23 @@ in-progress card already holds, so WIP is unaffected.
 
 ## Acceptance criteria
 
-- [ ] A stopped card is identified as `in-progress` + companion live +
+- [x] A stopped card is identified as `in-progress` + companion live +
       companion-owned session + absent from the state file's live `runs`
-- [ ] The companion publishes the set of card ids it owns a session for in
+- [x] The companion publishes the set of card ids it owns a session for in
       `state.json`
-- [ ] A restart action is offered only on a stopped card — never on a
+- [x] A restart action is offered only on a stopped card — never on a
       parked/running card, nor a human-worked in-progress card with no session
-- [ ] Restart re-dispatches in place: the card stays `in-progress` (no move to
+- [x] Restart re-dispatches in place: the card stays `in-progress` (no move to
       `ready`)
-- [ ] The re-dispatch resumes the card's existing session (warm), not a fresh
+- [x] The re-dispatch resumes the card's existing session (warm), not a fresh
       one
-- [ ] Restart travels an app→companion control channel — a request the app
+- [x] Restart travels an app→companion control channel — a request the app
       writes and the companion consumes once and clears
-- [ ] Restart respects the c0126 session gate — it does not start while that
+- [x] Restart respects the c0126 session gate — it does not start while that
       session is busy
-- [ ] Restart is unavailable when no companion is live
-- [ ] Restart is manual only — nothing auto-retries a stopped card
-- [ ] The channel handling (parse a request, act once, clear; ignore malformed
+- [x] Restart is unavailable when no companion is live
+- [x] Restart is manual only — nothing auto-retries a stopped card
+- [x] The channel handling (parse a request, act once, clear; ignore malformed
       or duplicate requests) is unit-tested
 
 ## Discussion
