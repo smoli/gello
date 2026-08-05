@@ -1,6 +1,6 @@
 ---
 id: c0143
-title: Waiting on a slot vs wiating in line
+title: Waiting on a slot vs waiting in line
 status: inbox
 created: 2026-08-05
 updated: 2026-08-05
