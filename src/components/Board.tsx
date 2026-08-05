@@ -753,7 +753,15 @@ function Column({
       onDrop={(event) => {
         event.preventDefault();
         const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
-        if (path) onDropCard(path);
+        if (path) {
+          // c0149: a drop in the empty ghost area of a manual column (below the
+          // last card) means "put it at the bottom" — route it to the trailing
+          // insert position, like the last insert zone. A bare status change
+          // would leave a same-column ghost drop doing nothing at all. Other
+          // columns keep the plain status move.
+          if (showInsertZones) onDropAt(path, cards.length);
+          else onDropCard(path);
+        }
         onDragState(null);
       }}
     >

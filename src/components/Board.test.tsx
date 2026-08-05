@@ -1280,6 +1280,76 @@ describe("Board card moves", () => {
     expect(onMove).not.toHaveBeenCalled();
   });
 
+  // c0149: backlog/ready order by hand. A short column leaves an empty "ghost"
+  // area below the last card; a drop there should land the card at the bottom.
+  const manualBoard = () =>
+    loadBoard([
+      file("board.yaml", "columns: [backlog, ready, done]\n"),
+      file("cards/c001-a.md", "---\nid: c001\ntitle: Alpha\nstatus: ready\norder: 10\n---\nbody\n"),
+      file("cards/c002-b.md", "---\nid: c002\ntitle: Beta\nstatus: ready\norder: 20\n---\nbody\n"),
+    ]);
+
+  it("c0149: a ghost-area drop in a manual column reorders the card to the bottom", () => {
+    const onReorderCard = vi.fn();
+    render(
+      <Board model={manualBoard()} onMoveCard={vi.fn()} onReorderCard={onReorderCard} onRenumber={vi.fn()} />,
+    );
+    const card = screen.getByText("Alpha").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(card, { dataTransfer });
+    // the section is the ghost lane behind the cards — a bare column drop
+    fireEvent.drop(column("ready"), { dataTransfer });
+
+    expect(onReorderCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+      expect.any(Number),
+    );
+    // below Beta (order 20) → a greater rank, i.e. the bottom
+    expect(onReorderCard.mock.calls[0][1]).toBeGreaterThan(20);
+  });
+
+  it("c0149: a ghost-area drop from another column moves the card in at the bottom", () => {
+    const onMoveCard = vi.fn();
+    const model = loadBoard([
+      file("board.yaml", "columns: [backlog, ready, done]\n"),
+      file("cards/c001-a.md", "---\nid: c001\ntitle: Alpha\nstatus: backlog\norder: 10\n---\nbody\n"),
+      file("cards/c002-b.md", "---\nid: c002\ntitle: Beta\nstatus: ready\norder: 20\n---\nbody\n"),
+      file("cards/c003-c.md", "---\nid: c003\ntitle: Gamma\nstatus: ready\norder: 30\n---\nbody\n"),
+    ]);
+    render(<Board model={model} onMoveCard={onMoveCard} onReorderCard={vi.fn()} onRenumber={vi.fn()} />);
+    const card = screen.getByText("Alpha").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(column("ready"), { dataTransfer });
+
+    expect(onMoveCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+      "ready",
+      expect.any(Number),
+    );
+    // after Gamma (order 30) → the bottom of ready
+    expect(onMoveCard.mock.calls[0][2]).toBeGreaterThan(30);
+  });
+
+  it("c0149: a ghost-area drop in a non-manual column stays a plain status move", () => {
+    const onMoveCard = vi.fn();
+    const onReorderCard = vi.fn();
+    render(
+      <Board model={manualBoard()} onMoveCard={onMoveCard} onReorderCard={onReorderCard} onRenumber={vi.fn()} />,
+    );
+    const card = screen.getByText("Alpha").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(column("done"), { dataTransfer }); // done is not a manual column
+
+    // plain status change — no order, no reorder
+    expect(onMoveCard).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c001" }),
+      "done",
+    );
+    expect(onReorderCard).not.toHaveBeenCalled();
+  });
+
   it("moves a focused card with arrow keys", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} />);
@@ -1374,9 +1444,13 @@ describe("Board card moves", () => {
     fireEvent.dragStart(inboxCard, { dataTransfer });
     fireEvent.drop(column("ready"), { dataTransfer });
 
+    // c0149: a ghost-area drop on a manual column now carries the bottom slot
+    // order to the picker (like the i0015 insert-zone drop), so pick/dismiss
+    // lands it at the end rather than defaulting there implicitly.
     expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c010", epic: null }),
       "ready",
+      expect.any(Number),
     );
     expect(onMove).not.toHaveBeenCalled();
   });
@@ -1395,9 +1469,11 @@ describe("Board card moves", () => {
     fireEvent.dragStart(inboxCard, { dataTransfer });
     fireEvent.drop(column("backlog"), { dataTransfer });
 
+    // c0149: backlog is manual, so the ghost drop carries the bottom order too
     expect(onInboxStatusDrop).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c010", epic: null }),
       "backlog",
+      expect.any(Number),
     );
     expect(onMove).not.toHaveBeenCalled();
   });
@@ -1436,10 +1512,13 @@ describe("Board card moves", () => {
     fireEvent.dragStart(milestoneCard, { dataTransfer });
     fireEvent.drop(column("ready"), { dataTransfer });
 
+    // c0149: ready is manual, so the move now lands the card at the bottom with
+    // an explicit order rather than a bare status change
     expect(onInboxStatusDrop).not.toHaveBeenCalled();
     expect(onMove).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c004" }),
       "ready",
+      expect.any(Number),
     );
   });
 
