@@ -1,11 +1,11 @@
 ---
 id: i0125
 title: Unwrappable text bleeds out of card
-status: in-progress
+status: review
 type: issue
 created: 2026-08-04
 updated: 2026-08-05
-status-changed: 2026-08-05T13:22:14
+status-changed: 2026-08-05T13:26:11
 epic: e02
 ---
 
@@ -46,3 +46,4 @@ overflowed the card's right edge (see the screenshot) instead of wrapping.
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 overflow-wrap: anywhere on the card-front and card-detail titles so
   long unbreakable tokens break instead of bleeding out — CSS-only
+- 2026-08-05 status → review (agent)
