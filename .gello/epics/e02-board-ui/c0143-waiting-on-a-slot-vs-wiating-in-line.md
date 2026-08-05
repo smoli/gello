@@ -1,10 +1,10 @@
 ---
 id: c0143
 title: Waiting on a slot vs waiting in line
-status: in-progress
+status: review
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:45:11
+status-changed: 2026-08-05T12:53:29
 epic: e02
 ---
 
@@ -149,3 +149,4 @@ line (c0125), and the activity line (c0109) are untouched.
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 top-of-queue keeps "waiting on a slot"; the rest get a stable
   funny line (queueLine, 50 lines) — nextSlotWaiter picks the top; 12 tests
+- 2026-08-05 status → review (agent)
