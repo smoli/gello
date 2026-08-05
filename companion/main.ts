@@ -7,7 +7,7 @@
 //
 // Run with tsx: `pnpm companion [dir]`.
 
-import { watch } from "node:fs";
+import { watch, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +28,7 @@ import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
 import { createGelloServer } from "./mcp.ts";
 import { MCP_SUBCOMMAND, askServerSpec, resolveMcpScope } from "./ask-server.ts";
+import { controlPath, parseStopRequests, takeUnseen } from "./control.ts";
 import {
   LogPanes,
   addUsage,
@@ -283,12 +284,36 @@ function main(): void {
 
   runner.sync(model);
 
+  // c0119: the app requests a stop by appending to `.companion/control.json`.
+  // Baseline whatever is already there at startup, so a request written while
+  // the companion was down can't kill a card that has since been re-dispatched.
+  const seenStops = new Set<string>();
+  const readControl = () => {
+    try {
+      return readFileSync(controlPath(root), "utf8");
+    } catch {
+      return ""; // absent → no requests
+    }
+  };
+  const processStops = () => {
+    for (const request of takeUnseen(parseStopRequests(readControl()), seenStops)) {
+      runner.stop(request.cardId);
+    }
+  };
+  takeUnseen(parseStopRequests(readControl()), seenStops); // baseline only
+
   // Debounce watcher bursts (an atomic write is a delete+create; a triage
   // touches several files); reload once things settle, then let the runner
-  // reconcile. Ignore our own `.companion/` writes.
+  // reconcile. Our own `.companion/` writes are ignored — except the app's
+  // control file, which is the one thing under there we must react to (c0119).
   let timer: ReturnType<typeof setTimeout> | undefined;
   watch(root, { recursive: true }, (_event, filename) => {
-    if (filename && filename.replace(/\\/g, "/").startsWith(".companion/")) return;
+    const rel = filename?.replace(/\\/g, "/");
+    if (rel === ".companion/control.json") {
+      processStops();
+      return;
+    }
+    if (rel && rel.startsWith(".companion/")) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
       let next: BoardModel;
