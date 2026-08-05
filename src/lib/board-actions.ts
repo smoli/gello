@@ -374,7 +374,7 @@ const REF_CARD_KINDS: Record<
 
 /**
  * Create a card against another card (c024/c037, generalized in c0115): the new
- * card is born next to its source — same folder, source's epic, `ref`
+ * card is born next to its source — same folder, epic and tags (c0144), `ref`
  * pre-filled — with the kind deciding its id namespace, type and status.
  * Called only on draft submit; escaping the draft creates nothing.
  */
@@ -401,6 +401,7 @@ export function createRefCardFor(
     status,
     ref: source.id,
     epic: source.epic ?? undefined,
+    tags: source.tags, // c0144: the new card belongs to the same cross-cutting labels
   });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {

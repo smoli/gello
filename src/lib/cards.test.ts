@@ -597,6 +597,25 @@ describe("newCardRaw", () => {
     if (!result.ok) return;
     expect(result.card.title).toBe('Fix: the "thing" [maybe]');
   });
+
+  it("c0144: writes given tags as a flow list", () => {
+    const raw = newCardRaw("c022", "Tagged", "", "2026-07-16", {
+      tags: ["ui", "core"],
+    });
+
+    expect(raw).toContain("tags: [ui, core]\n");
+    const result = parseCard("x.md", raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.card.tags).toEqual(["ui", "core"]);
+  });
+
+  it("c0144: writes no tags line for an empty or missing tag list", () => {
+    expect(newCardRaw("c022", "Untagged", "", "2026-07-16", { tags: [] })).not.toContain(
+      "tags:",
+    );
+    expect(newCardRaw("c022", "Untagged", "", "2026-07-16")).not.toContain("tags:");
+  });
 });
 
 describe("newEpicRaw (i0028)", () => {

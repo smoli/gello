@@ -623,6 +623,65 @@ describe("issue creation (c024)", () => {
     expect(card.path).toBe("cards/c0042-has-a-screenshot.md");
   });
 
+  it("c0144: a follow-up inherits the source card's tags", async () => {
+    const source = parseCard(
+      "epics/e03-card-detail/c005-view.md",
+      "---\nid: c005\ntitle: The view\nstatus: done\nepic: e03\ntags: [ui, core]\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Second pass", body: "" },
+      "2026-08-05",
+    );
+
+    expect(card.tags).toEqual(["ui", "core"]);
+    expect(card.epic).toBe("e03");
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("tags: [ui, core]\n");
+  });
+
+  it("c0144: an issue inherits the source card's tags", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: review\ntags: [ui]\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card } = createIssueFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "It broke", body: "" },
+      "2026-08-05",
+    );
+
+    expect(card.tags).toEqual(["ui"]);
+  });
+
+  it("c0144: writes no tags line when the source has none", async () => {
+    const source = parseCard(
+      "cards/c007-existing.md",
+      "---\nid: c007\ntitle: Existing\nstatus: done\n---\nx\n",
+    );
+    if (!source.ok) throw new Error("fixture must parse");
+
+    const { card, persisted } = createFollowUpFor(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      source.card,
+      { title: "Second pass", body: "" },
+      "2026-08-05",
+    );
+
+    expect(card.tags).toEqual([]);
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).not.toContain("tags:");
+  });
+
   it("creates a issue for an inbox source card in the inbox", async () => {
     const source = parseCard(
       "inbox/c007-existing.md",

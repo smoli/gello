@@ -379,6 +379,9 @@ export interface NewCardOptions {
   epic?: string;
   /** c0089: initial status (default "backlog"; capture uses "inbox"). */
   status?: string;
+  /** c0144: tags to carry over, e.g. from the card a follow-up is born on.
+   *  An empty list writes no `tags:` line. */
+  tags?: string[];
 }
 
 /**
@@ -400,6 +403,7 @@ export function newCardRaw(
   if (options.type) lines.push(`type: ${formatScalar(options.type)}`);
   if (options.ref) lines.push(`ref: ${formatScalar(options.ref)}`);
   if (options.epic) lines.push(`epic: ${formatScalar(options.epic)}`);
+  if (options.tags?.length) lines.push(`tags: ${formatFlowList(options.tags)}`);
   // c056: created keeps the full capture time; updated stays a plain date
   lines.push(`created: ${now}`, `updated: ${now.slice(0, 10)}`);
   const trimmedBody = body.trim();
