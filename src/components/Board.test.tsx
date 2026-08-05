@@ -1268,9 +1268,11 @@ describe("Board card moves", () => {
     );
   });
 
-  it("ignores a drop on the card's own column", () => {
+  it("never fires a status move for a drop on the card's own column", () => {
+    // c0149: a same-column ghost drop reorders within the column (covered by the
+    // c0149 reorder test) — it must never come through as a status change.
     const onMove = vi.fn();
-    render(<Board model={MODEL} onMoveCard={onMove} />);
+    render(<Board model={MODEL} onMoveCard={onMove} onReorderCard={vi.fn()} onRenumber={vi.fn()} />);
     const card = screen.getByText("First card").closest("article")!;
     const dataTransfer = fakeDataTransfer();
 
