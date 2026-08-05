@@ -1,11 +1,12 @@
 ---
 id: c0146
 title: ctrl+tab project switcher
-status: discuss
+status: ready
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:46:43
+status-changed: 2026-08-05T13:01:17
 epic: e02
+order: 40
 ---
 
 ## What
@@ -94,3 +95,4 @@ projects are separate processes and keep running headless — unaffected.
   shown greyed and warn on open.
 - 2026-08-05 added Ctrl+Esc to abort — takes precedence over commit, so the
   following modifier release opens nothing.
+- 2026-08-05 status → ready (app)
