@@ -67,6 +67,7 @@ import {
   readFileRaw,
   removeFile,
   setBoardImage,
+  requestRestartCard,
   requestStopRun,
   startCompanion,
   watchBoard,
@@ -589,6 +590,19 @@ function App() {
     } catch (failure) {
       setError(
         `could not stop the run: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+    }
+  };
+
+  /** c0141: ask the companion to restart a stopped card — it resumes the
+   *  session in place. Fire-and-forget; the 2s poll shows the run come back. */
+  const handleRestartCard = async (cardId: string) => {
+    if (!board) return;
+    try {
+      await requestRestartCard(board.root, cardId);
+    } catch (failure) {
+      setError(
+        `could not restart the card: ${failure instanceof Error ? failure.message : String(failure)}`,
       );
     }
   };
@@ -1522,6 +1536,7 @@ function App() {
           onReorderCard={handleReorder}
           onRenumber={handleRenumber}
           runner={runner}
+          onRestartCard={(cardId) => void handleRestartCard(cardId)}
         />
         {managingTags && (
           <TagManager

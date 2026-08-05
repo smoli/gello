@@ -651,3 +651,26 @@ button.tag-chip {
   opacity: 0.85;
   color: #3a8a4f;
 }
+
+/* c0141: a stopped run's restart affordance, in the activity-line slot. Reads
+   as a recoverable state (amber like blocked), with the Restart itself a small
+   pill button. */
+.card-activity-stopped {
+  opacity: 0.9;
+  color: #b97a0a;
+}
+.card-restart {
+  font: inherit;
+  font-size: 0.65rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #b97a0a 55%, transparent);
+  background: color-mix(in srgb, #f5a623 14%, transparent);
+  color: #b97a0a;
+  cursor: pointer;
+}
+.card-restart:hover {
+  border-color: transparent;
+  background: #b97a0a;
+  color: white;
+}

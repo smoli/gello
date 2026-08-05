@@ -83,6 +83,7 @@ describe("Board", () => {
       runs: [{ cardId: "c001", phase: "running" as const, activity: { name: "Edit", arg: "src/runner.ts" } }],
       updated: localNow(),
       pickupDelay: 0,
+      owned: [],
     };
     render(<Board model={model} runner={runner} />);
 
@@ -252,6 +253,7 @@ describe("Board", () => {
       runs: [{ cardId: "c001", phase: "running" as const }],
       updated: localNow(),
       pickupDelay: 0,
+      owned: [],
     };
     render(<Board model={model} runner={runner} />);
     const card1 = screen.getByText("Thinking card").closest("article")!;
@@ -273,6 +275,7 @@ describe("Board", () => {
       runs: [{ cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Bash", arg: "x" } }],
       updated: localNow(),
       pickupDelay: 0,
+      owned: [],
     };
     render(<Board model={model} runner={runner} />);
     const parked = screen.getByText("Parked card").closest("article")!;
@@ -295,6 +298,7 @@ describe("Board", () => {
       ],
       updated,
       pickupDelay: 0,
+      owned: [],
     };
   }
 
@@ -326,10 +330,60 @@ describe("Board", () => {
       runs: [],
       updated: localNow(),
       pickupDelay: 10,
+      owned: [],
     };
     render(<Board model={readyBoard()} runner={runner} />);
     const front = screen.getByText("Waiting card").closest("article")!;
     expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+  });
+
+  // c0141: a stopped card (companion-owned, in-progress, no live run) offers a
+  // manual restart; a human-worked in-progress card (no session) does not.
+  function inProgressBoard() {
+    return loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, done]\n"),
+      file("cards/c001-run.md", card("c001", "Stopped card", "in-progress")),
+    ]);
+  }
+  const liveRunner = (over = {}) => ({
+    status: "idle" as const,
+    ready: [],
+    waiting: [],
+    runs: [],
+    updated: localNow(),
+    pickupDelay: 0,
+    owned: ["c001"],
+    ...over,
+  });
+
+  it("c0141: offers Restart on a stopped, companion-owned card", () => {
+    const onRestartCard = vi.fn();
+    render(<Board model={inProgressBoard()} runner={liveRunner()} onRestartCard={onRestartCard} />);
+    const front = screen.getByText("Stopped card").closest("article")!;
+    const button = within(front).getByRole("button", { name: "Restart" });
+    fireEvent.click(button);
+    expect(onRestartCard).toHaveBeenCalledExactlyOnceWith("c001");
+  });
+
+  it("c0141: offers no Restart on a card the companion owns no session for", () => {
+    render(
+      <Board model={inProgressBoard()} runner={liveRunner({ owned: [] })} onRestartCard={vi.fn()} />,
+    );
+    const front = screen.getByText("Stopped card").closest("article")!;
+    expect(within(front).queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
+  it("c0141: offers no Restart while a run is live for the card", () => {
+    const runner = liveRunner({ runs: [{ cardId: "c001", phase: "running" as const }] });
+    render(<Board model={inProgressBoard()} runner={runner} onRestartCard={vi.fn()} />);
+    const front = screen.getByText("Stopped card").closest("article")!;
+    expect(within(front).queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
+  it("c0141: offers no Restart with no companion attached", () => {
+    render(<Board model={inProgressBoard()} runner={null} onRestartCard={vi.fn()} />);
+    const front = screen.getByText("Stopped card").closest("article")!;
+    expect(within(front).queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
   });
 
   // c0125: "but show it after the block is gone" — the other half is covered by
@@ -350,6 +404,7 @@ describe("Board", () => {
       runs: [],
       updated: localNow(),
       pickupDelay: 10,
+      owned: [],
     };
     render(<Board model={model} runner={runner} />);
     const front = screen.getByText("Waiting card").closest("article")!;
@@ -371,6 +426,7 @@ describe("Board", () => {
       runs: [],
       updated: localNow(),
       pickupDelay: 0,
+      owned: [],
     };
     render(<Board model={readyBoard()} runner={runner} />);
     const front = screen.getByText("Waiting card").closest("article")!;
@@ -396,6 +452,7 @@ describe("Board", () => {
     runs: [{ cardId: "c002", phase: "running" as const }],
     updated: localNow(),
     pickupDelay: 10,
+    owned: [],
     ...over,
   });
 
@@ -442,6 +499,7 @@ describe("Board", () => {
     runs: [{ cardId: "run", phase: "running" as const }],
     updated: localNow(),
     pickupDelay: 0,
+    owned: [],
   });
   const frontOf = (title: string) => screen.getByText(title).closest("article")!;
 
@@ -579,6 +637,7 @@ describe("Board", () => {
       ],
       updated: localNow(),
       pickupDelay: 0,
+      owned: [],
     };
     render(<Board model={blockedBoard("in-progress")} runner={runner} />);
     const front = heldFront();
@@ -606,6 +665,7 @@ describe("Board", () => {
       runs: [],
       updated: localNow(),
       pickupDelay: 10,
+      owned: [],
     };
     render(<Board model={model} runner={runner} />);
     const front = heldFront();

@@ -21,6 +21,7 @@ import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
 import { pickupCountdown, waitingForSlot } from "../lib/pickup";
+import { isStoppedCard } from "../lib/restart";
 import { queueLine } from "../lib/queue-lines";
 import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
@@ -147,11 +148,15 @@ export function Board({
   query = "",
   showArchived = false,
   runner,
+  onRestartCard,
 }: {
   model: BoardModel;
   /** c0109: companion state, for a running card's live activity line. Null when
    *  the companion isn't running → no line. */
   runner?: CompanionState | null;
+  /** c0141: restart a stopped card — offered on a companion-owned, in-progress
+   *  card with no live run. */
+  onRestartCard?: (cardId: string) => void;
   onMoveCard?: MoveCardHandler;
   /** i0028: create a new epic from the filter's "+ New epic" option. */
   onNewEpic?: () => void;
@@ -559,6 +564,7 @@ export function Board({
               darkChips={darkChips}
               runner={runner}
               slotWaiterTopId={slotWaiterTopId}
+              onRestartCard={onRestartCard}
             />
           );
         })}
@@ -672,6 +678,7 @@ function Column({
   darkChips,
   runner,
   slotWaiterTopId,
+  onRestartCard,
   wip,
 }: {
   name: string;
@@ -680,6 +687,8 @@ function Column({
   wip: WipState | null;
   /** c0109: companion state, forwarded to each card front for its activity line. */
   runner?: CompanionState | null;
+  /** c0141: restart a stopped card, forwarded to each card front. */
+  onRestartCard?: (cardId: string) => void;
   /** c0143: id of the queued card next when a slot frees — it keeps the honest
    *  "waiting on a slot"; the rest get a funny queue line. */
   slotWaiterTopId?: string | null;
@@ -792,6 +801,7 @@ function Column({
                 darkChips={darkChips}
                 runner={runner}
                 slotWaiterTopId={slotWaiterTopId}
+                onRestartCard={onRestartCard}
               />
             </Fragment>
           ))}
@@ -871,12 +881,15 @@ function CardFront({
   darkChips,
   runner,
   slotWaiterTopId,
+  onRestartCard,
 }: {
   entry: BoardCard;
   /** c0109: companion state, for this card's live activity line (null → none). */
   runner?: CompanionState | null;
   /** c0143: id of the card next when a slot frees — it keeps the honest line. */
   slotWaiterTopId?: string | null;
+  /** c0141: restart a stopped card (companion-owned, in-progress, no live run). */
+  onRestartCard?: (cardId: string) => void;
   /** True while this card is the one being dragged (i0004 origin marker). */
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
@@ -918,6 +931,9 @@ function CardFront({
   // c0137: a queued ready card the companion cannot dispatch because every WIP
   // slot is taken — shown in place of the countdown, which would never fire.
   const waitingSlot = waitingForSlot(runner ?? null, card.id, Date.now(), blocked, slotFree);
+  // c0141: a stopped card — a companion-owned in-progress card whose run died
+  // with no live run left — can be restarted in place, resuming its session.
+  const stopped = isStoppedCard(runner ?? null, card.id, card.status, Date.now());
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
@@ -1054,6 +1070,25 @@ function CardFront({
           title="Every in-progress slot is full — this starts when one frees up"
         >
           {card.id === slotWaiterTopId ? "waiting on a slot" : queueLine(card.id)}
+        </p>
+      )}
+      {/* c0141: the run stopped (quota, crash, connection) and nothing re-picks
+          an in-progress card — offer a manual, in-place restart that resumes
+          the session warm. Only for a card the companion owns and is live for. */}
+      {stopped && onRestartCard && (
+        <p className="card-activity card-activity-stopped" role="status">
+          run stopped —{" "}
+          <button
+            type="button"
+            className="card-restart"
+            title="Restart — resume the agent on this card"
+            onClick={(event) => {
+              event.stopPropagation(); // the whole front opens the card (c0118)
+              onRestartCard(card.id);
+            }}
+          >
+            Restart
+          </button>
         </p>
       )}
       {/* c0123: why this card is going nowhere — the dependencies that are not
