@@ -1,12 +1,12 @@
 ---
 id: c0141
 title: restart a stopped card
-status: ready
+status: backlog
 created: 2026-07-28
-updated: 2026-07-30
-status-changed: 2026-07-29T08:33:51
+updated: 2026-08-05
+status-changed: 2026-08-05T11:23:59
 epic: e08
-order: 10
+order: -5
 ---
 
 ## What
@@ -101,3 +101,4 @@ in-progress card already holds, so WIP is unaffected.
   channel shared with c0119's stop.
 - 2026-07-29 status → backlog (app)
 - 2026-07-29 status → ready (app)
+- 2026-08-05 status → backlog (app)

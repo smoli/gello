@@ -1,12 +1,12 @@
 ---
 id: c0119
 title: Stop an in-flight companion run
-status: ready
+status: backlog
 epic: e08
 created: 2026-07-22
-updated: 2026-07-30
-status-changed: 2026-07-30T22:08:14
-order: 15
+updated: 2026-08-05
+status-changed: 2026-08-05T11:24:03
+order: -2.5
 ---
 
 ## What
@@ -114,3 +114,4 @@ already learned, rather than re-paying a cold start on a half-done card.
   session retained so a re-dispatch resumes warm.
 - 2026-07-29 status → backlog (app)
 - 2026-07-30 status → ready (app)
+- 2026-08-05 status → backlog (app)
