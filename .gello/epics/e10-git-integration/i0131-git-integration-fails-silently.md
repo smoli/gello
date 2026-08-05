@@ -1,13 +1,12 @@
 ---
 id: i0131
 title: Git integration fails silently
-status: ready
+status: in-progress
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:23:14
+status-changed: 2026-08-05T23:54:33
 epic: e10
-order: 30
 ---
 
 ## What
@@ -28,3 +27,4 @@ already has.
 ## Log
 
 - 2026-08-05 status → ready (app)
+- 2026-08-05 status → in-progress (agent)

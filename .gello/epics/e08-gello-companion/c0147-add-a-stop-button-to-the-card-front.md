@@ -1,12 +1,12 @@
 ---
 id: c0147
 title: Add a stop button to the card front
-status: in-progress
+status: review
 ref: c0119
 epic: e08
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T23:45:52
+status-changed: 2026-08-05T23:54:29
 ---
 
 reuse the css mechanics already available for the follow up buttons in the review/done queue to only show the stop button when the mouse hovers the card
@@ -43,3 +43,4 @@ reuse the css mechanics already available for the follow up buttons in the revie
 - 2026-08-05 (agent) added a hover-revealed ✕ stop to the card front for a card
   with a live run, reusing the follow-up trigger's reveal mechanic and the
   c0119 stop path. All tests, typecheck, lint and a build green.
+- 2026-08-05 status → review (agent)
