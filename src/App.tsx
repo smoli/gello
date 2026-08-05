@@ -55,6 +55,7 @@ import {
   gitBranch,
   imageDataUrl,
   initBoard,
+  boardExistsAt,
   gitBoardChanges,
   gitCommitBoard,
   gitWorktreeStatus,
@@ -90,6 +91,9 @@ import {
   suggestedAssetName,
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
+import { openSwitcher, cycleSwitcher, type SwitcherState } from "./lib/switcher";
+import { ProjectSwitcher } from "./components/ProjectSwitcher";
+import { isMacOS } from "./lib/platform";
 import { backgroundCss, classifyBackground } from "./lib/background";
 import { removeBoardKey, removeTagColor, setBoardKey, setTagColor } from "./lib/boardyaml";
 import { TagManager } from "./components/TagManager";
@@ -214,6 +218,11 @@ function App() {
   const [skillDirs, setSkillDirs] = useState<string[]>([]);
   // c016: recent project folders (app-local, most-recent first)
   const [recent, setRecent] = useState<string[]>([]);
+  // c0146: the MRU project switcher (Ctrl+Tab). null = closed; else the frozen
+  // recent snapshot + the highlighted index. `switcherDead` greys entries whose
+  // board can no longer be found.
+  const [switcher, setSwitcher] = useState<SwitcherState | null>(null);
+  const [switcherDead, setSwitcherDead] = useState<ReadonlySet<string>>(new Set());
   // c0063: show first-image thumbnails on board cards (default on, off = "0")
   const [showThumbnails, setShowThumbnails] = useState(true);
   // c018: show archived cards on the board (off by default, on = "1")
@@ -299,6 +308,116 @@ function App() {
     return () => window.removeEventListener("keydown", swallowEscape, true);
   }, []);
 
+  // c0146: the Ctrl+Tab MRU project switcher. Window listeners are registered
+  // once, so everything mutable they read rides in refs — the switcher state
+  // above all, since the Escape keydown must null it *synchronously* before the
+  // modifier keyup that follows, or the abort would still commit.
+  const switcherRef = useRef<SwitcherState | null>(null);
+  const setSwitcherState = (next: SwitcherState | null) => {
+    switcherRef.current = next;
+    setSwitcher(next);
+  };
+  const recentRef = useRef(recent);
+  recentRef.current = recent;
+  const switcherDeadRef = useRef<ReadonlySet<string>>(switcherDead);
+  switcherDeadRef.current = switcherDead;
+  const openProjectRef = useRef((_folder: string) => {});
+  const isMac = isMacOS();
+
+  // c0146: which of the frozen recent entries no longer have a board — greyed,
+  // and refused on commit. Cheap existence check per entry, ignored if the
+  // switcher has since closed.
+  const checkSwitcherDead = (items: string[]) => {
+    setSwitcherDead(new Set());
+    switcherDeadRef.current = new Set();
+    void Promise.all(
+      items.map(async (path) => ((await boardExistsAt(path)) ? null : path)),
+    ).then((results) => {
+      const dead = new Set(results.filter((p): p is string => p !== null));
+      setSwitcherDead(dead);
+      switcherDeadRef.current = dead;
+    });
+  };
+
+  /** c0146: open the highlighted project (or warn if its board is gone); a
+   *  commit to the current project (index 0) is a no-op. Always closes. */
+  const commitSwitcher = (state: SwitcherState) => {
+    const path = state.items[state.selected];
+    setSwitcherState(null);
+    if (state.selected === 0) return; // already on the current project
+    if (switcherDeadRef.current.has(path)) {
+      setError(`Can't switch: no gello board found at ${path}`);
+      return;
+    }
+    void openProjectRef.current(path);
+  };
+
+  useEffect(() => {
+    const opensSwitcher = (e: KeyboardEvent) =>
+      (e.key === "Tab" && e.ctrlKey) || (isMac && e.key === "`" && e.metaKey);
+    const cyclesSwitcher = (e: KeyboardEvent) =>
+      e.key === "Tab" || (isMac && e.key === "`");
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const open = switcherRef.current;
+      if (open === null) {
+        if (opensSwitcher(e)) {
+          const next = openSwitcher(recentRef.current);
+          if (next) {
+            e.preventDefault();
+            setSwitcherState(next);
+            checkSwitcherDead(next.items);
+          }
+        }
+        return;
+      }
+      // switcher is open
+      if (e.key === "Escape") {
+        // abort — stay put; nulling now means the trailing modifier keyup finds
+        // nothing to commit
+        e.preventDefault();
+        setSwitcherState(null);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitSwitcher(open);
+        return;
+      }
+      if (cyclesSwitcher(e)) {
+        e.preventDefault();
+        setSwitcherState(cycleSwitcher(open, e.shiftKey ? -1 : 1));
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      const open = switcherRef.current;
+      if (open === null) return;
+      // releasing the modifier that holds the switcher open commits (the
+      // Alt+Tab gesture): Control everywhere, Meta for the mac Cmd+` binding
+      if (e.key === "Control" || (isMac && e.key === "Meta")) {
+        e.preventDefault();
+        commitSwitcher(open);
+      }
+    };
+
+    // a lost keyup (focus stolen mid-gesture) would strand the overlay — close
+    // it on blur rather than commit
+    const onBlur = () => {
+      if (switcherRef.current !== null) setSwitcherState(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+    // registered once; all mutable reads go through refs
+  }, []);
+
   // c0068: apply the theme override to the document — "light"/"dark" force the
   // scheme, "system" falls back to following the OS (prefers-color-scheme)
   useEffect(() => {
@@ -333,6 +452,9 @@ function App() {
       setInitCandidate(folder);
     }
   };
+  // c0146: the switcher's window listeners commit through this ref, so they
+  // always call the current openProject (fresh board/recent closure).
+  openProjectRef.current = openProject;
   const pickAndOpen = async () => {
     const folder = await pickFolder();
     if (folder) await openProject(folder);
@@ -1411,6 +1533,17 @@ function App() {
     </div>
   );
 
+  // c0146: the MRU project switcher overlay, shown in every view a user can
+  // Ctrl+Tab from (board view and the no-board placeholder).
+  const switcherOverlay = switcher && (
+    <ProjectSwitcher
+      items={switcher.items}
+      selected={switcher.selected}
+      dead={switcherDead}
+      onPick={(index) => commitSwitcher({ ...switcher, selected: index })}
+    />
+  );
+
   // c0079: a pre-epic milestone-format board is gated until migrated — the
   // board never renders in the old format.
   if (board && board.legacy) {
@@ -1451,6 +1584,7 @@ function App() {
           search={query}
           onSearch={setQuery}
         />
+        {switcherOverlay}
         {initPrompt}
         {skillDirs.length > 0 && (
           <SkillPrompt
@@ -1815,7 +1949,15 @@ function App() {
 
   return (
     <main className="app">
+      {switcherOverlay}
       {initPrompt}
+      {/* c0146: a warning (e.g. switching to a project whose board is gone)
+          must be visible here too, not only in the board view. */}
+      {error && (
+        <div role="alert" className="board-error">
+          {error}
+        </div>
+      )}
       <h1>gello</h1>
       <p className="empty-state">No board loaded.</p>
       <button type="button" className="empty-open" onClick={() => void pickAndOpen()}>

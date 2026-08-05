@@ -1,0 +1,87 @@
+/* c0146: the MRU project switcher overlay — centred, above everything. */
+.switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, CanvasText 25%, transparent);
+}
+
+.switcher-panel {
+  min-width: min(360px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  box-shadow: 0 16px 48px color-mix(in srgb, CanvasText 30%, transparent);
+}
+
+.switcher-heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.switcher-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.switcher-item {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.switcher-item:hover {
+  background: color-mix(in srgb, #4c8bf5 12%, Canvas);
+}
+
+/* the Alt+Tab highlight the arrow/Tab keys move */
+.switcher-item-selected {
+  background: color-mix(in srgb, #4c8bf5 22%, Canvas);
+  border-color: color-mix(in srgb, #4c8bf5 55%, transparent);
+}
+
+.switcher-name {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.switcher-tag {
+  font-size: 0.65rem;
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* c0146: a recent whose board moved/was deleted — greyed, not hidden. */
+.switcher-item-dead {
+  opacity: 0.5;
+}
+
+.switcher-missing {
+  font-size: 0.68rem;
+  color: #b97a0a;
+}

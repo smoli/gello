@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
+  boardExistsAt,
   imageDataUrl,
   loadBoardFromDisk,
   migrateBoard,
@@ -70,6 +71,28 @@ describe("loadBoardFromDisk", () => {
     invokeMock.mockRejectedValueOnce(new Error("window.__TAURI_INTERNALS__ missing"));
 
     expect(await loadBoardFromDisk()).toBeNull();
+  });
+});
+
+describe("boardExistsAt (c0146)", () => {
+  beforeEach(() => invokeMock.mockReset());
+
+  it("is true when a board root is found for the folder", async () => {
+    invokeMock.mockResolvedValueOnce("/repo/.gello");
+    expect(await boardExistsAt("/repo")).toBe(true);
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("find_board_root_at", {
+      folder: "/repo",
+    });
+  });
+
+  it("is false when the folder has no board (moved/deleted repo)", async () => {
+    invokeMock.mockResolvedValueOnce(null);
+    expect(await boardExistsAt("/gone")).toBe(false);
+  });
+
+  it("is false outside Tauri / on error", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("no invoke"));
+    expect(await boardExistsAt("/x")).toBe(false);
   });
 });
 

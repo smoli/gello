@@ -332,6 +332,19 @@ export async function loadBoardAt(folder: string): Promise<LoadedBoard | null> {
 }
 
 /**
+ * c0146: does `folder` still hold a board? A cheap existence check (no file
+ * read) used to grey recent entries whose repo has moved or been deleted in the
+ * project switcher. False outside Tauri or on any error.
+ */
+export async function boardExistsAt(folder: string): Promise<boolean> {
+  try {
+    return (await invoke<string | null>("find_board_root_at", { folder })) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Locate and load the board of the current project. Returns null when there
  * is no `.gello/` directory — or when running outside Tauri (plain browser),
  * where the invoke bridge is unavailable.

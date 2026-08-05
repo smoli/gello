@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { loadBoard } from "./lib/board";
 import {
   appFlagGet,
+  boardExistsAt,
   appFlagSet,
   detectSkillDirs,
   gitBranch,
@@ -42,6 +43,7 @@ vi.mock("./lib/board-io", () => ({
   appFlagGet: vi.fn(),
   appFlagSet: vi.fn(),
   loadBoardAt: vi.fn(),
+  boardExistsAt: vi.fn(),
   migrateLegacyBoard: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
@@ -118,6 +120,8 @@ describe("App", () => {
     vi.mocked(appFlagGet).mockResolvedValue(null);
     vi.mocked(appFlagSet).mockResolvedValue(undefined);
     vi.mocked(loadBoardAt).mockResolvedValue(null);
+    vi.mocked(boardExistsAt).mockReset();
+    vi.mocked(boardExistsAt).mockResolvedValue(true);
     vi.mocked(pickFolder).mockResolvedValue(null);
     vi.mocked(initBoard).mockResolvedValue("/x/.gello");
     vi.mocked(writeNewFiles).mockReset();
@@ -2202,5 +2206,105 @@ describe("App", () => {
 
     // the epic filter must not carry over — board B's card is visible
     expect(await screen.findByText("Board B card")).toBeInTheDocument();
+  });
+
+  // c0146: the Ctrl+Tab MRU project switcher.
+  describe("c0146: project switcher", () => {
+    beforeEach(() => vi.mocked(loadBoardAt).mockClear());
+    const RECENT = ["/proj/gello", "/proj/popexel", "/proj/holzhof"];
+    const seedRecent = () =>
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key === "recent-projects" ? JSON.stringify(RECENT) : null,
+      );
+
+    // render the no-board placeholder with recent loaded, then Ctrl+Tab
+    async function openSwitcher() {
+      loadMock.mockResolvedValue(null); // no board on disk → placeholder
+      seedRecent();
+      render(<App />);
+      // recent has loaded once its entries show in the placeholder
+      await screen.findByRole("button", { name: "popexel" });
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+      return screen.getByRole("dialog", { name: /switch project/i });
+    }
+
+    it("opens on Ctrl+Tab, preselecting the previous project", async () => {
+      const dialog = await openSwitcher();
+      expect(
+        within(dialog).getByRole("option", { name: /popexel/, selected: true }),
+      ).toBeInTheDocument();
+      // the current project stays on top, not selected
+      expect(within(dialog).getByRole("option", { name: /gello/ })).toHaveAttribute(
+        "aria-selected",
+        "false",
+      );
+    });
+
+    it("commits the selection when the modifier is released", async () => {
+      await openSwitcher();
+      fireEvent.keyUp(window, { key: "Control" });
+      await waitFor(() =>
+        expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/proj/popexel"),
+      );
+    });
+
+    it("Tab cycles down before committing; the list stays frozen", async () => {
+      const dialog = await openSwitcher();
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true }); // popexel → holzhof
+      expect(
+        within(dialog).getByRole("option", { name: /holzhof/, selected: true }),
+      ).toBeInTheDocument();
+      fireEvent.keyUp(window, { key: "Control" });
+      await waitFor(() =>
+        expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/proj/holzhof"),
+      );
+    });
+
+    it("Shift+Tab cycles up and wraps to the current on top", async () => {
+      const dialog = await openSwitcher();
+      // from popexel (1), Shift+Tab → gello (0)
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
+      expect(
+        within(dialog).getByRole("option", { name: /gello/, selected: true }),
+      ).toBeInTheDocument();
+    });
+
+    it("Ctrl+Esc aborts — the following modifier release commits nothing", async () => {
+      await openSwitcher();
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("dialog", { name: /switch project/i })).not.toBeInTheDocument();
+      fireEvent.keyUp(window, { key: "Control" });
+      // give any stray commit a chance to fire
+      await act(async () => void (await Promise.resolve()));
+      expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
+    });
+
+    it("greys a dead entry and refuses to switch to it, warning instead", async () => {
+      vi.mocked(boardExistsAt).mockImplementation(
+        async (folder: string) => folder !== "/proj/popexel",
+      );
+      const dialog = await openSwitcher();
+      // the dead entry greys once the existence check resolves
+      await waitFor(() =>
+        expect(within(dialog).getByRole("option", { name: /popexel/ })).toHaveClass(
+          "switcher-item-dead",
+        ),
+      );
+      // committing to it (preselected) warns and does not load a board
+      fireEvent.keyUp(window, { key: "Control" });
+      expect(await screen.findByRole("alert")).toHaveTextContent(/no gello board/i);
+      expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
+    });
+
+    it("does not open with fewer than two recent projects", async () => {
+      loadMock.mockResolvedValue(null);
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key === "recent-projects" ? JSON.stringify(["/proj/only"]) : null,
+      );
+      render(<App />);
+      await screen.findByRole("button", { name: "only" });
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+      expect(screen.queryByRole("dialog", { name: /switch project/i })).not.toBeInTheDocument();
+    });
   });
 });
