@@ -85,6 +85,35 @@ projects are separate processes and keep running headless — unaffected.
   fallback — `Enter` commits, and the overlay closes if focus is lost — plus a
   decision on whether entries are also clickable.
 
+## Notes
+
+- Four pieces: the pure selection logic (`lib/switcher.ts` —
+  `openSwitcher`/`cycleSwitcher`), a cheap existence check (`boardExistsAt` in
+  board-io, wrapping `find_board_root_at`), the overlay (`ProjectSwitcher.tsx`,
+  a view over the frozen list), and the App key wiring. Only the last is not a
+  small unit — the rest are each unit-tested (22 tests total).
+- **The open "load-bearing risk" (commit on modifier keyup) is resolved with
+  belt-and-braces**: keyup on Control (or Meta for the mac `Cmd+`` ` ``) commits,
+  and there are three fallbacks so a lost keyup never strands the overlay —
+  `Enter` commits, clicking an entry commits it, and losing window focus closes
+  the switcher (no commit). Entries are clickable (the human's open question):
+  yes.
+- **Abort precedence** works by nulling the switcher *synchronously* through a
+  ref in the Escape keydown, so the modifier keyup that follows finds nothing to
+  commit — no separate "aborted" flag needed.
+- The window listeners register once; everything mutable they read (switcher
+  state, recent, dead set, current `openProject`) rides in refs, so they always
+  see fresh values without re-subscribing.
+- Dead entries: on open, each recent path is checked with `boardExistsAt` (cheap
+  — no file read); the missing ones grey and are refused on commit with a
+  warning. The warning (`setError`) is now rendered in the no-board placeholder
+  too, since the switcher works there.
+- **Not exercisable headless, worth a real-app check**: the macOS `Cmd+`` ` ``
+  binding (jsdom's `isMacOS()` is false, so tests drive `Ctrl+Tab`) and the
+  actual keyup delivery in WKWebView — the whole reason for the fallbacks. The
+  commit *logic* is tested via `Ctrl+Tab` + Control keyup, which is the same
+  path.
+
 ## Log
 
 - 2026-08-05 status → discuss (app)
@@ -96,3 +125,6 @@ projects are separate processes and keep running headless — unaffected.
   following modifier release opens nothing.
 - 2026-08-05 status → ready (app)
 - 2026-08-06 status → in-progress (agent)
+- 2026-08-06 MRU switcher: pure openSwitcher/cycleSwitcher + boardExistsAt +
+  ProjectSwitcher overlay + App key wiring (keyup commit, Enter/click/blur
+  fallbacks, Ctrl+Esc abort, dead-entry warn) — 22 tests
