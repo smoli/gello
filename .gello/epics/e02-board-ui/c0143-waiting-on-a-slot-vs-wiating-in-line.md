@@ -53,6 +53,24 @@ line (c0125), and the activity line (c0109) are untouched.
       and activity (c0109) render as before
 - [x] All 50 lines are inoffensive / SFW
 
+## Notes
+
+- Two pure pieces, each unit-tested: `queueLine(id)` in `queue-lines.ts` (the
+  50-line constant + the tags.ts name-hash `% 50`, stable per id) and
+  `nextSlotWaiter(waiters)` in `board.ts` (the first by `columnComparator
+  ("ready")`, the manual dispatch order — mirrors c0140's `nextStartable`).
+- The top slot-waiter id is computed once, board-wide, in `Board` from the
+  cards `waitingForSlot` (c0137) marks — board-wide because the companion
+  dispatches board-wide, so "genuinely next" ignores the epic filter. Threaded
+  to the card front like `runner`; the front renders "waiting on a slot" when
+  its id equals the top, else `queueLine(id)`.
+- The **top stays "waiting on a slot"** (the resolved open point — the AC said
+  so). Everything else about the slot-waiting line is unchanged from c0137;
+  countdown/blocked/activity untouched.
+- Used the drafted 50 lines verbatim; `SELECT * FROM slots WHERE free` and
+  `await slot;` dropped their backticks/comment markers so they read cleanly as
+  plain card text.
+
 ## Queue lines (draft — trim or swap to taste)
 
 1. Reviewing its life choices.
@@ -129,3 +147,5 @@ line (c0125), and the activity line (c0109) are untouched.
   mixed 50-line list (deadpan/absurd/nerdy); just the funny line, no position.
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
+- 2026-08-05 top-of-queue keeps "waiting on a slot"; the rest get a stable
+  funny line (queueLine, 50 lines) — nextSlotWaiter picks the top; 12 tests
