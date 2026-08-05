@@ -4,8 +4,9 @@ title: 2 of 1 in progress
 status: ready
 type: issue
 created: 2026-08-03
-updated: 2026-08-03
+updated: 2026-08-05
 status-changed: 2026-08-03T11:04:17
+order: -10
 ---
 
 Asked claude to create a new card while the companion was already having one in progress.
