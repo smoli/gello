@@ -1,11 +1,12 @@
 ---
 id: i0131
 title: Git integration fails silently
-status: inbox
+status: ready
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:22:00
+status-changed: 2026-08-05T12:23:14
+epic: e10
 ---
 
 ## What
@@ -22,3 +23,7 @@ why neither could be diagnosed from what the app showed.
 Worth deciding what the title bar should say when git is present but
 unavailable — and whether the reason belongs in the error surface the board
 already has.
+
+## Log
+
+- 2026-08-05 status → ready (app)
