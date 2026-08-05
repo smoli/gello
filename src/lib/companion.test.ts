@@ -4,9 +4,11 @@ import {
   companionStatePath,
   readCompanionState,
   isCompanionLive,
+  hasLiveRun,
   newlyParkedIds,
   STALE_MS,
   type CompanionState,
+  type RunState,
 } from "./companion";
 import { readFileRaw } from "./board-io";
 
@@ -190,6 +192,35 @@ describe("pickupDelay parsing", () => {
       const raw = JSON.stringify({ status: "idle", pickupDelay: value, owned: [] });
       expect(parseCompanionState(raw)?.pickupDelay).toBe(0);
     }
+  });
+});
+
+// c0147: a card front offers a stop only when the card has a stoppable run.
+describe("hasLiveRun", () => {
+  const withRun = (phase: RunState["phase"]): CompanionState => ({
+    status: "running",
+    ready: [],
+    waiting: [],
+    runs: [{ cardId: "c001", phase }],
+    updated: "2026-08-05T10:00:00",
+    pickupDelay: 0,
+    owned: [],
+  });
+
+  it("is true for a running or parked run", () => {
+    expect(hasLiveRun(withRun("running"), "c001")).toBe(true);
+    expect(hasLiveRun(withRun("waiting-for-input"), "c001")).toBe(true);
+  });
+
+  it("is false for a finished/errored/aborted run — nothing to stop", () => {
+    for (const phase of ["done", "error", "aborted"] as const) {
+      expect(hasLiveRun(withRun(phase), "c001")).toBe(false);
+    }
+  });
+
+  it("is false for another card, or with no companion", () => {
+    expect(hasLiveRun(withRun("running"), "c999")).toBe(false);
+    expect(hasLiveRun(null, "c001")).toBe(false);
   });
 });
 

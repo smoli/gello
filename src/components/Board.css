@@ -366,6 +366,43 @@ button.tag-chip {
   }
 }
 
+/* c0147: the card-front stop reuses the follow-up reveal mechanic — hidden
+   until the card is hovered — but reads as destructive (danger red), since it
+   ends live work. `.card-stop-revealed` is c0121's pointer-tracked reveal, kept
+   in sync for WKWebView where `:hover` is unreliable. */
+.card-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, CanvasText 6%, transparent);
+  color: color-mix(in srgb, CanvasText 65%, transparent);
+  visibility: hidden;
+}
+.card-front:hover .card-stop,
+.card-stop.card-stop-revealed {
+  visibility: visible;
+}
+.card-stop:hover {
+  background: #c0392b;
+  border-color: transparent;
+  color: white;
+}
+/* coarse pointers get no hover, so keep it visible there */
+@media (hover: none) {
+  .card-stop {
+    visibility: visible;
+  }
+}
+
 .card-needs-input {
   display: inline-flex;
   align-items: center;

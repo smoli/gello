@@ -74,6 +74,17 @@ export const STALE_MS = 30_000;
  * timestamp is treated as live — only a corrupt file hits that, and hiding a
  * possibly-running companion's status behind Start is worse than the reverse.
  */
+/** Whether the card has a run that can still be stopped (c0147): running, or
+ *  parked on a question. A done/error/aborted run has already ended. */
+export function hasLiveRun(state: CompanionState | null, cardId: string): boolean {
+  if (!state) return false;
+  return state.runs.some(
+    (run) =>
+      run.cardId === cardId &&
+      (run.phase === "running" || run.phase === "waiting-for-input"),
+  );
+}
+
 export function isCompanionLive(state: CompanionState | null, now: number): boolean {
   if (!state) return false;
   const t = Date.parse(state.updated);

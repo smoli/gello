@@ -356,6 +356,73 @@ describe("Board", () => {
     ...over,
   });
 
+  // c0147: a running card offers a stop on its front, revealed on hover like the
+  // follow-up trigger. The board's `runner` lists the run.
+  function runningBoard() {
+    return loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, done]\n"),
+      file("cards/c001-run.md", card("c001", "Working card", "in-progress")),
+    ]);
+  }
+  const runningRunner = (phase: "running" | "waiting-for-input" = "running") =>
+    liveRunner({ status: "running" as const, runs: [{ cardId: "c001", phase }] });
+
+  it("c0147: offers a stop on a card with a live run", () => {
+    const onStopRun = vi.fn();
+    render(<Board model={runningBoard()} runner={runningRunner()} onStopRun={onStopRun} />);
+    const front = screen.getByText("Working card").closest("article")!;
+    expect(within(front).getByRole("button", { name: /Stop run/i })).toBeInTheDocument();
+  });
+
+  it("c0147: stops the run without opening the card", () => {
+    const onStopRun = vi.fn();
+    const onSelectCard = vi.fn();
+    render(
+      <Board
+        model={runningBoard()}
+        runner={runningRunner()}
+        onStopRun={onStopRun}
+        onSelectCard={onSelectCard}
+      />,
+    );
+    const front = screen.getByText("Working card").closest("article")!;
+    fireEvent.click(within(front).getByRole("button", { name: /Stop run/i }));
+    expect(onStopRun).toHaveBeenCalledExactlyOnceWith("c001");
+    expect(onSelectCard).not.toHaveBeenCalled(); // the front's click must not fire
+  });
+
+  it("c0147: also offers a stop on a parked card", () => {
+    render(
+      <Board model={runningBoard()} runner={runningRunner("waiting-for-input")} onStopRun={vi.fn()} />,
+    );
+    const front = screen.getByText("Working card").closest("article")!;
+    expect(within(front).getByRole("button", { name: /Stop run/i })).toBeInTheDocument();
+  });
+
+  it("c0147: offers no stop when the card has no live run", () => {
+    render(<Board model={runningBoard()} runner={liveRunner()} onStopRun={vi.fn()} />);
+    const front = screen.getByText("Working card").closest("article")!;
+    expect(within(front).queryByRole("button", { name: /Stop run/i })).not.toBeInTheDocument();
+  });
+
+  it("c0147: shows no stop control without an onStopRun handler", () => {
+    render(<Board model={runningBoard()} runner={runningRunner()} />);
+    const front = screen.getByText("Working card").closest("article")!;
+    expect(within(front).queryByRole("button", { name: /Stop run/i })).not.toBeInTheDocument();
+  });
+
+  it("c0147: reveals the stop on hover, reusing the follow-up mechanic", () => {
+    render(<Board model={runningBoard()} runner={runningRunner()} onStopRun={vi.fn()} />);
+    const front = screen.getByText("Working card").closest("article")!;
+    const stop = within(front).getByRole("button", { name: /Stop run/i });
+
+    expect(stop.classList.contains("card-stop-revealed")).toBe(false);
+    fireEvent.mouseEnter(front);
+    expect(stop.classList.contains("card-stop-revealed")).toBe(true);
+    fireEvent.mouseLeave(front);
+    expect(stop.classList.contains("card-stop-revealed")).toBe(false);
+  });
+
   it("c0141: offers Restart on a stopped, companion-owned card", () => {
     const onRestartCard = vi.fn();
     render(<Board model={inProgressBoard()} runner={liveRunner()} onRestartCard={onRestartCard} />);

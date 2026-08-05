@@ -1537,6 +1537,7 @@ function App() {
           onRenumber={handleRenumber}
           runner={runner}
           onRestartCard={(cardId) => void handleRestartCard(cardId)}
+          onStopRun={(cardId) => void handleStopRun(cardId)}
         />
         {managingTags && (
           <TagManager

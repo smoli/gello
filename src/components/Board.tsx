@@ -23,7 +23,7 @@ import { cardActivity, activityClassName, activityTreatment } from "../lib/activ
 import { pickupCountdown, waitingForSlot } from "../lib/pickup";
 import { isStoppedCard } from "../lib/restart";
 import { queueLine } from "../lib/queue-lines";
-import type { CompanionState } from "../lib/companion";
+import { hasLiveRun, type CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
 import { AssetImage } from "./AssetImage";
@@ -149,6 +149,7 @@ export function Board({
   showArchived = false,
   runner,
   onRestartCard,
+  onStopRun,
 }: {
   model: BoardModel;
   /** c0109: companion state, for a running card's live activity line. Null when
@@ -157,6 +158,9 @@ export function Board({
   /** c0141: restart a stopped card — offered on a companion-owned, in-progress
    *  card with no live run. */
   onRestartCard?: (cardId: string) => void;
+  /** c0147: stop the in-flight run for a card — offered on its front (revealed
+   *  on hover) when the card has a live run. */
+  onStopRun?: (cardId: string) => void;
   onMoveCard?: MoveCardHandler;
   /** i0028: create a new epic from the filter's "+ New epic" option. */
   onNewEpic?: () => void;
@@ -565,6 +569,7 @@ export function Board({
               runner={runner}
               slotWaiterTopId={slotWaiterTopId}
               onRestartCard={onRestartCard}
+              onStopRun={onStopRun}
             />
           );
         })}
@@ -679,6 +684,7 @@ function Column({
   runner,
   slotWaiterTopId,
   onRestartCard,
+  onStopRun,
   wip,
 }: {
   name: string;
@@ -689,6 +695,8 @@ function Column({
   runner?: CompanionState | null;
   /** c0141: restart a stopped card, forwarded to each card front. */
   onRestartCard?: (cardId: string) => void;
+  /** c0147: stop a card's live run, forwarded to each card front. */
+  onStopRun?: (cardId: string) => void;
   /** c0143: id of the queued card next when a slot frees — it keeps the honest
    *  "waiting on a slot"; the rest get a funny queue line. */
   slotWaiterTopId?: string | null;
@@ -810,6 +818,7 @@ function Column({
                 runner={runner}
                 slotWaiterTopId={slotWaiterTopId}
                 onRestartCard={onRestartCard}
+                onStopRun={onStopRun}
               />
             </Fragment>
           ))}
@@ -890,6 +899,7 @@ function CardFront({
   runner,
   slotWaiterTopId,
   onRestartCard,
+  onStopRun,
 }: {
   entry: BoardCard;
   /** c0109: companion state, for this card's live activity line (null → none). */
@@ -898,6 +908,9 @@ function CardFront({
   slotWaiterTopId?: string | null;
   /** c0141: restart a stopped card (companion-owned, in-progress, no live run). */
   onRestartCard?: (cardId: string) => void;
+  /** c0147: stop the card's in-flight run — shown on the front when it has a
+   *  live run, revealed on hover. */
+  onStopRun?: (cardId: string) => void;
   /** True while this card is the one being dragged (i0004 origin marker). */
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
@@ -942,6 +955,8 @@ function CardFront({
   // c0141: a stopped card — a companion-owned in-progress card whose run died
   // with no live run left — can be restarted in place, resuming its session.
   const stopped = isStoppedCard(runner ?? null, card.id, card.status, Date.now());
+  // c0147: a card with a live run can be stopped from its front.
+  const liveRun = hasLiveRun(runner ?? null, card.id);
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
@@ -996,6 +1011,25 @@ function CardFront({
           )}
           {card.type !== "task" && (
             <span className={`card-type type-${card.type}`}>{card.type}</span>
+          )}
+          {/* c0147: stop this card's in-flight run from the front, revealed on
+              hover with the same mechanic as the follow-up trigger (the CSS
+              `.card-front:hover` reveal, plus c0121's `revealFollowUp` so the
+              WKWebView-safe pointer tracking keeps it in sync). */}
+          {onStopRun && liveRun && (
+            <button
+              type="button"
+              className={`card-stop${revealFollowUp ? " card-stop-revealed" : ""}`}
+              aria-label={`Stop run ${card.id}`}
+              title="Stop this run"
+              onClick={(event) => {
+                // the whole front is clickable; keep this from opening the card
+                event.stopPropagation();
+                onStopRun(card.id);
+              }}
+            >
+              ✕
+            </button>
           )}
           {/* c0118: queue more work without opening the card first. Gated to
               review/done like the detail-view action (c0115), and it opens the
