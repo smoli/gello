@@ -158,3 +158,7 @@ already learned, rather than re-paying a cold start on a half-done card.
 - 2026-08-05 status → backlog (app)
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
+- 2026-08-05 (agent) implemented in three commits: killable spawner + `aborted`
+  phase; the `.companion/control.json` stop channel (app writes, companion
+  reads/baselines); the popover Stop and the destructive-drag confirm. All
+  twelve criteria pass; 1273 tests, typecheck, lint and a bundle build green.
