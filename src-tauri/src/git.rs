@@ -52,53 +52,24 @@ fn repo_top(root: &Path) -> Option<PathBuf> {
     Some(PathBuf::from(top.trim()))
 }
 
-/// A path in comparison form: separators unified to `/`, a Windows
-/// extended-length prefix reduced to its plain spelling (`\\?\C:\x` → `C:/x`,
-/// `\\?\UNC\srv\sh\x` → `//srv/sh/x`), drive letter upper-cased, trailing
-/// separator dropped.
+/// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/", empty
+/// when the board dir *is* the repo top), used to classify porcelain paths as
+/// board vs code. `root` is the `.gello` dir. None when `root` is not in a repo.
 ///
-/// i0126: the two sides of the board-prefix match arrive spelled differently
-/// on Windows — `git rev-parse --show-toplevel` returns the plain form,
-/// `Path::canonicalize` the extended-length one. `Path::strip_prefix` compares
-/// components, and a verbatim prefix never equals a disk prefix, so the match
-/// has to happen on normalized strings.
-fn comparable(path: &str) -> String {
-    let unified = path.trim().replace('\\', "/");
-    let plain = match unified.strip_prefix("//?/UNC/") {
-        Some(rest) => format!("//{rest}"),
-        None => unified.strip_prefix("//?/").unwrap_or(&unified).to_string(),
-    };
-    let mut chars: Vec<char> = plain.chars().collect();
-    // `c:/x` and `C:/x` are the same directory
-    if chars.get(1) == Some(&':') {
-        chars[0] = chars[0].to_ascii_uppercase();
-    }
-    let out: String = chars.into_iter().collect();
-    out.trim_end_matches('/').to_string()
-}
-
-/// The board directory's path relative to the repo top, as a git-style prefix
-/// ("proj/.gello/", or "" when the board dir *is* the repo top). None when
-/// `root` is not inside `top`. Pure string work: see `comparable`.
-fn relative_prefix(top: &str, root: &str) -> Option<String> {
-    let top = comparable(top);
-    let root = comparable(root);
-    if root == top {
-        return Some(String::new());
-    }
-    // the leading `/` check keeps a sibling like `/repo-other` out of `/repo`
-    let rel = root.strip_prefix(&top)?.strip_prefix('/')?;
-    Some(format!("{rel}/"))
-}
-
-/// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/"), used to
-/// classify porcelain paths as board vs code. `root` is the `.gello` dir.
+/// Asked of git rather than worked out here (i0127). Deriving it meant
+/// comparing two spellings of the same directory — git's `--show-toplevel`
+/// against a canonicalized `root` — and on Windows those diverge in ways no
+/// amount of string normalization settles: the extended-length prefix
+/// (i0126), and a substituted or mapped drive, where `canonicalize` resolves
+/// `X:\proj` through to `C:/proj` or `//server/share/proj` while git, run with
+/// its cwd on `X:`, answers `X:/proj`. A failed match returned None, which
+/// switched off both the status indicator and auto-commit. `--show-prefix`
+/// takes the same cwd git already resolved and prints what is wanted directly
+/// — forward slashes, trailing separator, no second spelling to reconcile.
 fn board_prefix(root: &Path) -> Option<String> {
-    let top = repo_top(root)?;
-    // canonicalize so a symlinked tempdir (/var → /private/var on macOS) still
-    // strips against git's already-resolved toplevel path
-    let root = root.canonicalize().ok()?;
-    relative_prefix(&top.to_string_lossy(), &root.to_string_lossy())
+    let out = run_git(root, &["rev-parse", "--show-prefix"]).filter(|o| o.status.success())?;
+    let prefix = String::from_utf8(out.stdout).ok()?;
+    Some(prefix.trim().to_string())
 }
 
 /// A changed board file (c0083): repo-top-relative path plus its content at HEAD
@@ -305,60 +276,26 @@ mod tests {
         assert_eq!(git_branch(&work).as_deref(), Some("wt"));
     }
 
-    // --- i0126: repo-top ↔ board-dir prefix matching ------------------------
-
-    #[test]
-    fn prefix_strips_a_windows_extended_length_board_path() {
-        // canonicalize() hands back `\\?\C:\…` on Windows, git's
-        // --show-toplevel hands back `C:/…` — the same directory, two
-        // spellings. Failing to match here switched every git feature off.
-        assert_eq!(
-            relative_prefix("C:/Users/dev/proj", r"\\?\C:\Users\dev\proj\.gello"),
-            Some(".gello/".to_string())
-        );
-        assert_eq!(
-            relative_prefix("C:/Users/dev/proj", r"\\?\C:\Users\dev\proj\sub\.gello"),
-            Some("sub/.gello/".to_string())
-        );
-    }
-
-    #[test]
-    fn prefix_strips_a_unc_board_path() {
-        assert_eq!(
-            relative_prefix("//server/share/proj", r"\\?\UNC\server\share\proj\.gello"),
-            Some(".gello/".to_string())
-        );
-    }
-
-    #[test]
-    fn prefix_ignores_drive_letter_case_and_trailing_separators() {
-        assert_eq!(
-            relative_prefix("c:/Users/dev/proj/", r"\\?\C:\Users\dev\proj\.gello\"),
-            Some(".gello/".to_string())
-        );
-    }
+    // --- i0126/i0127: locating the board dir inside the repo ----------------
 
     #[test]
     fn prefix_is_empty_when_the_board_dir_is_the_repo_top() {
-        assert_eq!(relative_prefix("/repo/.gello", "/repo/.gello"), Some(String::new()));
+        let (dir, _gello) = repo_with_board();
+        assert_eq!(board_prefix(dir.path()).as_deref(), Some(""));
     }
 
     #[test]
-    fn prefix_rejects_a_sibling_sharing_a_name_prefix() {
-        assert_eq!(relative_prefix("/repo", "/repo-other/.gello"), None);
-        assert_eq!(relative_prefix("C:/repo", r"\\?\C:\repo-other\.gello"), None);
+    fn prefix_names_the_board_dir_relative_to_the_repo_top() {
+        let (dir, _gello) = repo_with_board();
+        let nested = dir.path().join("proj/.gello");
+        fs::create_dir_all(&nested).unwrap();
+        assert_eq!(board_prefix(&nested).as_deref(), Some("proj/.gello/"));
     }
 
     #[test]
-    fn prefix_keeps_posix_paths_working() {
-        assert_eq!(
-            relative_prefix("/private/var/t/repo", "/private/var/t/repo/.gello"),
-            Some(".gello/".to_string())
-        );
-        assert_eq!(
-            relative_prefix("/private/var/t/repo", "/private/var/t/repo/proj/.gello"),
-            Some("proj/.gello/".to_string())
-        );
+    fn prefix_is_none_outside_a_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(board_prefix(dir.path()), None);
     }
 
     // --- c0083: commit / status plumbing -----------------------------------
@@ -381,6 +318,52 @@ mod tests {
         git_run(top, &["add", "-A"]);
         git_run(top, &["commit", "-qm", "init"]);
         (dir, gello)
+    }
+
+    /// A repo whose top directory is named `Repo`, plus the same `.gello`
+    /// reached through the lowercase spelling `repo`. None on a case-sensitive
+    /// filesystem, where that second spelling is simply a missing path.
+    fn repo_reached_by_another_spelling() -> Option<(tempfile::TempDir, PathBuf)> {
+        let dir = tempfile::tempdir().unwrap();
+        let top = dir.path().join("Repo");
+        fs::create_dir_all(top.join(".gello/inbox")).unwrap();
+        git_run(&top, &["init", "-q", "-b", "main"]);
+        git_run(&top, &["config", "user.email", "t@example.com"]);
+        git_run(&top, &["config", "user.name", "Test"]);
+        fs::write(top.join(".gello/board.yaml"), "columns: [ready]\n").unwrap();
+        git_run(&top, &["add", "-A"]);
+        git_run(&top, &["commit", "-qm", "init"]);
+        let other = dir.path().join("repo/.gello");
+        other.is_dir().then_some((dir, other))
+    }
+
+    /// i0127: git answers `--show-toplevel` in the directory's real on-disk
+    /// spelling no matter how the caller spelled the path, so deriving the
+    /// board prefix by comparing that answer against a canonicalized path is
+    /// only ever as good as the normalization. On a case-insensitive
+    /// filesystem — Windows, and macOS by default — opening the board through
+    /// `c:\proj` when git says `C:/Proj` left every git feature switched off:
+    /// no status indicator (this card) and no auto-commit (i0126).
+    #[test]
+    fn board_prefix_survives_a_differently_spelled_path() {
+        let Some((_dir, gello)) = repo_reached_by_another_spelling() else {
+            return; // case-sensitive filesystem — the spelling doesn't exist
+        };
+        assert_eq!(board_prefix(&gello).as_deref(), Some(".gello/"));
+    }
+
+    /// The same divergence, at the level the title bar actually consumes: a
+    /// None here is what makes the indicator disappear.
+    #[test]
+    fn worktree_status_survives_a_differently_spelled_path() {
+        let Some((_dir, gello)) = repo_reached_by_another_spelling() else {
+            return;
+        };
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+
+        let status = worktree_status(&gello).expect("a repo, however it is spelled");
+        assert!(status.board_dirty, "the board change must be seen as board-dirty");
+        assert!(!status.code_dirty);
     }
 
     fn head_count(top: &Path) -> usize {
