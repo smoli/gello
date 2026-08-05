@@ -59,21 +59,21 @@ already learned, rather than re-paying a cold start on a half-done card.
 
 ## Acceptance criteria
 
-- [ ] `SpawnedRun` can be killed, and the real spawner implements it
-- [ ] An explicit stop in the app's runs popover ends that run and no other
-- [ ] Moving a card out of its running status stops that run
-- [ ] A drag that would stop a live run asks for confirmation first; declining
+- [x] `SpawnedRun` can be killed, and the real spawner implements it
+- [x] An explicit stop in the app's runs popover ends that run and no other
+- [x] Moving a card out of its running status stops that run
+- [x] A drag that would stop a live run asks for confirmation first; declining
       leaves the run untouched
-- [ ] Dragging a card with no live run is unaffected — no dialog
-- [ ] A stopped run is reported with an `aborted` phase, distinct from `error`
-- [ ] `aborted` appears in the state file and is parsed defensively by the app
-- [ ] Stopping one run leaves every other run alive
-- [ ] The card is not rewritten by the stop — its status and body are exactly
+- [x] Dragging a card with no live run is unaffected — no dialog
+- [x] A stopped run is reported with an `aborted` phase, distinct from `error`
+- [x] `aborted` appears in the state file and is parsed defensively by the app
+- [x] Stopping one run leaves every other run alive
+- [x] The card is not rewritten by the stop — its status and body are exactly
       as the agent left them
-- [ ] Files the agent had already written are left on disk, unmodified
-- [ ] The session id is retained, and re-dispatching the card resumes that same
+- [x] Files the agent had already written are left on disk, unmodified
+- [x] The session id is retained, and re-dispatching the card resumes that same
       session
-- [ ] The companion stays alive and keeps watching after a stop
+- [x] The companion stays alive and keeps watching after a stop
 
 ## Discussion
 
