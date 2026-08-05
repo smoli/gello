@@ -111,7 +111,7 @@ export interface CompanionState {
 
 export interface RunState {
   cardId: string;
-  phase: "running" | "waiting-for-input" | "done" | "error";
+  phase: "running" | "waiting-for-input" | "done" | "error" | "aborted";
   /** Per-run token/cost once the backend has reported it (c0104). Absent until
    *  the run's final usage event arrives — for claude, near the end. The c0100
    *  popover reads this to show a run's tokens and cost. */

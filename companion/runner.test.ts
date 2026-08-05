@@ -491,6 +491,8 @@ describe("buildTaskPrompt", () => {
 class FakeProc implements SpawnedRun {
   private cb: ((code: number | null) => void) | null = null;
   private stdoutCb: ((chunk: string) => void) | null = null;
+  /** c0119: how many times the runner asked to kill this process. */
+  killed = 0;
   constructor(
     readonly spec: LaunchSpec,
     readonly env?: Record<string, string>,
@@ -500,6 +502,9 @@ class FakeProc implements SpawnedRun {
   }
   onStdout(cb: (chunk: string) => void): void {
     this.stdoutCb = cb;
+  }
+  kill(): void {
+    this.killed += 1;
   }
   stdout(chunk: string): void {
     this.stdoutCb?.(chunk);
@@ -1108,6 +1113,100 @@ describe("Runner — one run per session id (c0126)", () => {
     h.runner.sync(h.reloadModel());
     expect(h.spawned).toHaveLength(3);
     expect(h.spawned[2].spec.args[h.spawned[2].spec.args.length - 1]).toContain("c002");
+  });
+});
+
+// c0119: stop an in-flight run. The kill is a small addition to the spawner;
+// a killed process exits and is classified `aborted` (a deliberate stop), not
+// `error` (a genuine crash).
+describe("Runner — stop a run (c0119)", () => {
+  it("kills the run's process on stop", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned[0].killed).toBe(0);
+
+    h.runner.stop("c001");
+    expect(h.spawned[0].killed).toBe(1);
+  });
+
+  it("classifies a stopped run as aborted, not error", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.runner.stop("c001");
+    // the card is left in-progress (the agent had moved it there); the process
+    // dies with a non-zero/na code, which for a *crash* would be `error`
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.spawned[0].exit(null);
+
+    expect(h.last()).toEqual([]); // aborted is terminal — run removed
+    expect(h.logs.join("\n")).toMatch(/c001.*abort/i);
+  });
+
+  it("publishes the aborted phase before the process is reaped", () => {
+    // an abort takes a moment to exit; the popover should read `aborted` at once
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.runner.stop("c001");
+    expect(h.last()).toEqual(["c001:aborted"]);
+  });
+
+  it("leaves every other run alive when one is stopped", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "ready", order: 2 },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.runner.stop("c001");
+    expect(h.spawned[0].killed).toBe(1);
+    expect(h.spawned[1].killed).toBe(0); // c002 untouched
+    h.setModel(board({ c001: { status: "in-progress" }, c002: { status: "in-progress" } }));
+    h.spawned[0].exit(null);
+    expect(h.last()).toEqual(["c002:running"]); // c002 still active
+  });
+
+  it("does not rewrite the card on a stop (companion never edits status/body)", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.runner.stop("c001");
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.spawned[0].exit(null);
+    expect(h.writes).toEqual([]); // no card write from the abort
+  });
+
+  it("keeps the session so re-dispatch resumes the same one", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    const sessionId = h.spawned[0].spec.args[1]; // after --session-id
+
+    h.runner.stop("c001");
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.spawned[0].exit(null);
+
+    // the human drags it back to ready; it resumes the same session
+    const requeued = board({ c001: { status: "ready", order: 1 } });
+    h.setModel(requeued);
+    h.runner.sync(requeued);
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[0]).toBe("--resume");
+    expect(h.spawned[1].spec.args[1]).toBe(sessionId);
+  });
+
+  it("ignores a stop for a card with no active run", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(() => h.runner.stop("c999")).not.toThrow();
+    expect(h.spawned[0].killed).toBe(0);
   });
 });
 

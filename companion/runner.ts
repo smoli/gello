@@ -286,6 +286,10 @@ export function buildTaskPrompt(card: Card, resuming: boolean): string {
 export interface SpawnedRun {
   onExit(cb: (code: number | null) => void): void;
   onStdout?(cb: (chunk: string) => void): void;
+  /** c0119: stop the process. Optional so an interactive run — which has no
+   *  handle to kill — can omit it. The process then exits and flows through the
+   *  normal exit path, classified `aborted`. */
+  kill?(): void;
 }
 
 /** Launches an agent process from a spec. Real impl wraps `child_process`;
@@ -358,6 +362,8 @@ interface ActiveRun {
   activity?: Activity;
   /** Model the backend reported using (c0112), once it has said so. */
   model?: string;
+  /** c0119: stop this run's process, if the spawner exposes a kill. */
+  kill?: () => void;
 }
 
 export class Runner {
@@ -374,6 +380,9 @@ export class Runner {
   private readonly activityThrottle: Throttle;
   /** c0117: pending wake-up for the soonest card inside its grace period. */
   private pickupTimer: TimerId | undefined;
+  /** c0119: cards whose process the runner killed on request, so the exit is
+   *  classified `aborted` (a deliberate stop) rather than `error` (a crash). */
+  private readonly aborting = new Set<string>();
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
@@ -433,6 +442,24 @@ export class Runner {
     for (const id of [...this.firstSeen.keys()]) {
       if (!present.has(id)) this.firstSeen.delete(id);
     }
+  }
+
+  /**
+   * Stop an in-flight run (c0119). Kills the agent process and marks the card
+   * aborting, so its exit classifies as `aborted` rather than `error`. The
+   * phase is published at once (the process takes a moment to die), so the
+   * popover reflects the stop immediately. A stop for a card with no active
+   * run, or one already aborting, is a no-op. The card is not touched — its
+   * status, body and files are left exactly as the agent left them.
+   */
+  stop(cardId: string): void {
+    const run = this.active.get(cardId);
+    if (!run || this.aborting.has(cardId)) return;
+    this.aborting.add(cardId);
+    this.active.set(cardId, { ...run, phase: "aborted" });
+    this.log(`${cardId} stop requested → aborting`);
+    run.kill?.();
+    this.publish();
   }
 
   private now(): number {
@@ -562,11 +589,15 @@ export class Runner {
         env: { ...this.opts.askServer.env, GELLO_CARD_ID: card.id },
       },
     });
-    this.active.set(card.id, { sessionId: id, phase: "running" });
-    this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);
-    // The ask surfaces (`add_question`, `gello ask`) read the card from here —
-    // it is what stops an agent parking a question on an unrelated card (c0102).
+    // The ask surfaces read the run's card id from `env`; the kill handle
+    // (c0119) is stored so a stop can end this one process.
     const proc = this.opts.spawn(spec, this.opts.cwd, { GELLO_CARD_ID: card.id });
+    this.active.set(card.id, {
+      sessionId: id,
+      phase: "running",
+      ...(proc.kill ? { kill: () => proc.kill?.() } : {}),
+    });
+    this.log(`${card.id} → ${resume ? "resume" : "run"} (session ${id})`);
     // c0104: parse the piped stdout into neutral events — render per the level,
     // record every event to the transcript, and keep the latest usage so the
     // run's state entry can carry its tokens/cost.
@@ -615,7 +646,10 @@ export class Runner {
       this.log(`reload after ${cardId} exit failed: ${(error as Error).message}`);
     }
     const card = next ? byId(next).get(cardId) : undefined;
-    const phase = classifyExit(card, code);
+    // c0119: a run the runner killed on request is `aborted`, not `error` — a
+    // deliberate stop must not read as a crash. Checked before classifyExit,
+    // which would otherwise call the non-zero/killed exit an error.
+    const phase = this.aborting.has(cardId) ? "aborted" : classifyExit(card, code);
 
     if (phase === "waiting-for-input") {
       // A parked run stays in the state file — carry its usage so the popover
@@ -628,7 +662,12 @@ export class Runner {
     }
 
     this.active.delete(cardId);
-    if (phase === "error") {
+    if (phase === "aborted") {
+      // c0119: a deliberate stop. The card is left exactly as the agent left it,
+      // and the session is kept (in `this.sessions`), so a re-dispatch resumes.
+      this.aborting.delete(cardId);
+      this.log(`${cardId} aborted; card left as-is, session kept`);
+    } else if (phase === "error") {
       // The card is left exactly as the agent left it — recoverable; the
       // companion never rewrites it. The error surfaces via the state file.
       this.log(`${cardId} run errored (exit ${code}); card left as-is`);

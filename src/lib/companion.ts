@@ -9,7 +9,7 @@
 
 import { readFileRaw } from "./board-io";
 
-export type RunPhase = "running" | "waiting-for-input" | "done" | "error";
+export type RunPhase = "running" | "waiting-for-input" | "done" | "error" | "aborted";
 
 /** Per-run token/cost the companion reports (c0104); the c0100 popover shows
  *  it. All fields optional — a backend without a figure omits it. */
@@ -56,7 +56,7 @@ export interface CompanionState {
 }
 
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
-const PHASES: RunPhase[] = ["running", "waiting-for-input", "done", "error"];
+const PHASES: RunPhase[] = ["running", "waiting-for-input", "done", "error", "aborted"];
 
 /** A companion state file older than this (by its `updated`) is treated as
  *  stale — the process likely died without cleaning up. Shared by the

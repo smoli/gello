@@ -93,6 +93,11 @@ const nodeSpawner: Spawner = (spec, cwd, env): SpawnedRun => {
         once(null);
       });
     },
+    // c0119: stop this one run. SIGTERM lets the agent CLI wind down; the exit
+    // then flows through onExit and is classified `aborted`.
+    kill() {
+      child.kill("SIGTERM");
+    },
   };
 };
 

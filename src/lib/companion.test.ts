@@ -51,6 +51,17 @@ describe("parseCompanionState", () => {
     });
   });
 
+  // c0119: a deliberately stopped run reports `aborted`, distinct from `error`.
+  it("keeps the aborted phase", () => {
+    const raw = JSON.stringify({ runs: [{ cardId: "c001", phase: "aborted" }] });
+    expect(parseCompanionState(raw)?.runs[0]).toEqual({ cardId: "c001", phase: "aborted" });
+  });
+
+  it("drops a run with an unknown phase (aborted is the only new one)", () => {
+    const raw = JSON.stringify({ runs: [{ cardId: "c001", phase: "cancelled" }] });
+    expect(parseCompanionState(raw)?.runs).toEqual([]);
+  });
+
   it("drops malformed runs but keeps the valid ones", () => {
     const raw = JSON.stringify({
       status: "running",
