@@ -75,6 +75,48 @@ already learned, rather than re-paying a cold start on a half-done card.
       session
 - [x] The companion stays alive and keeps watching after a stop
 
+## Notes
+
+- 2026-08-05 (agent) Built in three layers, each committed green.
+  - **Kill + aborted phase (companion).** `SpawnedRun.kill()` (the real spawner
+    sends SIGTERM); `Runner.stop(cardId)` kills that one process and marks the
+    card aborting, so its exit classifies `aborted` — checked before
+    `classifyExit`, which would otherwise call a killed process an error. The
+    phase is published at once (the process takes a beat to die) so the popover
+    reflects the stop immediately. Aborted is terminal: run dropped, card
+    untouched, session kept; the c0126 exit-reconcile then re-dispatches if the
+    card was left in the trigger status.
+  - **The app→companion channel.** The app has no IPC to the companion, so a
+    stop travels through `.companion/control.json`, symmetric to the state file
+    the other way. The **app is the sole writer, the companion the sole reader**
+    — no two-writer race. Each request carries a unique id; the companion acts
+    on each once and **baselines the file at startup**, so a request written
+    while it was down can't kill a card that has since been re-dispatched. This
+    is the one place the companion watches under `.companion/` (otherwise
+    ignored). The design decision the card left open — I did not ask, as it
+    followed the existing state-file/sessions-file patterns; flagging it for
+    review.
+  - **The two triggers (app).** The popover lists the runs, so an explicit Stop
+    per live run lives there. A drag-out is destructive (it stops the run), so —
+    unlike c0117's silent grace period guarding the drag *in* — `handleMove`
+    confirms first when the card has a live run, and only on confirm sends the
+    stop and performs the move. A card with no live run moves with no dialog.
+- **Interpretation I settled**: any human move of a running card (status change)
+  confirms — the agent's own moves go through MCP, never `handleMove`, so a
+  `handleMove` on a running card is always an intervention. Where the card lands
+  is the user's choice: dropped in a non-trigger status it stays stopped;
+  dropped back in `ready` it resumes warm (the session was kept) after the
+  c0117 grace period — "card position is the source of truth".
+- **Criterion 10 (files left on disk) holds by construction**: the stop only
+  kills the process; nothing in the abort path touches the tree, and the
+  "no card write on a stop" test guards the card file specifically.
+- **Verified**: unit tests across the spawner/runner (kill → aborted, others
+  stay alive, session kept, no card write), the control parse/baseline, the
+  app control-file builder, the popover stop, and the drag-confirm flow
+  (confirm → stop+move, decline → nothing, no-run → no dialog). Plus a live
+  smoke test: the bundled companion reads a control-file write and stays alive.
+  1273 tests, typecheck, lint and a production build all green.
+
 ## Discussion
 
 - **Both triggers** (human's call): drag-out matches the instinct that the
