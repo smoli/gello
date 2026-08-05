@@ -1,11 +1,11 @@
 ---
 id: i0124
 title: 2 of 1 in progress
-status: review
+status: done
 type: issue
 created: 2026-08-03
 updated: 2026-08-05
-status-changed: 2026-08-05T11:39:20
+status-changed: 2026-08-05T12:05:52
 ---
 
 Asked claude to create a new card while the companion was already having one in progress.
@@ -73,3 +73,4 @@ Unrelated pre-existing red on `main` at the time of this fix: 12 failures in
   a first-seen pickup clock for cards with no `status-changed`. 7 new companion
   tests; 91 in `runner.test.ts`, 298 across `companion/` green.
 - 2026-08-05 status → review (agent)
+- 2026-08-05 status → done (app)
