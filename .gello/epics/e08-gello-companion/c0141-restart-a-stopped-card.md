@@ -144,3 +144,8 @@ in-progress card already holds, so WIP is unaffected.
 - 2026-08-05 status → backlog (app)
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
+- 2026-08-05 (agent) implemented: `Runner.restart` (warm, in-place, gated),
+  `owned` published in state.json, the c0119 control channel generalised to a
+  `kind`, `isStoppedCard`, and a card-front Restart affordance. All ten criteria
+  pass; 1339 tests, typecheck, lint and a bundle build green. Noted an
+  epic-scope-after-companion-restart ownership limitation.
