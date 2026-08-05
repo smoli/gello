@@ -6,6 +6,7 @@ created: 2026-07-24
 updated: 2026-08-05
 status-changed: 2026-08-05T11:49:32
 epic: e02
+order: 20
 ---
 
 If there are no open WIP slots then do. not show the countdown for new „ready“-cards. Instead show that it is waiting on a slot.
