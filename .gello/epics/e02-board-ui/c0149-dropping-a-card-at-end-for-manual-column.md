@@ -1,10 +1,10 @@
 ---
 id: c0149
 title: Dropping a card at end for manual columns
-status: in-progress
+status: review
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T23:36:49
+status-changed: 2026-08-05T23:45:20
 epic: e02
 ---
 
@@ -45,3 +45,4 @@ Ordering in Backlog and ready is manual. If the column is short and the user dro
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 ghost-area drop on a manual column routes to the trailing insert
   position, so the card lands at the bottom — 3 tests, 3 updated
+- 2026-08-05 status → review (agent)
