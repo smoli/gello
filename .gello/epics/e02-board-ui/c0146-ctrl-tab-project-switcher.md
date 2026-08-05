@@ -41,24 +41,24 @@ projects are separate processes and keep running headless — unaffected.
 
 ## Acceptance criteria
 
-- [ ] `Ctrl+Tab` opens an overlay listing recent projects by title, current on
+- [x] `Ctrl+Tab` opens an overlay listing recent projects by title, current on
       top, in MRU order
-- [ ] On macOS `Cmd+`` ` `` opens the same switcher; `Ctrl+Tab` also works there
-- [ ] The first `Ctrl+Tab` preselects the second entry (the previously-visited
+- [x] On macOS `Cmd+`` ` `` opens the same switcher; `Ctrl+Tab` also works there
+- [x] The first `Ctrl+Tab` preselects the second entry (the previously-visited
       project)
-- [ ] With the modifier held, `Tab` moves the selection down and `Shift+Tab` up,
+- [x] With the modifier held, `Tab` moves the selection down and `Shift+Tab` up,
       both wrapping
-- [ ] The list does not reorder while the switcher is open
-- [ ] Releasing the modifier opens the selected project
-- [ ] `Ctrl+Esc` (Escape while the modifier is held) aborts — stays on the
+- [x] The list does not reorder while the switcher is open
+- [x] Releasing the modifier opens the selected project
+- [x] `Ctrl+Esc` (Escape while the modifier is held) aborts — stays on the
       current project — and the modifier release that follows does not commit
-- [ ] Committing re-fronts the chosen project in `recent`, so the next
+- [x] Committing re-fronts the chosen project in `recent`, so the next
       `Ctrl+Tab` toggles back
-- [ ] An entry whose board is not found renders greyed; committing to it warns
+- [x] An entry whose board is not found renders greyed; committing to it warns
       and does not switch
-- [ ] With no other recent project, the switcher is a no-op (or shows only the
+- [x] With no other recent project, the switcher is a no-op (or shows only the
       current)
-- [ ] The selection logic (MRU order, preselect-second, cycle, wrap) is a pure,
+- [x] The selection logic (MRU order, preselect-second, cycle, wrap) is a pure,
       unit-tested function separate from the key handling
 
 ## Discussion
