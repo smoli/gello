@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
 import type { Dependency, DependencyOption } from "../lib/board";
 import { splitLogSection } from "../lib/markdown";
+import { applyTagSuggestion, suggestTags } from "../lib/tags";
 import {
   parseGelloQuestion,
   stripGelloQuestion,
@@ -41,6 +42,7 @@ export function CardDetail({
   milestoneLabel,
   columns,
   milestoneOptions,
+  tagOptions = [],
   onChangeFields,
   onSaveEdit,
   onTriage,
@@ -65,6 +67,8 @@ export function CardDetail({
   milestoneLabel: string | null;
   columns: string[];
   milestoneOptions: MilestoneOption[];
+  /** c0145: every tag in use on the board, to suggest while typing. */
+  tagOptions?: string[];
   onChangeFields: (changes: CardFieldChanges) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, epicId: string | null) => void;
@@ -112,6 +116,14 @@ export function CardDetail({
   };
 
   const [tagsDraft, setTagsDraft] = useState(card.tags.join(", "));
+  // c0145: the tag suggestions follow the caret, so a tag edited in the middle
+  // of the list gets its own completions. The list only shows while the field
+  // has focus, and Escape dismisses it until the next keystroke.
+  const tagsInputRef = useRef<HTMLInputElement>(null);
+  const [tagCaret, setTagCaret] = useState(0);
+  const [tagFocus, setTagFocus] = useState(false);
+  const [tagActive, setTagActive] = useState(0);
+  const [tagDismissed, setTagDismissed] = useState(false);
   const [editing, setEditing] = useState(startInEdit ?? false);
   const [bodyDraft, setBodyDraft] = useState(startInEdit ? editableBody : "");
   const [titleDraft, setTitleDraft] = useState(startInEdit ? card.title : "");
@@ -281,6 +293,58 @@ export function CardDetail({
     onChangeFields({ tags });
   };
 
+  // c0145: what to offer for the tag under the caret
+  const tagSuggestions =
+    tagFocus && !tagDismissed ? suggestTags(tagOptions, tagsDraft, tagCaret) : [];
+
+  /** c0145: take a suggestion — it replaces the tag under the caret, and the
+   *  caret lands on the next one so a second tag can be typed straight away. */
+  const takeTagSuggestion = (tag: string) => {
+    const next = applyTagSuggestion(tagsDraft, tagCaret, tag);
+    setTagsDraft(next.value);
+    setTagCaret(next.caret);
+    setTagActive(0);
+    const input = tagsInputRef.current;
+    if (input) {
+      // the value lands via React on the next render — move the caret after it
+      queueMicrotask(() => {
+        input.focus();
+        input.setSelectionRange(next.caret, next.caret);
+      });
+    }
+  };
+
+  /** c0145: keyboard on the Tags field — arrows move the highlight, Enter takes
+   *  it (falling back to committing when nothing is suggested), Escape drops the
+   *  list without closing the dialog. */
+  const tagsInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (tagSuggestions.length > 0 && event.key === "ArrowDown") {
+      event.preventDefault();
+      setTagActive((i) => Math.min(tagSuggestions.length - 1, i + 1));
+    } else if (tagSuggestions.length > 0 && event.key === "ArrowUp") {
+      event.preventDefault();
+      setTagActive((i) => Math.max(0, i - 1));
+    } else if (event.key === "Enter") {
+      const pick = tagSuggestions[tagActive];
+      if (pick) {
+        event.preventDefault();
+        takeTagSuggestion(pick);
+      } else {
+        commitTags();
+      }
+    } else if (event.key === "Escape" && tagSuggestions.length > 0) {
+      // stop the window-level Escape from closing the whole dialog (c023)
+      event.stopPropagation();
+      setTagDismissed(true);
+      setTagActive(0);
+    }
+  };
+
+  /** Track the caret so the suggestions follow the tag being edited. */
+  const syncTagCaret = (event: { currentTarget: HTMLInputElement }) => {
+    setTagCaret(event.currentTarget.selectionStart ?? event.currentTarget.value.length);
+  };
+
   return (
     <div
       className="card-detail-backdrop"
@@ -391,17 +455,54 @@ export function CardDetail({
               ))}
             </select>
           </label>
-          <label>
+          <label className="card-detail-tags">
             Tags
+            {/* c0145: type-ahead over the tags already in use on the board */}
             <input
+              ref={tagsInputRef}
               aria-label="Tags"
               value={tagsDraft}
-              onChange={(event) => setTagsDraft(event.target.value)}
-              onBlur={commitTags}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") commitTags();
+              onChange={(event) => {
+                setTagsDraft(event.target.value);
+                setTagActive(0);
+                setTagDismissed(false);
+                syncTagCaret(event);
               }}
+              onFocus={(event) => {
+                setTagFocus(true);
+                syncTagCaret(event);
+              }}
+              onBlur={() => {
+                setTagFocus(false);
+                commitTags();
+              }}
+              onSelect={syncTagCaret}
+              onKeyDown={tagsInputKeyDown}
             />
+            {tagSuggestions.length > 0 && (
+              <ul className="tag-suggestions" role="listbox" aria-label="Tag suggestions">
+                {tagSuggestions.map((tag, i) => (
+                  <li key={tag} className="tag-suggestion-row">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={i === tagActive}
+                      className={
+                        i === tagActive
+                          ? "tag-suggestion tag-suggestion-active"
+                          : "tag-suggestion"
+                      }
+                      // keep the field focused: a blur would commit and close
+                      // the list before the click lands
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => takeTagSuggestion(tag)}
+                    >
+                      {tag}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </label>
           {/* i0005: assign (inbox) or reassign (triaged) a milestone from the
               detail — onTriage moves the file either way (inbox→milestone or

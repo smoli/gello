@@ -1726,6 +1726,8 @@ function App() {
             milestoneLabel={selected.milestoneLabel}
             columns={board.model.config.columns}
             milestoneOptions={milestoneOptions}
+            // c0145: the tags already in use, to suggest while typing
+            tagOptions={collectTags(board.model).map((entry) => entry.tag)}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}
             onSaveEdit={(edit, force) => handleSaveEdit(selected.card, edit, force)}
             onTriage={(folder, milestoneId) =>

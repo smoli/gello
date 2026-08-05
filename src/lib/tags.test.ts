@@ -11,6 +11,9 @@ import {
   tagColor,
   tintColor,
   TAG_PALETTE,
+  tagSegmentAt,
+  suggestTags,
+  applyTagSuggestion,
 } from "./tags";
 
 /** Perceived luminance (0–255) of a "#rrggbb" hex — for ordering fills. */
@@ -203,5 +206,101 @@ describe("planTagRename", () => {
 
   it("is empty when no card carries the tag", () => {
     expect(planTagRename(MODEL, "nope", "x")).toEqual([]);
+  });
+});
+
+describe("tagSegmentAt", () => {
+  it("spans the whole value when there is no comma", () => {
+    expect(tagSegmentAt("ui", 2)).toEqual({ start: 0, end: 2, text: "ui" });
+  });
+
+  it("picks the segment the caret is in", () => {
+    const value = "ui, agent-dx, docs";
+    expect(tagSegmentAt(value, 1)).toEqual({ start: 0, end: 2, text: "ui" });
+    expect(tagSegmentAt(value, 8)).toEqual({ start: 3, end: 12, text: " agent-dx" });
+    expect(tagSegmentAt(value, 18)).toEqual({ start: 13, end: 18, text: " docs" });
+  });
+
+  it("gives an empty segment right after a comma", () => {
+    expect(tagSegmentAt("ui, ", 4)).toEqual({ start: 3, end: 4, text: " " });
+  });
+
+  it("clamps a caret outside the value", () => {
+    expect(tagSegmentAt("ui", 99)).toEqual({ start: 0, end: 2, text: "ui" });
+  });
+});
+
+describe("suggestTags", () => {
+  const ALL = ["agent-dx", "docs", "foundation", "ui", "ui-polish"];
+
+  it("matches the segment at the caret, case-insensitively", () => {
+    expect(suggestTags(ALL, "UI", 2)).toEqual(["ui-polish"]);
+    expect(suggestTags(ALL, "dx", 2)).toEqual(["agent-dx"]);
+  });
+
+  it("puts prefix matches before matches from the middle", () => {
+    expect(suggestTags(["adoc", "docs", "mydoc"], "doc", 3)).toEqual([
+      "docs",
+      "adoc",
+      "mydoc",
+    ]);
+  });
+
+  it("ignores the segments the caret is not in", () => {
+    expect(suggestTags(ALL, "docs, found", 11)).toEqual(["foundation"]);
+  });
+
+  it("does not suggest a tag the field already lists", () => {
+    expect(suggestTags(ALL, "ui-polish, ui", 13)).toEqual([]);
+    expect(suggestTags(ALL, "docs, doc", 9)).toEqual([]);
+  });
+
+  it("offers every unused tag for an empty segment", () => {
+    expect(suggestTags(ALL, "", 0)).toEqual(ALL);
+    expect(suggestTags(ALL, "ui, ", 4)).toEqual([
+      "agent-dx",
+      "docs",
+      "foundation",
+      "ui-polish",
+    ]);
+  });
+
+  it("drops an exact match — there is nothing left to complete", () => {
+    expect(suggestTags(["docs"], "docs", 4)).toEqual([]);
+  });
+
+  it("caps the list", () => {
+    const many = Array.from({ length: 20 }, (_, i) => `tag${i}`);
+    expect(suggestTags(many, "tag", 3)).toHaveLength(8);
+  });
+});
+
+describe("applyTagSuggestion", () => {
+  it("completes the segment at the caret and opens the next one", () => {
+    expect(applyTagSuggestion("ag", 2, "agent-dx")).toEqual({
+      value: "agent-dx, ",
+      caret: 10,
+    });
+  });
+
+  it("keeps the tags around the completed one", () => {
+    expect(applyTagSuggestion("ui, doc, agent-dx", 7, "docs")).toEqual({
+      value: "ui, docs, agent-dx",
+      caret: 10,
+    });
+  });
+
+  it("fills an empty trailing segment", () => {
+    expect(applyTagSuggestion("ui, ", 4, "docs")).toEqual({
+      value: "ui, docs, ",
+      caret: 10,
+    });
+  });
+
+  it("normalizes the separators and drops blanks", () => {
+    expect(applyTagSuggestion("ui ,, do", 8, "docs")).toEqual({
+      value: "ui, docs, ",
+      caret: 10,
+    });
   });
 });

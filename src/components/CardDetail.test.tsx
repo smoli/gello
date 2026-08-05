@@ -135,6 +135,154 @@ describe("CardDetail", () => {
     });
   });
 
+  // c0145: the Tags field suggests the tags already in use on the board, so the
+  // same label does not end up spelled three ways.
+  describe("tag suggestions", () => {
+    const BOARD_TAGS = ["agent-dx", "docs", "foundation", "ui", "ui-polish"];
+
+    const tagsInput = () => screen.getByLabelText("Tags");
+    const tagSuggestions = () =>
+      screen.queryByRole("listbox", { name: /tag suggestions/i });
+    const optionNames = () =>
+      within(tagSuggestions()!)
+        .getAllByRole("option")
+        .map((option) => option.textContent);
+
+    function typeTags(value: string) {
+      const input = tagsInput();
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value } });
+      return input;
+    }
+
+    it("c0145: suggests the board tags matching what is typed", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      typeTags("doc");
+
+      expect(optionNames()).toEqual(["docs"]);
+    });
+
+    it("c0145: matches the tag the caret is in, not the whole field", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      typeTags("docs, found");
+
+      expect(optionNames()).toEqual(["foundation"]);
+    });
+
+    it("c0145: does not suggest a tag the field already lists", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      typeTags("ui-polish, ui");
+
+      expect(tagSuggestions()).not.toBeInTheDocument();
+    });
+
+    it("c0145: offers the unused tags for an empty entry", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      typeTags("ui, ");
+
+      expect(optionNames()).toEqual(["agent-dx", "docs", "foundation", "ui-polish"]);
+    });
+
+    it("c0145: shows nothing until the field has focus", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      expect(tagSuggestions()).not.toBeInTheDocument();
+    });
+
+    it("c0145: shows no list on a board with no other tags", () => {
+      renderDetail({ tagOptions: ["ui"] });
+
+      typeTags("ui");
+
+      expect(tagSuggestions()).not.toBeInTheDocument();
+    });
+
+    it("c0145: a clicked suggestion completes the tag and opens the next", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      typeTags("ui, ag");
+      fireEvent.click(within(tagSuggestions()!).getByRole("option", { name: "agent-dx" }));
+
+      expect(tagsInput()).toHaveValue("ui, agent-dx, ");
+      expect(tagSuggestions()).toBeInTheDocument();
+    });
+
+    it("c0145: the caret lands after the completed tag, ready for the next", async () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      // caret in the first of two tags — the completion goes there, and so
+      // does the caret, not to the end of the field
+      const input = typeTags("ui-p, agent-dx") as HTMLInputElement;
+      input.setSelectionRange(4, 4);
+      fireEvent.select(input);
+      fireEvent.click(within(tagSuggestions()!).getByRole("option", { name: "ui-polish" }));
+      // the caret is restored once the completed value has rendered
+      await new Promise((resolve) => queueMicrotask(() => resolve(null)));
+
+      expect(input).toHaveValue("ui-polish, agent-dx");
+      expect(input.selectionStart).toBe(11);
+    });
+
+    it("c0145: Enter takes the highlighted suggestion instead of committing", () => {
+      const props = renderDetail({ tagOptions: BOARD_TAGS });
+
+      const input = typeTags("ui, doc");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(input).toHaveValue("ui, docs, ");
+      expect(props.onChangeFields).not.toHaveBeenCalled();
+    });
+
+    it("c0145: arrow keys move the highlight", () => {
+      renderDetail({ tagOptions: BOARD_TAGS });
+
+      const input = typeTags("ui, ");
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(input).toHaveValue("ui, docs, ");
+    });
+
+    it("c0145: Enter still commits when no suggestion is open", () => {
+      const props = renderDetail({ tagOptions: BOARD_TAGS });
+
+      const input = typeTags("ui, docs");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({
+        tags: ["ui", "docs"],
+      });
+    });
+
+    it("c0145: Escape drops the suggestions without closing the dialog", () => {
+      const props = renderDetail({ tagOptions: BOARD_TAGS });
+
+      const input = typeTags("doc");
+      fireEvent.keyDown(input, { key: "Escape" });
+
+      expect(tagSuggestions()).not.toBeInTheDocument();
+      expect(props.onClose).not.toHaveBeenCalled();
+      // the typed text stays — Escape dismisses the list, it does not undo
+      expect(input).toHaveValue("doc");
+    });
+
+    it("c0145: leaving the field commits the tags and hides the list", () => {
+      const props = renderDetail({ tagOptions: BOARD_TAGS });
+
+      const input = typeTags("ui, doc");
+      fireEvent.blur(input);
+
+      expect(tagSuggestions()).not.toBeInTheDocument();
+      expect(props.onChangeFields).toHaveBeenCalledExactlyOnceWith({
+        tags: ["ui", "doc"],
+      });
+    });
+  });
+
   it("i0005: preselects the current milestone and reassigns a triaged card", () => {
     const props = renderDetail();
 

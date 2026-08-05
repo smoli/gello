@@ -94,6 +94,54 @@
   color: CanvasText;
 }
 
+/* c0145: the Tags field anchors its suggestion list, which overlays what is
+   below instead of pushing the fields row open. */
+.card-detail-tags {
+  position: relative;
+}
+
+.tag-suggestions {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  margin: 0.2rem 0 0;
+  padding: 0.2rem;
+  list-style: none;
+  min-width: max(100%, 160px);
+  max-height: 40vh;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  background: Canvas;
+  box-shadow: 0 10px 30px color-mix(in srgb, CanvasText 25%, transparent);
+}
+
+.tag-suggestion-row {
+  margin: 0;
+}
+
+.tag-suggestion {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: CanvasText;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* the highlight the arrow keys move; hover matches it (c0127) */
+.tag-suggestion-active,
+.tag-suggestion:hover {
+  background: color-mix(in srgb, #4c8bf5 20%, Canvas);
+}
+
 .card-detail-actions {
   display: flex;
   gap: 0.5rem;

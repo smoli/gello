@@ -136,6 +136,91 @@ export function tagChipStyle(
   };
 }
 
+/** c0145: one comma-separated entry of a tags input, with its bounds in the
+ *  raw value. `text` is the raw slice, separators excluded — callers trim. */
+export interface TagSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** The tag entry the caret sits in, within a comma-separated tags value. */
+export function tagSegmentAt(value: string, caret: number): TagSegment {
+  const at = Math.max(0, Math.min(caret, value.length));
+  const start = value.lastIndexOf(",", at - 1) + 1;
+  const next = value.indexOf(",", at);
+  const end = next === -1 ? value.length : next;
+  return { start, end, text: value.slice(start, end) };
+}
+
+/** How many tags the suggestion list offers at once. */
+const TAG_SUGGESTION_CAP = 8;
+
+/**
+ * c0145: the tags worth offering for the entry the caret is in. Matches that
+ * entry case-insensitively, prefix matches first; skips the tags the value
+ * already lists elsewhere and an entry already typed in full.
+ */
+export function suggestTags(all: string[], value: string, caret: number): string[] {
+  const segment = tagSegmentAt(value, caret);
+  const query = segment.text.trim().toLowerCase();
+  const taken = new Set(
+    value
+      .split(",")
+      .filter((_, i, parts) => {
+        // the entry being edited is the one containing the caret
+        const offset = parts.slice(0, i).join(",").length + (i === 0 ? 0 : 1);
+        return offset !== segment.start;
+      })
+      .map((part) => part.trim().toLowerCase())
+      .filter((part) => part !== ""),
+  );
+  const candidates = all
+    .filter((tag) => {
+      const lower = tag.toLowerCase();
+      return !taken.has(lower) && lower !== query && lower.includes(query);
+    })
+    .sort((a, b) => a.localeCompare(b));
+  const prefix = candidates.filter((tag) => tag.toLowerCase().startsWith(query));
+  const rest = candidates.filter((tag) => !tag.toLowerCase().startsWith(query));
+  return [...prefix, ...rest].slice(0, TAG_SUGGESTION_CAP);
+}
+
+/**
+ * c0145: take a suggestion — the entry at the caret becomes `tag`. The value is
+ * normalized to `a, b` separators, blank entries drop out, and a completed last
+ * entry gets a trailing `, ` so the next tag can be typed straight away. The
+ * returned caret goes after the separator following the completed tag.
+ */
+export function applyTagSuggestion(
+  value: string,
+  caret: number,
+  tag: string,
+): { value: string; caret: number } {
+  const segment = tagSegmentAt(value, caret);
+  const parts = value.split(",");
+  let index = 0;
+  let offset = 0;
+  for (let i = 0; i < parts.length; i += 1) {
+    if (offset === segment.start) index = i;
+    offset += parts[i].length + 1;
+  }
+  const kept: string[] = [];
+  let position = 0;
+  parts.forEach((part, i) => {
+    const trimmed = i === index ? tag : part.trim();
+    if (trimmed === "") return;
+    if (i === index) position = kept.length;
+    kept.push(trimmed);
+  });
+  const last = position === kept.length - 1;
+  const joined = kept.join(", ");
+  return {
+    value: last ? `${joined}, ` : joined,
+    caret: kept.slice(0, position + 1).join(", ").length + 2,
+  };
+}
+
 /** Replace `from` with `to` in a tag list, preserving order and deduping. */
 export function renameTagInList(tags: string[], from: string, to: string): string[] {
   if (!tags.includes(from)) return tags;
