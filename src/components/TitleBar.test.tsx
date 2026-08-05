@@ -27,24 +27,63 @@ describe("TitleBar", () => {
   });
 
   it("c0083: shows no dirty indicator when clean or absent", () => {
-    render(<TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: false, code_dirty: false }} />);
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        git={{ kind: "status", board_dirty: false, code_dirty: false }}
+      />,
+    );
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("c0083: shows a board-only dirty indicator distinct from a code one", () => {
     const { rerender } = render(
-      <TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: true, code_dirty: false }} />,
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        git={{ kind: "status", board_dirty: true, code_dirty: false }}
+      />,
     );
     const boardDot = screen.getByRole("status");
     expect(boardDot).toHaveAccessibleName("Uncommitted board changes");
     expect(boardDot.className).toContain("titlebar-dirty-board");
 
     rerender(
-      <TitleBar root="/x/.gello" branch="main" dirty={{ board_dirty: true, code_dirty: true }} />,
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        git={{ kind: "status", board_dirty: true, code_dirty: true }}
+      />,
     );
     const codeDot = screen.getByRole("status");
     expect(codeDot).toHaveAccessibleName("Uncommitted changes (includes code)");
     expect(codeDot.className).toContain("titlebar-dirty-code");
+  });
+
+  // i0131: a git that can't answer used to render exactly like a clean
+  // worktree, so the whole integration could be off with nothing to see.
+  it("i0131: shows why git is unavailable, instead of looking clean", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        git={{ kind: "unavailable", message: "detected dubious ownership in repository at '/x'" }}
+      />,
+    );
+    const marker = screen.getByRole("status");
+    expect(marker).toHaveAccessibleName(
+      "Git unavailable: detected dubious ownership in repository at '/x'",
+    );
+    expect(marker.className).toContain("titlebar-git-unavailable");
+    // it is the dirty dot's corner, but not a dirty dot
+    expect(marker.className).not.toContain("titlebar-dirty-board");
+    expect(marker.className).not.toContain("titlebar-dirty-code");
+  });
+
+  it("i0131: stays quiet for a project that is not a git repo", () => {
+    render(<TitleBar root="/x/.gello" branch={null} git={{ kind: "not_a_repo" }} />);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("c0100: shows no runner indicator when the companion isn't running", () => {

@@ -126,11 +126,11 @@ describe("App", () => {
     vi.mocked(requestStopRun).mockResolvedValue(undefined);
     vi.mocked(readCompanionState).mockResolvedValue(null);
     vi.mocked(gitBoardChanges).mockReset();
-    vi.mocked(gitBoardChanges).mockResolvedValue(null);
+    vi.mocked(gitBoardChanges).mockResolvedValue({ kind: "not_a_repo" });
     vi.mocked(gitCommitBoard).mockReset();
     vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "nothing" });
     vi.mocked(gitWorktreeStatus).mockReset();
-    vi.mocked(gitWorktreeStatus).mockResolvedValue(null);
+    vi.mocked(gitWorktreeStatus).mockResolvedValue({ kind: "not_a_repo" });
   });
 
   it("shows the placeholder when no board is found", async () => {
@@ -1425,13 +1425,16 @@ describe("App", () => {
         emitChange = onChange;
         return () => {};
       });
-      vi.mocked(gitBoardChanges).mockResolvedValue([
-        {
-          path: ".gello/cards/c001-hello.md",
-          head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
-          work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
-        },
-      ]);
+      vi.mocked(gitBoardChanges).mockResolvedValue({
+        kind: "changes",
+        changes: [
+          {
+            path: ".gello/cards/c001-hello.md",
+            head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+            work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
+          },
+        ],
+      });
       vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "committed" });
 
       render(<App />);
@@ -1472,6 +1475,59 @@ describe("App", () => {
       });
 
       expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("i0131: shows in the title bar why git is unavailable", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(gitWorktreeStatus).mockResolvedValue({
+      kind: "unavailable",
+      message: "detected dubious ownership in repository at '/repo'",
+    });
+
+    render(<App />);
+    await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("status", {
+          name: "Git unavailable: detected dubious ownership in repository at '/repo'",
+        }),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("i0131: says auto-commit is off when git can't answer, instead of nothing", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key.startsWith("auto-commit:") ? "1" : null,
+      );
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      vi.mocked(gitBoardChanges).mockResolvedValue({
+        kind: "unavailable",
+        message: "could not run git: No such file or directory",
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+      expect(
+        screen.getByText(/auto-commit is off: git is unavailable/),
+      ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

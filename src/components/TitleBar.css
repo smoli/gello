@@ -113,6 +113,12 @@
   color: color-mix(in srgb, orange 80%, CanvasText);
   opacity: 1;
 }
+/* i0131: git present but unable to answer — reads as a warning, not a dot */
+.titlebar-git-unavailable {
+  color: color-mix(in srgb, red 60%, CanvasText);
+  opacity: 1;
+  cursor: help;
+}
 
 /* c0100: companion runner indicator + its runs popover */
 .titlebar-runner-wrap {

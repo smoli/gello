@@ -123,12 +123,28 @@ export interface WorktreeStatus {
   code_dirty: boolean;
 }
 
+/**
+ * i0131: what git can say about the project (mirrors the Rust `GitStatus`).
+ * `not_a_repo` is the quiet, expected case; `unavailable` carries git's reason
+ * so a switched-off integration is never mistaken for a clean worktree.
+ */
+export type GitStatus =
+  | { kind: "not_a_repo" }
+  | { kind: "unavailable"; message: string }
+  | ({ kind: "status" } & WorktreeStatus);
+
 /** c0083: a changed `.gello/` file with its HEAD and worktree content. */
 export interface BoardChangeRaw {
   path: string;
   head: string | null;
   work: string | null;
 }
+
+/** i0131: the changed board files, or why git couldn't list them. */
+export type BoardChanges =
+  | { kind: "not_a_repo" }
+  | { kind: "unavailable"; message: string }
+  | { kind: "changes"; changes: BoardChangeRaw[] };
 
 /** c0083: commit only `.gello/` changes with the given message. */
 export async function gitCommitBoard(
@@ -142,21 +158,25 @@ export async function gitCommitBoard(
   }
 }
 
-/** c0083: board-vs-code worktree dirtiness (null outside a git repo). */
-export async function gitWorktreeStatus(root: string): Promise<WorktreeStatus | null> {
+/**
+ * c0083/i0131: board-vs-code worktree dirtiness, or why git couldn't say.
+ * A missing Tauri boundary (the browser dev build, tests) is not a git fault —
+ * it reads as `not_a_repo`, the quiet case.
+ */
+export async function gitWorktreeStatus(root: string): Promise<GitStatus> {
   try {
-    return (await invoke<WorktreeStatus | null>("git_worktree_status", { root })) ?? null;
+    return (await invoke<GitStatus | null>("git_worktree_status", { root })) ?? { kind: "not_a_repo" };
   } catch {
-    return null;
+    return { kind: "not_a_repo" };
   }
 }
 
-/** c0083: changed `.gello/` files with HEAD + worktree content (null outside a repo). */
-export async function gitBoardChanges(root: string): Promise<BoardChangeRaw[] | null> {
+/** c0083/i0131: changed `.gello/` files with HEAD + worktree content, or the reason. */
+export async function gitBoardChanges(root: string): Promise<BoardChanges> {
   try {
-    return (await invoke<BoardChangeRaw[] | null>("git_board_changes", { root })) ?? null;
+    return (await invoke<BoardChanges | null>("git_board_changes", { root })) ?? { kind: "not_a_repo" };
   } catch {
-    return null;
+    return { kind: "not_a_repo" };
   }
 }
 

@@ -187,15 +187,17 @@ fn git_commit_board(root: String, message: String) -> git::CommitOutcome {
 }
 
 /// c0083: worktree dirtiness split by board-only (`.gello/`) vs code.
+/// i0131: or the reason git couldn't answer, so the integration never goes
+/// quiet without saying why.
 #[tauri::command]
-fn git_worktree_status(root: String) -> Option<git::WorktreeStatus> {
+fn git_worktree_status(root: String) -> git::GitStatus {
     git::worktree_status(std::path::Path::new(&root))
 }
 
 /// c0083: changed `.gello/` files with HEAD + worktree content, for building the
 /// per-card commit message on the frontend.
 #[tauri::command]
-fn git_board_changes(root: String) -> Option<Vec<git::BoardChange>> {
+fn git_board_changes(root: String) -> git::BoardChanges {
     git::board_changes(std::path::Path::new(&root))
 }
 

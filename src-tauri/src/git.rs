@@ -32,9 +32,44 @@ pub struct WorktreeStatus {
     pub code_dirty: bool,
 }
 
+/// What the git layer can say about a project (i0131). A bare `Option` made
+/// "not a repo", "git is missing", "git refused the directory" and "clean" one
+/// indistinguishable state, so every git feature switched off in silence.
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum GitStatus {
+    /// No `.git` above the board. An ordinary project, not a fault — stays quiet.
+    NotARepo,
+    /// A repo is there, but git could not answer for it. `message` is git's own
+    /// stderr, or the spawn failure when git is not on PATH.
+    Unavailable { message: String },
+    /// The worktree's dirtiness.
+    Status(WorktreeStatus),
+}
+
 /// Run `git -C <cwd> <args>`, capturing output. None if git can't be spawned.
 fn run_git(cwd: &Path, args: &[&str]) -> Option<std::process::Output> {
     Command::new("git").arg("-C").arg(cwd).args(args).output().ok()
+}
+
+/// Run git for its stdout, or the reason it couldn't answer (i0131): the spawn
+/// failure when git isn't there, else its stderr.
+fn git_output(cwd: &Path, args: &[&str]) -> Result<String, String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(cwd)
+        .args(args)
+        .output()
+        .map_err(|error| format!("could not run git: {error}"))?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            format!("git {} failed", args.join(" "))
+        } else {
+            stderr
+        });
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
 /// True if the repo containing `git_dir` is mid-merge/rebase/cherry-pick/revert
@@ -45,16 +80,15 @@ fn is_mid_operation(git_dir: &Path) -> bool {
         .any(|marker| git_dir.join(marker).exists())
 }
 
-/// The repo's top-level directory (git's already-resolved absolute path).
-fn repo_top(root: &Path) -> Option<PathBuf> {
-    let out = run_git(root, &["rev-parse", "--show-toplevel"]).filter(|o| o.status.success())?;
-    let top = String::from_utf8(out.stdout).ok()?;
-    Some(PathBuf::from(top.trim()))
+/// The repo's top-level directory (git's already-resolved absolute path). Err
+/// carries git's reason (i0131).
+fn repo_top(root: &Path) -> Result<PathBuf, String> {
+    Ok(PathBuf::from(git_output(root, &["rev-parse", "--show-toplevel"])?.trim()))
 }
 
 /// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/", empty
 /// when the board dir *is* the repo top), used to classify porcelain paths as
-/// board vs code. `root` is the `.gello` dir. None when `root` is not in a repo.
+/// board vs code. `root` is the `.gello` dir. Err carries git's reason (i0131).
 ///
 /// Asked of git rather than worked out here (i0127). Deriving it meant
 /// comparing two spellings of the same directory — git's `--show-toplevel`
@@ -66,32 +100,55 @@ fn repo_top(root: &Path) -> Option<PathBuf> {
 /// switched off both the status indicator and auto-commit. `--show-prefix`
 /// takes the same cwd git already resolved and prints what is wanted directly
 /// — forward slashes, trailing separator, no second spelling to reconcile.
-fn board_prefix(root: &Path) -> Option<String> {
-    let out = run_git(root, &["rev-parse", "--show-prefix"]).filter(|o| o.status.success())?;
-    let prefix = String::from_utf8(out.stdout).ok()?;
-    Some(prefix.trim().to_string())
+fn board_prefix(root: &Path) -> Result<String, String> {
+    Ok(git_output(root, &["rev-parse", "--show-prefix"])?.trim().to_string())
 }
 
 /// A changed board file (c0083): repo-top-relative path plus its content at HEAD
 /// (`head`, None if newly added) and in the worktree (`work`, None if deleted).
 /// The frontend parses both to build the per-card commit message.
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct BoardChange {
     pub path: String,
     pub head: Option<String>,
     pub work: Option<String>,
 }
 
-/// Every changed file under `.gello/` (added/modified/deleted, incl. untracked),
-/// with its HEAD and worktree content. None when `root` is not in a git repo.
-pub fn board_changes(root: &Path) -> Option<Vec<BoardChange>> {
-    let top = repo_top(root)?;
-    let prefix = board_prefix(root)?;
+/// The changed board files, or why git couldn't list them (i0131) — the
+/// auto-commit half of the same silence `GitStatus` fixes for the indicator.
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "kind")]
+pub enum BoardChanges {
+    /// No `.git` above the board — nothing to commit into, and not a fault.
+    NotARepo,
+    /// A repo is there, but git could not answer for it.
+    Unavailable { message: String },
+    /// Every changed file under `.gello/` (added/modified/deleted, incl.
+    /// untracked), with its HEAD and worktree content. Empty = clean.
+    Changes { changes: Vec<BoardChange> },
+}
+
+/// Every changed file under `.gello/` with its HEAD and worktree content, or the
+/// reason git couldn't say. Repo-ness is a filesystem question (see
+/// `worktree_status`), so a missing git binary reads as unavailable, not absent.
+pub fn board_changes(root: &Path) -> BoardChanges {
+    if find_git_dir(root).is_none() {
+        return BoardChanges::NotARepo;
+    }
+    let top = match repo_top(root) {
+        Ok(top) => top,
+        Err(message) => return BoardChanges::Unavailable { message },
+    };
+    let prefix = match board_prefix(root) {
+        Ok(prefix) => prefix,
+        Err(message) => return BoardChanges::Unavailable { message },
+    };
     // run from the repo top with a pathspec so porcelain paths are top-relative;
     // -uall expands untracked directories to individual files
-    let out = run_git(&top, &["status", "--porcelain", "-uall", "--", &prefix])
-        .filter(|o| o.status.success())?;
-    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let text = match git_output(&top, &["status", "--porcelain", "-uall", "--", &prefix]) {
+        Ok(text) => text,
+        Err(message) => return BoardChanges::Unavailable { message },
+    };
     let mut changes = Vec::new();
     for line in text.lines() {
         if line.len() < 4 {
@@ -106,15 +163,25 @@ pub fn board_changes(root: &Path) -> Option<Vec<BoardChange>> {
         let work = std::fs::read_to_string(top.join(&path)).ok();
         changes.push(BoardChange { path, head, work });
     }
-    Some(changes)
+    BoardChanges::Changes { changes }
 }
 
-/// Classify the worktree's dirtiness (board vs code). None when `root` is not
-/// inside a git repo.
-pub fn worktree_status(root: &Path) -> Option<WorktreeStatus> {
-    let prefix = board_prefix(root)?;
-    let out = run_git(root, &["status", "--porcelain"]).filter(|o| o.status.success())?;
-    let text = String::from_utf8_lossy(&out.stdout);
+/// Classify the worktree's dirtiness (board vs code), or say why git can't
+/// (i0131). Repo-ness is decided by walking the filesystem for `.git`, never by
+/// asking git — otherwise a missing git binary reads as "not a repo" and the
+/// whole integration disappears without a word.
+pub fn worktree_status(root: &Path) -> GitStatus {
+    if find_git_dir(root).is_none() {
+        return GitStatus::NotARepo;
+    }
+    let prefix = match board_prefix(root) {
+        Ok(prefix) => prefix,
+        Err(message) => return GitStatus::Unavailable { message },
+    };
+    let text = match git_output(root, &["status", "--porcelain"]) {
+        Ok(text) => text,
+        Err(message) => return GitStatus::Unavailable { message },
+    };
     let mut status = WorktreeStatus { board_dirty: false, code_dirty: false };
     for line in text.lines() {
         if line.len() < 4 {
@@ -130,7 +197,7 @@ pub fn worktree_status(root: &Path) -> Option<WorktreeStatus> {
             status.code_dirty = true;
         }
     }
-    Some(status)
+    GitStatus::Status(status)
 }
 
 /// Stage and commit only `.gello/` changes (c0083). A pathspec commit: the
@@ -281,7 +348,7 @@ mod tests {
     #[test]
     fn prefix_is_empty_when_the_board_dir_is_the_repo_top() {
         let (dir, _gello) = repo_with_board();
-        assert_eq!(board_prefix(dir.path()).as_deref(), Some(""));
+        assert_eq!(board_prefix(dir.path()).as_deref(), Ok(""));
     }
 
     #[test]
@@ -289,13 +356,16 @@ mod tests {
         let (dir, _gello) = repo_with_board();
         let nested = dir.path().join("proj/.gello");
         fs::create_dir_all(&nested).unwrap();
-        assert_eq!(board_prefix(&nested).as_deref(), Some("proj/.gello/"));
+        assert_eq!(board_prefix(&nested).as_deref(), Ok("proj/.gello/"));
     }
 
+    /// i0131: outside a repo the failure carries git's own words, so the caller
+    /// can tell "no repo here" from "git could not answer".
     #[test]
-    fn prefix_is_none_outside_a_repo() {
+    fn prefix_outside_a_repo_reports_gits_reason() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(board_prefix(dir.path()), None);
+        let reason = board_prefix(dir.path()).expect_err("not a repo");
+        assert!(reason.contains("not a git repository"), "git's reason: {reason}");
     }
 
     // --- c0083: commit / status plumbing -----------------------------------
@@ -349,11 +419,11 @@ mod tests {
         let Some((_dir, gello)) = repo_reached_by_another_spelling() else {
             return; // case-sensitive filesystem — the spelling doesn't exist
         };
-        assert_eq!(board_prefix(&gello).as_deref(), Some(".gello/"));
+        assert_eq!(board_prefix(&gello).as_deref(), Ok(".gello/"));
     }
 
-    /// The same divergence, at the level the title bar actually consumes: a
-    /// None here is what makes the indicator disappear.
+    /// The same divergence, at the level the title bar actually consumes: no
+    /// status here is what makes the indicator disappear.
     #[test]
     fn worktree_status_survives_a_differently_spelled_path() {
         let Some((_dir, gello)) = repo_reached_by_another_spelling() else {
@@ -361,9 +431,10 @@ mod tests {
         };
         fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
 
-        let status = worktree_status(&gello).expect("a repo, however it is spelled");
-        assert!(status.board_dirty, "the board change must be seen as board-dirty");
-        assert!(!status.code_dirty);
+        assert_eq!(
+            worktree_status(&gello),
+            GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: false })
+        );
     }
 
     fn head_count(top: &Path) -> usize {
@@ -431,26 +502,82 @@ mod tests {
         // clean
         assert_eq!(
             worktree_status(&gello),
-            Some(WorktreeStatus { board_dirty: false, code_dirty: false })
+            GitStatus::Status(WorktreeStatus { board_dirty: false, code_dirty: false })
         );
         // board-only dirty
         fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
         assert_eq!(
             worktree_status(&gello),
-            Some(WorktreeStatus { board_dirty: true, code_dirty: false })
+            GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: false })
         );
         // now also a code change → both
         fs::write(top.join("code.rs"), "x\n").unwrap();
         assert_eq!(
             worktree_status(&gello),
-            Some(WorktreeStatus { board_dirty: true, code_dirty: true })
+            GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: true })
         );
     }
 
+    // --- i0131: a git failure has to say why --------------------------------
+
+    /// A project that is not a repo is the ordinary case, not a fault: stay
+    /// quiet. Decided from the filesystem, so it holds with no git installed.
     #[test]
-    fn worktree_status_is_none_outside_a_repo() {
+    fn status_says_not_a_repo_outside_a_repo() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(worktree_status(dir.path()), None);
+        assert_eq!(worktree_status(dir.path()), GitStatus::NotARepo);
+    }
+
+    /// A `.git` is right there but git cannot answer for it (here: an empty
+    /// `.git`, standing in for a broken repo, dubious ownership, or no git on
+    /// PATH). Reporting "not a repo" for this is what made i0126/i0127
+    /// undiagnosable — it has to carry git's reason instead.
+    #[test]
+    fn status_reports_why_git_cannot_answer() {
+        let dir = tempfile::tempdir().unwrap();
+        let gello = dir.path().join(".gello");
+        fs::create_dir_all(&gello).unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+
+        match worktree_status(&gello) {
+            GitStatus::Unavailable { message } => {
+                assert!(!message.trim().is_empty(), "the reason must not be empty");
+            }
+            other => panic!("expected a reason, got {other:?}"),
+        }
+    }
+
+    /// The board dir being inside a repo is decided by walking the filesystem,
+    /// never by asking git — otherwise a missing git binary reads as "no repo".
+    #[test]
+    fn repo_ness_does_not_depend_on_the_git_binary() {
+        let (dir, gello) = repo_with_board();
+        assert!(find_git_dir(&gello).is_some());
+        assert!(find_git_dir(dir.path().parent().unwrap()).is_none());
+    }
+
+    /// The auto-commit half of the same silence: `runAutoCommit` returned on a
+    /// None here, so a git that could not answer looked exactly like a project
+    /// that never asked for commits.
+    #[test]
+    fn board_changes_says_not_a_repo_outside_a_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(board_changes(dir.path()), BoardChanges::NotARepo);
+    }
+
+    #[test]
+    fn board_changes_reports_why_git_cannot_answer() {
+        let dir = tempfile::tempdir().unwrap();
+        let gello = dir.path().join(".gello");
+        fs::create_dir_all(&gello).unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+
+        match board_changes(&gello) {
+            BoardChanges::Unavailable { message } => {
+                assert!(!message.trim().is_empty(), "the reason must not be empty");
+            }
+            other => panic!("expected a reason, got {other:?}"),
+        }
     }
 
     #[test]
@@ -463,7 +590,9 @@ mod tests {
         // a code change must be ignored
         fs::write(top.join("code.rs"), "x\n").unwrap();
 
-        let mut changes = board_changes(&gello).unwrap();
+        let BoardChanges::Changes { mut changes } = board_changes(&gello) else {
+            panic!("a repo with board changes must list them");
+        };
         changes.sort_by(|a, b| a.path.cmp(&b.path));
         let paths: Vec<&str> = changes.iter().map(|c| c.path.as_str()).collect();
         assert_eq!(paths, vec![".gello/board.yaml", ".gello/inbox/c001.md"]);

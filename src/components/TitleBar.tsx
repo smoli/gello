@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { windowTitle } from "../lib/status";
 import { isMacOS } from "../lib/platform";
-import type { WorktreeStatus } from "../lib/board-io";
+import type { GitStatus } from "../lib/board-io";
 import { isCompanionLive, type CompanionState } from "../lib/companion";
 import { WindowControls } from "./WindowControls";
 import "./TitleBar.css";
@@ -73,7 +73,7 @@ function RunnerRuns({
 export function TitleBar({
   root,
   branch,
-  dirty,
+  git,
   runner,
   onStartCompanion,
   onStopRun,
@@ -82,8 +82,8 @@ export function TitleBar({
 }: {
   root: string;
   branch: string | null;
-  /** c0083: worktree dirtiness for the indicator (null = clean or non-git). */
-  dirty?: WorktreeStatus | null;
+  /** c0083/i0131: what git can say — dirtiness, or why it can't answer. */
+  git?: GitStatus | null;
   /** c0100: companion runner state (null = companion not running → no icon). */
   runner?: CompanionState | null;
   /** c0110: launch the companion for the open board. Omitted → no Start action. */
@@ -157,26 +157,38 @@ export function TitleBar({
         <span className="titlebar-caption">{windowTitle(root, branch)}</span>
         {/* c0083: uncommitted-changes dot — hollow when only .gello/ is dirty,
             filled/distinct when the dirtiness includes code; nothing when clean */}
-        {dirty && (dirty.board_dirty || dirty.code_dirty) && (
+        {git?.kind === "status" && (git.board_dirty || git.code_dirty) && (
           <span
             className={
-              dirty.code_dirty
+              git.code_dirty
                 ? "titlebar-dirty titlebar-dirty-code"
                 : "titlebar-dirty titlebar-dirty-board"
             }
             role="status"
             aria-label={
-              dirty.code_dirty
+              git.code_dirty
                 ? "Uncommitted changes (includes code)"
                 : "Uncommitted board changes"
             }
             title={
-              dirty.code_dirty
+              git.code_dirty
                 ? "Uncommitted changes (includes code)"
                 : "Uncommitted board changes"
             }
           >
-            {dirty.code_dirty ? "●" : "○"}
+            {git.code_dirty ? "●" : "○"}
+          </span>
+        )}
+        {/* i0131: git is installed-or-not, willing-or-not — say so in the dot's
+            corner rather than rendering a broken integration as "clean" */}
+        {git?.kind === "unavailable" && (
+          <span
+            className="titlebar-dirty titlebar-git-unavailable"
+            role="status"
+            aria-label={`Git unavailable: ${git.message}`}
+            title={`Git unavailable: ${git.message}`}
+          >
+            ⚠
           </span>
         )}
         {/* c0110: no live companion → offer Start (the same corner as the

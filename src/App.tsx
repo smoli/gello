@@ -62,7 +62,7 @@ import {
   loadBoardFromDisk,
   migrateLegacyBoard,
   pickFolder,
-  type WorktreeStatus,
+  type GitStatus,
   pickImageFile,
   readFileRaw,
   removeFile,
@@ -228,7 +228,8 @@ function App() {
   // c0083: per-project auto-commit of board changes (off by default) + window
   const [autoCommit, setAutoCommit] = useState(false);
   const [autoCommitWindowMs, setAutoCommitWindowMs] = useState(AUTO_COMMIT_DEFAULT_MS);
-  const [dirty, setDirty] = useState<WorktreeStatus | null>(null);
+  // i0131: what git can say (dirtiness, or why it can't answer); null = unasked
+  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   // c0100: companion runner state for the title-bar indicator (null = not running)
   const [runner, setRunner] = useState<CompanionState | null>(null);
   // i0028: epic creation + minimal-view selection. openEpicSignal opens the
@@ -537,7 +538,7 @@ function App() {
   /** c0083: refresh the title-bar dirty indicator from git. */
   const refreshDirty = async () => {
     if (!board) return;
-    setDirty(await gitWorktreeStatus(board.root));
+    setGitStatus(await gitWorktreeStatus(board.root));
   };
   const refreshDirtyRef = useRef(refreshDirty);
   refreshDirtyRef.current = refreshDirty;
@@ -612,10 +613,17 @@ function App() {
    *  surfaced non-fatally and never blocks the board. */
   const runAutoCommit = async () => {
     if (!board) return;
-    const raw = await gitBoardChanges(board.root);
-    if (!raw) return; // not a git repo
+    const pending = await gitBoardChanges(board.root);
+    if (pending.kind === "not_a_repo") return; // nothing to commit into
+    if (pending.kind === "unavailable") {
+      // i0131: auto-commit is on and doing nothing — say why rather than
+      // returning as if the project had never asked for commits
+      setError(`auto-commit is off: git is unavailable — ${pending.message}`);
+      await refreshDirty();
+      return;
+    }
     const changes: BoardChange[] = [];
-    for (const change of raw) {
+    for (const change of pending.changes) {
       const before = parseChangedCard(change.path, change.head);
       const after = parseChangedCard(change.path, change.work);
       const card = after ?? before;
@@ -688,7 +696,7 @@ function App() {
   // whenever the open project changes (app-local flags keyed by project path).
   useEffect(() => {
     if (!board) {
-      setDirty(null);
+      setGitStatus(null);
       return;
     }
     const path = projectFolder(board.root).path;
@@ -1408,7 +1416,7 @@ function App() {
   if (board && board.legacy) {
     return (
       <div className="app-shell app-shell-frameless">
-        <TitleBar root={board.root} branch={branch} dirty={dirty} search={query} onSearch={setQuery} />
+        <TitleBar root={board.root} branch={branch} git={gitStatus} search={query} onSearch={setQuery} />
         <MigrationGate
           onMigrate={() => void handleMigrate()}
           busy={migrating}
@@ -1436,7 +1444,7 @@ function App() {
         <TitleBar
           root={board.root}
           branch={branch}
-          dirty={dirty}
+          git={gitStatus}
           runner={runner}
           onStartCompanion={() => void handleStartCompanion()}
           onStopRun={(cardId) => void handleStopRun(cardId)}
