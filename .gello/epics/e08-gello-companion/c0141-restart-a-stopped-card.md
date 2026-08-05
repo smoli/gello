@@ -1,10 +1,10 @@
 ---
 id: c0141
 title: restart a stopped card
-status: in-progress
+status: review
 created: 2026-07-28
 updated: 2026-08-05
-status-changed: 2026-08-05T13:03:07
+status-changed: 2026-08-05T13:22:01
 epic: e08
 ---
 
@@ -149,3 +149,4 @@ in-progress card already holds, so WIP is unaffected.
   `kind`, `isStoppedCard`, and a card-front Restart affordance. All ten criteria
   pass; 1339 tests, typecheck, lint and a bundle build green. Noted an
   epic-scope-after-companion-restart ownership limitation.
+- 2026-08-05 status → review (agent)
