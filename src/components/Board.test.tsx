@@ -376,6 +376,50 @@ describe("Board", () => {
     expect(within(front).queryByText(/picking up/)).not.toBeInTheDocument();
   });
 
+  // c0137: with every WIP slot taken the countdown is a lie — say "waiting on a
+  // slot" instead. `wip_limits: in-progress: 1` + one running card = full.
+  function fullWipBoard(limit: number) {
+    return loadBoard([
+      file("board.yaml", `columns: [ready, in-progress]\nwip_limits:\n  in-progress: ${limit}\n`),
+      file(
+        "cards/c001-wait.md",
+        `---\nid: c001\ntitle: Waiting card\nstatus: ready\nstatus-changed: ${localNow()}\n---\nbody\n`,
+      ),
+      file("cards/c002-run.md", `---\nid: c002\ntitle: Running card\nstatus: in-progress\n---\nbody\n`),
+    ]);
+  }
+  const runnerWith = (over = {}) => ({
+    status: "running" as const,
+    ready: ["c001"],
+    waiting: [],
+    runs: [{ cardId: "c002", phase: "running" as const }],
+    updated: localNow(),
+    pickupDelay: 10,
+    ...over,
+  });
+
+  it("c0137: shows 'waiting on a slot' and no countdown when WIP is full", () => {
+    render(<Board model={fullWipBoard(1)} runner={runnerWith()} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/waiting on a slot/i)).toBeInTheDocument();
+    expect(within(front).queryByText(/picking up/)).not.toBeInTheDocument();
+  });
+
+  it("c0137: shows the countdown, not the slot line, when a slot is free", () => {
+    // limit 2, one card running → one slot open
+    render(<Board model={fullWipBoard(2)} runner={runnerWith()} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+    expect(within(front).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+  });
+
+  it("c0137: no slot line when no WIP limit is configured (unlimited)", () => {
+    render(<Board model={readyBoard()} runner={runnerWith({ runs: [] })} />);
+    const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+    expect(within(front).queryByText(/waiting on a slot/i)).not.toBeInTheDocument();
+  });
+
   it("c0113: a live activity line is marked for the sweep", () => {
     const line = activityLine(localNow());
     expect(line).toHaveClass("card-activity-live");

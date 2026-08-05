@@ -19,7 +19,7 @@ import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
-import { pickupCountdown } from "../lib/pickup";
+import { pickupCountdown, waitingForSlot } from "../lib/pickup";
 import type { CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
@@ -63,6 +63,27 @@ interface BoardCard {
   /** c0139: a backlog card whose dependencies have all cleared — the inverse of
    *  `blockers`, marked so you pick from the workable set. */
   startable: boolean;
+  /** c0137: whether a WIP slot is open board-wide. When it is not, a queued
+   *  ready card shows "waiting on a slot" rather than a countdown that cannot
+   *  come. Board-wide (the companion runs board-wide), so the same on every card. */
+  slotFree: boolean;
+}
+
+const IN_PROGRESS = "in-progress";
+
+/**
+ * c0137: is there an open WIP slot — fewer in-progress cards than the configured
+ * limit? Board-wide, since the companion dispatches board-wide and gates on the
+ * `in-progress` count (c0097). An unset limit means unlimited, always free.
+ */
+function hasFreeWipSlot(model: BoardModel): boolean {
+  const limit = model.config.wipLimits[IN_PROGRESS];
+  if (limit === undefined) return true;
+  const inProgress = [
+    ...model.cards,
+    ...model.epics.flatMap((g) => g.cards),
+  ].filter((c) => c.status === IN_PROGRESS).length;
+  return inProgress < limit;
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
@@ -79,6 +100,7 @@ export type RenumberHandler = (
  * epic-grouped (labelled with its epic). There is no separate inbox lane.
  */
 function collectStatusCards(model: BoardModel): BoardCard[] {
+  const slotFree = hasFreeWipSlot(model);
   const epicCards: BoardCard[] = model.epics.flatMap((group) =>
     group.cards.map((card) => ({
       card,
@@ -87,6 +109,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
       blockers: blockersFor(model, card),
       blocked: openDependencies(model, card).length > 0,
       startable: isStartable(model, card),
+      slotFree,
     })),
   );
   const standaloneCards: BoardCard[] = model.cards.map((card) => ({
@@ -96,6 +119,7 @@ function collectStatusCards(model: BoardModel): BoardCard[] {
     blockers: blockersFor(model, card),
     blocked: openDependencies(model, card).length > 0,
     startable: isStartable(model, card),
+    slotFree,
   }));
   return [...standaloneCards, ...epicCards];
 }
@@ -852,7 +876,7 @@ function CardFront({
   /** i0114: shade the chip fills dark in dark mode. */
   darkChips: boolean;
 }) {
-  const { card, epicLabel, blockers, blocked, startable } = entry;
+  const { card, epicLabel, blockers, blocked, startable, slotFree } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
@@ -866,7 +890,11 @@ function CardFront({
     card.statusChanged,
     Date.now(),
     blocked,
+    slotFree,
   );
+  // c0137: a queued ready card the companion cannot dispatch because every WIP
+  // slot is taken — shown in place of the countdown, which would never fire.
+  const waitingSlot = waitingForSlot(runner ?? null, card.id, Date.now(), blocked, slotFree);
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
@@ -990,6 +1018,17 @@ function CardFront({
           title="Drag the card out of this column to cancel"
         >
           picking up in {countdown}s
+        </p>
+      )}
+      {/* c0137: every WIP slot is taken, so the companion cannot pick this up
+          yet — say so instead of a countdown that would never fire. */}
+      {waitingSlot && (
+        <p
+          className="card-activity card-activity-pending"
+          role="status"
+          title="Every in-progress slot is full — this starts when one frees up"
+        >
+          waiting on a slot
         </p>
       )}
       {/* c0123: why this card is going nowhere — the dependencies that are not

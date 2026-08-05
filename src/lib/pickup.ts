@@ -16,8 +16,8 @@ import { isCompanionLive, type CompanionState } from "./companion";
  * `status-changed` — the companion times that one from when it first saw the
  * card (i0124), which is not on the board, so there is no window to render.
  *
- * `blocked` is passed in rather than derived: this module knows the companion's
- * state, not the board. The caller supplies that board fact.
+ * `blocked` and `slotFree` are passed in rather than derived: this module knows
+ * the companion's state, not the board. The caller supplies those board facts.
  */
 export function pickupCountdown(
   state: CompanionState | null,
@@ -25,6 +25,7 @@ export function pickupCountdown(
   statusChanged: string | null,
   now: number,
   blocked = false,
+  slotFree = true,
 ): number | null {
   if (!state || !isCompanionLive(state, now)) return null;
   if (state.pickupDelay <= 0) return null;
@@ -33,6 +34,9 @@ export function pickupCountdown(
   // blocked card is never picked up — a countdown would promise a pickup that
   // cannot happen, and it hides the line saying what it is waiting on.
   if (blocked) return null;
+  // c0137: with every WIP slot taken the companion cannot dispatch either, so
+  // the countdown is just as misleading — the "waiting on a slot" line applies.
+  if (!slotFree) return null;
   // already dispatched — the c0109 activity line speaks for it from here
   if (state.runs.some((run) => run.cardId === cardId)) return null;
 
@@ -42,4 +46,26 @@ export function pickupCountdown(
   const remaining = state.pickupDelay * 1000 - (now - since);
   // round up, so a part-second never renders as a misleading 0
   return remaining > 0 ? Math.ceil(remaining / 1000) : null;
+}
+
+/**
+ * c0137: whether a queued ready card is held only by a full WIP — every slot
+ * taken, so the companion cannot dispatch it. True drives the "waiting on a
+ * slot" line, the counterpart to the countdown for when no slot is free.
+ * Independent of the grace period: the slot is the constraint, not the delay.
+ * `blocked` takes precedence — a blocked card waits on its dependency, not a
+ * slot — and a running card already holds one.
+ */
+export function waitingForSlot(
+  state: CompanionState | null,
+  cardId: string,
+  now: number,
+  blocked: boolean,
+  slotFree: boolean,
+): boolean {
+  if (!state || !isCompanionLive(state, now)) return false;
+  if (!state.ready.includes(cardId)) return false;
+  if (blocked) return false;
+  if (state.runs.some((run) => run.cardId === cardId)) return false;
+  return !slotFree;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickupCountdown } from "./pickup";
+import { pickupCountdown, waitingForSlot } from "./pickup";
 import type { CompanionState } from "./companion";
 
 // c0117: the grace period is only useful if you can see it. The countdown is
@@ -80,5 +80,53 @@ describe("pickupCountdown", () => {
 
   it("is unblocked by default, so existing callers are unchanged", () => {
     expect(pickupCountdown(state(), "c001", STAMP, NOW)).toBe(5);
+  });
+
+  // c0137: with every WIP slot taken the companion cannot dispatch, so a
+  // countdown promises a pickup that will not come — hide it, and let the
+  // "waiting on a slot" line speak instead.
+  it("shows nothing when no WIP slot is free", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW, false, false)).toBeNull();
+  });
+
+  it("counts down again once a slot is free", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW, false, true)).toBe(5);
+  });
+
+  it("treats a slot as free by default, so existing callers are unchanged", () => {
+    expect(pickupCountdown(state(), "c001", STAMP, NOW, false)).toBe(5);
+  });
+});
+
+describe("waitingForSlot (c0137)", () => {
+  it("is true for a queued ready card when no slot is free", () => {
+    expect(waitingForSlot(state(), "c001", NOW, false, false)).toBe(true);
+  });
+
+  it("is false when a slot is free — the countdown speaks instead", () => {
+    expect(waitingForSlot(state(), "c001", NOW, false, true)).toBe(false);
+  });
+
+  it("holds even when the grace period is off — the slot is the constraint", () => {
+    expect(waitingForSlot(state({ pickupDelay: 0 }), "c001", NOW, false, false)).toBe(true);
+  });
+
+  it("is false with no companion, or a stale one", () => {
+    expect(waitingForSlot(null, "c001", NOW, false, false)).toBe(false);
+    const stale = state({ updated: "2000-01-01T00:00:00" });
+    expect(waitingForSlot(stale, "c001", NOW, false, false)).toBe(false);
+  });
+
+  it("is false for a card that is not queued in ready", () => {
+    expect(waitingForSlot(state({ ready: ["c002"] }), "c001", NOW, false, false)).toBe(false);
+  });
+
+  it("is false once the card is running — it already holds a slot", () => {
+    const running = state({ runs: [{ cardId: "c001", phase: "running" }] });
+    expect(waitingForSlot(running, "c001", NOW, false, false)).toBe(false);
+  });
+
+  it("is false when the card is blocked — that reason takes precedence", () => {
+    expect(waitingForSlot(state(), "c001", NOW, true, false)).toBe(false);
   });
 });
