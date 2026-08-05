@@ -1,10 +1,10 @@
 ---
 id: c0145
 title: Tag suggestions
-status: in-progress
+status: review
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:55:59
+status-changed: 2026-08-05T13:02:49
 epic: e03
 ---
 
@@ -54,3 +54,4 @@ three ways.
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 tag type-ahead in the card detail Tags field, on three pure helpers
   in `lib/tags.ts`; 13 component tests + 15 helper tests
+- 2026-08-05 status → review (agent)
