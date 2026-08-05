@@ -1,12 +1,11 @@
 ---
 id: c0146
 title: ctrl+tab project switcher
-status: ready
+status: in-progress
 created: 2026-08-05
-updated: 2026-08-05
-status-changed: 2026-08-05T13:01:17
+updated: 2026-08-06
+status-changed: 2026-08-06T00:06:54
 epic: e02
-order: 40
 ---
 
 ## What
@@ -96,3 +95,4 @@ projects are separate processes and keep running headless — unaffected.
 - 2026-08-05 added Ctrl+Esc to abort — takes precedence over commit, so the
   following modifier release opens nothing.
 - 2026-08-05 status → ready (app)
+- 2026-08-06 status → in-progress (agent)
