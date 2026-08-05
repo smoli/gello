@@ -1,12 +1,11 @@
 ---
 id: c0143
 title: Waiting on a slot vs waiting in line
-status: ready
+status: in-progress
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:35:28
+status-changed: 2026-08-05T12:45:11
 epic: e02
-order: 30
 ---
 
 ![image](../../assets/c0143/image.png)
@@ -129,3 +128,4 @@ line (c0125), and the activity line (c0109) are untouched.
   top-of-queue card only; the rest show a stable-per-id funny line from a
   mixed 50-line list (deadpan/absurd/nerdy); just the funny line, no position.
 - 2026-08-05 status → ready (app)
+- 2026-08-05 status → in-progress (agent)
