@@ -2,10 +2,10 @@
 id: i0129
 title: pnpm-workspace.yaml from pnpm 11 breaks pnpm 9 — align on pnpm 11
 type: issue
-status: review
+status: done
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:05:00
+status-changed: 2026-08-05T12:03:57
 ---
 
 ## What
@@ -76,3 +76,4 @@ aligning on pnpm 11 supersedes that and is the durable fix.
   typecheck, lint, companion boot verified. Corrected two mistakes in the
   original writeup (allowBuilds is a real pnpm-11 key; approval lives in the
   workspace file, not package.json).
+- 2026-08-05 status → done (app)

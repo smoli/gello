@@ -1,11 +1,11 @@
 ---
 id: i0130
 title: there are 12 unit tests failing!
-status: review
+status: done
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T12:02:59
+status-changed: 2026-08-05T12:03:51
 ---
 
 ## What
@@ -50,3 +50,4 @@ status-changed: 2026-08-05T12:02:59
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 fixed the three causes; 1234 frontend tests, 55 Rust tests green.
 - 2026-08-05 status → review (agent)
+- 2026-08-05 status → done (app)
