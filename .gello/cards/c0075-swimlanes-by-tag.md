@@ -3,8 +3,9 @@ id: c0075
 title: Swimlanes by tag
 status: backlog
 created: 2026-07-18
-updated: 2026-07-22
-status-changed: 2026-07-22T07:03:03
+updated: 2026-08-05
+status-changed: 2026-08-05T12:19:22
+order: 40
 ---
 
 Spun out of [[c0058]] (tags refinement): grouping the board into horizontal
@@ -93,3 +94,5 @@ first-class on the board.
   every matching tag lane; lanes group the filtered set; a leftover
   Untagged/No-epic lane so nothing hides; drops change status only, not lane.
 - 2026-07-22 status → backlog (app)
+- 2026-08-05 status → ready (app)
+- 2026-08-05 status → backlog (app)

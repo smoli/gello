@@ -1,10 +1,10 @@
 ---
 id: c0137
 title: Do not show picking up in 7s with no empty WIP slot
-status: review
+status: done
 created: 2026-07-24
 updated: 2026-08-05
-status-changed: 2026-08-05T12:18:31
+status-changed: 2026-08-05T12:19:13
 epic: e02
 ---
 
@@ -48,3 +48,4 @@ If there are no open WIP slots then do. not show the countdown for new „ready�
 - 2026-08-05 slotFree board fact suppresses the countdown when WIP is full;
   waitingForSlot drives a "waiting on a slot" line — 11 tests
 - 2026-08-05 status → review (agent)
+- 2026-08-05 status → done (app)
