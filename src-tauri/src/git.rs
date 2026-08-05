@@ -104,6 +104,31 @@ fn board_prefix(root: &Path) -> Result<String, String> {
     Ok(git_output(root, &["rev-parse", "--show-prefix"])?.trim().to_string())
 }
 
+/// The current path of every entry in `git status --porcelain -z` output
+/// (i0132). `-z` is what keeps paths verbatim: without it git quotes and
+/// C-escapes any path holding a non-ASCII byte, a space, or ` -> `, and the
+/// quoted spelling matches neither the `.gello/` prefix nor a file on disk.
+///
+/// Records are NUL-terminated `XY <path>`. A rename or copy carries its original
+/// path as one further field, which is consumed and dropped — the new path is
+/// the current one, and no arrow has to be guessed at.
+fn porcelain_paths(text: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut fields = text.split('\0').filter(|field| !field.is_empty());
+    while let Some(record) = fields.next() {
+        // two status chars, a space, then at least one char of path
+        if record.len() < 4 {
+            continue;
+        }
+        let (xy, rest) = record.split_at(2);
+        if xy.contains('R') || xy.contains('C') {
+            fields.next(); // the rename/copy original
+        }
+        paths.push(rest.trim_start_matches(' ').to_string());
+    }
+    paths
+}
+
 /// A changed board file (c0083): repo-top-relative path plus its content at HEAD
 /// (`head`, None if newly added) and in the worktree (`work`, None if deleted).
 /// The frontend parses both to build the per-card commit message.
@@ -144,19 +169,14 @@ pub fn board_changes(root: &Path) -> BoardChanges {
         Err(message) => return BoardChanges::Unavailable { message },
     };
     // run from the repo top with a pathspec so porcelain paths are top-relative;
-    // -uall expands untracked directories to individual files
-    let text = match git_output(&top, &["status", "--porcelain", "-uall", "--", &prefix]) {
+    // -uall expands untracked directories to individual files, -z keeps paths
+    // verbatim (i0132)
+    let text = match git_output(&top, &["status", "--porcelain", "-z", "-uall", "--", &prefix]) {
         Ok(text) => text,
         Err(message) => return BoardChanges::Unavailable { message },
     };
     let mut changes = Vec::new();
-    for line in text.lines() {
-        if line.len() < 4 {
-            continue;
-        }
-        let path = &line[3..];
-        // a rename is "old -> new"; the new path is the current one
-        let path = path.rsplit(" -> ").next().unwrap_or(path).to_string();
+    for path in porcelain_paths(&text) {
         let head = run_git(&top, &["show", &format!("HEAD:{path}")])
             .filter(|o| o.status.success())
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
@@ -178,19 +198,13 @@ pub fn worktree_status(root: &Path) -> GitStatus {
         Ok(prefix) => prefix,
         Err(message) => return GitStatus::Unavailable { message },
     };
-    let text = match git_output(root, &["status", "--porcelain"]) {
+    let text = match git_output(root, &["status", "--porcelain", "-z"]) {
         Ok(text) => text,
         Err(message) => return GitStatus::Unavailable { message },
     };
     let mut status = WorktreeStatus { board_dirty: false, code_dirty: false };
-    for line in text.lines() {
-        if line.len() < 4 {
-            continue;
-        }
-        // porcelain: "XY <path>" (paths relative to repo top; rename shown as
-        // "old -> new" — the new path decides classification)
-        let path = &line[3..];
-        let path = path.rsplit(" -> ").next().unwrap_or(path);
+    // paths are relative to the repo top; a rename's new path decides
+    for path in porcelain_paths(&text) {
         if path.starts_with(&prefix) {
             status.board_dirty = true;
         } else {
@@ -515,6 +529,84 @@ mod tests {
         assert_eq!(
             worktree_status(&gello),
             GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: true })
+        );
+    }
+
+    // --- i0132: paths git can't print plainly -------------------------------
+
+    /// Every quoting case is written at the board root, which `repo_with_board`
+    /// leaves tracked. Inside a wholly-untracked directory git collapses the
+    /// entry to that directory's (ASCII) name, which would hide the very path
+    /// under test.
+    ///
+    /// git quotes a path holding a non-ASCII byte, a space, or the rename arrow
+    /// (`".gello/c-stra\303\237e.md"`), so the raw line never matched the
+    /// `.gello/` prefix and a board change counted as a *code* change — the
+    /// hollow dot went filled. `ß` has no canonical decomposition, so the test
+    /// can't trip over NFC/NFD normalization on APFS.
+    #[test]
+    fn status_counts_quoted_board_paths_as_board_dirty() {
+        let (_dir, gello) = repo_with_board();
+        for name in ["c-straße.md", "plain name.md", "a -> b.md"] {
+            fs::write(gello.join(name), "---\nid: c001\n---\n").unwrap();
+            assert_eq!(
+                worktree_status(&gello),
+                GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: false }),
+                "{name} is a board change"
+            );
+            fs::remove_file(gello.join(name)).unwrap();
+        }
+    }
+
+    /// The same paths have to reach the commit message intact: quoted, they
+    /// named no file on disk, so the card's content came back empty.
+    #[test]
+    fn changes_report_quoted_board_paths_verbatim() {
+        let (_dir, gello) = repo_with_board();
+        for name in ["c-straße.md", "plain name.md", "a -> b.md"] {
+            fs::write(gello.join(name), "---\nid: c001\n---\n").unwrap();
+            let BoardChanges::Changes { changes } = board_changes(&gello) else {
+                panic!("a repo with a board change must list it");
+            };
+            let paths: Vec<&str> = changes.iter().map(|c| c.path.as_str()).collect();
+            assert_eq!(paths, vec![format!(".gello/{name}")], "{name} is listed verbatim");
+            assert_eq!(changes[0].work.as_deref(), Some("---\nid: c001\n---\n"));
+            assert_eq!(changes[0].head, None);
+            fs::remove_file(gello.join(name)).unwrap();
+        }
+    }
+
+    /// A real staged rename still resolves to the new path, once.
+    #[test]
+    fn a_renamed_board_file_is_reported_at_its_new_path() {
+        let (dir, gello) = repo_with_board();
+        git_run(dir.path(), &["mv", ".gello/board.yaml", ".gello/board-renamed.yaml"]);
+
+        assert_eq!(
+            worktree_status(&gello),
+            GitStatus::Status(WorktreeStatus { board_dirty: true, code_dirty: false })
+        );
+        let BoardChanges::Changes { changes } = board_changes(&gello) else {
+            panic!("a repo with a board change must list it");
+        };
+        let paths: Vec<&str> = changes.iter().map(|c| c.path.as_str()).collect();
+        assert_eq!(paths, vec![".gello/board-renamed.yaml"]);
+    }
+
+    /// A renamed *code* file is still code, and its original path must not be
+    /// mistaken for a second entry.
+    #[test]
+    fn a_renamed_code_file_stays_code() {
+        let (dir, gello) = repo_with_board();
+        let top = dir.path();
+        fs::write(top.join("code.rs"), "fn main() {}\n").unwrap();
+        git_run(top, &["add", "-A"]);
+        git_run(top, &["commit", "-qm", "code"]);
+        git_run(top, &["mv", "code.rs", "renamed.rs"]);
+
+        assert_eq!(
+            worktree_status(&gello),
+            GitStatus::Status(WorktreeStatus { board_dirty: false, code_dirty: true })
         );
     }
 
