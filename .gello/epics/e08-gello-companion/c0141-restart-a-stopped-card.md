@@ -67,6 +67,47 @@ in-progress card already holds, so WIP is unaffected.
 - [x] The channel handling (parse a request, act once, clear; ignore malformed
       or duplicate requests) is unit-tested
 
+## Notes
+
+- 2026-08-05 (agent) **The shared channel already existed.** c0119 shipped the
+  app→companion control file (`.companion/control.json`, app sole-writer,
+  companion baselines + acts-once). This card generalised it to carry a `kind`
+  (`stop` | `restart`) instead of inventing a second path — a missing kind
+  defaults to `stop`, so c0119's own entries still parse. `main.ts` dispatches
+  each new request by kind.
+- **Ownership, published.** The runner tracks the card ids it owns a session
+  for: every card it runs, plus those recovered from a persisted `card:<id>`
+  session at startup. An epic session (`epic:<eid>`) names no single card, so
+  epic-scope ownership is tracked live only — a limitation noted below. It
+  publishes `owned` in `state.json`; the app's `isStoppedCard` matches it
+  against an in-progress card with no live run to decide the affordance. This is
+  the safety line: a human-worked in-progress card has no session → never owned
+  → never a restart.
+- **Restart in place.** `Runner.restart(cardId)` resumes the session with the
+  card left where it is — guarded to owned + in-progress + no active run + a
+  free session (the c0126 gate); anything else is a logged no-op. It reuses
+  `start()`, which resumes when a session exists (`--resume`, warm).
+- **Interpretations settled**: (1) "consumed once and clears" (criterion 6) is
+  met by the seen-id set + startup baseline c0119 established, not by physically
+  truncating the file — the effect ("acts exactly once, never re-fires") is the
+  same, and it keeps the app the sole writer. (2) The affordance lives on the
+  **card front** (the card's "Open" listed front/popover/TUI): the runs popover
+  only lists *live* runs, and a stopped card has none, so the front is the only
+  surface that can show it.
+- **Known limitation** (surfaced, not hidden): under `scope: epic`, a card
+  stopped and then left across a *companion restart* is not re-owned (the epic
+  session can't be traced back to a specific card), so it shows no restart until
+  the companion runs it again. Under the default `scope: card` and the common
+  same-process case (a run dies while the companion stays up), ownership is
+  fully recovered.
+- **Verified**: unit tests for `restart` (warm resume, refuses unowned /
+  not-in-progress / already-active / session-busy), the control parse + kind
+  default + baseline/act-once, `isStoppedCard`, the app control writer, and the
+  card-front affordance (offered only when owned + live + no run). Plus a live
+  smoke test: the bundled companion publishes `owned` and refuses a restart for
+  an unowned card with a clear log line, staying alive. 1339 tests, typecheck,
+  lint and a bundle build all green.
+
 ## Discussion
 
 - **Manual only** (human's call): auto-retry risks looping on a persistent
