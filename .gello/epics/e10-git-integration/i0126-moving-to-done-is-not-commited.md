@@ -1,13 +1,12 @@
 ---
 id: i0126
 title: Moving to done is not commited
-status: backlog
+status: in-progress
 type: issue
 created: 2026-08-05
 updated: 2026-08-05
-status-changed: 2026-08-05T11:23:53
+status-changed: 2026-08-05T11:49:34
 epic: e10
-order: -30
 ---
 
 ## Log
@@ -15,3 +14,5 @@ order: -30
 - 2026-08-05 status → backlog (app)
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → backlog (app)
+- 2026-08-05 status → ready (app)
+- 2026-08-05 status → in-progress (agent)
