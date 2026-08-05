@@ -1,0 +1,13 @@
+# pnpm 11 settings home — NOT a workspace. gello is a single package, so there
+# is no `packages:` list. `packageManager` in package.json pins pnpm 11, so no
+# pnpm-9 machine reads this file and trips over the missing list (that is what
+# broke every pnpm command in i0129).
+#
+# esbuild ships a build script that places its platform binary. pnpm 11 blocks
+# build scripts by default and records the decision here (it writes this
+# `allowBuilds` block itself, seeded with "set this to true or false"). Approve
+# it — `true` — or every `pnpm run` fails the pre-run deps check. The Windows
+# checkout half-answered this as `false`, which both blocks the build and, on a
+# pnpm-9 machine, made the whole file fatal.
+allowBuilds:
+  esbuild: true
