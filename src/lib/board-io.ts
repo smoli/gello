@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { loadBoard, type BoardFile, type BoardModel } from "./board";
 import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
+import { writeFileAtomic } from "./fs";
+import { appendStopRequest } from "./companion-control";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
@@ -41,6 +43,22 @@ export async function removeDir(path: string): Promise<void> {
  *  when the terminal/command cannot be launched, so the caller can surface it. */
 export async function startCompanion(projectDir: string): Promise<void> {
   await invoke("start_companion", { projectDir });
+}
+
+/** c0119: ask the companion to stop the in-flight run for `cardId`, by
+ *  appending a stop request to `.companion/control.json` (the companion is the
+ *  sole reader). Tolerant of the file being absent; a fresh id makes each
+ *  request act exactly once. */
+export async function requestStopRun(root: string, cardId: string): Promise<void> {
+  const path = `${root}/.companion/control.json`;
+  let current = "";
+  try {
+    current = await readFileRaw(path);
+  } catch {
+    current = ""; // absent → start fresh
+  }
+  const id = crypto.randomUUID();
+  await writeFileAtomic(path, appendStopRequest(current, id, cardId));
 }
 
 /** c032: existing agent-skill directories under the project root. */

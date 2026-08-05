@@ -21,8 +21,22 @@ function runnerLabel(runner: CompanionState): string {
   return "Companion: idle";
 }
 
-/** The click-through popover listing the companion's active runs (c0100). */
-function RunnerRuns({ runner }: { runner: CompanionState }) {
+/** Phases a run can still be stopped in (c0119) — it is live. A done/error/
+ *  aborted run has already ended, so it gets no stop control. */
+const STOPPABLE: ReadonlySet<CompanionState["runs"][number]["phase"]> = new Set([
+  "running",
+  "waiting-for-input",
+]);
+
+/** The click-through popover listing the companion's active runs (c0100). c0119
+ *  adds a per-run stop when `onStopRun` is provided. */
+function RunnerRuns({
+  runner,
+  onStopRun,
+}: {
+  runner: CompanionState;
+  onStopRun?: (cardId: string) => void;
+}) {
   if (runner.runs.length === 0) {
     return <p className="titlebar-runner-empty">No active runs</p>;
   }
@@ -32,6 +46,17 @@ function RunnerRuns({ runner }: { runner: CompanionState }) {
         <li key={run.cardId}>
           <span className="titlebar-runner-card">{run.cardId}</span>
           <span className={`titlebar-runner-phase phase-${run.phase}`}>{run.phase}</span>
+          {onStopRun && STOPPABLE.has(run.phase) && (
+            <button
+              type="button"
+              className="titlebar-runner-stop"
+              aria-label={`Stop run ${run.cardId}`}
+              title="Stop this run"
+              onClick={() => onStopRun(run.cardId)}
+            >
+              Stop
+            </button>
+          )}
         </li>
       ))}
     </ul>
@@ -51,6 +76,7 @@ export function TitleBar({
   dirty,
   runner,
   onStartCompanion,
+  onStopRun,
   search,
   onSearch,
 }: {
@@ -62,6 +88,8 @@ export function TitleBar({
   runner?: CompanionState | null;
   /** c0110: launch the companion for the open board. Omitted → no Start action. */
   onStartCompanion?: () => void;
+  /** c0119: stop a live run from the popover. Omitted → no stop control. */
+  onStopRun?: (cardId: string) => void;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
@@ -188,7 +216,7 @@ export function TitleBar({
                   aria-label="Companion runs"
                   style={{ top: runsPos.top, left: runsPos.left }}
                 >
-                  <RunnerRuns runner={runner} />
+                  <RunnerRuns runner={runner} onStopRun={onStopRun} />
                 </div>,
                 document.body,
               )}

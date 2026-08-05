@@ -67,6 +67,7 @@ import {
   readFileRaw,
   removeFile,
   setBoardImage,
+  requestStopRun,
   startCompanion,
   watchBoard,
   watchGitHead,
@@ -567,6 +568,20 @@ function App() {
     } catch (failure) {
       setError(
         `could not start the companion: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+    }
+  };
+
+  /** c0119: ask the companion to stop one in-flight run. Fire-and-forget — the
+   *  companion picks up the request from the control file and the 2s poll shows
+   *  the run drop to `aborted`. */
+  const handleStopRun = async (cardId: string) => {
+    if (!board) return;
+    try {
+      await requestStopRun(board.root, cardId);
+    } catch (failure) {
+      setError(
+        `could not stop the run: ${failure instanceof Error ? failure.message : String(failure)}`,
       );
     }
   };
@@ -1370,6 +1385,7 @@ function App() {
           dirty={dirty}
           runner={runner}
           onStartCompanion={() => void handleStartCompanion()}
+          onStopRun={(cardId) => void handleStopRun(cardId)}
           search={query}
           onSearch={setQuery}
         />

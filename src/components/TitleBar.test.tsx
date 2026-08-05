@@ -159,6 +159,61 @@ describe("TitleBar", () => {
     expect(within(popover).getByText("waiting-for-input")).toBeInTheDocument();
   });
 
+  // c0119: an explicit stop lives in the runs popover — unambiguous intent on
+  // the surface that already lists the runs.
+  it("c0119: stops the chosen run and no other from the popover", () => {
+    const onStopRun = vi.fn();
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{
+          status: "running",
+          ready: [],
+          waiting: [],
+          runs: [
+            { cardId: "c001", phase: "running" },
+            { cardId: "c002", phase: "running" },
+          ],
+          updated: "",
+          pickupDelay: 0,
+        }}
+        onStopRun={onStopRun}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    const popover = screen.getByRole("dialog", { name: "Companion runs" });
+    const stops = within(popover).getAllByRole("button", { name: /Stop run/ });
+    expect(stops).toHaveLength(2);
+    fireEvent.click(stops[0]);
+    expect(onStopRun).toHaveBeenCalledExactlyOnceWith("c001");
+  });
+
+  it("c0119: shows no stop control without an onStopRun handler", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "running" }], updated: "", pickupDelay: 0 }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    expect(screen.queryByRole("button", { name: /Stop run/ })).not.toBeInTheDocument();
+  });
+
+  it("c0119: offers no stop for a run that has already ended (aborted)", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={{ status: "running", ready: [], waiting: [], runs: [{ cardId: "c001", phase: "aborted" }], updated: "", pickupDelay: 0 }}
+        onStopRun={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Companion/ }));
+    expect(screen.queryByRole("button", { name: /Stop run/ })).not.toBeInTheDocument();
+  });
+
   it("i0108: closes the runs popover when clicking outside it", () => {
     render(
       <TitleBar
