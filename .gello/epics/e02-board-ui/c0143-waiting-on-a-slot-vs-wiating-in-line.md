@@ -37,21 +37,21 @@ line (c0125), and the activity line (c0109) are untouched.
 
 ## Acceptance criteria
 
-- [ ] Among ready cards waiting on a slot, exactly one — the first in dispatch
+- [x] Among ready cards waiting on a slot, exactly one — the first in dispatch
       order — shows "waiting on a slot"
-- [ ] Every other slot-waiting card shows a funny queue line instead
-- [ ] A card's line is stable across re-renders/polls (derived from its id, not
+- [x] Every other slot-waiting card shows a funny queue line instead
+- [x] A card's line is stable across re-renders/polls (derived from its id, not
       re-randomised each render)
-- [ ] Two cards may show the same line (independent per-id hash; no uniqueness
+- [x] Two cards may show the same line (independent per-id hash; no uniqueness
       requirement)
-- [ ] When a card becomes the top of the queue it switches to the honest line
-- [ ] A single card waiting on a slot shows the honest line (it is the top) —
+- [x] When a card becomes the top of the queue it switches to the honest line
+- [x] A single card waiting on a slot shows the honest line (it is the top) —
       no funny line
-- [ ] The list holds 50 lines; the picker `hash(id) % 50` is unit-tested for
+- [x] The list holds 50 lines; the picker `hash(id) % 50` is unit-tested for
       stability
-- [ ] Only the slot-waiting line changes — countdown (c0117), blocked (c0125)
+- [x] Only the slot-waiting line changes — countdown (c0117), blocked (c0125)
       and activity (c0109) render as before
-- [ ] All 50 lines are inoffensive / SFW
+- [x] All 50 lines are inoffensive / SFW
 
 ## Queue lines (draft — trim or swap to taste)
 
