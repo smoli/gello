@@ -29,10 +29,16 @@
 .card-detail-title h1 {
   margin: 0.15rem 0 0;
   font-size: 1.15rem;
+  /* i0125: break a long unbreakable token (a path/identifier) instead of
+     letting it bleed past the header or shove the action buttons aside. */
+  overflow-wrap: anywhere;
 }
 
 .card-detail-title {
   flex: 1;
+  /* i0125: a flex:1 item defaults to min-width:auto, so a long token could
+     still push the header wider — let it shrink so the title wraps instead. */
+  min-width: 0;
 }
 
 .card-title-input {
