@@ -1,11 +1,11 @@
 ---
 id: i0132
 title: Quoted paths misclassify the dirty indicator
-status: in-progress
+status: review
 type: issue
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-06T00:26:12
+status-changed: 2026-08-06T00:31:15
 epic: e10
 ---
 
@@ -69,3 +69,4 @@ at. One `porcelain_paths` parser now serves both callers.
 - 2026-08-06 found spaces and ` -> ` quote too, not just non-ASCII
 - 2026-08-06 `-z` + one porcelain parser for both callers; cargo test 62,
   frontend 1377, typecheck/lint/clippy green
+- 2026-08-06 status → review (agent)
