@@ -1,13 +1,12 @@
 ---
 id: i0132
 title: Quoted paths misclassify the dirty indicator
-status: ready
+status: in-progress
 type: issue
 created: 2026-08-05
-updated: 2026-08-05
-status-changed: 2026-08-05T12:23:26
+updated: 2026-08-06
+status-changed: 2026-08-06T00:26:12
 epic: e10
-order: 50
 ---
 
 ## What
@@ -27,3 +26,4 @@ Found while working i0127.
 ## Log
 
 - 2026-08-05 status → ready (app)
+- 2026-08-06 status → in-progress (agent)

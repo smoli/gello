@@ -1,10 +1,10 @@
 ---
 id: c0146
 title: ctrl+tab project switcher
-status: in-progress
+status: review
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-06T00:06:54
+status-changed: 2026-08-06T00:26:03
 epic: e02
 ---
 
@@ -128,3 +128,4 @@ projects are separate processes and keep running headless — unaffected.
 - 2026-08-06 MRU switcher: pure openSwitcher/cycleSwitcher + boardExistsAt +
   ProjectSwitcher overlay + App key wiring (keyup commit, Enter/click/blur
   fallbacks, Ctrl+Esc abort, dead-entry warn) — 22 tests
+- 2026-08-06 status → review (agent)
