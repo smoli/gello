@@ -17,6 +17,7 @@ function state(over: Partial<CompanionState> = {}): CompanionState {
     runs: [],
     updated: "2026-07-22T10:00:05", // fresh, so the companion counts as live
     pickupDelay: 10,
+    owned: [],
     ...over,
   };
 }
@@ -42,7 +43,7 @@ describe("pickupCountdown", () => {
   });
 
   it("shows nothing when the companion dispatches immediately", () => {
-    expect(pickupCountdown(state({ pickupDelay: 0 }), "c001", STAMP, NOW)).toBeNull();
+    expect(pickupCountdown(state({ pickupDelay: 0, owned: [] }), "c001", STAMP, NOW)).toBeNull();
   });
 
   it("shows nothing for a card that is not queued for pickup", () => {
@@ -108,7 +109,7 @@ describe("waitingForSlot (c0137)", () => {
   });
 
   it("holds even when the grace period is off — the slot is the constraint", () => {
-    expect(waitingForSlot(state({ pickupDelay: 0 }), "c001", NOW, false, false)).toBe(true);
+    expect(waitingForSlot(state({ pickupDelay: 0, owned: [] }), "c001", NOW, false, false)).toBe(true);
   });
 
   it("is false with no companion, or a stale one", () => {

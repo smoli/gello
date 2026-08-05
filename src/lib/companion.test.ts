@@ -21,6 +21,7 @@ describe("parseCompanionState", () => {
       runs: [{ cardId: "c003", phase: "running" }],
       updated: "2026-07-19T10:00:00",
       pickupDelay: 10,
+      owned: [],
     });
     expect(parseCompanionState(raw)).toEqual({
       status: "waiting",
@@ -29,6 +30,7 @@ describe("parseCompanionState", () => {
       runs: [{ cardId: "c003", phase: "running" }],
       updated: "2026-07-19T10:00:00",
       pickupDelay: 10,
+      owned: [],
     });
   });
 
@@ -48,6 +50,7 @@ describe("parseCompanionState", () => {
       runs: [],
       updated: "",
       pickupDelay: 0,
+      owned: [],
     });
   });
 
@@ -157,18 +160,34 @@ describe("parseCompanionState", () => {
 
 // c0117: the app ticks the pickup countdown client-side, so it needs the
 // configured delay from the state file.
+// c0141: the companion publishes the card ids it owns a session for.
+describe("owned parsing", () => {
+  it("keeps the owned card ids", () => {
+    const raw = JSON.stringify({ owned: ["c001", "c002"] });
+    expect(parseCompanionState(raw)?.owned).toEqual(["c001", "c002"]);
+  });
+
+  it("defaults to empty and drops non-string entries", () => {
+    expect(parseCompanionState(JSON.stringify({}))?.owned).toEqual([]);
+    expect(parseCompanionState(JSON.stringify({ owned: ["c001", 5, null] }))?.owned).toEqual([
+      "c001",
+    ]);
+    expect(parseCompanionState(JSON.stringify({ owned: "c001" }))?.owned).toEqual([]);
+  });
+});
+
 describe("pickupDelay parsing", () => {
   it("keeps the published delay", () => {
-    expect(parseCompanionState(JSON.stringify({ pickupDelay: 10 }))?.pickupDelay).toBe(10);
+    expect(parseCompanionState(JSON.stringify({ pickupDelay: 10, owned: [] }))?.pickupDelay).toBe(10);
   });
 
   it("keeps a zero delay rather than treating it as absent", () => {
-    expect(parseCompanionState(JSON.stringify({ pickupDelay: 0 }))?.pickupDelay).toBe(0);
+    expect(parseCompanionState(JSON.stringify({ pickupDelay: 0, owned: [] }))?.pickupDelay).toBe(0);
   });
 
   it("falls back to no delay when it is missing or nonsense", () => {
     for (const value of [undefined, "10", -1, null, {}]) {
-      const raw = JSON.stringify({ status: "idle", pickupDelay: value });
+      const raw = JSON.stringify({ status: "idle", pickupDelay: value, owned: [] });
       expect(parseCompanionState(raw)?.pickupDelay).toBe(0);
     }
   });
@@ -176,7 +195,7 @@ describe("pickupDelay parsing", () => {
 
 describe("isCompanionLive", () => {
   function state(updated: string): CompanionState {
-    return { status: "running", ready: [], waiting: [], runs: [], updated, pickupDelay: 0 };
+    return { status: "running", ready: [], waiting: [], runs: [], updated, pickupDelay: 0, owned: [] };
   }
   const now = Date.parse("2026-07-20T12:00:30");
 
@@ -208,6 +227,7 @@ describe("newlyParkedIds (c0128)", () => {
     runs: [],
     updated: "2026-07-23T10:00:00",
     pickupDelay: 0,
+    owned: [],
   });
 
   it("baseline: the first observation (prev null) never notifies", () => {

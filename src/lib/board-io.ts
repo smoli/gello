@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import { loadBoard, type BoardFile, type BoardModel } from "./board";
 import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
 import { writeFileAtomic } from "./fs";
-import { appendStopRequest } from "./companion-control";
+import { appendControlRequest } from "./companion-control";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
@@ -45,11 +45,14 @@ export async function startCompanion(projectDir: string): Promise<void> {
   await invoke("start_companion", { projectDir });
 }
 
-/** c0119: ask the companion to stop the in-flight run for `cardId`, by
- *  appending a stop request to `.companion/control.json` (the companion is the
+/** c0119/c0141: command the companion via `.companion/control.json` (it is the
  *  sole reader). Tolerant of the file being absent; a fresh id makes each
  *  request act exactly once. */
-export async function requestStopRun(root: string, cardId: string): Promise<void> {
+async function writeControlRequest(
+  root: string,
+  kind: "stop" | "restart",
+  cardId: string,
+): Promise<void> {
   const path = `${root}/.companion/control.json`;
   let current = "";
   try {
@@ -57,8 +60,17 @@ export async function requestStopRun(root: string, cardId: string): Promise<void
   } catch {
     current = ""; // absent → start fresh
   }
-  const id = crypto.randomUUID();
-  await writeFileAtomic(path, appendStopRequest(current, id, cardId));
+  await writeFileAtomic(path, appendControlRequest(current, crypto.randomUUID(), kind, cardId));
+}
+
+/** c0119: stop the in-flight run for `cardId`. */
+export async function requestStopRun(root: string, cardId: string): Promise<void> {
+  await writeControlRequest(root, "stop", cardId);
+}
+
+/** c0141: restart a stopped card — the companion resumes its session in place. */
+export async function requestRestartCard(root: string, cardId: string): Promise<void> {
+  await writeControlRequest(root, "restart", cardId);
 }
 
 /** c032: existing agent-skill directories under the project root. */

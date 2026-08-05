@@ -53,6 +53,10 @@ export interface CompanionState {
    *  ticks the countdown itself from this plus the card's `status-changed`, so
    *  no extra polling is needed. `0` means the companion dispatches at once. */
   pickupDelay: number;
+  /** c0141: card ids the companion owns a session for. The app matches these
+   *  against stopped in-progress cards to know which may be restarted — never a
+   *  card a human moved to `in-progress` with no companion session. */
+  owned: string[];
 }
 
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
@@ -187,6 +191,7 @@ export function parseCompanionState(raw: string): CompanionState | null {
       record.pickupDelay >= 0
         ? record.pickupDelay
         : 0,
+    owned: stringArray(record.owned),
   };
 }
 
