@@ -40,3 +40,6 @@ reuse the css mechanics already available for the follow up buttons in the revie
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
+- 2026-08-05 (agent) added a hover-revealed ✕ stop to the card front for a card
+  with a live run, reusing the follow-up trigger's reveal mechanic and the
+  c0119 stop path. All tests, typecheck, lint and a build green.
