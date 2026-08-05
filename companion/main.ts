@@ -28,7 +28,7 @@ import { cardsAwaitingInput } from "./qa.ts";
 import { runAsk } from "./ask-cli.ts";
 import { createGelloServer } from "./mcp.ts";
 import { MCP_SUBCOMMAND, askServerSpec, resolveMcpScope } from "./ask-server.ts";
-import { controlPath, parseStopRequests, takeUnseen } from "./control.ts";
+import { controlPath, parseControlRequests, takeUnseen } from "./control.ts";
 import {
   LogPanes,
   addUsage,
@@ -219,13 +219,13 @@ function main(): void {
         runStartedAt.delete(cardId);
       }
       runs = next;
-      publish(root, model, runs, trigger, pickupDelay);
+      publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
       dashboard?.draw();
     },
     log,
   });
 
-  publish(root, model, runs, trigger, pickupDelay);
+  publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
 
   if (mode === "tui") {
     const titleOf = (cardId: string) =>
@@ -284,10 +284,11 @@ function main(): void {
 
   runner.sync(model);
 
-  // c0119: the app requests a stop by appending to `.companion/control.json`.
-  // Baseline whatever is already there at startup, so a request written while
-  // the companion was down can't kill a card that has since been re-dispatched.
-  const seenStops = new Set<string>();
+  // c0119/c0141: the app commands the companion by appending to
+  // `.companion/control.json` — stop a run, or restart a stopped card. Baseline
+  // whatever is already there at startup, so a request written while the
+  // companion was down can't re-fire against a card that has since moved on.
+  const seenControl = new Set<string>();
   const readControl = () => {
     try {
       return readFileSync(controlPath(root), "utf8");
@@ -295,12 +296,13 @@ function main(): void {
       return ""; // absent → no requests
     }
   };
-  const processStops = () => {
-    for (const request of takeUnseen(parseStopRequests(readControl()), seenStops)) {
-      runner.stop(request.cardId);
+  const processControl = () => {
+    for (const request of takeUnseen(parseControlRequests(readControl()), seenControl)) {
+      if (request.kind === "restart") runner.restart(request.cardId);
+      else runner.stop(request.cardId);
     }
   };
-  takeUnseen(parseStopRequests(readControl()), seenStops); // baseline only
+  takeUnseen(parseControlRequests(readControl()), seenControl); // baseline only
 
   // Debounce watcher bursts (an atomic write is a delete+create; a triage
   // touches several files); reload once things settle, then let the runner
@@ -310,7 +312,7 @@ function main(): void {
   watch(root, { recursive: true }, (_event, filename) => {
     const rel = filename?.replace(/\\/g, "/");
     if (rel === ".companion/control.json") {
-      processStops();
+      processControl();
       return;
     }
     if (rel && rel.startsWith(".companion/")) return;
@@ -325,7 +327,7 @@ function main(): void {
       }
       model = next;
       runner.sync(next);
-      publish(root, next, runs, trigger, pickupDelay);
+      publish(root, next, runs, trigger, pickupDelay, runner.ownedCards());
     }, 150);
   });
 }
@@ -342,6 +344,7 @@ function publish(
   runs: RunState[],
   trigger: string,
   pickupDelay: number,
+  owned: string[],
 ): void {
   const ready = cardsEnteringReady(null, model, trigger).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
@@ -352,6 +355,7 @@ function publish(
     runs,
     status: overallStatus(runs, waiting),
     pickupDelay,
+    owned,
   };
   try {
     writeStateFile(root, state);

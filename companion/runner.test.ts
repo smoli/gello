@@ -1210,6 +1210,78 @@ describe("Runner — stop a run (c0119)", () => {
   });
 });
 
+// c0141: restart a stopped card — a run that died abnormally left the card in
+// in-progress with no live run. Restart resumes its session in place.
+describe("Runner — restart a stopped card (c0141)", () => {
+  it("resumes an owned, stopped in-progress card warm (same session, --resume)", () => {
+    const model = board({ c001: { status: "in-progress" } });
+    const h = makeRunner(model, { "card:c001": "sid-1" });
+
+    h.runner.restart("c001");
+
+    expect(h.spawned).toHaveLength(1);
+    expect(h.spawned[0].spec.args[0]).toBe("--resume"); // warm, not a fresh session
+    expect(h.spawned[0].spec.args[1]).toBe("sid-1");
+    expect(h.last()).toEqual(["c001:running"]); // marked running, card unmoved
+  });
+
+  it("owns the card ids it has a session for, published to the state file", () => {
+    const model = board({ c001: { status: "in-progress" } });
+    const h = makeRunner(model, { "card:c001": "sid-1" });
+    expect(h.runner.ownedCards()).toEqual(["c001"]);
+  });
+
+  it("never restarts a card with no companion session (a human-worked card)", () => {
+    const model = board({ c001: { status: "in-progress" } });
+    const h = makeRunner(model); // no sessions → not owned
+    h.runner.restart("c001");
+    expect(h.spawned).toHaveLength(0);
+    expect(h.runner.ownedCards()).toEqual([]);
+  });
+
+  it("does not restart a card that already has a live run", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, { "card:c001": "sid-1" });
+    h.runner.sync(start); // c001 running
+    expect(h.spawned).toHaveLength(1);
+
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.runner.restart("c001"); // already active → no-op
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  it("does not restart a card that is not in-progress", () => {
+    const model = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(model, { "card:c001": "sid-1" });
+    h.runner.restart("c001"); // ready, not a stopped in-progress card
+    expect(h.spawned).toHaveLength(0);
+  });
+
+  it("does not restart while the card's session is busy (c0126 gate)", () => {
+    // c001 ran on the shared epic session and stopped; c002 then took that
+    // session. Restarting c001 must wait — one run per session id.
+    const readyC001 = board({ c001: { status: "ready", order: 1, epic: "e01" } });
+    const h = makeRunner(readyC001, undefined, "normal", {}, "epic");
+    h.runner.sync(readyC001); // c001 runs, records epic:e01
+
+    // c001 crashes; it stays owned but is dropped from active
+    h.setModel(board({ c001: { status: "in-progress", epic: "e01" } }));
+    h.spawned[0].exit(1);
+
+    // c002 (same epic) now runs on that session
+    const withC002 = board({
+      c001: { status: "in-progress", epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01" },
+    });
+    h.setModel(withC002);
+    h.runner.sync(withC002);
+    expect(h.spawned).toHaveLength(2); // c002 running
+
+    h.runner.restart("c001"); // owned + stopped, but session busy with c002
+    expect(h.spawned).toHaveLength(2); // no third spawn
+  });
+});
+
 // c0117: the grace period, driven entirely by the fake scheduler — no test
 // here waits on real time.
 describe("Runner — pickup delay (c0117)", () => {

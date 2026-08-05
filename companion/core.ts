@@ -107,6 +107,11 @@ export interface CompanionState {
   /** c0117: the configured pickup grace period, in seconds. Published so the
    *  app can tick a countdown client-side; `0` means immediate dispatch. */
   pickupDelay: number;
+  /** c0141: card ids the companion owns a session for (has run this process, or
+   *  recovered from a persisted `card:` session). The app matches these against
+   *  stopped in-progress cards to know which it may offer a restart for — never
+   *  a card a human moved to `in-progress` with no companion session. */
+  owned: string[];
 }
 
 export interface RunState {
@@ -124,7 +129,7 @@ export interface RunState {
 }
 
 export function initialState(now: string): CompanionState {
-  return { status: "idle", ready: [], waiting: [], runs: [], updated: now, pickupDelay: 0 };
+  return { status: "idle", ready: [], waiting: [], runs: [], updated: now, pickupDelay: 0, owned: [] };
 }
 
 /** Absolute path of the companion state file (`<root>/.companion/state.json`). */

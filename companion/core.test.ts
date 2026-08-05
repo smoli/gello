@@ -135,6 +135,7 @@ describe("companion state file", () => {
       runs: [],
       updated: "2026-07-19T10:00:00",
       pickupDelay: 10,
+      owned: [],
     };
     writeStateFile(root, state);
 

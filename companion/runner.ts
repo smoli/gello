@@ -383,14 +383,30 @@ export class Runner {
   /** c0119: cards whose process the runner killed on request, so the exit is
    *  classified `aborted` (a deliberate stop) rather than `error` (a crash). */
   private readonly aborting = new Set<string>();
+  /** c0141: card ids the companion owns a session for — every card it has run
+   *  this process, plus those recovered from a persisted `card:` session. Never
+   *  a card a human moved to `in-progress`; it gates whether a restart may spawn. */
+  private readonly owned = new Set<string>();
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
+    // Recover card ownership from a persisted per-card session (`card:<id>`), so
+    // a stopped card is still restartable after a companion restart. An epic
+    // session shares one id across its cards, so it names no single card and
+    // cannot be recovered this way — epic-scope ownership is tracked live only.
+    for (const key of Object.keys(this.sessions)) {
+      if (key.startsWith("card:")) this.owned.add(key.slice("card:".length));
+    }
     this.activityThrottle = new Throttle(
       opts.activityThrottleMs ?? 1000,
       opts.now,
       opts.scheduler,
     );
+  }
+
+  /** c0141: the card ids the companion owns a session for, for the state file. */
+  ownedCards(): string[] {
+    return [...this.owned];
   }
 
   /**
@@ -459,6 +475,48 @@ export class Runner {
     this.active.set(cardId, { ...run, phase: "aborted" });
     this.log(`${cardId} stop requested → aborting`);
     run.kill?.();
+    this.publish();
+  }
+
+  /**
+   * Restart a stopped card in place (c0141). A run that died abnormally leaves
+   * the card `in-progress` with no live run and dispatch never re-picks it (that
+   * needs `ready`). Restart re-runs it warm — resume the session, spawn, mark
+   * running — without moving the card, so no status churn and no grace period.
+   *
+   * Guarded: only a card the companion owns a session for (never a human-worked
+   * one), only when `in-progress` with no live run, and only when its session is
+   * free (the c0126 gate). Any other state is a logged no-op. The companion
+   * being live is implied — it is the one running this.
+   */
+  restart(cardId: string): void {
+    if (this.active.has(cardId)) return; // already running/parked
+    if (!this.owned.has(cardId)) {
+      this.log(`restart ${cardId} refused: no companion session (not owned)`);
+      return;
+    }
+    let model: BoardModel;
+    try {
+      model = this.opts.reload();
+    } catch (error) {
+      this.log(`restart ${cardId} reload failed: ${(error as Error).message}`);
+      return;
+    }
+    const card = byId(model).get(cardId);
+    if (!card || card.status !== IN_PROGRESS) {
+      this.log(`restart ${cardId} refused: not a stopped in-progress card`);
+      return;
+    }
+    const key = sessionKey(card, this.opts.scope);
+    for (const activeId of this.active.keys()) {
+      const active = byId(model).get(activeId);
+      if (active && sessionKey(active, this.opts.scope) === key) {
+        this.log(`restart ${cardId} held: session busy with ${activeId}`);
+        return;
+      }
+    }
+    this.log(`restart ${cardId} → resuming in place`);
+    this.start(card, false); // an existing session → --resume (warm)
     this.publish();
   }
 
@@ -592,6 +650,7 @@ export class Runner {
     // The ask surfaces read the run's card id from `env`; the kill handle
     // (c0119) is stored so a stop can end this one process.
     const proc = this.opts.spawn(spec, this.opts.cwd, { GELLO_CARD_ID: card.id });
+    this.owned.add(card.id); // c0141: a card the companion has run, it owns
     this.active.set(card.id, {
       sessionId: id,
       phase: "running",
