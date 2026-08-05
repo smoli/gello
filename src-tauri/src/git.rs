@@ -52,6 +52,45 @@ fn repo_top(root: &Path) -> Option<PathBuf> {
     Some(PathBuf::from(top.trim()))
 }
 
+/// A path in comparison form: separators unified to `/`, a Windows
+/// extended-length prefix reduced to its plain spelling (`\\?\C:\x` → `C:/x`,
+/// `\\?\UNC\srv\sh\x` → `//srv/sh/x`), drive letter upper-cased, trailing
+/// separator dropped.
+///
+/// i0126: the two sides of the board-prefix match arrive spelled differently
+/// on Windows — `git rev-parse --show-toplevel` returns the plain form,
+/// `Path::canonicalize` the extended-length one. `Path::strip_prefix` compares
+/// components, and a verbatim prefix never equals a disk prefix, so the match
+/// has to happen on normalized strings.
+fn comparable(path: &str) -> String {
+    let unified = path.trim().replace('\\', "/");
+    let plain = match unified.strip_prefix("//?/UNC/") {
+        Some(rest) => format!("//{rest}"),
+        None => unified.strip_prefix("//?/").unwrap_or(&unified).to_string(),
+    };
+    let mut chars: Vec<char> = plain.chars().collect();
+    // `c:/x` and `C:/x` are the same directory
+    if chars.get(1) == Some(&':') {
+        chars[0] = chars[0].to_ascii_uppercase();
+    }
+    let out: String = chars.into_iter().collect();
+    out.trim_end_matches('/').to_string()
+}
+
+/// The board directory's path relative to the repo top, as a git-style prefix
+/// ("proj/.gello/", or "" when the board dir *is* the repo top). None when
+/// `root` is not inside `top`. Pure string work: see `comparable`.
+fn relative_prefix(top: &str, root: &str) -> Option<String> {
+    let top = comparable(top);
+    let root = comparable(root);
+    if root == top {
+        return Some(String::new());
+    }
+    // the leading `/` check keeps a sibling like `/repo-other` out of `/repo`
+    let rel = root.strip_prefix(&top)?.strip_prefix('/')?;
+    Some(format!("{rel}/"))
+}
+
 /// The `.gello/`-relative prefix within the repo (e.g. "proj/.gello/"), used to
 /// classify porcelain paths as board vs code. `root` is the `.gello` dir.
 fn board_prefix(root: &Path) -> Option<String> {
@@ -59,12 +98,7 @@ fn board_prefix(root: &Path) -> Option<String> {
     // canonicalize so a symlinked tempdir (/var → /private/var on macOS) still
     // strips against git's already-resolved toplevel path
     let root = root.canonicalize().ok()?;
-    let rel = root.strip_prefix(&top).ok()?;
-    let mut prefix = rel.to_string_lossy().replace('\\', "/");
-    if !prefix.is_empty() {
-        prefix.push('/');
-    }
-    Some(prefix)
+    relative_prefix(&top.to_string_lossy(), &root.to_string_lossy())
 }
 
 /// A changed board file (c0083): repo-top-relative path plus its content at HEAD
@@ -269,6 +303,62 @@ mod tests {
         fs::write(work.join(".git"), "gitdir: ../realgit\n").unwrap();
 
         assert_eq!(git_branch(&work).as_deref(), Some("wt"));
+    }
+
+    // --- i0126: repo-top ↔ board-dir prefix matching ------------------------
+
+    #[test]
+    fn prefix_strips_a_windows_extended_length_board_path() {
+        // canonicalize() hands back `\\?\C:\…` on Windows, git's
+        // --show-toplevel hands back `C:/…` — the same directory, two
+        // spellings. Failing to match here switched every git feature off.
+        assert_eq!(
+            relative_prefix("C:/Users/dev/proj", r"\\?\C:\Users\dev\proj\.gello"),
+            Some(".gello/".to_string())
+        );
+        assert_eq!(
+            relative_prefix("C:/Users/dev/proj", r"\\?\C:\Users\dev\proj\sub\.gello"),
+            Some("sub/.gello/".to_string())
+        );
+    }
+
+    #[test]
+    fn prefix_strips_a_unc_board_path() {
+        assert_eq!(
+            relative_prefix("//server/share/proj", r"\\?\UNC\server\share\proj\.gello"),
+            Some(".gello/".to_string())
+        );
+    }
+
+    #[test]
+    fn prefix_ignores_drive_letter_case_and_trailing_separators() {
+        assert_eq!(
+            relative_prefix("c:/Users/dev/proj/", r"\\?\C:\Users\dev\proj\.gello\"),
+            Some(".gello/".to_string())
+        );
+    }
+
+    #[test]
+    fn prefix_is_empty_when_the_board_dir_is_the_repo_top() {
+        assert_eq!(relative_prefix("/repo/.gello", "/repo/.gello"), Some(String::new()));
+    }
+
+    #[test]
+    fn prefix_rejects_a_sibling_sharing_a_name_prefix() {
+        assert_eq!(relative_prefix("/repo", "/repo-other/.gello"), None);
+        assert_eq!(relative_prefix("C:/repo", r"\\?\C:\repo-other\.gello"), None);
+    }
+
+    #[test]
+    fn prefix_keeps_posix_paths_working() {
+        assert_eq!(
+            relative_prefix("/private/var/t/repo", "/private/var/t/repo/.gello"),
+            Some(".gello/".to_string())
+        );
+        assert_eq!(
+            relative_prefix("/private/var/t/repo", "/private/var/t/repo/proj/.gello"),
+            Some("proj/.gello/".to_string())
+        );
     }
 
     // --- c0083: commit / status plumbing -----------------------------------
