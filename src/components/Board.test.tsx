@@ -102,22 +102,31 @@ describe("Board", () => {
       file("cards/c004-finished.md", card("c004", "Finished card", "done")),
     ]);
     const front = (title: string) => screen.getByText(title).closest("article")!;
-    const trigger = (title: string) =>
-      within(front(title)).queryByRole("button", { name: /follow up/i });
+    // i0130: the front offers both kinds, so a trigger is addressed by kind —
+    // two buttons named alike would be indistinguishable to a screen reader.
+    const trigger = (title: string, kind: "issue" | "task") =>
+      within(front(title)).queryByRole("button", {
+        name: new RegExp(`follow up on .* with an? ${kind}`, "i"),
+      });
+    const triggers = (title: string) =>
+      within(front(title)).queryAllByRole("button", { name: /follow up/i });
 
     it("offers the trigger on review and done cards only", () => {
       render(<Board model={model} onFollowUpCard={vi.fn()} />);
 
-      expect(trigger("Reviewing card")).toBeInTheDocument();
-      expect(trigger("Finished card")).toBeInTheDocument();
-      expect(trigger("Queued card")).not.toBeInTheDocument();
-      expect(trigger("Running card")).not.toBeInTheDocument();
+      expect(trigger("Reviewing card", "issue")).toBeInTheDocument();
+      expect(trigger("Reviewing card", "task")).toBeInTheDocument();
+      expect(trigger("Finished card", "issue")).toBeInTheDocument();
+      expect(trigger("Finished card", "task")).toBeInTheDocument();
+      expect(triggers("Queued card")).toEqual([]);
+      expect(triggers("Running card")).toEqual([]);
     });
 
     it("names the card it follows up on, for keyboard and screen-reader use", () => {
       render(<Board model={model} onFollowUpCard={vi.fn()} />);
 
-      expect(trigger("Reviewing card")).toHaveAccessibleName(/c003/);
+      expect(trigger("Reviewing card", "issue")).toHaveAccessibleName(/c003/);
+      expect(trigger("Reviewing card", "task")).toHaveAccessibleName(/c003/);
     });
 
     it("raises the follow-up for that card without opening the detail view", () => {
@@ -127,7 +136,7 @@ describe("Board", () => {
         <Board model={model} onFollowUpCard={onFollowUpCard} onSelectCard={onSelectCard} />,
       );
 
-      fireEvent.click(trigger("Finished card")!);
+      fireEvent.click(trigger("Finished card", "task")!);
 
       expect(onFollowUpCard).toHaveBeenCalledTimes(1);
       expect(onFollowUpCard.mock.calls[0][0].id).toBe("c004");
@@ -135,15 +144,31 @@ describe("Board", () => {
       expect(onSelectCard).not.toHaveBeenCalled();
     });
 
+    it("asks for a task or an issue depending on which trigger is clicked", () => {
+      const onFollowUpCard = vi.fn();
+      render(<Board model={model} onFollowUpCard={onFollowUpCard} />);
+
+      fireEvent.click(trigger("Finished card", "issue")!);
+      fireEvent.click(trigger("Finished card", "task")!);
+
+      expect(onFollowUpCard.mock.calls.map((call) => call[1])).toEqual(["i", "c"]);
+    });
+
     it("shows no trigger at all when the board has no follow-up handler", () => {
       render(<Board model={model} />);
 
-      expect(trigger("Reviewing card")).not.toBeInTheDocument();
+      expect(triggers("Reviewing card")).toEqual([]);
     });
 
     describe("c0120: the reveal follows the pointer", () => {
-      const shown = (title: string) =>
-        trigger(title)!.classList.contains("card-followup-visible");
+      // both triggers on a front reveal together, so either one answers this
+      const shown = (title: string) => {
+        const buttons = triggers(title);
+        expect(buttons.length).toBeGreaterThan(0);
+        return buttons.every((button) =>
+          button.classList.contains("card-followup-visible"),
+        );
+      };
 
       it("keeps the trigger hidden until its own card is hovered", () => {
         render(<Board model={model} onFollowUpCard={vi.fn()} />);

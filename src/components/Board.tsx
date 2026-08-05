@@ -927,36 +927,38 @@ function CardFront({
               same draft — it never creates a card outright, so the note about
               landing in ready still gets its say before any agent starts. */}
           {onFollowUp && (card.status === "review" || card.status === "done") && (
-            <span className="card-meta-badges-followups"><button
-              type="button"
-              className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
-              aria-label={`Follow up on ${card.id}`}
-              // c0131: the landing column is configurable, so the draft states
-              // it; the tooltip stays generic rather than naming a column.
-              title="Follow up — create an issue from this finished card"
-              onClick={(event) => {
-                // the whole front is clickable; keep this from opening the card
-                event.stopPropagation();
-                onFollowUp(card, "i");
-              }}
-            >
-              i
-            </button>
-            <button
-              type="button"
-              className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
-              aria-label={`Follow up on ${card.id}`}
-              // c0131: the landing column is configurable, so the draft states
-              // it; the tooltip stays generic rather than naming a column.
-              title="Follow up — create a task from this finished card"
-              onClick={(event) => {
-                // the whole front is clickable; keep this from opening the card
-                event.stopPropagation();
-                onFollowUp(card, "c");
-              }}
-            >
-              c
-            </button></span>
+            <span className="card-meta-badges-followups">
+              {/* i0130: the two kinds read as "i" and "c" on screen, so the
+                  label has to name the kind — otherwise both buttons announce
+                  the same thing. */}
+              <button
+                type="button"
+                className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
+                aria-label={`Follow up on ${card.id} with an issue`}
+                // c0131: the landing column is configurable, so the draft states
+                // it; the tooltip stays generic rather than naming a column.
+                title="Follow up — create an issue from this finished card"
+                onClick={(event) => {
+                  // the whole front is clickable; keep this from opening the card
+                  event.stopPropagation();
+                  onFollowUp(card, "i");
+                }}
+              >
+                i
+              </button>
+              <button
+                type="button"
+                className={`card-followup${revealFollowUp ? " card-followup-visible" : ""}`}
+                aria-label={`Follow up on ${card.id} with a task`}
+                title="Follow up — create a task from this finished card"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onFollowUp(card, "c");
+                }}
+              >
+                c
+              </button>
+            </span>
           )}
         </span>
       </div>

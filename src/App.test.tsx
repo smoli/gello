@@ -1486,7 +1486,7 @@ describe("App", () => {
     await screen.findByText("Reviewed card");
 
     // straight from the board: no card detail opened first
-    fireEvent.click(screen.getByRole("button", { name: "Follow up on c006" }));
+    fireEvent.click(screen.getByRole("button", { name: "Follow up on c006 with a task" }));
     expect(screen.queryByRole("dialog", { name: "c006" })).not.toBeInTheDocument();
 
     // the same c0115 draft, still saying where the card lands
@@ -1511,8 +1511,8 @@ describe("App", () => {
     await screen.findByText("Hello board"); // c001, status inbox
 
     expect(
-      screen.queryByRole("button", { name: "Follow up on c001" }),
-    ).not.toBeInTheDocument();
+      screen.queryAllByRole("button", { name: /follow up on c001/i }),
+    ).toEqual([]);
   });
 
   // c0131 is driven through the CardDetail "Follow up" action rather than the

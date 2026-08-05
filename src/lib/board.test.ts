@@ -91,7 +91,9 @@ describe("loadBoard on this repo's own .gello tree", () => {
     expect(model.config.columns).toEqual([
       "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
     ]);
-    expect(model.config.wipLimits).toEqual({ "in-progress": 2 });
+    // i0130: the limit is edited from the app, so pin the parse, not the value
+    expect(Object.keys(model.config.wipLimits)).toEqual(["in-progress"]);
+    expect(model.config.wipLimits["in-progress"]).toBeGreaterThan(0);
     expect(model.epics.length).toBeGreaterThanOrEqual(5);
     const allCards = model.epics.flatMap((group) => group.cards);
     expect(allCards.length).toBeGreaterThanOrEqual(19);
