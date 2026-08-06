@@ -58,6 +58,11 @@ export interface Card {
   /** c0096: set to "input" by an agent parking a question in `## Open
    *  question`; drives the card-front "needs input" badge (c0100). */
   awaiting: string | null;
+  /** c0150: cumulative lifetime companion usage, summed over every run. Null
+   *  when the card was never run (or the total is malformed — treated as
+   *  absent, never a parse failure). Written only by the companion at run-end. */
+  usageTokens: number | null;
+  usageCost: number | null;
   created: string | null;
   updated: string | null;
   body: string;
@@ -160,6 +165,19 @@ function asOptionalString(data: ParsedYaml, field: string): string | null {
   return String(value);
 }
 
+/** c0150: a non-negative finite number, or null for anything else (absent,
+ *  malformed, negative, NaN). A bad usage total never invalidates the card —
+ *  it reads as "never run". */
+function asOptionalNonNegativeNumber(
+  data: ParsedYaml,
+  field: string,
+): number | null {
+  const value = data[field];
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
+}
+
 function asStringArray(
   data: ParsedYaml,
   field: string,
@@ -243,6 +261,8 @@ export function parseCard(
       order,
       statusChanged: asOptionalString(data, "status-changed"),
       awaiting: asOptionalString(data, "awaiting"),
+      usageTokens: asOptionalNonNegativeNumber(data, "usage-tokens"),
+      usageCost: asOptionalNonNegativeNumber(data, "usage-cost"),
       created: asOptionalString(data, "created"),
       updated: asOptionalString(data, "updated"),
       body: split.body,
@@ -510,6 +530,71 @@ export function collapseDuplicateFrontmatterKeys(raw: string): string | null {
  */
 export function reassignCardId(raw: string, newId: string): string {
   return setFrontmatterRawValue(raw, "id", formatScalar(newId));
+}
+
+/** Round a running cost sum to 6 decimals so floating-point addition doesn't
+ *  accrete noise (0.1 + 0.2 → 0.30000000000000004). */
+function roundCost(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+/**
+ * c0150: add one run's usage to a card's cumulative `usage-tokens` /
+ * `usage-cost` totals. The current values are read from the frontmatter,
+ * treating a malformed or absent total as zero (never a failure), summed with
+ * this run's figures, and written back as a surgical two-line edit — every
+ * other line, the body included, survives byte-for-byte, so a run-end write
+ * cannot clobber a concurrent agent body edit. `updated` is left alone: this is
+ * metadata accrual, not a content change. Negative deltas are clamped to zero;
+ * a lifetime total only grows.
+ */
+export function withUsageAdded(
+  raw: string,
+  addTokens: number,
+  addCost: number,
+): string {
+  const split = splitFrontmatter(raw);
+  if (!split) throw new Error("no frontmatter block found");
+  const parsed = parseYamlBlock(split.block);
+  const data: ParsedYaml = parsed.ok ? parsed.data : {};
+  const tokens =
+    (asOptionalNonNegativeNumber(data, "usage-tokens") ?? 0) +
+    Math.max(0, addTokens);
+  const cost = roundCost(
+    (asOptionalNonNegativeNumber(data, "usage-cost") ?? 0) +
+      Math.max(0, addCost),
+  );
+  const withTokens = setFrontmatterRawValue(raw, "usage-tokens", String(tokens));
+  return setFrontmatterRawValue(withTokens, "usage-cost", String(cost));
+}
+
+/** Compact token count for the card front: 12.3k, 1.2M, or the plain integer
+ *  below 1000. */
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(Math.round(n));
+}
+
+/** Compact USD for the card front: sub-cent totals keep 4 decimals so they
+ *  don't read as $0.00, everything else is 2 decimals. */
+function formatCostUsd(n: number): string {
+  if (n <= 0) return "$0";
+  if (n < 0.01) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(2)}`;
+}
+
+/**
+ * c0150: the card-front usage label, e.g. "12.3k · $0.04". Null when the card
+ * was never run (both totals absent) so the front renders nothing. A single
+ * present total shows the other as zero — the companion always writes both.
+ */
+export function formatCardUsage(
+  tokens: number | null,
+  cost: number | null,
+): string | null {
+  if (tokens === null && cost === null) return null;
+  return `${formatTokenCount(tokens ?? 0)} · ${formatCostUsd(cost ?? 0)}`;
 }
 
 /** Remove one `field: …` line from the frontmatter block, if present. */

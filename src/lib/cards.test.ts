@@ -13,6 +13,8 @@ import {
   replaceEpicBody,
   updateEpicFields,
   updateCardFields,
+  withUsageAdded,
+  formatCardUsage,
 } from "./cards";
 
 const FULL_CARD = `---
@@ -1016,5 +1018,118 @@ Ship dark theme.
     expect(reparsed.ok).toBe(true);
     if (reparsed.ok) expect(reparsed.epic.title).toBe("Renamed");
     expect(renamed.raw).toBe(raw);
+  });
+});
+
+describe("usage totals (c0150)", () => {
+  const USAGE_CARD = `---
+id: c500
+title: A run card
+status: in-progress
+usage-tokens: 1200
+usage-cost: 0.34
+---
+
+## What
+
+Body stays byte-identical.
+`;
+
+  describe("parseCard", () => {
+    it("reads usage-tokens and usage-cost as numbers", () => {
+      const r = parseCard("cards/c500.md", USAGE_CARD);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBe(1200);
+      expect(r.card.usageCost).toBe(0.34);
+    });
+
+    it("treats an absent total as null (never run)", () => {
+      const r = parseCard("cards/c042.md", MINIMAL_CARD);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBeNull();
+      expect(r.card.usageCost).toBeNull();
+    });
+
+    it("treats a malformed total as null, not a parse failure", () => {
+      const raw = USAGE_CARD.replace("usage-tokens: 1200", "usage-tokens: oops")
+        .replace("usage-cost: 0.34", "usage-cost: -5");
+      const r = parseCard("cards/c500.md", raw);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBeNull();
+      expect(r.card.usageCost).toBeNull();
+    });
+  });
+
+  describe("withUsageAdded", () => {
+    it("adds this run's usage to the existing totals", () => {
+      const next = withUsageAdded(USAGE_CARD, 800, 0.16);
+      const r = parseCard("cards/c500.md", next);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBe(2000);
+      expect(r.card.usageCost).toBe(0.5);
+    });
+
+    it("sets both fields on a never-run card", () => {
+      const next = withUsageAdded(MINIMAL_CARD, 500, 0.02);
+      expect(next).toContain("usage-tokens: 500");
+      expect(next).toContain("usage-cost: 0.02");
+    });
+
+    it("treats a malformed existing total as zero", () => {
+      const raw = USAGE_CARD.replace("usage-tokens: 1200", "usage-tokens: oops");
+      const next = withUsageAdded(raw, 300, 0);
+      const r = parseCard("cards/c500.md", next);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBe(300);
+    });
+
+    it("leaves every untouched line byte-identical", () => {
+      const next = withUsageAdded(USAGE_CARD, 1, 0.01);
+      // the body and the id/title/status lines are unchanged
+      expect(next).toContain("Body stays byte-identical.");
+      expect(next).toContain("id: c500\n");
+      expect(next).toContain("title: A run card\n");
+      expect(next).toContain("status: in-progress\n");
+    });
+
+    it("does not accrete floating-point noise in the cost sum", () => {
+      const next = withUsageAdded(
+        USAGE_CARD.replace("usage-cost: 0.34", "usage-cost: 0.1"),
+        0,
+        0.2,
+      );
+      expect(next).toContain("usage-cost: 0.3");
+      expect(next).not.toMatch(/usage-cost: 0\.30000/);
+    });
+
+    it("clamps a negative delta to zero", () => {
+      const next = withUsageAdded(USAGE_CARD, -100, -1);
+      const r = parseCard("cards/c500.md", next);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.card.usageTokens).toBe(1200);
+      expect(r.card.usageCost).toBe(0.34);
+    });
+  });
+
+  describe("formatCardUsage", () => {
+    it("returns null when the card was never run", () => {
+      expect(formatCardUsage(null, null)).toBeNull();
+    });
+
+    it("formats tokens compactly and cost in dollars", () => {
+      expect(formatCardUsage(12_300, 0.04)).toBe("12.3k · $0.04");
+      expect(formatCardUsage(2_100_000, 1.5)).toBe("2.1M · $1.50");
+      expect(formatCardUsage(500, 0)).toBe("500 · $0");
+    });
+
+    it("keeps sub-cent costs readable", () => {
+      expect(formatCardUsage(300, 0.0034)).toBe("300 · $0.0034");
+    });
   });
 });
