@@ -1,12 +1,11 @@
 ---
 id: c0150
 title: Add token usage to card
-status: ready
+status: in-progress
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T18:39:00
+status-changed: 2026-08-06T18:39:30
 epic: e08
-order: 10
 ---
 
 ## Settle the writer before I build (criterion 8)
@@ -124,3 +123,4 @@ total. Either way the *numbers* originate in the companion.
 - 2026-08-06 status → ready (app)
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 status → ready (app)
+- 2026-08-06 status → in-progress (agent)
