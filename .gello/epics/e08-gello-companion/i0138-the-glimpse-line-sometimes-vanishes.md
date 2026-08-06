@@ -46,3 +46,13 @@ the reported symptom; left as a possible follow-up if it is ever seen.
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 status → ready (app)
 - 2026-08-06 status → in-progress (agent)
+- 2026-08-06 (agent) fixed: the glimpse vanished when a run parked. The
+  companion now publishes a parked run's last activity, and the app keeps the
+  line for a parked card (a still "waiting" line, no sweep) so it never
+  disappears and the card holds its size. 1397 tests, typecheck, lint and both
+  builds green.
+- 2026-08-06 (agent) implemented and committed: companion publishes a parked
+  run's last activity (`46976db`); the app keeps a still "waiting" line for a
+  parked run (`436efcf`). Verified: sampled the live state file (steady while
+  running, so park was the only vanish), 1397 tests, typecheck, lint and a
+  production build all green.
