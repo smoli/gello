@@ -1,13 +1,13 @@
 ---
 id: i0136
 title: Suggestions behind other UI
-status: review
+status: done
 type: issue
 ref: c0145
 epic: e03
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T05:51:27
+status-changed: 2026-08-06T05:51:41
 ---
 
 ![image](../../assets/i0136/image.png)
@@ -51,3 +51,4 @@ shows through it.
 - 2026-08-06 traced to the label's `opacity: 0.9` stacking context; dimmed with
   `color` instead, pinned by 6 stylesheet tests
 - 2026-08-06 status → review (agent)
+- 2026-08-06 status → done (app)
