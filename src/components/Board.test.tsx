@@ -260,7 +260,10 @@ describe("Board", () => {
     expect(within(card1).getByText("Thinking…")).toBeInTheDocument();
   });
 
-  it("c0109: a parked run shows no activity line (the needs-input badge covers it)", () => {
+  // i0138 supersedes c0109 here: a parked run keeps its line (so the glimpse
+  // does not vanish and the card resize), rendered as a still "waiting" line —
+  // no busy sweep — alongside the needs-input badge.
+  it("i0138: a parked run keeps a still activity line, not blank", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [in-progress]\n"),
       file(
@@ -272,14 +275,18 @@ describe("Board", () => {
       status: "waiting" as const,
       ready: [],
       waiting: ["c001"],
-      runs: [{ cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Bash", arg: "x" } }],
+      runs: [
+        { cardId: "c001", phase: "waiting-for-input" as const, activity: { name: "Read", arg: "a.ts" } },
+      ],
       updated: localNow(),
       pickupDelay: 0,
       owned: [],
     };
     render(<Board model={model} runner={runner} />);
     const parked = screen.getByText("Parked card").closest("article")!;
-    expect(within(parked).queryByText(/Running|Thinking/)).not.toBeInTheDocument();
+    const line = within(parked).getByText("Reading a.ts");
+    expect(line).toHaveClass("card-activity-waiting");
+    expect(line).not.toHaveClass("card-activity-live"); // idle, not busy
   });
 
   // c0113: motion means live — the sweep is the liveness signal, so it must be

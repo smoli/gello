@@ -61,6 +61,9 @@ export interface CardActivity {
   label: string;
   /** True when the state file has gone stale — render the line as suspect. */
   stale: boolean;
+  /** i0138: true for a parked (waiting-for-input) run — the line is present but
+   *  the agent is idle, waiting on the human, so it does not sweep. */
+  waiting: boolean;
 }
 
 function isStale(updated: string, now: number): boolean {
@@ -71,9 +74,14 @@ function isStale(updated: string, now: number): boolean {
 
 /**
  * The activity line for a card, or null when there should be none: no companion
- * running, no run for the card, or a run that isn't `running` (a parked run
- * shows the needs-input badge; done/errored runs show nothing). A running run
- * with no tool call yet shows "Thinking…".
+ * running, no run for the card, or a terminal run (done/errored/aborted are
+ * dropped from the state file anyway).
+ *
+ * A **live** run — `running` or `waiting-for-input` — always yields a line, so
+ * the glimpse never vanishes and the card never resizes while it is being worked
+ * (i0138). A running run with no tool call yet shows "Thinking…". A parked run
+ * keeps its last tool and is marked `waiting`, so the card can render it idle
+ * (no sweep) rather than busy.
  */
 export function cardActivity(
   state: CompanionState | null,
@@ -82,25 +90,29 @@ export function cardActivity(
 ): CardActivity | null {
   if (!state) return null;
   const run = state.runs.find((r) => r.cardId === cardId);
-  if (!run || run.phase !== "running") return null;
+  if (!run || (run.phase !== "running" && run.phase !== "waiting-for-input")) return null;
   return {
     label: run.activity ? phraseActivity(run.activity) : "Thinking…",
     stale: isStale(state.updated, now),
+    waiting: run.phase === "waiting-for-input",
   };
 }
 
-/** How a card-front activity line is rendered (c0113). */
-export type ActivityTreatment = "animated" | "stale" | "none";
+/** How a card-front activity line is rendered (c0113/i0138). */
+export type ActivityTreatment = "animated" | "waiting" | "stale" | "none";
 
 /**
- * Pick the treatment for a line. Motion means live: only a fresh line sweeps,
- * so a wedged companion's last line freezes instead of pretending to work. The
- * rule lives here rather than in the CSS so it can be tested on its own; it
- * reuses c0109's `stale` flag and adds no state.
+ * Pick the treatment for a line. Motion means actively-working: only a fresh,
+ * running line sweeps. A wedged companion's line is `stale` (frozen, dim), and a
+ * parked run is `waiting` (present but idle — no sweep) so a card asking a
+ * question does not look busy (i0138). The rule lives here rather than in the
+ * CSS so it can be tested on its own; it adds no state.
  */
 export function activityTreatment(activity: CardActivity | null): ActivityTreatment {
   if (!activity) return "none";
-  return activity.stale ? "stale" : "animated";
+  if (activity.stale) return "stale"; // a dead companion outranks everything
+  if (activity.waiting) return "waiting";
+  return "animated";
 }
 
 /** The card-front class list for a treatment. Every rendered line keeps the
@@ -109,6 +121,8 @@ export function activityClassName(treatment: ActivityTreatment): string {
   switch (treatment) {
     case "animated":
       return "card-activity card-activity-live";
+    case "waiting":
+      return "card-activity card-activity-waiting";
     case "stale":
       return "card-activity card-activity-stale";
     case "none":

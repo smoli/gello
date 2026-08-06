@@ -195,6 +195,15 @@
   font-style: italic;
 }
 
+/* i0138: a parked run keeps its last line so the glimpse never vanishes (and
+   the card never resizes) when the agent asks a question. It is idle, not busy,
+   so it gets no sweep — just a slightly muted, italic "paused" look, distinct
+   from the alarming dim of a stale line. */
+.card-activity-waiting {
+  opacity: 0.6;
+  font-style: italic;
+}
+
 /* c0113: a live line sweeps, so a working agent never looks frozen just because
    its tool hasn't changed. Motion is the liveness signal, not decoration.
 

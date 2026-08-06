@@ -90,19 +90,49 @@ describe("cardActivity", () => {
     const s = state({
       runs: [{ cardId: "c001", phase: "running", activity: { name: "Edit", arg: "src/x.ts" } }],
     });
-    expect(cardActivity(s, "c001", NOW)).toEqual({ label: "Editing x.ts", stale: false });
+    expect(cardActivity(s, "c001", NOW)).toEqual({
+      label: "Editing x.ts",
+      stale: false,
+      waiting: false,
+    });
   });
 
   it("shows Thinking… for a running run with no tool call yet", () => {
     const s = state({ runs: [{ cardId: "c001", phase: "running" }] });
-    expect(cardActivity(s, "c001", NOW)).toEqual({ label: "Thinking…", stale: false });
+    expect(cardActivity(s, "c001", NOW)).toEqual({
+      label: "Thinking…",
+      stale: false,
+      waiting: false,
+    });
   });
 
-  it("returns null for a parked (waiting-for-input) run", () => {
+  // i0138: a parked run keeps a line — the glimpse must not vanish (and the card
+  // resize) when the agent asks a question. It is marked `waiting`, so the card
+  // renders it without the "busy" sweep.
+  it("keeps the last activity line for a parked (waiting-for-input) run, marked waiting", () => {
     const s = state({
-      runs: [{ cardId: "c001", phase: "waiting-for-input", activity: { name: "Bash", arg: "x" } }],
+      runs: [
+        {
+          cardId: "c001",
+          phase: "waiting-for-input",
+          activity: { name: "mcp__gello__add_question", arg: "?" },
+        },
+      ],
     });
-    expect(cardActivity(s, "c001", NOW)).toBeNull();
+    expect(cardActivity(s, "c001", NOW)).toEqual({
+      label: "Asking a question",
+      stale: false,
+      waiting: true,
+    });
+  });
+
+  it("shows Thinking… for a parked run with no captured activity", () => {
+    const s = state({ runs: [{ cardId: "c001", phase: "waiting-for-input" }] });
+    expect(cardActivity(s, "c001", NOW)).toEqual({
+      label: "Thinking…",
+      stale: false,
+      waiting: true,
+    });
   });
 
   it("returns null for a done or errored run", () => {
@@ -118,7 +148,11 @@ describe("cardActivity", () => {
       runs: [{ cardId: "c001", phase: "running", activity: { name: "Bash", arg: "pnpm test" } }],
     });
     const late = Date.parse("2026-07-20T12:00:40"); // 40s later
-    expect(cardActivity(s, "c001", late)).toEqual({ label: "Running pnpm test", stale: true });
+    expect(cardActivity(s, "c001", late)).toEqual({
+      label: "Running pnpm test",
+      stale: true,
+      waiting: false,
+    });
   });
 
   it("treats an unparseable updated timestamp as stale", () => {
@@ -135,12 +169,26 @@ describe("cardActivity", () => {
 // already computes — kept out of the CSS so the rule itself is testable.
 
 describe("activityTreatment", () => {
-  it("animates a live line", () => {
-    expect(activityTreatment({ label: "Editing x.ts", stale: false })).toBe("animated");
+  it("animates a live, working line", () => {
+    expect(activityTreatment({ label: "Editing x.ts", stale: false, waiting: false })).toBe(
+      "animated",
+    );
   });
 
   it("does not animate a stale line — a dead companion must not look busy", () => {
-    expect(activityTreatment({ label: "Editing x.ts", stale: true })).toBe("stale");
+    expect(activityTreatment({ label: "Editing x.ts", stale: true, waiting: false })).toBe("stale");
+  });
+
+  // i0138: a parked run is not working, so its line is present but does not
+  // sweep — motion means actively-working, and it is waiting on the human.
+  it("does not animate a waiting (parked) line", () => {
+    expect(activityTreatment({ label: "Asking a question", stale: false, waiting: true })).toBe(
+      "waiting",
+    );
+  });
+
+  it("stale takes precedence over waiting", () => {
+    expect(activityTreatment({ label: "x", stale: true, waiting: true })).toBe("stale");
   });
 
   it("is none when there is no activity at all", () => {
@@ -168,5 +216,15 @@ describe("activityClassName", () => {
 
   it("has no class when there is no line", () => {
     expect(activityClassName("none")).toBe("");
+  });
+
+  // i0138: a waiting line keeps the base class (single-line truncation) and gets
+  // no sweep and no stale dim — a distinct, present-but-idle look.
+  it("gives a waiting line the base class and its own marker, no sweep", () => {
+    const cls = activityClassName("waiting").split(" ");
+    expect(cls).toContain("card-activity");
+    expect(cls).toContain("card-activity-waiting");
+    expect(cls).not.toContain("card-activity-live");
+    expect(cls).not.toContain("card-activity-stale");
   });
 });
