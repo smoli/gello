@@ -1,11 +1,11 @@
 ---
 id: i0127
 title: On Windows. Git status is not displayed
-status: review
+status: done
 type: issue
 created: 2026-08-05
-updated: 2026-08-05
-status-changed: 2026-08-05T12:10:46
+updated: 2026-08-06
+status-changed: 2026-08-06T05:57:49
 tags: []
 epic: e10
 ---
@@ -85,3 +85,4 @@ one member of it.
 - 2026-08-05 found the mapped-drive divergence it does not cover
 - 2026-08-05 prefix now comes from `rev-parse --show-prefix`; cargo test green
 - 2026-08-05 status → review (agent)
+- 2026-08-06 status → done (app)
