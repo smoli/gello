@@ -6,10 +6,8 @@ created: 2026-08-06
 updated: 2026-08-06
 status-changed: 2026-08-06T18:29:59
 epic: e08
-awaiting: input
 ---
 
-```gelloquestion
 ## Settle the writer before I build (criterion 8)
 
 I confirmed the two facts the crux turns on:
@@ -23,7 +21,7 @@ So **(b) agent-via-MCP cannot produce an accurate lifetime total** — mid-run t
 
 **Please pick:**
 
-- [ ] **(a) Companion writes at run-end** — recommended; accurate, reuses the c0102 write path.
+- [x] **(a) Companion writes at run-end** — recommended; accurate, reuses the c0102 write path.
 - [ ] **(b) Agent MCP tool** — keeps writes strictly agent-side, accepting that the total under-counts the final turn of every run.
 - [ ] Something else.
 
@@ -34,7 +32,6 @@ So **(b) agent-via-MCP cannot produce an accurate lifetime total** — mid-run t
 - [ ] **Both**
 
 Field names `usage-tokens` / `usage-cost` I'll take as written unless you say otherwise.
-```
 
 ## What
 
