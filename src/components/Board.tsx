@@ -16,7 +16,7 @@ import {
   type BoardModel,
   type WipState,
 } from "../lib/board";
-import { collapseDuplicateFrontmatterKeys } from "../lib/cards";
+import { collapseDuplicateFrontmatterKeys, formatCardUsage } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
 import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
@@ -936,6 +936,8 @@ function CardFront({
   const { card, epicLabel, blockers, blocked, startable, slotFree } = entry;
   // c012: thumbnail from the first body image (if any)
   const thumbSrc = firstImageSrc(card.body);
+  // c0150: the card's cumulative companion cost (null → never run, no figure).
+  const usageLabel = formatCardUsage(card.usageTokens, card.usageCost);
   // c0109: a live one-liner of what the agent is doing, while a run is running.
   const activity = cardActivity(runner ?? null, card.id, Date.now());
   // c0117: before that, the grace period the companion is still waiting out.
@@ -1202,10 +1204,24 @@ function CardFront({
           ))}
         </div>
       )}
-      {/* c0086: epic → its title; standalone (incl. inbox status) → no meta row */}
-      {epicLabel && (
-        <div className="card-meta">
-          <span className="card-milestone">{epicLabel}</span>
+      {/* c0086: epic → its title; standalone (incl. inbox status) → no meta row.
+          c0150: the cumulative companion cost rides the same foot row (right),
+          or renders its own row when the card has no epic. */}
+      {(epicLabel || usageLabel) && (
+        <div className="card-meta card-meta-foot">
+          {epicLabel ? (
+            <span className="card-milestone">{epicLabel}</span>
+          ) : (
+            <span />
+          )}
+          {usageLabel && (
+            <span
+              className="card-usage"
+              title={`Companion usage (lifetime): ${(card.usageTokens ?? 0).toLocaleString()} tokens, $${card.usageCost ?? 0} estimated cost`}
+            >
+              {usageLabel}
+            </span>
+          )}
         </div>
       )}
     </article>

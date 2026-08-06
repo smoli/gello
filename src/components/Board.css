@@ -283,6 +283,14 @@
   padding: 0.1rem 0.5rem;
 }
 
+/* c0150: cumulative companion cost, right-aligned in the foot row. */
+.card-usage {
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
 .card-meta-badges {
   display: flex;
   gap: 0.3rem;

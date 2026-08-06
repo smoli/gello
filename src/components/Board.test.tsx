@@ -70,6 +70,25 @@ describe("Board", () => {
     expect(within(plain).queryByRole("status", { name: "Needs input" })).not.toBeInTheDocument();
   });
 
+  it("c0150: shows a card's cumulative usage totals on the front", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [in-progress, done]\n"),
+      file(
+        "cards/c001-run.md",
+        "---\nid: c001\ntitle: Run card\nstatus: done\nusage-tokens: 12300\nusage-cost: 0.04\n---\nbody\n",
+      ),
+      file("cards/c002-fresh.md", card("c002", "Fresh card", "done")),
+    ]);
+    render(<Board model={model} />);
+
+    const run = screen.getByText("Run card").closest("article")!;
+    expect(within(run).getByText("12.3k · $0.04")).toBeInTheDocument();
+
+    // a never-run card shows no usage figure
+    const fresh = screen.getByText("Fresh card").closest("article")!;
+    expect(within(fresh).queryByText(/\$/)).not.toBeInTheDocument();
+  });
+
   it("c0109: shows a running card's live activity line, phrased from the tool", () => {
     const model = loadBoard([
       file("board.yaml", "columns: [in-progress, done]\n"),
