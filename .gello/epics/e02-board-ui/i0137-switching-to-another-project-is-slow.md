@@ -1,13 +1,13 @@
 ---
 id: i0137
 title: Switching to another project is slow
-status: in-progress
+status: review
 type: issue
 ref: c0146
 epic: e02
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T05:51:42
+status-changed: 2026-08-06T06:00:49
 ---
 
 I know that a lot of data needs to be read but it takes at least a second for teh UI to update. Maybe by reordering the load (clearing current collunmns, then background, then cards info) we can give the user more visual feedback. Or some busiy indicator.
@@ -43,3 +43,4 @@ I know that a lot of data needs to be read but it takes at least a second for te
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 busy "Opening <project>…" overlay while a switch reads/parses the
   board, set in openProject before the await and cleared in finally — 1 test
+- 2026-08-06 status → review (agent)
