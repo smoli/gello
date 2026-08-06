@@ -1,13 +1,13 @@
 ---
 id: i0135
 title: I see no way to restart the card
-status: in-progress
+status: review
 type: issue
 ref: c0141
 epic: e08
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T06:01:20
+status-changed: 2026-08-06T06:13:50
 ---
 
 Only way I see is dragging it back to ready. Add a button to restart it to the card front and detail
@@ -47,3 +47,4 @@ companion restarts, and the Restart button is on both the card front and detail.
   `.companion/owned.json` (so restart survives a companion restart under epic
   scope) and add a Restart action to the card detail view. 1393 tests,
   typecheck, lint and a bundle build green.
+- 2026-08-06 status → review (agent)
