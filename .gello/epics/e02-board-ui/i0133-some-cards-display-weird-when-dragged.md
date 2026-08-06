@@ -1,12 +1,13 @@
 ---
 id: i0133
 title: Some cards display weird when dragged
-status: in-progress
+status: ready
 type: issue
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-06T00:31:30
+status-changed: 2026-08-06T05:42:08
 epic: e02
+order: 10
 ---
 
 ![image](../../assets/i0133/image.png)
@@ -17,3 +18,4 @@ Might be cards with thumbnails only. Looks as if I would drag the card and all c
 
 - 2026-08-05 status → ready (app)
 - 2026-08-06 status → in-progress (agent)
+- 2026-08-06 status → ready (app)
