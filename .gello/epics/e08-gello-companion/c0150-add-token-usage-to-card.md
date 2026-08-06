@@ -6,7 +6,35 @@ created: 2026-08-06
 updated: 2026-08-06
 status-changed: 2026-08-06T18:29:59
 epic: e08
+awaiting: input
 ---
+
+```gelloquestion
+## Settle the writer before I build (criterion 8)
+
+I confirmed the two facts the crux turns on:
+
+- At run-end the runner already calls `handleExit(cardId, code, sink.usage())` — the companion **holds the final per-run usage** (the stream `result`). The agent has exited by then and never has this number.
+- The companion already makes **one** surgical card write today (the c0102 `awaiting` marker, via `withAwaitingCleared` → `writeCardAtomic`). Adding `usage-*` at run-end is a small, consistent extension of that exact exception.
+
+So **(b) agent-via-MCP cannot produce an accurate lifetime total** — mid-run the usage isn't final (the model still responds after the last tool call), and the agent would have to read even that partial figure back from the companion. It structurally under-counts.
+
+**My recommendation: (a) — the companion writes `usage-tokens` / `usage-cost` at run-end**, reusing the existing surgical writer, cumulatively (read current → add this run → write). Accurate, minimal new code, and it keeps the numbers where they originate. The only cost is relaxing "the companion never edits cards" from one field to two — the boundary you preferred (a) to protect.
+
+**Please pick:**
+
+- [ ] **(a) Companion writes at run-end** — recommended; accurate, reuses the c0102 write path.
+- [ ] **(b) Agent MCP tool** — keeps writes strictly agent-side, accepting that the total under-counts the final turn of every run.
+- [ ] Something else.
+
+**One UI sub-question** (criterion 6 says "on the card", not where):
+
+- [ ] Show the totals on the **card front** (always visible while scanning the board)
+- [ ] Show them in the **card detail** only (front stays uncluttered)
+- [ ] **Both**
+
+Field names `usage-tokens` / `usage-cost` I'll take as written unless you say otherwise.
+```
 
 ## What
 
