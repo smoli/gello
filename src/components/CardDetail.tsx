@@ -61,6 +61,8 @@ export function CardDetail({
   onDelete,
   onArchive,
   onAnswerQuestion,
+  restartable = false,
+  onRestart,
   onClose,
 }: {
   card: Card;
@@ -98,6 +100,11 @@ export function CardDetail({
   onArchive?: (archived: boolean) => void;
   /** c0101: answer a parked gelloquestion — the app writes the un-fenced body. */
   onAnswerQuestion?: (newBody: string) => void;
+  /** i0135: whether this card's stopped run can be restarted (companion live +
+   *  owned + in-progress + no live run) — computed by the app from companion state. */
+  restartable?: boolean;
+  /** i0135: restart the stopped run, resuming its session in place. */
+  onRestart?: () => void;
   onClose: () => void;
 }) {
   // c041: the Log section is machine-managed — only the part before it is
@@ -389,6 +396,20 @@ export function CardDetail({
             <button type="button" onClick={onReportIssue}>
               Report issue
             </button>
+            {/* i0135: a stopped run (quota, crash, connection) leaves the card
+                in-progress with nothing re-picking it up — restart it here,
+                resuming the session warm. Offered only for a companion-owned
+                stopped card, same as the card front. */}
+            {restartable && onRestart && (
+              <button
+                type="button"
+                className="card-detail-restart"
+                onClick={onRestart}
+                title="Restart — resume the agent on this card"
+              >
+                Restart
+              </button>
+            )}
             {(card.status === "review" || card.status === "done") && (
               <button
                 type="button"

@@ -175,6 +175,13 @@
   border-color: color-mix(in srgb, #c0392b 40%, transparent) !important;
 }
 
+/* i0135: restart a stopped run — an amber accent ties it to the card front's
+   "run stopped" line, and marks it as the recovery action. */
+.card-detail-actions .card-detail-restart {
+  color: #b97a0a;
+  border-color: color-mix(in srgb, #b97a0a 45%, transparent) !important;
+}
+
 .card-detail-delete-confirm {
   display: flex;
   align-items: center;

@@ -82,6 +82,7 @@ import {
   newlyParkedIds,
   type CompanionState,
 } from "./lib/companion";
+import { isStoppedCard } from "./lib/restart";
 import { notifyPark, onNotificationOpen } from "./lib/notify";
 import { focusWindow } from "./lib/window";
 import {
@@ -1928,6 +1929,9 @@ function App() {
             }
             onReportIssue={() => setRefDraft({ source: selected.card, kind: "issue" })}
             onFollowUp={() => startFollowUp(selected.card)}
+            // i0135: restart a stopped run from the detail view, same gate as the front
+            restartable={isStoppedCard(runner, selected.card.id, selected.card.status, Date.now())}
+            onRestart={() => void handleRestartCard(selected.card.id)}
             onOpenCardId={(id) => {
               const target = findCardById(board.model, id);
               if (target) setSelectedPath(target.path);

@@ -63,6 +63,25 @@ function renderDetail(overrides: Partial<Parameters<typeof CardDetail>[0]> = {})
 }
 
 describe("CardDetail", () => {
+  // i0135: restart a stopped card from the detail view too, not only the front.
+  it("i0135: offers Restart when the card is restartable, and calls onRestart", () => {
+    const onRestart = vi.fn();
+    renderDetail({ restartable: true, onRestart });
+    const button = screen.getByRole("button", { name: "Restart" });
+    fireEvent.click(button);
+    expect(onRestart).toHaveBeenCalledOnce();
+  });
+
+  it("i0135: shows no Restart when the card is not restartable", () => {
+    renderDetail({ restartable: false, onRestart: vi.fn() });
+    expect(screen.queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
+  it("i0135: shows no Restart without an onRestart handler", () => {
+    renderDetail({ restartable: true });
+    expect(screen.queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
   it("renders the body as markdown", () => {
     renderDetail();
 
