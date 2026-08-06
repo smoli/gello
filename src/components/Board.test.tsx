@@ -1445,6 +1445,49 @@ describe("Board card moves", () => {
     expect(onReorderCard).not.toHaveBeenCalled();
   });
 
+  // i0139: regression from c0149 — a drop back on the card's own position (its
+  // dimmed origin, or the muted zones flanking it) fell through to the track's
+  // "put it at the bottom", so returning a card to where it was sent it to the
+  // end. Those spots must no-op instead.
+  it("i0139: dropping a card back on its own origin is a no-op, not a move to the end", () => {
+    const onReorderCard = vi.fn();
+    const onMoveCard = vi.fn();
+    render(
+      <Board
+        model={manualBoard()}
+        onMoveCard={onMoveCard}
+        onReorderCard={onReorderCard}
+        onRenumber={vi.fn()}
+      />,
+    );
+    const alpha = screen.getByText("Alpha").closest("article")!; // ready, order 10
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(alpha, { dataTransfer });
+    fireEvent.drop(alpha, { dataTransfer }); // dropped back on itself
+
+    expect(onReorderCard).not.toHaveBeenCalled();
+    expect(onMoveCard).not.toHaveBeenCalled();
+  });
+
+  it("i0139: dropping on a muted origin-adjacent insert zone is a no-op", () => {
+    const onReorderCard = vi.fn();
+    render(
+      <Board model={manualBoard()} onMoveCard={vi.fn()} onReorderCard={onReorderCard} onRenumber={vi.fn()} />,
+    );
+    const alpha = screen.getByText("Alpha").closest("article")!;
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(alpha, { dataTransfer });
+
+    // a zone muted because it flanks the dragged card (i0006) — dropping there
+    // must not fall through to the track's bottom-insert
+    const mutedZone = within(column("ready"))
+      .getAllByLabelText(/insert at/)
+      .find((z) => z.className.includes("muted"))!;
+    fireEvent.drop(mutedZone, { dataTransfer });
+
+    expect(onReorderCard).not.toHaveBeenCalled();
+  });
+
   it("moves a focused card with arrow keys", () => {
     const onMove = vi.fn();
     render(<Board model={MODEL} onMoveCard={onMove} />);

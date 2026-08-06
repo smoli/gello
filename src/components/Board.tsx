@@ -869,11 +869,13 @@ function InsertZone({
       }}
       onDragLeave={() => setActive(false)}
       onDrop={(event) => {
-        if (muted) return;
+        // i0139: a muted zone flanks the dragged card — dropping there means
+        // "leave it where it was", a no-op. Still swallow the event, or it
+        // bubbles to the track and c0149 sends the card to the bottom.
         event.preventDefault();
-        // the column track behind would treat this as an unpositioned drop
         event.stopPropagation();
         setActive(false);
+        if (muted) return;
         const path = event.dataTransfer.getData(CARD_DRAG_TYPE);
         if (path) onDropAt(path, index);
       }}
@@ -986,6 +988,17 @@ function CardFront({
         onDragState(card);
       }}
       onDragEnd={() => onDragState(null)}
+      onDrop={
+        // i0139: dropping a card back on its own (dimmed) origin means "leave it
+        // where it was" — swallow it so it doesn't bubble to the track, which
+        // c0149 would treat as a bottom-insert. Non-origin cards fall through.
+        isOrigin
+          ? (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          : undefined
+      }
       onKeyDown={(event) => {
         if (event.key === "ArrowRight" && !archived) onMoveByKey(card, 1);
         if (event.key === "ArrowLeft" && !archived) onMoveByKey(card, -1);
