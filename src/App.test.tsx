@@ -2307,4 +2307,38 @@ describe("App", () => {
       expect(screen.queryByRole("dialog", { name: /switch project/i })).not.toBeInTheDocument();
     });
   });
+
+  // i0137: reading a board takes ~1s, and the old view used to sit frozen with
+  // no sign anything was happening. A busy indicator shows for the duration.
+  describe("i0137: switch feedback", () => {
+    it("shows a busy indicator while a project switch is loading, then clears it", async () => {
+      loadMock.mockResolvedValue(null); // start on the no-board placeholder
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key === "recent-projects" ? JSON.stringify(["/proj/target"]) : null,
+      );
+      render(<App />);
+      const recentButton = await screen.findByRole("button", { name: "target" });
+
+      // hold the slow read open so we can observe the in-flight state
+      let finishLoad!: (value: ReturnType<typeof loadedFixture>) => void;
+      vi.mocked(loadBoardAt).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishLoad = resolve;
+        }),
+      );
+      fireEvent.click(recentButton);
+
+      // the indicator appears immediately, before the read resolves, and names
+      // the project being opened
+      const status = await screen.findByRole("status");
+      expect(status).toHaveTextContent(/opening target/i);
+
+      // finishing the load swaps in the board and drops the indicator
+      finishLoad(loadedFixture());
+      expect(await screen.findByText("Hello board")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.queryByText(/opening/i)).not.toBeInTheDocument(),
+      );
+    });
+  });
 });

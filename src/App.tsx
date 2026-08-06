@@ -131,6 +131,13 @@ const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
 const autoCommitWindowKey = (projectPath: string) => `auto-commit-window:${projectPath}`;
 const AUTO_COMMIT_DEFAULT_MS = 30_000;
 
+/** i0137: a project's folder name for the "Opening …" busy overlay,
+ *  separator-agnostic (Windows `\` and POSIX `/`). */
+function projectDisplayName(folder: string): string {
+  const trimmed = folder.replace(/[/\\]+$/, "");
+  return trimmed.slice(Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\")) + 1) || folder;
+}
+
 type Theme = "system" | "light" | "dark";
 import {
   collapseDuplicateFrontmatterKeys,
@@ -223,6 +230,10 @@ function App() {
   // board can no longer be found.
   const [switcher, setSwitcher] = useState<SwitcherState | null>(null);
   const [switcherDead, setSwitcherDead] = useState<ReadonlySet<string>>(new Set());
+  // i0137: reading and parsing a whole board takes ~1s, during which the UI used
+  // to sit frozen on the old project. Show a busy overlay naming the project
+  // being opened so the switch gives immediate feedback. null = not switching.
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
   // c0063: show first-image thumbnails on board cards (default on, off = "0")
   const [showThumbnails, setShowThumbnails] = useState(true);
   // c018: show archived cards on the board (off by default, on = "1")
@@ -442,14 +453,21 @@ function App() {
   // without .gello yields null → the "no board" placeholder (init = c017).
   const openProject = async (folder: string) => {
     setSelectedPath(null);
-    const loaded = await loadBoardAt(folder);
-    if (loaded) {
-      setBoard(loaded);
-      setInitCandidate(null);
-      await rememberProject(loaded.root);
-    } else {
-      // c017: no .gello here — offer to initialize one
-      setInitCandidate(folder);
+    // i0137: paint the busy overlay before the slow read/parse begins — the
+    // first `await` below yields, so React shows it while the board loads.
+    setSwitchingTo(projectDisplayName(folder));
+    try {
+      const loaded = await loadBoardAt(folder);
+      if (loaded) {
+        setBoard(loaded);
+        setInitCandidate(null);
+        await rememberProject(loaded.root);
+      } else {
+        // c017: no .gello here — offer to initialize one
+        setInitCandidate(folder);
+      }
+    } finally {
+      setSwitchingTo(null);
     }
   };
   // c0146: the switcher's window listeners commit through this ref, so they
@@ -1544,6 +1562,15 @@ function App() {
     />
   );
 
+  // i0137: the "Opening <project>…" busy overlay, shown while a switch reads and
+  // parses the board. Rendered in every view a switch can start from.
+  const switchingOverlay = switchingTo !== null && (
+    <div className="switching-overlay" role="status" aria-live="polite">
+      <span className="switching-spinner" aria-hidden="true" />
+      <span className="switching-label">Opening {switchingTo}…</span>
+    </div>
+  );
+
   // c0079: a pre-epic milestone-format board is gated until migrated — the
   // board never renders in the old format.
   if (board && board.legacy) {
@@ -1585,6 +1612,7 @@ function App() {
           onSearch={setQuery}
         />
         {switcherOverlay}
+        {switchingOverlay}
         {initPrompt}
         {skillDirs.length > 0 && (
           <SkillPrompt
@@ -1950,6 +1978,7 @@ function App() {
   return (
     <main className="app">
       {switcherOverlay}
+      {switchingOverlay}
       {initPrompt}
       {/* c0146: a warning (e.g. switching to a project whose board is gone)
           must be visible here too, not only in the board view. */}
