@@ -1,11 +1,11 @@
 ---
 id: c0119
 title: Stop an in-flight companion run
-status: review
+status: done
 epic: e08
 created: 2026-07-22
-updated: 2026-08-05
-status-changed: 2026-08-05T12:44:58
+updated: 2026-08-06
+status-changed: 2026-08-06T18:54:25
 ---
 
 ## What
@@ -163,3 +163,4 @@ already learned, rather than re-paying a cold start on a half-done card.
   reads/baselines); the popover Stop and the destructive-drag confirm. All
   twelve criteria pass; 1273 tests, typecheck, lint and a bundle build green.
 - 2026-08-05 status → review (agent)
+- 2026-08-06 status → done (app)
