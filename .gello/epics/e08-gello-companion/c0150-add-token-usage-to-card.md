@@ -80,18 +80,18 @@ total. Either way the *numbers* originate in the companion.
 
 ## Acceptance criteria
 
-- [ ] A card the companion has run carries `usage-tokens` and `usage-cost`
+- [x] A card the companion has run carries `usage-tokens` and `usage-cost`
       frontmatter fields; a never-run card carries neither
-- [ ] `usage-tokens` = summed input + output; `usage-cost` = summed
+- [x] `usage-tokens` = summed input + output; `usage-cost` = summed
       `total_cost_usd`
-- [ ] Both are cumulative over the card's life — every run (incl. park/resume,
+- [x] Both are cumulative over the card's life — every run (incl. park/resume,
       restart, re-dispatch) adds to them
-- [ ] Totals are updated at run completion, never mid-run
-- [ ] The update is a surgical frontmatter write — every untouched line stays
+- [x] Totals are updated at run completion, never mid-run
+- [x] The update is a surgical frontmatter write — every untouched line stays
       byte-identical, and it does not clobber a concurrent agent body edit
-- [ ] The app shows both totals on the card
-- [ ] A malformed/absent existing total is treated as zero, not a parse failure
-- [ ] The writer mechanism (companion at run-end vs agent MCP tool) is settled
+- [x] The app shows both totals on the card
+- [x] A malformed/absent existing total is treated as zero, not a parse failure
+- [x] The writer mechanism (companion at run-end vs agent MCP tool) is settled
       per the crux above before implementation
 
 ## Discussion
