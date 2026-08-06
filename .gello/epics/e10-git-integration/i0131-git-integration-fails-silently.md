@@ -1,11 +1,11 @@
 ---
 id: i0131
 title: Git integration fails silently
-status: review
+status: done
 type: issue
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-06T00:06:41
+status-changed: 2026-08-06T06:10:06
 epic: e10
 ---
 
@@ -86,3 +86,4 @@ never asked for commits.
   auto-commit surface it. cargo test 58, frontend 1355, typecheck/lint/clippy
   green
 - 2026-08-06 status → review (agent)
+- 2026-08-06 status → done (app)
