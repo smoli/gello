@@ -1570,12 +1570,15 @@ describe("Runner — live activity (c0109)", () => {
     });
   });
 
-  it("drops activity from a run's state entry once it parks (waiting-for-input)", () => {
+  // i0138 supersedes c0109 here: a parked run keeps its last activity so the
+  // card front's glimpse line does not vanish (and the card resize) when the
+  // agent asks a question. The app shows it as a "waiting" line, not a busy one.
+  it("keeps the last activity on a run once it parks (waiting-for-input)", () => {
     const ready = board({ c001: { status: "ready", order: 1 } });
     const h = makeRunner(ready, undefined, "normal");
     h.runner.sync(ready);
 
-    h.spawned[0].stdout(toolLine("Bash", { command: "pnpm test" }));
+    h.spawned[0].stdout(toolLine("mcp__gello__add_question", { markdown: "### Which db?" }));
     expect(h.lastRaw().find((r) => r.cardId === "c001")?.activity).toBeDefined();
 
     // the agent parks a question and exits clean → waiting-for-input
@@ -1587,7 +1590,8 @@ describe("Runner — live activity (c0109)", () => {
 
     const run = h.lastRaw().find((r) => r.cardId === "c001");
     expect(run?.phase).toBe("waiting-for-input");
-    expect(run?.activity).toBeUndefined(); // the needs-input badge covers a parked run
+    // its last tool is still published, so the app can keep the line
+    expect(run?.activity).toEqual({ name: "mcp__gello__add_question", arg: "### Which db?" });
   });
 
   // c0112: the TUI header names the model the run actually used.

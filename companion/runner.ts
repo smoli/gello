@@ -627,7 +627,12 @@ export class Runner {
       cardId,
       phase: r.phase,
       ...(r.usage ? { usage: r.usage } : {}),
-      ...(r.phase === "running" && r.activity ? { activity: r.activity } : {}),
+      // i0138: publish the latest tool for a live run (running or parked), so a
+      // parked card keeps a glimpse line instead of the line vanishing when the
+      // agent asks a question. A terminal run carries none.
+      ...((r.phase === "running" || r.phase === "waiting-for-input") && r.activity
+        ? { activity: r.activity }
+        : {}),
       ...(r.model ? { model: r.model } : {}),
     }));
   }
