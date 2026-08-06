@@ -3,8 +3,8 @@ id: c0138
 title: Multi project activity view.
 status: discuss
 created: 2026-07-24
-updated: 2026-07-24
-status-changed: 2026-07-24T21:58:32
+updated: 2026-08-06
+status-changed: 2026-08-06T05:52:37
 epic: e02
 ---
 
@@ -102,3 +102,5 @@ colours, and every write.
   project from board.yaml; accept review→done by drop, answer parked questions
   inline, open a card's detail — all scoped to the owning project; cards keyed
   by (project, id).
+- 2026-08-06 status → backlog (app)
+- 2026-08-06 status → discuss (app)
