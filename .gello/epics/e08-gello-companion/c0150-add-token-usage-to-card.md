@@ -1,11 +1,12 @@
 ---
 id: c0150
 title: Add token usage to card
-status: discuss
+status: ready
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T05:53:57
+status-changed: 2026-08-06T18:29:25
 epic: e08
+order: 10
 ---
 
 ## What
@@ -95,3 +96,4 @@ total. Either way the *numbers* originate in the companion.
   run-end. Writer left open — agent-via-MCP was preferred, but the agent lacks
   its own usage, so the companion (which parses it) is the technically sound
   writer; to be settled before build.
+- 2026-08-06 status → ready (app)
