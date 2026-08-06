@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { loadBoard } from "../src/lib/board.ts";
 import type { BoardModel } from "../src/lib/board.ts";
+import { parseCard } from "../src/lib/cards.ts";
 import type { LaunchSpec } from "./adapters.ts";
 import { claudeAdapter } from "./adapters.ts";
 import type { AgentEvent, Level } from "./stream.ts";
@@ -58,6 +59,9 @@ interface CardSpec {
   parked?: string;
   /** Answered question, un-fenced in place by the app (awaiting: answered). */
   answered?: string;
+  /** c0150: pre-existing cumulative usage totals on the card. */
+  usageTokens?: number;
+  usageCost?: number;
 }
 
 function cardFile(id: string, s: CardSpec): string {
@@ -71,6 +75,8 @@ function cardFile(id: string, s: CardSpec): string {
     s.order !== undefined ? `order: ${s.order}` : null,
     s.statusChanged ? `status-changed: ${s.statusChanged}` : null,
     awaiting ? `awaiting: ${awaiting}` : null,
+    s.usageTokens !== undefined ? `usage-tokens: ${s.usageTokens}` : null,
+    s.usageCost !== undefined ? `usage-cost: ${s.usageCost}` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -1650,5 +1656,95 @@ describe("Runner — live activity (c0109)", () => {
       name: "Read",
       arg: "b.ts",
     });
+  });
+});
+
+// c0150: at run-end the companion folds the run's usage into the card's
+// cumulative `usage-tokens` / `usage-cost` totals — a surgical frontmatter write.
+describe("Runner — record usage at run-end (c0150)", () => {
+  const usageOf = (raw: string) => {
+    const r = parseCard("cards/c001-x.md", raw);
+    return r.ok ? { tokens: r.card.usageTokens, cost: r.card.usageCost } : null;
+  };
+
+  it("writes the run's tokens and cost to a never-run card at completion", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(
+      resultLine({ input_tokens: 120, output_tokens: 340 }, { total_cost_usd: 0.0123 }),
+    );
+    h.setModel(board({ c001: { status: "review" } }));
+    h.spawned[0].exit(0);
+
+    const write = h.writes.find((w) => w.path === "/project/.gello/cards/c001-x.md");
+    expect(write).toBeDefined();
+    expect(usageOf(write!.raw)).toEqual({ tokens: 460, cost: 0.0123 });
+  });
+
+  it("adds to a card's existing totals (cumulative over its life)", () => {
+    const start = board({
+      c001: { status: "ready", order: 1, usageTokens: 1000, usageCost: 0.5 },
+    });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(
+      resultLine({ input_tokens: 100, output_tokens: 60 }, { total_cost_usd: 0.25 }),
+    );
+    h.setModel(
+      board({ c001: { status: "review", usageTokens: 1000, usageCost: 0.5 } }),
+    );
+    h.spawned[0].exit(0);
+
+    const write = h.writes[h.writes.length - 1];
+    expect(usageOf(write.raw)).toEqual({ tokens: 1160, cost: 0.75 });
+  });
+
+  it("counts a parked turn too (park/resume both add)", () => {
+    const ready = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(ready);
+    h.runner.sync(ready);
+
+    h.spawned[0].stdout(
+      resultLine({ input_tokens: 120, output_tokens: 340 }, { total_cost_usd: 0.01 }),
+    );
+    h.setModel(
+      board({ c001: { status: "in-progress", parked: "### Which db?\n\n- [ ] pg\n" } }),
+    );
+    h.spawned[0].exit(0);
+
+    const write = h.writes.find((w) => w.path === "/project/.gello/cards/c001-x.md");
+    expect(write).toBeDefined();
+    expect(usageOf(write!.raw)).toEqual({ tokens: 460, cost: 0.01 });
+  });
+
+  it("does not write when the run reported no usage", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    // no result line fed — the run just exits
+    h.setModel(board({ c001: { status: "review" } }));
+    h.spawned[0].exit(0);
+
+    expect(h.writes).toEqual([]);
+  });
+
+  it("leaves the card body byte-identical (surgical write)", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+
+    h.spawned[0].stdout(
+      resultLine({ input_tokens: 5, output_tokens: 5 }, { total_cost_usd: 0.001 }),
+    );
+    h.setModel(board({ c001: { status: "review" } }));
+    h.spawned[0].exit(0);
+
+    const write = h.writes[h.writes.length - 1];
+    expect(write.raw).toContain("## What\n\ntask\n");
+    expect(write.raw).toContain("id: c001\n");
   });
 });

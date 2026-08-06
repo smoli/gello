@@ -11,7 +11,7 @@
 
 import { join } from "node:path";
 import type { BoardModel } from "../src/lib/board.ts";
-import type { BoardConfig, Card } from "../src/lib/cards.ts";
+import { withUsageAdded, type BoardConfig, type Card } from "../src/lib/cards.ts";
 import { todayIsoDate } from "../src/lib/dates.ts";
 import { withAwaitingCleared } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
@@ -619,6 +619,24 @@ export class Runner {
     }
   }
 
+  /** c0150: add one run's usage to the card's lifetime `usage-tokens` /
+   *  `usage-cost` totals — a surgical two-line frontmatter write, the body left
+   *  byte-identical. The agent has already exited, so it cannot race a body
+   *  edit. The second card-metadata write the companion makes, alongside the
+   *  c0102 awaiting marker. Non-fatal on failure. */
+  private recordUsage(card: Card, usage: RunUsage): void {
+    const tokens = usage.inputTokens + usage.outputTokens;
+    const cost = usage.totalCostUsd ?? 0;
+    if (tokens <= 0 && cost <= 0) return;
+    try {
+      const raw = withUsageAdded(card.raw, tokens, cost);
+      const write = this.opts.writeCard ?? writeCardAtomic;
+      write(join(this.opts.boardRoot, card.path), raw);
+    } catch (error) {
+      this.log(`could not record usage on ${card.id}: ${(error as Error).message}`);
+    }
+  }
+
   /** Active runs as published run states. Activity is carried only while a run
    *  is `running` — a parked/done run's last tool call is meaningless, and the
    *  needs-input badge already speaks for a parked one (c0109). */
@@ -724,6 +742,11 @@ export class Runner {
       this.log(`reload after ${cardId} exit failed: ${(error as Error).message}`);
     }
     const card = next ? byId(next).get(cardId) : undefined;
+    // c0150: fold this run's usage into the card's cumulative totals. At every
+    // exit — park, done, error, aborted — so each turn's tokens/cost add once and
+    // the totals span park/resume, restarts and re-dispatches. Runs before the
+    // phase branch (the parked branch returns early) so no exit is missed.
+    if (card && usage) this.recordUsage(card, usage);
     // c0119: a run the runner killed on request is `aborted`, not `error` — a
     // deliberate stop must not read as a crash. Checked before classifyExit,
     // which would otherwise call the non-zero/killed exit an error.
