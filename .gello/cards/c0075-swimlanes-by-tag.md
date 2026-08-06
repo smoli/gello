@@ -1,11 +1,10 @@
 ---
 id: c0075
 title: Swimlanes by tag
-status: backlog
+status: inbox
 created: 2026-07-18
-updated: 2026-08-05
-status-changed: 2026-08-05T12:19:22
-order: 40
+updated: 2026-08-06
+status-changed: 2026-08-06T06:13:21
 ---
 
 Spun out of [[c0058]] (tags refinement): grouping the board into horizontal
@@ -96,3 +95,4 @@ first-class on the board.
 - 2026-07-22 status → backlog (app)
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → backlog (app)
+- 2026-08-06 status → inbox (app)
