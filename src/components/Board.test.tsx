@@ -1628,6 +1628,21 @@ describe("Board card moves", () => {
     expect(container.querySelector(".board")).not.toHaveClass("board-dragging");
   });
 
+  it("i0133: on a background board, both classes coexist while dragging so the CSS drops the backdrop blur", () => {
+    // the i0133 fix keys off `.board-with-bg.board-dragging .column`; guard that
+    // both classes really land on the same element during a drag (the ghosting
+    // fix silently stops applying if they ever split).
+    const { container } = render(
+      <Board model={MODEL} onMoveCard={vi.fn()} background="url(data:image/png;base64,xyz)" />,
+    );
+    const card = screen.getByText("First card").closest("article")!;
+    fireEvent.dragStart(card, { dataTransfer: fakeDataTransfer() });
+
+    const board = container.querySelector(".board")!;
+    expect(board).toHaveClass("board-with-bg");
+    expect(board).toHaveClass("board-dragging");
+  });
+
   it("c0108: highlights the column the pointer is over during a drag", () => {
     const { container } = render(<Board model={MODEL} onMoveCard={vi.fn()} />);
     const card = screen.getByText("First card").closest("article")!;

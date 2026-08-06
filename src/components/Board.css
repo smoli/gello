@@ -22,6 +22,16 @@
   backdrop-filter: blur(10px);
 }
 
+/* i0133: while a native drag is in flight, WebKit leaves a ghosted copy of the
+   column's blurred backdrop, so text-heavy cards render doubled — but only on a
+   board with a background, where `backdrop-filter` applies. Drop the blur for
+   the duration of the drag; the translucent column fill stays and the blur
+   returns the instant the drag ends. (More specific than the rule above so it
+   wins regardless of source order.) */
+.board-with-bg.board-dragging .column {
+  backdrop-filter: none;
+}
+
 .board-with-bg .board-toolbar select {
   background: color-mix(in srgb, Canvas 85%, transparent);
 }
