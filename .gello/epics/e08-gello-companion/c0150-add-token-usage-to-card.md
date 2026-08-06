@@ -1,10 +1,10 @@
 ---
 id: c0150
 title: Add token usage to card
-status: in-progress
+status: review
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T18:39:30
+status-changed: 2026-08-06T18:52:20
 epic: e08
 ---
 
@@ -112,6 +112,27 @@ total. Either way the *numbers* originate in the companion.
   front or only the detail; whether to keep a separate "last run" alongside the
   lifetime total (the card says total only — so no).
 
+## Notes
+
+- **Writer: (a) companion at run-end** (human's pick). New pure
+  `withUsageAdded(raw, addTokens, addCost)` in `cards.ts` reads the current
+  totals (malformed/absent → 0), sums, and rewrites only the two `usage-*`
+  lines via the existing `setFrontmatterRawValue` — body and every other line
+  byte-identical, `updated` untouched (metadata accrual, not an edit). The
+  runner calls it in `handleExit` at **every** process exit (park, done, error,
+  aborted), before the phase branch, so each turn's usage adds once and the
+  totals span park/resume, restarts and re-dispatches. A run that reported no
+  usage writes nothing. Second card write the companion owns, alongside the
+  c0102 awaiting marker.
+- **Cost sum rounded to 6 decimals** so floating-point addition doesn't accrete
+  noise (0.1 + 0.2). `usage-cost` is a list-price estimate, not billed dollars.
+- **UI placement — judgment call.** The human left the front/detail/both
+  sub-question blank, so I put the figure on the **card front** (compact
+  `12.3k · $0.04`, muted, right of the epic label; exact totals in the tooltip),
+  matching the card's own rationale that "cost is what you watch for quota" —
+  it wants at-a-glance visibility. Easy to move to the detail or add there too
+  if you'd rather the front stayed quieter — say the word.
+
 ## Log
 
 - 2026-08-06 status → discuss (app)
@@ -124,3 +145,9 @@ total. Either way the *numbers* originate in the companion.
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 status → ready (app)
 - 2026-08-06 status → in-progress (agent)
+- 2026-08-06 (agent) implemented, writer = (a) companion at run-end, three
+  green commits: lib parse+`withUsageAdded`+`formatCardUsage` (`3e2f4b3`),
+  companion writes totals in `handleExit` (`f681729`), card-front figure
+  (`cd9476a`). 1415 tests, typecheck, lint and the companion bundle all green.
+  UI on the card front (judgment call — human left it blank; see Notes).
+- 2026-08-06 status → review (agent)
