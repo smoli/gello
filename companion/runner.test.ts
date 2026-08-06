@@ -554,6 +554,8 @@ function makeRunner(
   pickup: { pickupDelayMs?: number; clockStart?: number } = {},
   /** c0126: session scope for the dispatch gate (default `card`). */
   scope: "card" | "epic" = "card",
+  /** i0135: card ids the persisted owned file seeds the runner with. */
+  ownedSeed?: string[],
 ) {
   const spawned: FakeProc[] = [];
   const writes: { path: string; raw: string }[] = [];
@@ -565,8 +567,11 @@ function makeRunner(
   const runLog: { cardId: string; event: AgentEvent }[] = [];
   const cwds: string[] = [];
   const logs: string[] = [];
+  const persistedOwned: string[][] = [];
   const clock = fakeClock(pickup.clockStart ?? 0);
   const runner = new Runner({
+    owned: ownedSeed,
+    persistOwned: (o) => persistedOwned.push(o),
     // the agent runs in the repo; card paths resolve against .gello
     cwd: "/project",
     boardRoot: "/project/.gello",
@@ -608,6 +613,7 @@ function makeRunner(
     panes,
     runLog,
     logs,
+    persistedOwned,
     advance: clock.advance,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -1229,6 +1235,41 @@ describe("Runner — restart a stopped card (c0141)", () => {
     const model = board({ c001: { status: "in-progress" } });
     const h = makeRunner(model, { "card:c001": "sid-1" });
     expect(h.runner.ownedCards()).toEqual(["c001"]);
+  });
+
+  // i0135: ownership must survive a companion restart, including under epic
+  // scope where the session key names no single card.
+  it("recovers ownership from the persisted owned set (any scope)", () => {
+    const model = board({ c001: { status: "in-progress", epic: "e01" } });
+    // epic scope: sessions holds only `epic:e01`, so the persisted owned file is
+    // the only record that c001 was run by the companion
+    const h = makeRunner(model, { "epic:e01": "sid-e" }, "normal", {}, "epic", ["c001"]);
+    expect(h.runner.ownedCards()).toEqual(["c001"]);
+
+    h.runner.restart("c001");
+    expect(h.spawned).toHaveLength(1);
+    expect(h.spawned[0].spec.args[0]).toBe("--resume");
+    expect(h.spawned[0].spec.args[1]).toBe("sid-e");
+  });
+
+  it("persists ownership when it first runs a card", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.persistedOwned[h.persistedOwned.length - 1]).toEqual(["c001"]);
+  });
+
+  it("does not persist ownership again when re-running an already-owned card", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.sync(start); // owns c001, persists once
+    const writes = h.persistedOwned.length;
+
+    // c001 stops and is restarted — already owned, so no new persist
+    h.setModel(board({ c001: { status: "in-progress" } }));
+    h.spawned[0].exit(1);
+    h.runner.restart("c001");
+    expect(h.persistedOwned.length).toBe(writes);
   });
 
   it("never restarts a card with no companion session (a human-worked card)", () => {

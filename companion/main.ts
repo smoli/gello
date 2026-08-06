@@ -39,7 +39,7 @@ import {
 } from "./tui-model.ts";
 import { Dashboard, nodeScreen } from "./tui.ts";
 import { getAdapter, type AskServerSpec } from "./adapters.ts";
-import { loadSessions, saveSessions } from "./sessions.ts";
+import { loadSessions, saveSessions, loadOwned, saveOwned } from "./sessions.ts";
 import { loadConfig } from "./config.ts";
 import { Runner, wipLimitOf, type SpawnedRun, type Spawner } from "./runner.ts";
 import type { BoardModel } from "../src/lib/board.ts";
@@ -207,6 +207,8 @@ function main(): void {
     reload: () => loadBoardFrom(root),
     sessions: loadSessions(root),
     persistSessions: (map) => saveSessions(root, map),
+    owned: loadOwned(root),
+    persistOwned: (owned) => saveOwned(root, owned),
     onRuns: (next) => {
       const ended = new Set(runs.map((r) => r.cardId));
       for (const run of next) {

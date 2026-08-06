@@ -45,6 +45,23 @@ export function saveSessions(root: string, map: SessionMap): void {
   writeJsonAtomic(sessionsPath(root), map);
 }
 
+/** i0135: the durable set of card ids the companion has run — the record that
+ *  keeps a stopped card restartable across a companion restart, under any scope.
+ *  Kept beside sessions.json, in the gitignored `.companion/` dir. */
+export function ownedPath(root: string): string {
+  return join(companionDir(root), "owned.json");
+}
+
+/** Load the persisted owned card ids, tolerant of a missing/garbage file. */
+export function loadOwned(root: string): string[] {
+  const value = readJson<unknown>(ownedPath(root), []);
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+export function saveOwned(root: string, owned: string[]): void {
+  writeJsonAtomic(ownedPath(root), owned);
+}
+
 /** The session id to resume for this card under the scope, or null to start
  *  fresh — along with the key it would be recorded under. */
 export function resolveSession(

@@ -329,6 +329,13 @@ export interface RunnerOptions {
   sessions?: SessionMap;
   /** Persist the session map after a new session is recorded. */
   persistSessions?: (map: SessionMap) => void;
+  /** i0135: card ids the companion already owns a session for, persisted across
+   *  restarts. Seeds `owned` so a stopped card stays restartable after the
+   *  companion is restarted — under epic scope the session key names no card, so
+   *  this is the only durable record of which cards were run. */
+  owned?: string[];
+  /** i0135: persist the owned set after the companion runs a new card. */
+  persistOwned?: (owned: string[]) => void;
   log?: (message: string) => void;
   /** c0104: terminal verbosity for rendered agent output (default `normal`). */
   level?: Level;
@@ -390,10 +397,12 @@ export class Runner {
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
-    // Recover card ownership from a persisted per-card session (`card:<id>`), so
-    // a stopped card is still restartable after a companion restart. An epic
-    // session shares one id across its cards, so it names no single card and
-    // cannot be recovered this way — epic-scope ownership is tracked live only.
+    // i0135: the persisted owned set is the durable record of which cards the
+    // companion has run — under *any* scope, so a stopped card is restartable
+    // after the companion restarts, including the default epic scope.
+    for (const cardId of opts.owned ?? []) this.owned.add(cardId);
+    // Belt and braces: also recover from a persisted per-card session
+    // (`card:<id>`), which predates the owned file under card scope.
     for (const key of Object.keys(this.sessions)) {
       if (key.startsWith("card:")) this.owned.add(key.slice("card:".length));
     }
@@ -650,7 +659,12 @@ export class Runner {
     // The ask surfaces read the run's card id from `env`; the kill handle
     // (c0119) is stored so a stop can end this one process.
     const proc = this.opts.spawn(spec, this.opts.cwd, { GELLO_CARD_ID: card.id });
-    this.owned.add(card.id); // c0141: a card the companion has run, it owns
+    // c0141: a card the companion has run, it owns; i0135 persists that so it
+    // survives a restart. Persist only when the set actually grows.
+    if (!this.owned.has(card.id)) {
+      this.owned.add(card.id);
+      this.opts.persistOwned?.([...this.owned]);
+    }
     this.active.set(card.id, {
       sessionId: id,
       phase: "running",

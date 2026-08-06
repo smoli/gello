@@ -10,6 +10,9 @@ import {
   resolveSession,
   recordSession,
   newSessionId,
+  ownedPath,
+  loadOwned,
+  saveOwned,
   type SessionMap,
 } from "./sessions.ts";
 
@@ -59,6 +62,29 @@ describe("sessions store", () => {
     // clobber with junk
     writeFileSync(sessionsPath(root), "{not json");
     expect(loadSessions(root)).toEqual({});
+  });
+});
+
+// i0135: the durable owned-card set, so a stopped card is restartable after the
+// companion restarts (needed under epic scope, where the session names no card).
+describe("owned store", () => {
+  it("round-trips the owned ids atomically under .companion/", () => {
+    const root = tempGello();
+    expect(ownedPath(root)).toBe(join(root, ".companion", "owned.json"));
+    expect(loadOwned(root)).toEqual([]); // missing → empty
+
+    saveOwned(root, ["c001", "c002"]);
+    expect(existsSync(ownedPath(root))).toBe(true);
+    expect(loadOwned(root)).toEqual(["c001", "c002"]);
+  });
+
+  it("tolerates a corrupt or wrong-shaped file, dropping non-strings", () => {
+    const root = tempGello();
+    saveOwned(root, []); // creates .companion/
+    writeFileSync(ownedPath(root), "{not json");
+    expect(loadOwned(root)).toEqual([]);
+    writeFileSync(ownedPath(root), JSON.stringify(["c001", 5, null, "c003"]));
+    expect(loadOwned(root)).toEqual(["c001", "c003"]);
   });
 });
 
