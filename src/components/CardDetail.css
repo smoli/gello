@@ -83,7 +83,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  opacity: 0.9;
+  /* i0136: dim the label text with `color`, not `opacity` — an opacity below 1
+     makes the label a stacking context, which trapped the tag suggestion list
+     (c0145) behind the dialog UI below it and painted it translucent. The
+     controls inside set their own `color`, so only the label text is dimmed. */
+  color: color-mix(in srgb, CanvasText 90%, transparent);
 }
 
 .field-label {
