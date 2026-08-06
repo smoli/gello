@@ -1,10 +1,10 @@
 ---
 id: c0144
 title: Creating a follow up card/issue should get the same tags and epic
-status: review
+status: done
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-05T12:55:54
+status-changed: 2026-08-06T05:44:47
 epic: e03
 tags: [Test]
 ---
@@ -30,3 +30,4 @@ If I create a follow up card/issue on a card with tags and/or epic the follow up
 - 2026-08-05 status → ready (app)
 - 2026-08-05 status → in-progress (agent)
 - 2026-08-05 status → review (agent)
+- 2026-08-06 status → done (app)
