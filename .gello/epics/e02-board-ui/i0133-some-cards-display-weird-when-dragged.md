@@ -52,3 +52,5 @@ feedback (c054); the doubling is the bug. The drop itself works.
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 status → ready (app)
 - 2026-08-06 status → in-progress (app)
+- 2026-08-06 root cause is backdrop-filter ghosting during drag (background
+  boards only); drop the column blur while dragging — CSS fix + precondition test
