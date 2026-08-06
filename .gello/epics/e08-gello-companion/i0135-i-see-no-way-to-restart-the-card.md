@@ -43,3 +43,7 @@ companion restarts, and the Restart button is on both the card front and detail.
 ## Log
 
 - 2026-08-06 status → in-progress (agent)
+- 2026-08-06 (agent) fixed: persist companion card ownership to
+  `.companion/owned.json` (so restart survives a companion restart under epic
+  scope) and add a Restart action to the card detail view. 1393 tests,
+  typecheck, lint and a bundle build green.
