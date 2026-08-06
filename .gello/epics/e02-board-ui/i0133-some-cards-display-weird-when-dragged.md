@@ -1,11 +1,11 @@
 ---
 id: i0133
 title: Some cards display weird when dragged
-status: in-progress
+status: review
 type: issue
 created: 2026-08-05
 updated: 2026-08-06
-status-changed: 2026-08-06T05:45:13
+status-changed: 2026-08-06T05:47:38
 epic: e02
 ---
 
@@ -54,3 +54,4 @@ feedback (c054); the doubling is the bug. The drop itself works.
 - 2026-08-06 status → in-progress (app)
 - 2026-08-06 root cause is backdrop-filter ghosting during drag (background
   boards only); drop the column blur while dragging — CSS fix + precondition test
+- 2026-08-06 status → review (agent)
