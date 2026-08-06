@@ -1,13 +1,13 @@
 ---
 id: i0139
 title: Dropping a card on its original position puts it a the end
-status: in-progress
+status: review
 type: issue
 ref: c0149
 epic: e02
 created: 2026-08-06
 updated: 2026-08-06
-status-changed: 2026-08-06T18:56:02
+status-changed: 2026-08-06T19:28:20
 usage-tokens: 8578
 usage-cost: 10.562983
 ---
@@ -45,3 +45,4 @@ instead of leaving it in place.
 - 2026-08-06 status → in-progress (agent)
 - 2026-08-06 muted zones + the origin card now swallow their drop (no-op)
   instead of falling through to c0149's bottom-insert — 2 tests
+- 2026-08-06 status → review (agent)
