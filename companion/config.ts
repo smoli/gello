@@ -37,7 +37,7 @@ export interface CompanionConfig {
 
 export const DEFAULT_CONFIG: CompanionConfig = {
   agent: "claude",
-  scope: "epic",
+  scope: "card",
   trigger: "ready",
   permissionMode: "auto",
   level: "normal",
