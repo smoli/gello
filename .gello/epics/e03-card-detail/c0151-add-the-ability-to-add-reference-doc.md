@@ -79,6 +79,37 @@ file and routes the result into `## References` rather than an inline image.
     removing an orphaned asset file.
   - Whether to later also support URL / repo-path references without a copy.
 
+## Notes
+
+- **Where it lives**: `src/lib/references.ts` (pure section edits: parse, add,
+  remove, strip, and the kind of a target), `src/components/CardReferences.tsx`
+  (the panel), wired from `CardDetail` through four props — `onSaveFile`,
+  `onChangeBody`, `onOpenReference`, `loadReferenceText`. The panel owns the
+  section, so `## References` is cut from the rendered body and shown once, with
+  its controls. Without the handlers the section renders as plain markdown.
+- **Reuses the image store**: `writeAsset` takes any bytes and already dedupes
+  the filename, so two files of one name land as `spec.pdf` and `spec-2.pdf`
+  while both keep the original name as their label. Only the naming is new —
+  `suggestedFileAssetName` keeps the file's own extension instead of deriving
+  one from a mime type.
+- **Open questions from the discussion, resolved**:
+  - *Path base*: card-relative holds. An agent is given the card's path and
+    resolves the link against the card's folder, the same walk `resolveFromCard`
+    does — covered by a test over every card folder shape (`cards/`, an epic,
+    and both `archive/` variants).
+  - *PDF/binary*: OS default, via a new `open_asset` Rust command. It resolves
+    the board-relative path under the board root and refuses anything that
+    climbs out, so the webview can only open files the board holds. Going
+    through our own command avoids widening the opener plugin's JS scope to
+    `**` (its path scope is static, and a board root is not).
+  - *Asset cleanup*: same policy as images — removing the entry leaves the file;
+    `assets/<card-id>/` is removed when the card is deleted.
+  - *URL / repo-path references without a copy*: not added, as discussed.
+- **Committed for free**: the auto-commit stages `.gello` with `add -A -- .`,
+  which covers binaries under `assets/`.
+- Not exercised in the running app (the Rust command is compile- and
+  unit-tested; the panel is covered by component tests).
+
 ## Log
 
 - 2026-08-06 status → discuss (app)
@@ -90,3 +121,6 @@ file and routes the result into `## References` rather than an inline image.
   repo path, so no context-pack wiring is needed here.
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
+- 2026-08-07 implemented: `## References` section module, the card-detail panel
+  (open externally / render inline / remove), the `open_asset` Rust command, and
+  the App wiring. concept.md § Attachments documents the format.
