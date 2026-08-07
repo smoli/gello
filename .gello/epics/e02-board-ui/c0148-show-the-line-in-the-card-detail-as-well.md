@@ -97,3 +97,6 @@ can't drift:
 - 2026-08-06 status → backlog (app)
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
+- 2026-08-07 extracted the front's status line into a shared resolver
+  (card-status.ts) + CardStatusLine component; front refactored to use it,
+  detail shows it read-only — 19 tests, front's 152 unchanged
