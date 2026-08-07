@@ -1,10 +1,10 @@
 ---
 id: c0153
 title: Option to open project folder in the terminal
-status: review
+status: done
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T23:22:05
+status-changed: 2026-08-07T23:22:46
 epic: e02
 usage-tokens: 17363
 usage-cost: 2.233072
@@ -47,3 +47,4 @@ directory set to the project folder (the folder holding `.gello`).
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
 - 2026-08-07 status → review (agent)
+- 2026-08-07 status → done (app)
