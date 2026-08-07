@@ -1,12 +1,12 @@
 ---
 id: c0148
 title: show the line in the card detail as well
-status: in-progress
+status: review
 ref: c0143
 epic: e02
 created: 2026-08-05
 updated: 2026-08-07
-status-changed: 2026-08-07T06:47:12
+status-changed: 2026-08-07T07:10:51
 usage-tokens: 50029
 usage-cost: 28.320793
 ---
@@ -72,3 +72,4 @@ can't drift:
 - 2026-08-07 extracted the front's status line into a shared resolver
   (card-status.ts) + CardStatusLine component; front refactored to use it,
   detail shows it read-only — 19 tests, front's 152 unchanged
+- 2026-08-07 status → review (agent)
