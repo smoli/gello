@@ -7,8 +7,8 @@ epic: e02
 created: 2026-08-05
 updated: 2026-08-07
 status-changed: 2026-08-07T07:10:51
-usage-tokens: 50029
-usage-cost: 28.320793
+usage-tokens: 59068
+usage-cost: 45.673019
 ---
 
 "The line" on the card front (ref c0143) is really a **stack** of live-status treatments sharing one slot, in priority order: the c0109 activity line ("Editing runner.ts"), the c0117 pickup countdown ("picking up in 7s"), the c0137/c0143 **waiting-on-a-slot / funny queue line**, the c0141 "run stopped — Restart", and the c0123 blocked line ("waiting on c0072"). The card **detail** currently gets none of the companion state (`runner`) or the board facts (blocked / slot-free / startable) these need, so this needs some plumbing either way.
