@@ -17,6 +17,7 @@ import {
   migrateLegacyBoard,
   openExternal,
   openFolder,
+  openInTerminal,
   pickFolder,
   readFileRaw,
   removeDir,
@@ -49,6 +50,7 @@ vi.mock("./lib/board-io", () => ({
   migrateLegacyBoard: vi.fn(),
   openExternal: vi.fn(),
   openFolder: vi.fn(),
+  openInTerminal: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
@@ -122,6 +124,8 @@ describe("App", () => {
     vi.mocked(openExternal).mockResolvedValue(undefined);
     vi.mocked(openFolder).mockReset();
     vi.mocked(openFolder).mockResolvedValue(undefined);
+    vi.mocked(openInTerminal).mockReset();
+    vi.mocked(openInTerminal).mockResolvedValue(undefined);
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
@@ -431,6 +435,33 @@ describe("App", () => {
     await vi.waitFor(() =>
       expect(vi.mocked(openFolder)).toHaveBeenCalledExactlyOnceWith("/repo"),
     );
+  });
+
+  it("c0153: the context menu opens a terminal at the project folder", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in terminal" }));
+
+    // the project folder, not the .gello board dir
+    await vi.waitFor(() =>
+      expect(vi.mocked(openInTerminal)).toHaveBeenCalledExactlyOnceWith("/repo"),
+    );
+  });
+
+  it("c0153: a terminal that will not open shows in the error banner", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(openInTerminal).mockRejectedValueOnce(new Error("no such folder"));
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in terminal" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("no such folder");
   });
 
   it("c0152: a folder that will not open shows in the error banner", async () => {

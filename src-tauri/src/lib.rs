@@ -7,6 +7,7 @@ pub mod fs_watch;
 pub mod fs_write;
 pub mod git;
 pub mod skills;
+pub mod terminal;
 
 /// Typed error shape shared with the frontend (src/lib/fs.ts).
 #[derive(serde::Serialize)]
@@ -184,6 +185,16 @@ fn open_folder(app: tauri::AppHandle, path: String) -> Result<(), FsError> {
             message: error.to_string(),
             path,
         })
+}
+
+/// c0153: open an OS terminal at a folder — the open project's.
+#[tauri::command(async)]
+fn open_in_terminal(path: String) -> Result<(), FsError> {
+    terminal::open_folder(std::path::Path::new(&path)).map_err(|message| FsError {
+        kind: "Open".into(),
+        message,
+        path,
+    })
 }
 
 #[tauri::command(async)]
@@ -422,6 +433,7 @@ pub fn run() {
             write_asset,
             open_asset,
             open_folder,
+            open_in_terminal,
             remove_dir,
             start_companion
         ])

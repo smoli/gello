@@ -11,13 +11,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// A ready-to-spawn terminal invocation: program + argv, passed straight to
-/// `Command` with no shell.
-#[derive(Debug, PartialEq, Eq)]
-pub struct TerminalCommand {
-    pub program: String,
-    pub args: Vec<String>,
-}
+/// c0153: the invocation shape is shared with terminal.rs, which opens a plain
+/// terminal at a folder.
+pub use crate::terminal::TerminalCommand;
 
 /// File name of the bundled companion (see scripts/build-companion.mjs).
 pub const COMPANION_JS: &str = "gello-companion.mjs";

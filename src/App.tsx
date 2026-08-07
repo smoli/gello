@@ -64,6 +64,7 @@ import {
   migrateLegacyBoard,
   openExternal,
   openFolder,
+  openInTerminal,
   pickFolder,
   type GitStatus,
   pickImageFile,
@@ -1567,6 +1568,16 @@ function App() {
     }
   };
 
+  /** c0153: open a terminal at the project folder — the one holding `.gello`. */
+  const handleOpenInTerminal = async () => {
+    if (!board) return;
+    try {
+      await openInTerminal(projectFolder(board.root).path);
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   // c0151: hand a reference to the OS (PDFs and the like), and read a
   // text/markdown one for the inline view. Both take the card-relative link.
   const handleOpenReference = async (card: Card, target: string) => {
@@ -1884,6 +1895,10 @@ function App() {
               {
                 label: "Open project folder",
                 onSelect: () => void handleOpenProjectFolder(),
+              },
+              {
+                label: "Open in terminal",
+                onSelect: () => void handleOpenInTerminal(),
               },
               {
                 label: "Background…",

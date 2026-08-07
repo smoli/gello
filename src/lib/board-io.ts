@@ -43,6 +43,12 @@ export async function openFolder(path: string): Promise<void> {
   await invoke("open_folder", { path });
 }
 
+/** c0153: open an OS terminal with `path` as its working directory. Rejects
+ *  when the path is gone or no terminal could be launched. */
+export async function openInTerminal(path: string): Promise<void> {
+  await invoke("open_in_terminal", { path });
+}
+
 /** Delete one file (absolute path) — used by triage after the rewrite. */
 export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });
