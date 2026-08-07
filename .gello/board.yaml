@@ -3,4 +3,3 @@ wip_limits:
   in-progress: 1
 background: assets/board/background.jpg
 show_tags: false
-scope: card

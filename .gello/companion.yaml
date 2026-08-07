@@ -1,4 +1,4 @@
 agent: claude
-scope: epic
+scope: card
 permissionMode: auto
 level: normal
