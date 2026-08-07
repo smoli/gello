@@ -120,6 +120,7 @@ import {
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 import { MigrationGate } from "./components/MigrationGate";
+import { BoardError } from "./components/BoardError";
 import { EpicDetail } from "./components/EpicDetail";
 
 // i0010: the "don't ask about skills" choice is per-project, not global —
@@ -1688,11 +1689,7 @@ function App() {
             }}
           />
         )}
-        {error && (
-          <div role="alert" className="board-error">
-            {error}
-          </div>
-        )}
+        {error && <BoardError message={error} onDismiss={() => setError(null)} />}
         {/* c0119: dragging a card out of its running status stops its agent —
             confirm before destroying in-flight work. */}
         {pendingStop && (
@@ -2056,11 +2053,7 @@ function App() {
       {initPrompt}
       {/* c0146: a warning (e.g. switching to a project whose board is gone)
           must be visible here too, not only in the board view. */}
-      {error && (
-        <div role="alert" className="board-error">
-          {error}
-        </div>
-      )}
+      {error && <BoardError message={error} onDismiss={() => setError(null)} />}
       <h1>gello</h1>
       <p className="empty-state">No board loaded.</p>
       <button type="button" className="empty-open" onClick={() => void pickAndOpen()}>

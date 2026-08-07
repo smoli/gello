@@ -1,0 +1,57 @@
+/* i0141: the banner is bounded — one summary line, details behind a toggle. */
+.board-error {
+  background: color-mix(in srgb, #e5484d 15%, Canvas);
+  color: #e5484d;
+  border-bottom: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.board-error-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.board-error-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-error-toggle,
+.board-error-dismiss {
+  flex: none;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.board-error-toggle {
+  text-decoration: underline;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.board-error-dismiss {
+  font-size: 1.05rem;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.board-error-detail {
+  margin: 0.5rem 0 0;
+  max-height: 30vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  user-select: text;
+}

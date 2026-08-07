@@ -2111,6 +2111,28 @@ describe("App", () => {
     expect(within(backlog).getByText("Board card")).toBeInTheDocument();
   });
 
+  it("keeps a huge error to one line and lets it be dismissed (i0141)", async () => {
+    const huge = `write failed: pre-commit hook\n${"cargo test output line\n".repeat(200)}`;
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockRejectedValueOnce(new Error(huge));
+
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("write failed: pre-commit hook");
+    expect(alert.textContent).not.toContain("cargo test output line");
+
+    fireEvent.click(screen.getByRole("button", { name: /show details/i }));
+    expect(screen.getByTestId("board-error-detail").textContent).toContain(
+      "cargo test output line",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("reorders a card within the backlog and persists its rank (c056)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
