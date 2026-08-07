@@ -29,37 +29,6 @@ Two decisions:
 
 My recommendation: **B, read-only text** — surface the same status the front shows so opening a card doesn't hide it, but keep the detail line informational (the Restart action and dep links already have homes elsewhere). Tell me if you'd rather the narrow **A**, or full interactive parity.
 
-## Resolution
-
-Chose **B, read-only**: the card detail shows the same live status line the
-front does, read-only.
-
-## Acceptance criteria
-
-- [x] The detail shows the card's live status line (activity / countdown /
-      waiting-on-a-slot / stopped / blocked / startable), whichever applies
-- [x] It is read-only — no Restart button, no clickable blocked-dep links (those
-      have their own homes in the detail)
-- [x] Front and detail can't drift — both render one shared component from one
-      pure resolver
-- [x] No line shows when the card has none
-
-## Notes
-
-- `cardStatusLine(runner, card, facts, now)` in `lib/card-status.ts` is the
-  single source of truth: it resolves the highest-priority treatment that
-  applies and its read-only text, in the front's render order (activity →
-  countdown → waiting-slot → stopped → blocked → startable). `<CardStatusLine>`
-  renders it — plain text everywhere, plus the interactive Restart button and
-  blocked-dep links only when the front passes handlers.
-- The card front was refactored from its stack of six `{cond && <p>}` blocks to
-  one `<CardStatusLine>`; the treatments were already mutually exclusive by
-  data, so the whole existing front test suite passed unchanged. This is what
-  makes "can't drift" real — front and detail share the renderer.
-- The detail resolves its line from the model + companion state via
-  `resolveCardStatusLine` (App passes it). `hasFreeWipSlot` moved to `board.ts`
-  so the board-wide slot facts have one home for both the board and the detail.
-
 ## Acceptance criteria
 
 - [x] The card detail shows the same live status line the front shows —
@@ -97,6 +66,9 @@ can't drift:
 - 2026-08-06 status → backlog (app)
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
+- 2026-08-07 B/read-only: shared cardStatusLine resolver + CardStatusLine
+  component; front refactored to it (152 Board tests unchanged), detail shows it
+  read-only — new tests for the resolver, the component, and the detail line
 - 2026-08-07 extracted the front's status line into a shared resolver
   (card-status.ts) + CardStatusLine component; front refactored to use it,
   detail shows it read-only — 19 tests, front's 152 unchanged
