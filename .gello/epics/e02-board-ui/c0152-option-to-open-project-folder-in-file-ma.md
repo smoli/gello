@@ -1,10 +1,10 @@
 ---
 id: c0152
 title: Option to open project folder in file manager
-status: review
+status: done
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T23:15:45
+status-changed: 2026-08-07T23:17:54
 epic: e02
 usage-tokens: 13397
 usage-cost: 2.471333
@@ -41,3 +41,4 @@ opener plugin in Rust, like the c0151 reference-document open.
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
 - 2026-08-07 status → review (agent)
+- 2026-08-07 status → done (app)
