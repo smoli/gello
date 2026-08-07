@@ -1,10 +1,10 @@
 ---
 id: c0151
 title: Add the ability to add reference doc
-status: in-progress
+status: review
 created: 2026-08-06
 updated: 2026-08-07
-status-changed: 2026-08-07T07:24:27
+status-changed: 2026-08-07T07:39:16
 epic: e03
 ---
 
@@ -124,3 +124,4 @@ file and routes the result into `## References` rather than an inline image.
 - 2026-08-07 implemented: `## References` section module, the card-detail panel
   (open externally / render inline / remove), the `open_asset` Rust command, and
   the App wiring. concept.md § Attachments documents the format.
+- 2026-08-07 status → review (agent)
