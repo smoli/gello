@@ -7,6 +7,8 @@ created: 2026-08-07
 updated: 2026-08-07
 status-changed: 2026-08-07T23:01:27
 epic: e02
+usage-tokens: 31876
+usage-cost: 3.973283
 ---
 
 ## What
