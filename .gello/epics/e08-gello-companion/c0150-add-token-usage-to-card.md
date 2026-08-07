@@ -8,31 +8,6 @@ status-changed: 2026-08-06T18:52:20
 epic: e08
 ---
 
-## Settle the writer before I build (criterion 8)
-
-I confirmed the two facts the crux turns on:
-
-- At run-end the runner already calls `handleExit(cardId, code, sink.usage())` — the companion **holds the final per-run usage** (the stream `result`). The agent has exited by then and never has this number.
-- The companion already makes **one** surgical card write today (the c0102 `awaiting` marker, via `withAwaitingCleared` → `writeCardAtomic`). Adding `usage-*` at run-end is a small, consistent extension of that exact exception.
-
-So **(b) agent-via-MCP cannot produce an accurate lifetime total** — mid-run the usage isn't final (the model still responds after the last tool call), and the agent would have to read even that partial figure back from the companion. It structurally under-counts.
-
-**My recommendation: (a) — the companion writes `usage-tokens` / `usage-cost` at run-end**, reusing the existing surgical writer, cumulatively (read current → add this run → write). Accurate, minimal new code, and it keeps the numbers where they originate. The only cost is relaxing "the companion never edits cards" from one field to two — the boundary you preferred (a) to protect.
-
-**Please pick:**
-
-- [x] **(a) Companion writes at run-end** — recommended; accurate, reuses the c0102 write path.
-- [ ] **(b) Agent MCP tool** — keeps writes strictly agent-side, accepting that the total under-counts the final turn of every run.
-- [ ] Something else.
-
-**One UI sub-question** (criterion 6 says "on the card", not where):
-
-- [ ] Show the totals on the **card front** (always visible while scanning the board)
-- [ ] Show them in the **card detail** only (front stays uncluttered)
-- [ ] **Both**
-
-Field names `usage-tokens` / `usage-cost` I'll take as written unless you say otherwise.
-
 ## What
 
 Persist a card's companion cost **on the card**, so it survives the ephemeral
@@ -53,30 +28,15 @@ final `result` event, i.e. at process exit. Update must happen then, never
 mid-run — both because the number isn't final until then, and to avoid racing
 the agent's own writes to the card body.
 
-## The unresolved crux — who writes it
+## Who writes it — settled: (a) the companion, at run-end
 
-You chose **agent-via-MCP** to keep the standing boundary (the companion never
-edits cards, bar the one c0102 `awaiting`-marker exception). But there is a hard
-constraint: **the agent does not know its own token usage.** The per-run figures
-live only in the stream `result`, which the *companion's* runner parses at exit
-(c0104) — by which point the agent has finished. An MCP tool the agent calls
-mid-run sees only usage-so-far and would under-count.
-
-Two reconciliations, to decide before building:
-
-- **(a) Companion writes the total at run-end.** It is the only party that holds
-  the final number, and it already owns one card-metadata write (the c0102
-  marker), so a `usage-*` field is a consistent, small extension of that
-  exception. Technically sound; accurate. Trades a little more onto the
-  companion's narrow write role.
-- **(b) An MCP `add_usage` tool the agent calls last.** Keeps writes strictly
-  agent-side, but is only correct if the usage is final at call time — which it
-  is not, since the model still responds after a tool call. Prone to
-  under-counting, and the tool would still have to read the figure from the
-  companion's state rather than from the agent.
-
-Recommend **(a)** unless the strict boundary matters more than an accurate
-total. Either way the *numbers* originate in the companion.
+The agent does **not** know its own token usage — the per-run figures live only
+in the stream `result`, which the companion's runner parses at exit (c0104), by
+which point the agent has finished. So the companion writes the totals at
+run-end, reusing the surgical writer it already uses for the c0102 `awaiting`
+marker. This relaxes "the companion never edits cards" from one owned field to
+two. Rejected: an MCP tool the agent calls (structurally under-counts — the
+model still responds after any tool call, so mid-run usage is never final).
 
 ## Acceptance criteria
 
@@ -91,19 +51,18 @@ total. Either way the *numbers* originate in the companion.
       byte-identical, and it does not clobber a concurrent agent body edit
 - [x] The app shows both totals on the card
 - [x] A malformed/absent existing total is treated as zero, not a parse failure
-- [x] The writer mechanism (companion at run-end vs agent MCP tool) is settled
-      per the crux above before implementation
+- [x] The writer is the companion, writing at run-end (settled as option (a))
 
 ## Discussion
 
 - **Both fields, cumulative lifetime** (human's calls): cost is what you watch
   for quota, tokens is model-independent; the total only grows, so it reads as
   "what this card has cost so far".
-- **Writer is the open crux** (flagged): the agent lacks its own usage, so
-  "agent via MCP" (the human's boundary-preserving preference) cannot capture
-  the full run without the companion feeding it. Recommend the companion writes
-  this one field at run-end, extending the c0102 exception — the only party with
-  the final number. Left for the human to settle.
+- **Writer settled as (a)** — companion writes at run-end (human confirmed).
+  The agent lacks its own usage, so agent-via-MCP would under-count; the
+  companion is the only party with the final number and already owns one
+  card-metadata write (the c0102 marker), making a `usage-*` field a consistent
+  extension. Rejected: (b) agent-via-MCP.
 - **Written at run-end only**: avoids both an incomplete figure and a race with
   the agent's body writes.
 - **`usage-cost` is a list-price estimate**, not billed dollars — a proxy, per
@@ -151,3 +110,5 @@ total. Either way the *numbers* originate in the companion.
   (`cd9476a`). 1415 tests, typecheck, lint and the companion bundle all green.
   UI on the card front (judgment call — human left it blank; see Notes).
 - 2026-08-06 status → review (agent)
+- 2026-08-06 writer confirmed (a) by the human; tidied the resolved
+  question/crux sections out of the card.
