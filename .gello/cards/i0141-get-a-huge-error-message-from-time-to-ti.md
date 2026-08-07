@@ -1,11 +1,11 @@
 ---
 id: i0141
 title: Get a huge error message from time to time
-status: in-progress
+status: review
 type: issue
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T23:01:46
+status-changed: 2026-08-07T23:09:35
 ---
 
 ![image](../assets/i0141/image.png)
@@ -39,3 +39,4 @@ covered the entire window and there was no way to dismiss it.
 
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
+- 2026-08-07 status → review (agent)
