@@ -69,6 +69,18 @@
   opacity: 1;
 }
 
+/* c0148: the read-only live status line under the header — the .card-activity
+   treatments own their own colour, so this only positions the line. The front's
+   one-line ellipsis truncation is relaxed here so a long blocked list wraps. */
+.card-detail-status {
+  padding: 0.35rem 1.25rem 0;
+}
+
+.card-detail-status .card-activity {
+  white-space: normal;
+  overflow: visible;
+}
+
 .card-detail-fields {
   display: flex;
   flex-wrap: wrap;

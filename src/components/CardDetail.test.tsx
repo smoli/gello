@@ -119,6 +119,37 @@ describe("CardDetail", () => {
     ).toBeInTheDocument();
   });
 
+  // c0148: the same live status line the card front shows, read-only here
+
+  it("c0148: shows the resolved status line", () => {
+    renderDetail({
+      statusLine: {
+        kind: "waiting-slot",
+        text: "waiting on a slot",
+        className: "card-activity card-activity-pending",
+      },
+    });
+    expect(screen.getByText("waiting on a slot")).toBeInTheDocument();
+  });
+
+  it("c0148: renders the status line read-only — a stopped line has no Restart button", () => {
+    renderDetail({
+      statusLine: {
+        kind: "stopped",
+        text: "run stopped",
+        className: "card-activity card-activity-stopped",
+      },
+    });
+    expect(screen.getByText("run stopped")).toBeInTheDocument();
+    // read-only: the front's Restart button does not come along
+    expect(screen.queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
+  it("c0148: shows no status line when there is none", () => {
+    renderDetail({ statusLine: null });
+    expect(document.querySelector(".card-detail-status")).toBeNull();
+  });
+
   // i0107: checkboxes in the rendered display are read-only — a task's state
   // is changed by editing the body, not by clicking the disabled box.
   it("renders read-only checkboxes reflecting the task states", () => {

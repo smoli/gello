@@ -120,6 +120,18 @@ export function wipState(
   return { limit, count, over: count > limit };
 }
 
+/**
+ * c0137: is there an open WIP slot — fewer in-progress cards than the configured
+ * limit? Board-wide, since the companion dispatches board-wide and gates on the
+ * `in-progress` count (c0097). An unset limit means unlimited, always free.
+ */
+export function hasFreeWipSlot(model: BoardModel): boolean {
+  const limit = model.config.wipLimits["in-progress"];
+  if (limit === undefined) return true;
+  const inProgress = allCards(model).filter((c) => c.status === "in-progress").length;
+  return inProgress < limit;
+}
+
 const RANK_STEP = 10;
 
 export interface ManualInsertPlan {

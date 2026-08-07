@@ -4,6 +4,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
 import type { Dependency, DependencyOption } from "../lib/board";
+import type { CardStatusLine as CardStatusLineData } from "../lib/card-status";
+import { CardStatusLine } from "./CardStatusLine";
 import { splitLogSection } from "../lib/markdown";
 import { applyTagSuggestion, suggestTags } from "../lib/tags";
 import {
@@ -63,10 +65,13 @@ export function CardDetail({
   onAnswerQuestion,
   restartable = false,
   onRestart,
+  statusLine = null,
   onClose,
 }: {
   card: Card;
   milestoneLabel: string | null;
+  /** c0148: the card's live status line, resolved by the App — shown read-only. */
+  statusLine?: CardStatusLineData | null;
   columns: string[];
   milestoneOptions: MilestoneOption[];
   /** c0145: every tag in use on the board, to suggest while typing. */
@@ -460,6 +465,16 @@ export function CardDetail({
             </button>
           </div>
         </header>
+
+        {/* c0148: the same live status line the card front shows (activity /
+            countdown / waiting-on-a-slot / stopped / blocked / startable), read
+            only here — the Restart action and dependency links have their own
+            homes in the detail. */}
+        {statusLine && (
+          <div className="card-detail-status">
+            <CardStatusLine line={statusLine} />
+          </div>
+        )}
 
         <div className="card-detail-fields">
           <label>

@@ -93,6 +93,7 @@ import {
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { openSwitcher, cycleSwitcher, type SwitcherState } from "./lib/switcher";
+import { resolveCardStatusLine } from "./lib/card-status";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { isMacOS } from "./lib/platform";
 import { backgroundCss, classifyBackground } from "./lib/background";
@@ -1913,6 +1914,8 @@ function App() {
             milestoneLabel={selected.milestoneLabel}
             columns={board.model.config.columns}
             milestoneOptions={milestoneOptions}
+            // c0148: the same live status line the card front shows, read-only
+            statusLine={resolveCardStatusLine(board.model, selected.card, runner, Date.now())}
             // c0145: the tags already in use, to suggest while typing
             tagOptions={collectTags(board.model).map((entry) => entry.tag)}
             onChangeFields={(changes) => handleFieldChanges(selected.card, changes)}

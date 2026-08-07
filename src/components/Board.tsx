@@ -6,6 +6,7 @@ import {
   columnComparator,
   duplicateIdOf,
   findCardById,
+  hasFreeWipSlot,
   isStartable,
   nextSlotWaiter,
   nextStartable,
@@ -19,10 +20,9 @@ import {
 import { collapseDuplicateFrontmatterKeys, formatCardUsage } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
-import { cardActivity, activityClassName, activityTreatment } from "../lib/activity";
-import { pickupCountdown, waitingForSlot } from "../lib/pickup";
-import { isStoppedCard } from "../lib/restart";
-import { queueLine } from "../lib/queue-lines";
+import { waitingForSlot } from "../lib/pickup";
+import { cardStatusLine } from "../lib/card-status";
+import { CardStatusLine } from "./CardStatusLine";
 import { hasLiveRun, type CompanionState } from "../lib/companion";
 import { collectTags, readableTextColor, tagChipStyle, tagColor } from "../lib/tags";
 import { firstImageSrc } from "../lib/assets";
@@ -70,23 +70,6 @@ interface BoardCard {
    *  ready card shows "waiting on a slot" rather than a countdown that cannot
    *  come. Board-wide (the companion runs board-wide), so the same on every card. */
   slotFree: boolean;
-}
-
-const IN_PROGRESS = "in-progress";
-
-/**
- * c0137: is there an open WIP slot — fewer in-progress cards than the configured
- * limit? Board-wide, since the companion dispatches board-wide and gates on the
- * `in-progress` count (c0097). An unset limit means unlimited, always free.
- */
-function hasFreeWipSlot(model: BoardModel): boolean {
-  const limit = model.config.wipLimits[IN_PROGRESS];
-  if (limit === undefined) return true;
-  const inProgress = [
-    ...model.cards,
-    ...model.epics.flatMap((g) => g.cards),
-  ].filter((c) => c.status === IN_PROGRESS).length;
-  return inProgress < limit;
 }
 
 export type MoveCardHandler = (card: Card, status: string, order?: number) => void;
@@ -940,25 +923,15 @@ function CardFront({
   const thumbSrc = firstImageSrc(card.body);
   // c0150: the card's cumulative companion cost (null → never run, no figure).
   const usageLabel = formatCardUsage(card.usageTokens, card.usageCost);
-  // c0109: a live one-liner of what the agent is doing, while a run is running.
-  const activity = cardActivity(runner ?? null, card.id, Date.now());
-  // c0117: before that, the grace period the companion is still waiting out.
-  // Mutually exclusive with the activity line — a card cannot be both queued
-  // for pickup and already running.
-  const countdown = pickupCountdown(
+  // c0148: the card's live status line — activity / countdown / waiting-on-a-
+  // slot / stopped / blocked / startable — resolved once, so the card detail
+  // shows the same line (CardStatusLine) and the two can't drift.
+  const statusLine = cardStatusLine(
     runner ?? null,
-    card.id,
-    card.statusChanged,
+    card,
+    { blocked, slotFree, slotWaiterTopId: slotWaiterTopId ?? null, blockers, startable },
     Date.now(),
-    blocked,
-    slotFree,
   );
-  // c0137: a queued ready card the companion cannot dispatch because every WIP
-  // slot is taken — shown in place of the countdown, which would never fire.
-  const waitingSlot = waitingForSlot(runner ?? null, card.id, Date.now(), blocked, slotFree);
-  // c0141: a stopped card — a companion-owned in-progress card whose run died
-  // with no live run left — can be restarted in place, resuming its session.
-  const stopped = isStoppedCard(runner ?? null, card.id, card.status, Date.now());
   // c0147: a card with a live run can be stopped from its front.
   const liveRun = hasLiveRun(runner ?? null, card.id);
   // c018: an archived card is shown for reference — moving it would leave it
@@ -1087,116 +1060,19 @@ function CardFront({
         </span>
       </div>
       <p className="card-title">{card.title}</p>
-      {/* c0109: the running agent's latest action, phrased app-side. A stale
-          state file (companion crashed/wedged) marks the line rather than
-          hiding it, so it doesn't stay pinned as if current.
-          c0113: a live line also sweeps — the treatment is picked in activity.ts,
-          so this stays presentation-only. */}
-      {activity && (
-        <p
-          className={activityClassName(activityTreatment(activity))}
-          role="status"
-          title={
-            activity.stale
-              ? "Companion may be stalled — its state file is over 30s old"
-              : undefined
-          }
-        >
-          {activity.label}
-        </p>
-      )}
-      {/* c0117: the pickup grace period, counting down. Shares the activity
-          line's look so the two live elements read as one system. */}
-      {countdown !== null && (
-        <p
-          className="card-activity card-activity-pending"
-          role="status"
-          title="Drag the card out of this column to cancel"
-        >
-          picking up in {countdown}s
-        </p>
-      )}
-      {/* c0137: every WIP slot is taken, so the companion cannot pick this up
-          yet — say so instead of a countdown that would never fire.
-          c0143: only the card next in line keeps the honest line; the rest of
-          the queue get a stable-per-id funny line so the column reads with life. */}
-      {waitingSlot && (
-        <p
-          className="card-activity card-activity-pending"
-          role="status"
-          title="Every in-progress slot is full — this starts when one frees up"
-        >
-          {card.id === slotWaiterTopId ? "waiting on a slot" : queueLine(card.id)}
-        </p>
-      )}
-      {/* c0141: the run stopped (quota, crash, connection) and nothing re-picks
-          an in-progress card — offer a manual, in-place restart that resumes
-          the session warm. Only for a card the companion owns and is live for. */}
-      {stopped && onRestartCard && (
-        <p className="card-activity card-activity-stopped" role="status">
-          run stopped —{" "}
-          <button
-            type="button"
-            className="card-restart"
-            title="Restart — resume the agent on this card"
-            onClick={(event) => {
-              event.stopPropagation(); // the whole front opens the card (c0118)
-              onRestartCard(card.id);
-            }}
-          >
-            Restart
-          </button>
-        </p>
-      )}
-      {/* c0123: why this card is going nowhere — the dependencies that are not
-          done yet, each opening that card. A board fact, so it shows with no
-          companion attached. Last of the three treatments of this line: a live
-          activity line and the pickup countdown are more immediate, and blocked
-          is back the moment neither is running. */}
-      {activity === null && countdown === null && blockers.length > 0 && (
-        <p
-          className="card-activity card-activity-blocked"
-          role="status"
-          title="Blocked — these dependencies are not done"
-        >
-          waiting on{" "}
-          {blockers.map((blocker, i) => (
-            <Fragment key={blocker.id}>
-              {i > 0 && ", "}
-              {blocker.missing ? (
-                <span className="card-blocked-missing" title="No card with this id">
-                  {blocker.id} (missing)
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="card-blocked-link"
-                  onClick={(event) => {
-                    // the whole front opens this card — don't do both (c0118)
-                    event.stopPropagation();
-                    onOpenCardId?.(blocker.id);
-                  }}
-                >
-                  {blocker.id}
-                </button>
-              )}
-            </Fragment>
-          ))}
-        </p>
-      )}
-      {/* c0139: the inverse of blocked — a backlog card whose dependencies have
-          all cleared. Shares the status-line language so startable and blocked
-          read as one system. A backlog card has no activity/countdown/blocked
-          line (those are ready/in-progress), so the slot is free. */}
-      {startable && (
-        <p
-          className="card-activity card-activity-startable"
-          role="status"
-          title="Startable — every dependency is done"
-        >
-          startable
-        </p>
-      )}
+      {/* c0148: the live status line (activity / countdown / waiting-on-a-slot /
+          stopped / blocked / startable), resolved in card-status.ts. On the
+          front it carries the interactive Restart button and blocked-dep links;
+          the card detail renders the same line read-only. */}
+      <CardStatusLine
+        line={statusLine}
+        onRestart={
+          statusLine?.kind === "stopped" && onRestartCard
+            ? () => onRestartCard(card.id)
+            : undefined
+        }
+        onOpenBlocker={onOpenCardId}
+      />
       {thumbSrc && loadImage && (
         <AssetImage
           src={thumbSrc}
