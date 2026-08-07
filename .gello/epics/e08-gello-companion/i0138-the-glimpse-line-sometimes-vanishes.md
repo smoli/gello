@@ -1,13 +1,13 @@
 ---
 id: i0138
 title: The glimpse line sometimes vanishes
-status: review
+status: done
 type: issue
 ref: c0109
 epic: e08
 created: 2026-08-06
-updated: 2026-08-06
-status-changed: 2026-08-06T17:42:40
+updated: 2026-08-07
+status-changed: 2026-08-07T07:06:53
 ---
 
 That’s visually unpleasing as the card size changes which is very wisible when whatching the board. Always keep something their. Either „thinking“ instead of nothing or the last message.
@@ -53,3 +53,4 @@ the reported symptom; left as a possible follow-up if it is ever seen.
   state file (steady while running → park was the only vanish); 1397 tests,
   typecheck, lint and a production build all green.
 - 2026-08-06 status → review (agent)
+- 2026-08-07 status → done (app)

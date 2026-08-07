@@ -1,10 +1,10 @@
 ---
 id: c0150
 title: Add token usage to card
-status: review
+status: done
 created: 2026-08-06
-updated: 2026-08-06
-status-changed: 2026-08-06T18:52:20
+updated: 2026-08-07
+status-changed: 2026-08-07T07:06:57
 epic: e08
 ---
 
@@ -112,3 +112,4 @@ model still responds after any tool call, so mid-run usage is never final).
 - 2026-08-06 status → review (agent)
 - 2026-08-06 writer confirmed (a) by the human; tidied the resolved
   question/crux sections out of the card.
+- 2026-08-07 status → done (app)
