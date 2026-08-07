@@ -1,11 +1,11 @@
 ---
 id: i0140
 title: Get a beachball on mac from time ti time
-status: in-progress
+status: review
 type: issue
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T22:52:24
+status-changed: 2026-08-07T23:01:27
 epic: e02
 ---
 
@@ -69,3 +69,4 @@ port was already taken by the human's session.
 
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
+- 2026-08-07 status → review (agent)
