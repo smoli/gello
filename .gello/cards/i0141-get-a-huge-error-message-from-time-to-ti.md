@@ -1,11 +1,11 @@
 ---
 id: i0141
 title: Get a huge error message from time to time
-status: review
+status: done
 type: issue
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T23:09:35
+status-changed: 2026-08-07T23:13:45
 usage-tokens: 11752
 usage-cost: 1.919207
 ---
@@ -42,3 +42,4 @@ covered the entire window and there was no way to dismiss it.
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
 - 2026-08-07 status → review (agent)
+- 2026-08-07 status → done (app)
