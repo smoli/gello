@@ -1,12 +1,11 @@
 ---
 id: c0151
 title: Add the ability to add reference doc
-status: ready
+status: in-progress
 created: 2026-08-06
 updated: 2026-08-07
-status-changed: 2026-08-07T07:24:11
+status-changed: 2026-08-07T07:24:27
 epic: e03
-order: 10
 ---
 
 ## What
@@ -90,3 +89,4 @@ file and routes the result into `## References` rather than an inline image.
   open/view from the card detail; the agent picks it up itself via the on-card
   repo path, so no context-pack wiring is needed here.
 - 2026-08-07 status → ready (app)
+- 2026-08-07 status → in-progress (agent)
