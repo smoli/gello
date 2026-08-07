@@ -35,12 +35,34 @@ export function suggestedAssetName(
   if (!originalName) return `pasted-${stamp}.${ext}`;
   const dot = originalName.lastIndexOf(".");
   const base = dot > 0 ? originalName.slice(0, dot) : originalName;
-  const slug =
-    base
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "image";
-  return `${slug}.${ext}`;
+  return `${slugBase(base) || "image"}.${ext}`;
+}
+
+/** Kebab-case a filename base; "" when nothing survives. */
+function slugBase(base: string): string {
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * c0151: a filename for a reference document of any type — the original name
+ * kebab-cased with its own extension kept, since the type is what decides how
+ * the reference opens. Unlike an image paste there is no mime fallback: a file
+ * without an extension keeps none.
+ */
+export function suggestedFileAssetName(
+  originalName: string | null,
+  stamp: string,
+): string {
+  const fallback = `reference-${stamp}`;
+  if (!originalName) return fallback;
+  const dot = originalName.lastIndexOf(".");
+  const base = dot > 0 ? originalName.slice(0, dot) : originalName;
+  const ext = dot > 0 ? originalName.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+  const slug = slugBase(base) || fallback;
+  return ext ? `${slug}.${ext}` : slug;
 }
 
 /** Splice `snippet` into `text` over [start, end); returns the new caret. */

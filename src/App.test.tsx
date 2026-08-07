@@ -15,6 +15,7 @@ import {
   loadBoardAt,
   loadBoardFromDisk,
   migrateLegacyBoard,
+  openExternal,
   pickFolder,
   readFileRaw,
   removeDir,
@@ -45,6 +46,7 @@ vi.mock("./lib/board-io", () => ({
   loadBoardAt: vi.fn(),
   boardExistsAt: vi.fn(),
   migrateLegacyBoard: vi.fn(),
+  openExternal: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
@@ -114,6 +116,8 @@ describe("App", () => {
     watchMock.mockResolvedValue(() => {});
     imageMock.mockReset();
     vi.mocked(writeAsset).mockReset();
+    vi.mocked(openExternal).mockReset();
+    vi.mocked(openExternal).mockResolvedValue(undefined);
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
@@ -1827,6 +1831,67 @@ describe("App", () => {
     expect(writeMock).toHaveBeenCalledExactlyOnceWith(
       "/repo/.gello/milestones/m02-board-ui/i0001-flicker-with-shot.md",
       expect.stringContaining("![shot](../../assets/i0001/shot.png)"),
+    );
+  });
+
+  it("c0151: a reference document is copied into the card's assets and recorded on the card", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    readMock.mockResolvedValue("");
+    writeMock.mockResolvedValue(undefined);
+    // Rust copies the bytes in and returns the board-relative path
+    vi.mocked(writeAsset).mockResolvedValueOnce("assets/c001/design-spec.pdf");
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+
+    const file = new File([new Uint8Array([1, 2, 3])], "Design Spec.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(screen.getByLabelText("Reference file"), {
+      target: { files: [file] },
+    });
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(writeAsset)).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello",
+        "c001",
+        "design-spec.pdf",
+        expect.any(String),
+      );
+    });
+    // c001 sits in cards/ (depth 1), so the link goes up one level — the app
+    // and an agent reading the card resolve it to the same file
+    await vi.waitFor(() =>
+      expect(writeMock).toHaveBeenCalledWith(
+        "/repo/.gello/cards/c001-hello.md",
+        expect.stringContaining("- [Design Spec.pdf](../assets/c001/design-spec.pdf)"),
+      ),
+    );
+    expect(writeMock.mock.calls[0][1]).toContain("## References");
+  });
+
+  it("c0151: a PDF reference opens with the OS default", async () => {
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        {
+          path: "cards/c001-hello.md",
+          content:
+            "---\nid: c001\ntitle: Hello board\nstatus: inbox\n---\n\n## References\n\n- [spec.pdf](../assets/c001/spec.pdf)\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+    fireEvent.click((await screen.findByText("Hello board")).closest("article")!);
+    fireEvent.click(screen.getByRole("button", { name: "Open spec.pdf" }));
+
+    await vi.waitFor(() =>
+      expect(vi.mocked(openExternal)).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello",
+        "assets/c001/spec.pdf",
+      ),
     );
   });
 

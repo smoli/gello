@@ -118,6 +118,20 @@ export function replaceSection(
 }
 
 /**
+ * c0151: cut a whole `## <heading>` section — its heading line and content —
+ * out of the body. Unchanged when the body has no such heading. Everything
+ * outside the section is preserved byte-for-byte.
+ */
+export function removeSection(body: string, heading: string): string {
+  const range = sectionRange(body, heading);
+  if (!range) return body;
+  const before = body.slice(0, range.start);
+  const after = body.slice(range.end);
+  if (after === "") return before === "" ? "" : before.replace(/\s*$/, "\n");
+  return before + after;
+}
+
+/**
  * Rewrite relative asset-link targets when a card file changes folder depth
  * (triage: inbox/ → milestones/<m>/). Only markdown link/image targets that
  * start with `fromPrefix` are touched; absolute paths, web URLs, and plain

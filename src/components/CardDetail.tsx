@@ -14,7 +14,14 @@ import {
   unfenceWithAnswer,
   type GelloAnswer,
 } from "../lib/gello-question";
+import {
+  addReference,
+  parseReferences,
+  removeReference,
+  stripReferences,
+} from "../lib/references";
 import { QuestionModal } from "./QuestionModal";
+import { CardReferences } from "./CardReferences";
 import { useImageInsert } from "./useImageInsert";
 import { AssetImage } from "./AssetImage";
 import "./CardDetail.css";
@@ -60,6 +67,10 @@ export function CardDetail({
   startInEdit,
   onSaveImage,
   loadImage,
+  onSaveFile,
+  onChangeBody,
+  onOpenReference,
+  loadReferenceText,
   onDelete,
   onArchive,
   onAnswerQuestion,
@@ -99,6 +110,16 @@ export function CardDetail({
   onSaveImage?: (file: File) => Promise<string>;
   /** c011: resolve a body image's src to a displayable URL (data URL). */
   loadImage?: (src: string) => Promise<string | null>;
+  /** c0151: copy a reference document into the card's assets; returns its
+   *  card-relative path. */
+  onSaveFile?: (file: File) => Promise<string>;
+  /** c0151: persist a body the detail rewrote itself (a reference added or
+   *  removed). Given together with `onSaveFile`, the References panel appears. */
+  onChangeBody?: (newBody: string) => void;
+  /** c0151: hand a reference to the OS — PDFs and the like open externally. */
+  onOpenReference?: (target: string) => void;
+  /** c0151: read a text/markdown reference for the inline view. */
+  loadReferenceText?: (target: string) => Promise<string | null>;
   /** c0062: permanently delete this card (file + assets). */
   onDelete?: () => void;
   /** c018: move this card into (`true`) or out of (`false`) its `archive/`. */
@@ -151,6 +172,23 @@ export function CardDetail({
   const [depActive, setDepActive] = useState(0);
   // c011: image paste/drop on the editor textarea (shared with quick capture)
   const imageInsert = useImageInsert(bodyDraft, setBodyDraft, onSaveImage);
+
+  // c0151: reference documents. The panel owns the `## References` section, so
+  // it is cut from the rendered body — one place, with the open/remove controls.
+  const references = onSaveFile && onChangeBody ? parseReferences(card.body) : null;
+  const addReferences = async (files: File[]) => {
+    if (!onSaveFile || !onChangeBody) return;
+    let body = card.body;
+    for (const file of files) {
+      // the store dedupes the filename, so same-named files get distinct
+      // targets while both keep the original name as their label
+      body = addReference(body, { label: file.name, target: await onSaveFile(file) });
+    }
+    onChangeBody(body);
+  };
+  const bodyWithoutQuestion = question ? stripGelloQuestion(card.body) : card.body;
+  const renderedBody =
+    references !== null ? stripReferences(bodyWithoutQuestion) : bodyWithoutQuestion;
 
   // i0122: the markdown `components` map must keep a stable identity across
   // renders — a fresh `img` renderer each render is a new component *type*, so
@@ -794,9 +832,19 @@ export function CardDetail({
             </button>
           </div>
         )}
+        {/* c0151: the attached documents, above the body they belong to */}
+        {references !== null && !editing && (
+          <CardReferences
+            references={references}
+            onAdd={(files) => void addReferences(files)}
+            onRemove={(target) => onChangeBody?.(removeReference(card.body, target))}
+            onOpen={onOpenReference}
+            loadText={loadReferenceText}
+          />
+        )}
         <div className="card-detail-body" hidden={editing}>
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-            {question ? stripGelloQuestion(card.body) : card.body}
+            {renderedBody}
           </ReactMarkdown>
         </div>
       </div>

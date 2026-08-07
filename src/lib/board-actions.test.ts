@@ -794,6 +794,31 @@ updated: 2026-07-10
     );
   });
 
+  // c0151: a reference document is an ordinary relative link, so the move
+  // rewrites it exactly like an image — and it still resolves for an agent
+  // reading the card from its new folder.
+  it("c0151: rewrites a References entry for the new folder depth", async () => {
+    const raw = INBOX_RAW.replace(
+      "![shot](../assets/c007/shot.png)",
+      "## References\n\n- [spec.pdf](../assets/c007/spec.pdf)",
+    );
+    const parsed = parseCard("inbox/c007-existing.md", raw);
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const { persisted } = triageCard(
+      "/repo/.gello",
+      parsed.card,
+      { folder: "m02-board-ui", epicId: "m02" },
+      DEFAULT_BOARD_CONFIG,
+      "2026-07-16",
+    );
+    await persisted;
+
+    expect(writeMock.mock.calls[0][1]).toContain(
+      "- [spec.pdf](../../assets/c007/spec.pdf)",
+    );
+  });
+
   it("resolves the rewritten link against a real attachment on disk", async () => {
     // real .gello tree with an actual asset file
     const root = join(tmpdir(), `gello-triage-${process.pid}-${Math.random().toString(36).slice(2)}`);

@@ -426,3 +426,107 @@
   list-style: none;
   margin-left: -1.25rem;
 }
+
+/* c0151: reference documents — the card's `## References` section, rendered as
+   a list with open/view controls instead of plain markdown links. The whole
+   block is the drop target, so a file can be dropped anywhere on it. */
+.card-references {
+  margin: 0.4rem 1.25rem 0;
+  padding: 0.4rem 0.5rem;
+  border: 1px dashed color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.card-references-dragging {
+  border-color: #4c8bf5;
+  background: color-mix(in srgb, #4c8bf5 8%, transparent);
+}
+
+.card-reference-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-reference-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.card-reference-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-reference-action {
+  font: inherit;
+  font-size: 0.72rem;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: CanvasText;
+  padding: 0 0.4rem;
+  cursor: pointer;
+}
+
+.card-reference-action:hover {
+  background: color-mix(in srgb, CanvasText 8%, transparent);
+}
+
+.card-reference-remove {
+  font: inherit;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: CanvasText;
+  opacity: 0.45;
+  cursor: pointer;
+  padding: 0 0.1rem;
+}
+
+.card-reference-remove:hover {
+  opacity: 1;
+  color: #e5484d;
+}
+
+/* the inline view of a text/markdown reference, indented under its entry */
+.card-reference-view {
+  margin: 0.2rem 0 0.4rem 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 2px solid color-mix(in srgb, CanvasText 15%, transparent);
+  max-height: 22rem;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.card-reference-view pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+}
+
+.card-reference-empty {
+  margin: 0;
+  opacity: 0.6;
+}
+
+.card-reference-add {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.card-reference-hint {
+  opacity: 0.5;
+  font-size: 0.72rem;
+}

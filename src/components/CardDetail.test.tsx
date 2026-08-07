@@ -996,6 +996,158 @@ describe("CardDetail", () => {
     });
     expect(loadImage).toHaveBeenCalledWith("assets/c009/shot.png");
   });
+
+  // --- c0151: reference documents ---------------------------------------------
+
+  const WITH_REFS = RAW.replace(
+    "## Acceptance criteria",
+    `## References
+
+- [spec.pdf](../../assets/c009/spec.pdf)
+- [design notes.md](../../assets/c009/design-notes.md)
+
+## Acceptance criteria`,
+  );
+
+  function refCardFixture() {
+    const parsed = parseCard("milestones/m03-x/c009-detail.md", WITH_REFS);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  }
+
+  function renderRefs(overrides: Partial<Parameters<typeof CardDetail>[0]> = {}) {
+    return renderDetail({
+      card: refCardFixture(),
+      onSaveFile: vi.fn().mockResolvedValue("../../assets/c009/new.pdf"),
+      onChangeBody: vi.fn(),
+      onOpenReference: vi.fn(),
+      ...overrides,
+    });
+  }
+
+  function docFile(name: string, type = "application/pdf") {
+    return new File([new Uint8Array([1, 2, 3])], name, { type });
+  }
+
+  function referenceList() {
+    return screen.getByRole("list", { name: "References" });
+  }
+
+  it("c0151: lists each reference under its original filename", () => {
+    renderRefs();
+    const items = within(referenceList()).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("spec.pdf");
+    expect(items[1]).toHaveTextContent("design notes.md");
+  });
+
+  it("c0151: renders the References section once — as the panel, not in the body", () => {
+    renderRefs();
+    expect(screen.queryByRole("heading", { name: "References" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("spec.pdf")).toHaveLength(1);
+    // the rest of the body is untouched
+    expect(screen.getByRole("heading", { name: "Acceptance criteria" })).toBeInTheDocument();
+  });
+
+  it("c0151: picking a file copies it and records it in the body", async () => {
+    const onSaveFile = vi.fn().mockResolvedValue("../../assets/c009/design-spec.pdf");
+    const onChangeBody = vi.fn();
+    renderRefs({ card: fixture(), onSaveFile, onChangeBody });
+
+    const file = docFile("Design Spec.pdf");
+    const input = screen.getByLabelText("Reference file") as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await vi.waitFor(() => {
+      expect(onSaveFile).toHaveBeenCalledExactlyOnceWith(file);
+      expect(onChangeBody).toHaveBeenCalledOnce();
+    });
+    const body = onChangeBody.mock.calls[0][0] as string;
+    expect(body).toContain("## References");
+    expect(body).toContain("- [Design Spec.pdf](../../assets/c009/design-spec.pdf)");
+  });
+
+  it("c0151: dropping a file of any type attaches it as a reference", async () => {
+    const onSaveFile = vi.fn().mockResolvedValue("../../assets/c009/notes.md");
+    const onChangeBody = vi.fn();
+    renderRefs({ card: fixture(), onSaveFile, onChangeBody });
+
+    const file = docFile("notes.md", "text/markdown");
+    const zone = screen.getByRole("group", { name: "References" });
+    const prevented = !fireEvent.drop(zone, {
+      dataTransfer: { files: [file], items: [] },
+    });
+    expect(prevented).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(onSaveFile).toHaveBeenCalledExactlyOnceWith(file);
+    });
+    expect(onChangeBody.mock.calls[0][0]).toContain(
+      "- [notes.md](../../assets/c009/notes.md)",
+    );
+  });
+
+  it("c0151: two files of the same name both land, on the paths the store gave", async () => {
+    const onSaveFile = vi
+      .fn()
+      .mockResolvedValueOnce("../../assets/c009/spec.pdf")
+      .mockResolvedValueOnce("../../assets/c009/spec-2.pdf");
+    const onChangeBody = vi.fn();
+    renderRefs({ card: fixture(), onSaveFile, onChangeBody });
+
+    const zone = screen.getByRole("group", { name: "References" });
+    fireEvent.drop(zone, {
+      dataTransfer: { files: [docFile("spec.pdf"), docFile("spec.pdf")], items: [] },
+    });
+
+    await vi.waitFor(() => expect(onChangeBody).toHaveBeenCalledOnce());
+    const body = onChangeBody.mock.calls[0][0] as string;
+    expect(body).toContain("- [spec.pdf](../../assets/c009/spec.pdf)");
+    expect(body).toContain("- [spec.pdf](../../assets/c009/spec-2.pdf)");
+  });
+
+  it("c0151: removing a reference drops its entry and leaves the others", () => {
+    const onChangeBody = vi.fn();
+    renderRefs({ onChangeBody });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove reference spec.pdf" }));
+
+    const body = onChangeBody.mock.calls[0][0] as string;
+    expect(body).not.toContain("assets/c009/spec.pdf");
+    expect(body).toContain("- [design notes.md](../../assets/c009/design-notes.md)");
+  });
+
+  it("c0151: a PDF opens externally", () => {
+    const onOpenReference = vi.fn();
+    renderRefs({ onOpenReference });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open spec.pdf" }));
+
+    expect(onOpenReference).toHaveBeenCalledExactlyOnceWith("../../assets/c009/spec.pdf");
+  });
+
+  it("c0151: a markdown reference renders inline", async () => {
+    const loadReferenceText = vi.fn().mockResolvedValue("# Design\n\nThe **plan**.");
+    renderRefs({ loadReferenceText });
+
+    fireEvent.click(screen.getByRole("button", { name: "View design notes.md" }));
+
+    expect(await screen.findByRole("heading", { name: "Design" })).toBeInTheDocument();
+    expect(screen.getByText("plan")).toBeInTheDocument();
+    expect(loadReferenceText).toHaveBeenCalledExactlyOnceWith(
+      "../../assets/c009/design-notes.md",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide design notes.md" }));
+    expect(screen.queryByRole("heading", { name: "Design" })).not.toBeInTheDocument();
+  });
+
+  it("c0151: no reference panel without the handlers", () => {
+    renderDetail({ card: refCardFixture() });
+    expect(screen.queryByRole("group", { name: "References" })).not.toBeInTheDocument();
+    // the section still shows in the plain body render, so nothing is hidden
+    expect(screen.getByRole("heading", { name: "References" })).toBeInTheDocument();
+  });
 });
 
 describe("archive action (c018)", () => {

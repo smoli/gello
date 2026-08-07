@@ -145,6 +145,28 @@ fn write_asset(
     )
 }
 
+/// c0151: open a board file (a card's reference document) with the OS default
+/// application. The path is board-relative and resolved under `root`, so the
+/// webview can only ever open files the board itself holds.
+#[tauri::command]
+fn open_asset(app: tauri::AppHandle, root: String, relative: String) -> Result<(), FsError> {
+    use tauri_plugin_opener::OpenerExt;
+    let path = fs_read::resolve_board_path(std::path::Path::new(&root), &relative).ok_or(
+        FsError {
+            kind: "InvalidInput".into(),
+            message: "the path is not inside the board".into(),
+            path: relative.clone(),
+        },
+    )?;
+    app.opener()
+        .open_path(path.to_string_lossy().into_owned(), None::<&str>)
+        .map_err(|error| FsError {
+            kind: "Open".into(),
+            message: error.to_string(),
+            path: relative,
+        })
+}
+
 #[tauri::command]
 fn remove_file(path: String) -> Result<(), FsError> {
     fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
@@ -395,6 +417,7 @@ pub fn run() {
             write_new_files,
             set_board_image,
             write_asset,
+            open_asset,
             remove_dir,
             start_companion
         ])

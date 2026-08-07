@@ -62,6 +62,7 @@ import {
   loadBoardAt,
   loadBoardFromDisk,
   migrateLegacyBoard,
+  openExternal,
   pickFolder,
   type GitStatus,
   pickImageFile,
@@ -90,6 +91,7 @@ import {
   bytesToBase64,
   resolveFromCard,
   suggestedAssetName,
+  suggestedFileAssetName,
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
 import { openSwitcher, cycleSwitcher, type SwitcherState } from "./lib/switcher";
@@ -1519,6 +1521,58 @@ function App() {
     return `${assetLinkPrefix(card.path)}${await persistImage(card.id, file)}`;
   };
 
+  // c0151: copy a reference document of any type into the card's asset folder,
+  // returning the card-relative link. Same store as images (the Rust side
+  // dedupes the filename), only the name keeps the file's own extension.
+  const handleSaveFile = async (card: Card, file: File): Promise<string> => {
+    if (!board) throw new Error("no board loaded");
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const now = nowIsoDateTime();
+    const stamp = `${now.slice(0, 10).replace(/-/g, "")}-${now.slice(11).replace(/:/g, "")}`;
+    const name = suggestedFileAssetName(file.name || null, stamp);
+    const path = await writeAsset(board.root, card.id, name, bytesToBase64(bytes));
+    return `${assetLinkPrefix(card.path)}${path}`;
+  };
+
+  // c0151: persist a body the card detail rewrote itself (a reference added or
+  // removed), rebased on what is on disk so an external edit is not clobbered.
+  const handleChangeBody = async (card: Card, newBody: string) => {
+    if (!board) return;
+    const fresh = await rebaseOnDisk(card);
+    applyAction(() =>
+      saveCardEdit(
+        board.root,
+        fresh,
+        { title: fresh.title, body: newBody },
+        board.model.config,
+        todayIsoDate(),
+      ),
+    );
+  };
+
+  // c0151: hand a reference to the OS (PDFs and the like), and read a
+  // text/markdown one for the inline view. Both take the card-relative link.
+  const handleOpenReference = async (card: Card, target: string) => {
+    if (!board) return;
+    try {
+      await openExternal(board.root, resolveFromCard(card.path, target));
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
+  const handleLoadReferenceText = async (
+    card: Card,
+    target: string,
+  ): Promise<string | null> => {
+    if (!board) return null;
+    try {
+      return await readFileRaw(`${board.root}/${resolveFromCard(card.path, target)}`);
+    } catch {
+      return null;
+    }
+  };
+
   // c011: resolve a body image's (card-relative) src to a data URL the webview
   // can display; remote/data URLs pass through, unreadable paths render nothing.
   const handleLoadImage = async (
@@ -1925,6 +1979,15 @@ function App() {
             }
             onSaveImage={(file) => handleSaveImage(selected.card, file)}
             loadImage={(src) => handleLoadImage(selected.card, src)}
+            // c0151: reference documents — copied in, listed on the card
+            onSaveFile={(file) => handleSaveFile(selected.card, file)}
+            onChangeBody={(newBody) => void handleChangeBody(selected.card, newBody)}
+            onOpenReference={(target) =>
+              void handleOpenReference(selected.card, target)
+            }
+            loadReferenceText={(target) =>
+              handleLoadReferenceText(selected.card, target)
+            }
             onDelete={() => handleDelete(selected.card)}
             onArchive={(archived) => handleArchive(selected.card, archived)}
             onAnswerQuestion={(newBody) =>

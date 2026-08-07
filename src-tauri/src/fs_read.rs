@@ -63,6 +63,30 @@ pub fn read_file_base64(path: &Path) -> std::io::Result<String> {
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
+/// c0151: turn a board-relative path (a card's reference link, already resolved
+/// against the card's folder by the frontend) into an absolute path under
+/// `root`. `None` when the path is absolute or climbs out of the board — the
+/// app only ever opens files the board itself holds.
+pub fn resolve_board_path(root: &Path, relative: &str) -> Option<PathBuf> {
+    let mut segments: Vec<&str> = Vec::new();
+    if relative.starts_with('/') || relative.starts_with('\\') {
+        return None;
+    }
+    for part in relative.split(['/', '\\']) {
+        match part {
+            "" | "." => continue,
+            ".." => {
+                segments.pop()?;
+            }
+            other => segments.push(other),
+        }
+    }
+    if segments.is_empty() {
+        return None;
+    }
+    Some(segments.iter().fold(root.to_path_buf(), |path, s| path.join(s)))
+}
+
 /// Walk upwards from `start` looking for a `.gello` directory; return its path.
 pub fn find_board_root(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
@@ -194,5 +218,37 @@ mod tests {
         fs::write(dir.path().join(".gello"), "not a dir").unwrap();
 
         assert!(find_board_root(dir.path()).is_none());
+    }
+
+    // c0151: resolving a reference document's board-relative path
+
+    #[test]
+    fn resolves_a_board_relative_asset_path() {
+        let root = Path::new("/repo/.gello");
+
+        assert_eq!(
+            resolve_board_path(root, "assets/c0151/spec.pdf"),
+            Some(PathBuf::from("/repo/.gello/assets/c0151/spec.pdf"))
+        );
+    }
+
+    #[test]
+    fn refuses_a_path_that_climbs_out_of_the_board() {
+        let root = Path::new("/repo/.gello");
+
+        assert_eq!(resolve_board_path(root, "../../etc/passwd"), None);
+        assert_eq!(resolve_board_path(root, "assets/../../secrets"), None);
+        assert_eq!(resolve_board_path(root, "/etc/passwd"), None);
+        assert_eq!(resolve_board_path(root, ""), None);
+    }
+
+    #[test]
+    fn allows_dots_that_stay_inside_the_board() {
+        let root = Path::new("/repo/.gello");
+
+        assert_eq!(
+            resolve_board_path(root, "epics/../assets/c1/a.pdf"),
+            Some(PathBuf::from("/repo/.gello/assets/c1/a.pdf"))
+        );
     }
 }

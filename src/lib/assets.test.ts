@@ -7,6 +7,7 @@ import {
   insertAt,
   resolveFromCard,
   suggestedAssetName,
+  suggestedFileAssetName,
 } from "./assets";
 
 describe("assetLinkPrefix", () => {
@@ -51,6 +52,27 @@ describe("suggestedAssetName", () => {
   });
 });
 
+describe("suggestedFileAssetName (c0151)", () => {
+  it("keeps the original extension, whatever the type", () => {
+    expect(suggestedFileAssetName("Design Spec.PDF", "x")).toBe("design-spec.pdf");
+    expect(suggestedFileAssetName("notes.md", "x")).toBe("notes.md");
+    expect(suggestedFileAssetName("archive.tar.gz", "x")).toBe("archive-tar.gz");
+  });
+
+  it("keeps a name that has no extension", () => {
+    expect(suggestedFileAssetName("README", "x")).toBe("readme");
+  });
+
+  it("falls back to a timestamped name when there is none", () => {
+    expect(suggestedFileAssetName(null, "20260807-120301")).toBe(
+      "reference-20260807-120301",
+    );
+    expect(suggestedFileAssetName("...", "20260807-120301")).toBe(
+      "reference-20260807-120301",
+    );
+  });
+});
+
 describe("insertAt", () => {
   it("splices a snippet at a collapsed cursor and returns the new caret", () => {
     const { text, cursor } = insertAt("ab", 1, 1, "X");
@@ -83,6 +105,22 @@ describe("resolveFromCard", () => {
     expect(resolveFromCard("inbox/c1.md", "data:image/png;base64,AA")).toBe(
       "data:image/png;base64,AA",
     );
+  });
+
+  // c0151: a reference link is card-relative, and an agent resolves it against
+  // the card's own directory — the same walk this function does. Whatever
+  // folder the card sits in, the link points back at the asset under the board
+  // root, so the app and the agent reach the same file.
+  it("round-trips a card-relative asset link from any card folder", () => {
+    for (const cardPath of [
+      "cards/c0151-x.md",
+      "cards/archive/c0151-x.md",
+      "epics/e03-card-detail/c0151-x.md",
+      "epics/e03-card-detail/archive/c0151-x.md",
+    ]) {
+      const link = `${assetLinkPrefix(cardPath)}assets/c0151/spec.pdf`;
+      expect(resolveFromCard(cardPath, link)).toBe("assets/c0151/spec.pdf");
+    }
   });
 });
 

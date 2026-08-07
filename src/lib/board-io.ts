@@ -28,6 +28,15 @@ export async function imageDataUrl(path: string): Promise<string> {
   return `data:${mime};base64,${base64}`;
 }
 
+/**
+ * c0151: open a board file (a card's reference document) with the OS default
+ * application. `relative` is board-relative; the Rust side refuses anything
+ * outside the board.
+ */
+export async function openExternal(root: string, relative: string): Promise<void> {
+  await invoke("open_asset", { root, relative });
+}
+
 /** Delete one file (absolute path) — used by triage after the rewrite. */
 export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });

@@ -3,6 +3,7 @@ import {
   appendLogLine,
   countTaskItems,
   readSection,
+  removeSection,
   replaceSection,
   retargetAssetLinks,
   splitLogSection,
@@ -194,5 +195,30 @@ describe("readSection / replaceSection (c0084)", () => {
         EPIC_BODY,
       );
     }
+  });
+});
+
+describe("removeSection (c0151)", () => {
+  const BODY =
+    "\n## Goal\n\nShip dark theme.\n\n## References\n\n- [a](../a.pdf)\n\n## Log\n\n- created\n";
+
+  it("cuts a section out and leaves the rest byte-for-byte", () => {
+    expect(removeSection(BODY, "References")).toBe(
+      "\n## Goal\n\nShip dark theme.\n\n## Log\n\n- created\n",
+    );
+  });
+
+  it("cuts the last section without leaving trailing blank lines", () => {
+    expect(removeSection("\n## Goal\n\ng\n\n## References\n\n- [a](../a.pdf)\n", "References")).toBe(
+      "\n## Goal\n\ng\n",
+    );
+  });
+
+  it("leaves a body without that heading alone", () => {
+    expect(removeSection(BODY, "Plan")).toBe(BODY);
+  });
+
+  it("empties a body that is only that section", () => {
+    expect(removeSection("## References\n\n- [a](../a.pdf)\n", "References")).toBe("");
   });
 });
