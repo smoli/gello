@@ -1,10 +1,10 @@
 ---
 id: c0151
 title: Add the ability to add reference doc
-status: review
+status: done
 created: 2026-08-06
 updated: 2026-08-07
-status-changed: 2026-08-07T07:39:16
+status-changed: 2026-08-07T08:51:58
 epic: e03
 usage-tokens: 52290
 usage-cost: 8.987264
@@ -127,3 +127,4 @@ file and routes the result into `## References` rather than an inline image.
   (open externally / render inline / remove), the `open_asset` Rust command, and
   the App wiring. concept.md § Attachments documents the format.
 - 2026-08-07 status → review (agent)
+- 2026-08-07 status → done (app)
