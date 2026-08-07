@@ -160,6 +160,13 @@ the `status` frontmatter field.
   moves the card (app or agent) rewrites the relative link prefix. This is a
   mechanical step covered by the convention. (Assigning/unassigning is the only
   move; a status change — including to/from inbox — never moves the file.)
+- **Reference documents** (c0151) use the same store for files that are not
+  images: a spec, a design note, a PDF. The file is copied into
+  `.gello/assets/<card-id>/` and listed in the card's `## References` section as
+  a relative link labelled with the original filename. The card detail lists
+  them with an open control — text and Markdown render inline, other types open
+  in the OS default application. Because the file is a committed repo file whose
+  path is named on the card, an agent working the card can read it directly.
 
 ### Epic format
 
