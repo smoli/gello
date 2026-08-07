@@ -1,11 +1,11 @@
 ---
 id: i0140
 title: Get a beachball on mac from time ti time
-status: review
+status: done
 type: issue
 created: 2026-08-07
 updated: 2026-08-07
-status-changed: 2026-08-07T23:01:27
+status-changed: 2026-08-07T23:13:21
 epic: e02
 usage-tokens: 31876
 usage-cost: 3.973283
@@ -72,3 +72,4 @@ port was already taken by the human's session.
 - 2026-08-07 status → ready (app)
 - 2026-08-07 status → in-progress (agent)
 - 2026-08-07 status → review (agent)
+- 2026-08-07 status → done (app)
