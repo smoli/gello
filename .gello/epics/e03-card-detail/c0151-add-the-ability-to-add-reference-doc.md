@@ -38,21 +38,21 @@ file and routes the result into `## References` rather than an inline image.
 
 ## Acceptance criteria
 
-- [ ] A file of any type can be attached to a card by drop or file picker
-- [ ] The file is copied under `.gello/assets/<card-id>/` and committed
+- [x] A file of any type can be attached to a card by drop or file picker
+- [x] The file is copied under `.gello/assets/<card-id>/` and committed
       (self-contained, travels with the board)
-- [ ] The attachment is recorded in a `## References` section of the card body,
+- [x] The attachment is recorded in a `## References` section of the card body,
       as a relative link labelled with the original filename
-- [ ] The card detail lists references with an open/view control; a
+- [x] The card detail lists references with an open/view control; a
       markdown/text reference can render inline, other types open externally
-- [ ] The reference link is resolvable both by the app (rendered/opened) and by
+- [x] The reference link is resolvable both by the app (rendered/opened) and by
       an agent working from the repo root, so the companion can read the file by
       path
-- [ ] Moving the card between folders rewrites its reference links, exactly as
+- [x] Moving the card between folders rewrites its reference links, exactly as
       existing asset links are rewritten
-- [ ] Two files of the same name attached to one card are disambiguated (no
+- [x] Two files of the same name attached to one card are disambiguated (no
       silent overwrite)
-- [ ] Removing a reference removes its `## References` entry (asset-file cleanup
+- [x] Removing a reference removes its `## References` entry (asset-file cleanup
       follows the same policy as images — see Open)
 
 ## Discussion
