@@ -792,6 +792,15 @@ function App() {
     const reconcile = async () => {
       const paths = [...pending];
       pending.clear();
+      // i0140: both of these hit disk — `git status` walks the whole repo — so
+      // they run once per coalesced burst, not once per file event. A single
+      // agent write already arrives as several events, and a checkout as
+      // hundreds; per-event refreshes queued that many git runs.
+      void refreshDirtyRef.current();
+      // c0100: a companion run mutates cards, so a board change is a good moment
+      // to refresh the runner indicator too (the poll below covers state-only
+      // transitions like idle → running before any card is touched)
+      void refreshCompanionRef.current();
       const changes = await Promise.all(
         paths.map(async (path) => ({
           path,
@@ -812,13 +821,8 @@ function App() {
       for (const path of paths) pending.add(path);
       clearTimeout(timer);
       timer = setTimeout(() => void reconcile(), 150);
-      // c0083: a board change → refresh the dirty indicator and (re)arm the
-      // auto-commit debounce so a burst of writes collapses into one commit
-      void refreshDirtyRef.current();
-      // c0100: a companion run mutates cards, so a board change is a good moment
-      // to refresh the runner indicator too (the poll below covers state-only
-      // transitions like idle → running before any card is touched)
-      void refreshCompanionRef.current();
+      // c0083: (re)arm the auto-commit debounce so a burst of writes collapses
+      // into one commit
       if (autoCommitRef.current) {
         clearTimeout(commitTimer.current);
         commitTimer.current = setTimeout(

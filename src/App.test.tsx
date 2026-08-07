@@ -651,6 +651,26 @@ describe("App", () => {
     });
   };
 
+  it("i0140: a burst of watch events runs git status once, not once per event", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    await act(async () => void (await Promise.resolve()));
+
+    // `git status` walks the whole repo; one run per file in a burst (an agent
+    // writing a card, a checkout touching many) is what freezes the window
+    vi.mocked(gitWorktreeStatus).mockClear();
+    const cb = watchMock.mock.calls[0][1] as (paths: string[]) => void;
+    await act(async () => {
+      for (let i = 0; i < 8; i += 1) cb([`cards/c00${i}-x.md`]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(gitWorktreeStatus).toHaveBeenCalled());
+    expect(gitWorktreeStatus).toHaveBeenCalledTimes(1);
+  });
+
   it("c0128: fires one notification when a card newly parks, naming it", async () => {
     vi.mocked(notifyPark).mockClear();
     loadMock.mockResolvedValueOnce(loadedFixture());

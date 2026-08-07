@@ -1,6 +1,7 @@
 // gello Rust shell — kept deliberately thin (see CLAUDE.md).
 
 pub mod companion;
+pub mod flags;
 pub mod fs_read;
 pub mod fs_watch;
 pub mod fs_write;
@@ -15,7 +16,7 @@ pub struct FsError {
     message: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn write_file_atomic(path: String, contents: String) -> Result<(), FsError> {
     fs_write::atomic_write(std::path::Path::new(&path), &contents).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -24,14 +25,14 @@ fn write_file_atomic(path: String, contents: String) -> Result<(), FsError> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn find_board_root() -> Option<String> {
     let cwd = std::env::current_dir().ok()?;
     fs_read::find_board_root(&cwd).map(|path| path.to_string_lossy().into_owned())
 }
 
 /// c016: locate a `.gello` root at or above a chosen folder.
-#[tauri::command]
+#[tauri::command(async)]
 fn find_board_root_at(folder: String) -> Option<String> {
     fs_read::find_board_root(std::path::Path::new(&folder))
         .map(|path| path.to_string_lossy().into_owned())
@@ -45,7 +46,7 @@ struct NewFile {
 
 /// c017: create each file (making parent dirs), atomically. Used to scaffold
 /// a fresh `.gello/` board and its CLAUDE.md.
-#[tauri::command]
+#[tauri::command(async)]
 fn write_new_files(files: Vec<NewFile>) -> Result<(), FsError> {
     for file in files {
         let path = std::path::Path::new(&file.path);
@@ -70,7 +71,7 @@ struct WatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
 /// Keeps the git-HEAD watcher alive (c0057).
 struct GitWatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
 
-#[tauri::command]
+#[tauri::command(async)]
 fn watch_board(
     root: String,
     app: tauri::AppHandle,
@@ -106,7 +107,7 @@ fn watch_board(
 }
 
 /// c0060: copy a chosen image into the board's assets/board/, return rel path.
-#[tauri::command]
+#[tauri::command(async)]
 fn set_board_image(root: String, source: String) -> Result<String, FsError> {
     fs_write::set_board_image(
         std::path::Path::new(&root),
@@ -121,7 +122,7 @@ fn set_board_image(root: String, source: String) -> Result<String, FsError> {
 
 /// c011: decode a base64 image payload and write it into the card's asset
 /// dir, returning the board-relative path for the Markdown link.
-#[tauri::command]
+#[tauri::command(async)]
 fn write_asset(
     root: String,
     card_id: String,
@@ -148,7 +149,7 @@ fn write_asset(
 /// c0151: open a board file (a card's reference document) with the OS default
 /// application. The path is board-relative and resolved under `root`, so the
 /// webview can only ever open files the board itself holds.
-#[tauri::command]
+#[tauri::command(async)]
 fn open_asset(app: tauri::AppHandle, root: String, relative: String) -> Result<(), FsError> {
     use tauri_plugin_opener::OpenerExt;
     let path = fs_read::resolve_board_path(std::path::Path::new(&root), &relative).ok_or(
@@ -167,7 +168,7 @@ fn open_asset(app: tauri::AppHandle, root: String, relative: String) -> Result<(
         })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn remove_file(path: String) -> Result<(), FsError> {
     fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -178,7 +179,7 @@ fn remove_file(path: String) -> Result<(), FsError> {
 
 /// c0062: recursively delete a directory (a deleted card's asset folder),
 /// tolerating a missing path.
-#[tauri::command]
+#[tauri::command(async)]
 fn remove_dir(path: String) -> Result<(), FsError> {
     fs_write::remove_dir_all(std::path::Path::new(&path)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -187,7 +188,7 @@ fn remove_dir(path: String) -> Result<(), FsError> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_file(path: String) -> Result<String, FsError> {
     fs_read::read_file(std::path::Path::new(&path)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -196,14 +197,14 @@ fn read_file(path: String) -> Result<String, FsError> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn git_branch(root: String) -> Option<String> {
     git::git_branch(std::path::Path::new(&root))
 }
 
 /// c0083: auto-commit only `.gello/` changes (pathspec commit; never sweeps in
 /// the user's code index). Skips non-repos and mid-merge/rebase states.
-#[tauri::command]
+#[tauri::command(async)]
 fn git_commit_board(root: String, message: String) -> git::CommitOutcome {
     git::commit_board(std::path::Path::new(&root), &message)
 }
@@ -211,20 +212,20 @@ fn git_commit_board(root: String, message: String) -> git::CommitOutcome {
 /// c0083: worktree dirtiness split by board-only (`.gello/`) vs code.
 /// i0131: or the reason git couldn't answer, so the integration never goes
 /// quiet without saying why.
-#[tauri::command]
+#[tauri::command(async)]
 fn git_worktree_status(root: String) -> git::GitStatus {
     git::worktree_status(std::path::Path::new(&root))
 }
 
 /// c0083: changed `.gello/` files with HEAD + worktree content, for building the
 /// per-card commit message on the frontend.
-#[tauri::command]
+#[tauri::command(async)]
 fn git_board_changes(root: String) -> git::BoardChanges {
     git::board_changes(std::path::Path::new(&root))
 }
 
 /// c032: existing agent-skill directories under the project root.
-#[tauri::command]
+#[tauri::command(async)]
 fn detect_skill_dirs(project_root: String) -> Vec<String> {
     skills::detect_skill_dirs(std::path::Path::new(&project_root))
         .into_iter()
@@ -243,32 +244,16 @@ fn flags_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, FsError> {
 }
 
 /// Read one app-local flag (c032: e.g. the "don't ask about skills" choice).
-#[tauri::command]
+#[tauri::command(async)]
 fn app_flag_get(key: String, app: tauri::AppHandle) -> Option<String> {
-    let path = flags_path(&app).ok()?;
-    let content = std::fs::read_to_string(path).ok()?;
-    let map: std::collections::HashMap<String, String> = serde_json::from_str(&content).ok()?;
-    map.get(&key).cloned()
+    flags::get(&flags_path(&app).ok()?, &key)
 }
 
 /// Persist one app-local flag (created under the OS app-config dir).
-#[tauri::command]
+#[tauri::command(async)]
 fn app_flag_set(key: String, value: String, app: tauri::AppHandle) -> Result<(), FsError> {
     let path = flags_path(&app)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| FsError {
-            kind: format!("{:?}", error.kind()),
-            message: error.to_string(),
-            path: parent.to_string_lossy().into_owned(),
-        })?;
-    }
-    let mut map: std::collections::HashMap<String, String> = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|c| serde_json::from_str(&c).ok())
-        .unwrap_or_default();
-    map.insert(key, value);
-    let json = serde_json::to_string_pretty(&map).unwrap_or_else(|_| "{}".into());
-    fs_write::atomic_write(&path, &json).map_err(|error| FsError {
+    flags::set(&path, &key, &value).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
         message: error.to_string(),
         path: path.to_string_lossy().into_owned(),
@@ -277,7 +262,7 @@ fn app_flag_set(key: String, value: String, app: tauri::AppHandle) -> Result<(),
 
 /// Watch the repo's `.git/HEAD`, emitting `git-head-changed` on checkout.
 /// Kept in the same managed slot lifetime as the board watcher.
-#[tauri::command]
+#[tauri::command(async)]
 fn watch_git_head(
     root: String,
     app: tauri::AppHandle,
@@ -329,7 +314,7 @@ fn watch_git_head(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_file_base64(path: String) -> Result<String, FsError> {
     fs_read::read_file_base64(std::path::Path::new(&path)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -346,7 +331,7 @@ fn read_file_base64(path: String) -> Result<String, FsError> {
 /// A missing bundle is a packaging fault we *can* detect app-side, so it is
 /// reported here — unlike a missing `node`, which only the terminal can see
 /// (a GUI app does not inherit the login shell's PATH).
-#[tauri::command]
+#[tauri::command(async)]
 fn start_companion(project_dir: String, app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     let relative = std::path::Path::new(companion::COMPANION_DIR).join(companion::COMPANION_JS);
@@ -365,7 +350,7 @@ fn start_companion(project_dir: String, app: tauri::AppHandle) -> Result<(), Str
     companion::start(&bundle, &project_dir)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_board_files(root: String) -> Result<Vec<fs_read::BoardFileEntry>, FsError> {
     fs_read::read_board_files(std::path::Path::new(&root)).map_err(|error| FsError {
         kind: format!("{:?}", error.kind()),
@@ -423,4 +408,42 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    /// Name of the command a `#[tauri::command…]` attribute on `line` sits on.
+    fn command_name(source: &str, line: usize) -> &str {
+        source
+            .lines()
+            .skip(line + 1)
+            .find_map(|l| {
+                let l = l.trim_start();
+                l.strip_prefix("async fn ").or_else(|| l.strip_prefix("fn "))
+            })
+            .and_then(|rest| rest.split('(').next())
+            .unwrap_or("<unknown>")
+    }
+
+    /// i0140: a command declared without `(async)` runs in the webview's IPC
+    /// handler, which on macOS is the main thread — so the window stops drawing
+    /// and answering events until it returns (the beachball). Every command in
+    /// this file reads or writes files, or shells out to git, so all of them
+    /// must be handed to the async runtime instead.
+    #[test]
+    fn no_command_blocks_the_main_thread() {
+        let source = include_str!("lib.rs");
+        let blocking: Vec<&str> = source
+            .lines()
+            .enumerate()
+            .filter(|(_, line)| line.trim_start().starts_with("#[tauri::command"))
+            .filter(|(_, line)| !line.contains("(async)"))
+            .map(|(index, _)| command_name(source, index))
+            .collect();
+        assert_eq!(
+            blocking,
+            Vec::<&str>::new(),
+            "these commands still run on the main thread",
+        );
+    }
 }
