@@ -168,6 +168,24 @@ fn open_asset(app: tauri::AppHandle, root: String, relative: String) -> Result<(
         })
 }
 
+/// c0152: show a folder — the open project's — in the OS file manager.
+#[tauri::command(async)]
+fn open_folder(app: tauri::AppHandle, path: String) -> Result<(), FsError> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = fs_read::openable_dir(std::path::Path::new(&path)).ok_or(FsError {
+        kind: "NotFound".into(),
+        message: "no such folder".into(),
+        path: path.clone(),
+    })?;
+    app.opener()
+        .open_path(dir.to_string_lossy().into_owned(), None::<&str>)
+        .map_err(|error| FsError {
+            kind: "Open".into(),
+            message: error.to_string(),
+            path,
+        })
+}
+
 #[tauri::command(async)]
 fn remove_file(path: String) -> Result<(), FsError> {
     fs_write::remove_file(std::path::Path::new(&path)).map_err(|error| FsError {
@@ -403,6 +421,7 @@ pub fn run() {
             set_board_image,
             write_asset,
             open_asset,
+            open_folder,
             remove_dir,
             start_companion
         ])

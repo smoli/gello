@@ -18,11 +18,21 @@ opener plugin in Rust, like the c0151 reference-document open.
 
 ## Acceptance criteria
 
-- [ ] The board context menu has an "Open project folder" item.
-- [ ] Selecting it hands the project folder — not the `.gello` dir — to the OS.
-- [ ] A failure (folder gone, no file manager) shows in the error banner
+- [x] The board context menu has an "Open project folder" item.
+- [x] Selecting it hands the project folder — not the `.gello` dir — to the OS.
+- [x] A failure (folder gone, no file manager) shows in the error banner
       instead of being swallowed.
-- [ ] The Rust side refuses a path that is not an existing directory.
+- [x] The Rust side refuses a path that is not an existing directory.
+
+## Notes
+
+- The item sits at the top level of the board context menu, under Reload —
+  next to it rather than inside Settings, since it is an action, not a toggle.
+- Goes through `open_folder` in Rust (opener plugin), mirroring c0151's
+  `open_asset`. The webview never opens a path the Rust side has not checked:
+  `fs_read::openable_dir` refuses anything that is not an existing directory.
+- The path is `projectFolder(board.root).path` — the folder holding `.gello`,
+  which is what the project menu and the companion already use.
 
 ## Log
 

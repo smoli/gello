@@ -87,6 +87,13 @@ pub fn resolve_board_path(root: &Path, relative: &str) -> Option<PathBuf> {
     Some(segments.iter().fold(root.to_path_buf(), |path, s| path.join(s)))
 }
 
+/// c0152: the path the OS file manager is asked to show. `None` unless it is
+/// an existing directory — a stale project path or a file is refused here
+/// rather than handed to the desktop.
+pub fn openable_dir(path: &Path) -> Option<&Path> {
+    path.is_dir().then_some(path)
+}
+
 /// Walk upwards from `start` looking for a `.gello` directory; return its path.
 pub fn find_board_root(start: &Path) -> Option<PathBuf> {
     let mut current = Some(start);
@@ -221,6 +228,25 @@ mod tests {
     }
 
     // c0151: resolving a reference document's board-relative path
+
+    // c0152: the folder handed to the OS file manager
+
+    #[test]
+    fn an_existing_directory_is_openable() {
+        let dir = tempfile::tempdir().unwrap();
+
+        assert_eq!(openable_dir(dir.path()), Some(dir.path()));
+    }
+
+    #[test]
+    fn a_file_or_a_missing_path_is_not_openable() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("board.yaml");
+        write(&file, "columns: [a]\n");
+
+        assert_eq!(openable_dir(&file), None);
+        assert_eq!(openable_dir(&dir.path().join("gone")), None);
+    }
 
     #[test]
     fn resolves_a_board_relative_asset_path() {

@@ -63,6 +63,7 @@ import {
   loadBoardFromDisk,
   migrateLegacyBoard,
   openExternal,
+  openFolder,
   pickFolder,
   type GitStatus,
   pickImageFile,
@@ -1555,6 +1556,17 @@ function App() {
     );
   };
 
+  /** c0152: show the project folder — the one holding `.gello`, not the board
+   *  dir — in the OS file manager. */
+  const handleOpenProjectFolder = async () => {
+    if (!board) return;
+    try {
+      await openFolder(projectFolder(board.root).path);
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   // c0151: hand a reference to the OS (PDFs and the like), and read a
   // text/markdown one for the inline view. Both take the card-relative link.
   const handleOpenReference = async (card: Card, target: string) => {
@@ -1869,6 +1881,10 @@ function App() {
             onClose={() => setCtxMenu(null)}
             items={[
               { label: "Reload", onSelect: () => window.location.reload() },
+              {
+                label: "Open project folder",
+                onSelect: () => void handleOpenProjectFolder(),
+              },
               {
                 label: "Background…",
                 // hand the menu's anchor point to the picker

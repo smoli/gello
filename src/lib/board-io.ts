@@ -37,6 +37,12 @@ export async function openExternal(root: string, relative: string): Promise<void
   await invoke("open_asset", { root, relative });
 }
 
+/** c0152: show a folder — the open project's — in the OS file manager. Rejects
+ *  when the path is gone or the desktop has no handler for it. */
+export async function openFolder(path: string): Promise<void> {
+  await invoke("open_folder", { path });
+}
+
 /** Delete one file (absolute path) — used by triage after the rewrite. */
 export async function removeFile(path: string): Promise<void> {
   await invoke("remove_file", { path });

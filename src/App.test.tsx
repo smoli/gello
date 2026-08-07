@@ -16,6 +16,7 @@ import {
   loadBoardFromDisk,
   migrateLegacyBoard,
   openExternal,
+  openFolder,
   pickFolder,
   readFileRaw,
   removeDir,
@@ -47,6 +48,7 @@ vi.mock("./lib/board-io", () => ({
   boardExistsAt: vi.fn(),
   migrateLegacyBoard: vi.fn(),
   openExternal: vi.fn(),
+  openFolder: vi.fn(),
   pickFolder: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
@@ -118,6 +120,8 @@ describe("App", () => {
     vi.mocked(writeAsset).mockReset();
     vi.mocked(openExternal).mockReset();
     vi.mocked(openExternal).mockResolvedValue(undefined);
+    vi.mocked(openFolder).mockReset();
+    vi.mocked(openFolder).mockResolvedValue(undefined);
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
@@ -412,6 +416,35 @@ describe("App", () => {
 
     expect(document.documentElement.style.colorScheme).toBe("light");
     expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("theme", "light");
+  });
+
+  it("c0152: the context menu shows the project folder in the file manager", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open project folder" }));
+
+    // the project folder, not the .gello board dir
+    await vi.waitFor(() =>
+      expect(vi.mocked(openFolder)).toHaveBeenCalledExactlyOnceWith("/repo"),
+    );
+  });
+
+  it("c0152: a folder that will not open shows in the error banner", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(openFolder).mockRejectedValueOnce(new Error("no such directory"));
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open project folder" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "no such directory",
+    );
   });
 
   it("renders the board once loaded", async () => {
