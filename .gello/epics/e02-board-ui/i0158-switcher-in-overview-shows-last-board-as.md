@@ -1,13 +1,13 @@
 ---
 id: i0158
 title: Switcher in overview shows last board as current
-status: in-progress
+status: review
 type: issue
 ref: c0138
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T11:35:20
+status-changed: 2026-08-08T11:41:47
 ---
 Switching itself does not work properly. Add overview to switcher
 
@@ -51,3 +51,4 @@ current while it is open, reachable while it is closed.
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 fixed: activity view is a switcher entry (`switcherItems` +
   `OVERVIEW` sentinel), current while open; committing out of it closes it.
+- 2026-08-08 status → review (agent)

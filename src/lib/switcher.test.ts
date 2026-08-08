@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openSwitcher, cycleSwitcher } from "./switcher";
+import { openSwitcher, cycleSwitcher, switcherItems, OVERVIEW } from "./switcher";
 
 // c0146: the MRU project switcher's selection logic — pure, no key handling.
 // The `items` are the `recent` list (already most-recent-first): current on
@@ -45,5 +45,39 @@ describe("cycleSwitcher (c0146)", () => {
 
   it("never reorders the frozen list while cycling", () => {
     expect(cycleSwitcher(state, 1).items).toEqual(state.items);
+  });
+});
+
+// i0158: the activity view is a place you switch to, so it is an entry in the
+// list — and while it is open it is the *current* place, not the board behind it.
+describe("switcherItems (i0158)", () => {
+  const recent = ["cur", "prev", "older"];
+
+  it("puts the activity view on top while it is open — it is where you are", () => {
+    expect(switcherItems(recent, "open")).toEqual([OVERVIEW, "cur", "prev", "older"]);
+  });
+
+  it("hangs it off the end while it is closed — one Ctrl+Shift+Tab away", () => {
+    expect(switcherItems(recent, "closed")).toEqual([...recent, OVERVIEW]);
+  });
+
+  it("leaves it out with no board open — the view needs one", () => {
+    expect(switcherItems(recent, "unavailable")).toEqual(recent);
+  });
+
+  it("offers the switch between a lone project and the view", () => {
+    expect(openSwitcher(switcherItems(["only"], "closed"))).toEqual({
+      items: ["only", OVERVIEW],
+      selected: 1,
+    });
+  });
+
+  it("preselects the board behind the open view, so one hit goes back", () => {
+    const state = openSwitcher(switcherItems(recent, "open"))!;
+    expect(state.items[state.selected]).toBe("cur");
+  });
+
+  it("marks the view with a sentinel no file path can be", () => {
+    expect(OVERVIEW).toMatch(/\0/);
   });
 });

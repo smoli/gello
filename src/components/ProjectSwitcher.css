@@ -81,6 +81,11 @@
   opacity: 0.5;
 }
 
+/* i0158: the activity view entry — a place, not a project folder. */
+.switcher-item-overview .switcher-name {
+  font-style: italic;
+}
+
 .switcher-missing {
   font-size: 0.68rem;
   color: #b97a0a;

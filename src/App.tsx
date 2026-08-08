@@ -97,7 +97,14 @@ import {
   suggestedFileAssetName,
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
-import { openSwitcher, cycleSwitcher, type SwitcherState } from "./lib/switcher";
+import {
+  openSwitcher,
+  cycleSwitcher,
+  switcherItems,
+  OVERVIEW,
+  type OverviewMode,
+  type SwitcherState,
+} from "./lib/switcher";
 import { resolveCardStatusLine } from "./lib/card-status";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { isMacOS } from "./lib/platform";
@@ -363,16 +370,26 @@ function App() {
   const switcherDeadRef = useRef<ReadonlySet<string>>(switcherDead);
   switcherDeadRef.current = switcherDead;
   const openProjectRef = useRef((_folder: string) => {});
+  // i0158: the switcher lists the activity view as a place, so its listeners
+  // need to know where we are and how to get in and out of it.
+  const overviewRef = useRef<{
+    mode: OverviewMode;
+    project: string | null;
+    open: () => void;
+    close: () => void;
+  }>({ mode: "unavailable", project: null, open: () => {}, close: () => {} });
   const isMac = isMacOS();
 
   // c0146: which of the frozen recent entries no longer have a board — greyed,
   // and refused on commit. Cheap existence check per entry, ignored if the
-  // switcher has since closed.
+  // switcher has since closed. The activity view is no folder, so it is skipped.
   const checkSwitcherDead = (items: string[]) => {
     setSwitcherDead(new Set());
     switcherDeadRef.current = new Set();
     void Promise.all(
-      items.map(async (path) => ((await boardExistsAt(path)) ? null : path)),
+      items.map(async (path) =>
+        path === OVERVIEW || (await boardExistsAt(path)) ? null : path,
+      ),
     ).then((results) => {
       const dead = new Set(results.filter((p): p is string => p !== null));
       setSwitcherDead(dead);
@@ -380,16 +397,26 @@ function App() {
     });
   };
 
-  /** c0146: open the highlighted project (or warn if its board is gone); a
-   *  commit to the current project (index 0) is a no-op. Always closes. */
+  /** c0146: go to the highlighted place (or warn if its board is gone); a
+   *  commit to where we already are (index 0) is a no-op. Always closes.
+   *  i0158: the place can be the activity view, and leaving it for a project
+   *  closes it — an open one otherwise stays over whatever board loads. */
   const commitSwitcher = (state: SwitcherState) => {
     const path = state.items[state.selected];
     setSwitcherState(null);
-    if (state.selected === 0) return; // already on the current project
+    if (state.selected === 0) return; // already there
+    if (path === OVERVIEW) {
+      overviewRef.current.open();
+      return;
+    }
     if (switcherDeadRef.current.has(path)) {
       setError(`Can't switch: no gello board found at ${path}`);
       return;
     }
+    const leavingOverview = overviewRef.current.mode === "open";
+    if (leavingOverview) overviewRef.current.close();
+    // back to the board the view sat on: nothing to load, just the close above
+    if (leavingOverview && path === overviewRef.current.project) return;
     void openProjectRef.current(path);
   };
 
@@ -403,7 +430,9 @@ function App() {
       const open = switcherRef.current;
       if (open === null) {
         if (opensSwitcher(e)) {
-          const next = openSwitcher(recentRef.current);
+          const next = openSwitcher(
+            switcherItems(recentRef.current, overviewRef.current.mode),
+          );
           if (next) {
             e.preventDefault();
             setSwitcherState(next);
@@ -1702,6 +1731,15 @@ function App() {
       chooseActivityProjects([projectFolder(board.root).path]);
     }
     setActivityOpen(true);
+  };
+
+  // i0158: what the switcher's window listeners need to treat the activity view
+  // as a place — refreshed every render, like openProjectRef.
+  overviewRef.current = {
+    mode: !board ? "unavailable" : activityOpen ? "open" : "closed",
+    project: board ? projectFolder(board.root).path : null,
+    open: openActivity,
+    close: () => setActivityOpen(false),
   };
 
   if (loading) return null;

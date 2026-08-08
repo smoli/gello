@@ -2766,5 +2766,90 @@ describe("App", () => {
         expect(view).not.toHaveClass("multi-with-bg");
       });
     });
+
+    // i0158: the view is a place Ctrl+Tab reaches, and while it is open the
+    // switcher used to call the board behind it "current" — and switching out
+    // of the view left you in it.
+    describe("in the project switcher (i0158)", () => {
+      const seedRecent = (paths: string[]) =>
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "recent-projects" ? JSON.stringify(paths) : null,
+        );
+
+      it("is the current entry while it is open, ahead of the board behind it", async () => {
+        await openActivity();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+
+        const dialog = screen.getByRole("dialog", { name: /switch project/i });
+        const options = within(dialog).getAllByRole("option");
+        expect(options[0]).toHaveTextContent(/activity across projects/i);
+        expect(within(options[0]).getByText("current")).toBeInTheDocument();
+        // the board is the *previous* place, so one hit goes back to it
+        expect(options[1]).toHaveAttribute("aria-selected", "true");
+        expect(options[1]).toHaveTextContent("repo");
+      });
+
+      it("goes back to the board without reloading it", async () => {
+        await openActivity();
+        vi.mocked(loadBoardAt).mockClear();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+        fireEvent.keyUp(window, { key: "Control" });
+
+        expect(await screen.findByText("Hello board")).toBeInTheDocument();
+        expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
+      });
+
+      it("leaves the view when another project is picked", async () => {
+        seedRecent(["/repo", "/other"]);
+        await openActivity();
+        loadMock.mockResolvedValueOnce(loadedFixture());
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true }); // → repo
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true }); // → other
+        fireEvent.keyUp(window, { key: "Control" });
+
+        await waitFor(() =>
+          expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/other"),
+        );
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("region", { name: "Activity across projects" }),
+          ).not.toBeInTheDocument(),
+        );
+      });
+
+      it("opens the view when it is picked from the board", async () => {
+        loadMock.mockResolvedValueOnce(loadedFixture());
+        render(<App />);
+        await screen.findByText("Hello board");
+
+        // the lone project plus the view: Ctrl+Tab preselects the view
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+        fireEvent.keyUp(window, { key: "Control" });
+
+        expect(
+          await screen.findByRole("region", { name: "Activity across projects" }),
+        ).toBeInTheDocument();
+      });
+
+      it("never greys the view as a board that has gone missing", async () => {
+        vi.mocked(boardExistsAt).mockResolvedValue(false);
+        await openActivity();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+
+        const dialog = screen.getByRole("dialog", { name: /switch project/i });
+        const view = within(dialog).getByRole("option", {
+          name: /activity across projects/i,
+        });
+        await waitFor(() =>
+          expect(
+            within(dialog).getByRole("option", { name: /repo/ }),
+          ).toHaveClass("switcher-item-dead"),
+        );
+        expect(view).not.toHaveClass("switcher-item-dead");
+        expect(vi.mocked(boardExistsAt)).not.toHaveBeenCalledWith(
+          expect.stringContaining("\0"),
+        );
+      });
+    });
   });
 });
