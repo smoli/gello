@@ -99,3 +99,40 @@ ready-trigger; agent-UUID sessions per card/epic; Claude+pi adapters;
 fallback; app title-bar runner indicator). Related: [[c0073]] (drive the CLIs
 from the board, no chat UI, keep sessions).
 
+## AFK mode plan ([[c0161]])
+
+AFK mode broken into child cards — two independently shippable slices. New ids
+c0162–c0170.
+
+*Slice 1 — park-and-skip* (ships without the review pipeline; drains the queue
+around parked questions):
+
+1. **c0162 — AFK flag contract + companion reads it** (root). The `.gello/`
+   file/field the app writes and the companion watches; `afk` off by default,
+   applied without a restart. Everything AFK depends on this.
+2. **c0163 — Park-and-skip dispatch** (← c0162). In AFK a parked
+   (`waiting-for-input`) run frees its WIP slot but keeps its session hold;
+   `planDispatch` dispatches the next non-session-held card around it.
+
+*Slice 2 — the review pipeline*:
+
+3. **c0164 — Sign-off status + column** (root). Add `signoff` between `review`
+   and `done` in `board.yaml` (statuses + column order); only a human moves
+   `signoff → done`.
+4. **c0165 — Companion dep gate accepts sign-off** (← c0164). `planDispatch`
+   treats `signoff` (and `done`) as satisfying `depends`, so dependents flow.
+5. **c0166 — Review skill + checklist** (root). The skill the review agent
+   follows: check acceptance criteria, tests, lint/typecheck, the diff; record
+   a pass/fail verdict; on pass move the card to `signoff`.
+6. **c0167 — AI review agent dispatch** (← c0162, c0164, c0166). A `review`
+   card under AFK dispatches a fresh-session review run (session key distinct
+   from the implementer's) using the review skill; verdict recorded; pass →
+   `signoff`.
+7. **c0168 — Reject fix-loop** (← c0163, c0167). On fail → `in-progress`,
+   resume the original implementer session with the review notes; cap ~2
+   rounds; on exhaustion park a question (skip-ahead).
+8. **c0169 — App: AFK toggle control** (← c0162). The UI switch that writes the
+   AFK flag.
+9. **c0170 — App: sign-off column + check-list** (← c0164). Render the
+   `signoff` column as the human's check-list; a count/badge for the pile.
+
