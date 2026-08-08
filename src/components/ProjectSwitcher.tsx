@@ -28,7 +28,15 @@ export function ProjectSwitcher({
   onPick: (index: number) => void;
 }) {
   return (
-    <div className="switcher-overlay" role="dialog" aria-label="Switch project">
+    <div
+      className="switcher-overlay"
+      role="dialog"
+      aria-label="Switch project"
+      // i0160: the overlay covers the window while Control is held, and on
+      // macOS that makes every click a secondary click — so no click in here
+      // may reach the webview's own menu.
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <div className="switcher-panel">
         <p className="switcher-heading">Switch project</p>
         <ul className="switcher-list" role="listbox" aria-label="Recent projects">
@@ -53,6 +61,14 @@ export function ProjectSwitcher({
                   className={className}
                   title={isOverview ? "Activity across projects" : path}
                   onClick={() => onPick(i)}
+                  // i0160: a Control-click on macOS is a secondary click, so
+                  // the pick arrives here instead of onClick. Nothing in the
+                  // switcher wants a context menu, so any secondary click on an
+                  // entry picks it — the same as a plain click.
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    onPick(i);
+                  }}
                 >
                   <span className="switcher-name">
                     {isOverview ? "Activity across projects" : baseName(path)}

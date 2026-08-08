@@ -2597,6 +2597,21 @@ describe("App", () => {
       expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
     });
 
+    // i0160: on macOS the held Control turns the click-to-commit fallback into
+    // a secondary click — it must still pick the entry, not raise a menu.
+    it("i0160: a Control-click on an entry commits it and closes the switcher", async () => {
+      const dialog = await openSwitcher();
+      fireEvent.contextMenu(within(dialog).getByRole("option", { name: /holzhof/ }), {
+        ctrlKey: true,
+      });
+      await waitFor(() =>
+        expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/proj/holzhof"),
+      );
+      expect(
+        screen.queryByRole("dialog", { name: /switch project/i }),
+      ).not.toBeInTheDocument();
+    });
+
     it("does not open with fewer than two recent projects", async () => {
       loadMock.mockResolvedValue(null);
       vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
