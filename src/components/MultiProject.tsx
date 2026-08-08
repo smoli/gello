@@ -185,7 +185,7 @@ export function MultiProject({
     },
     [],
   );
-  const onChangedRef = useCallback(
+  const handleChange = useCallback(
     (path: string, root: string, paths: string[]) => void onChanged(path, root, paths),
     [onChanged],
   );
@@ -198,11 +198,11 @@ export function MultiProject({
   const entryFor = (key: string | null): ProjectCard | null =>
     key === null ? null : findProjectCard(ordered, key);
 
-  /** Replace one project's model in place (an optimistic update or a rollback). */
-  const withModel = (path: string, model: BoardModel) =>
+  /** Rework one project's model, whatever it is by the time this lands. */
+  const updateModel = (path: string, next: (model: BoardModel) => BoardModel) =>
     setBoards((current) => {
       const board = current[path];
-      return board ? { ...current, [path]: { ...board, model } } : current;
+      return board ? { ...current, [path]: { ...board, model: next(board.model) } } : current;
     });
 
   /**
@@ -215,11 +215,13 @@ export function MultiProject({
     try {
       const fresh = await rebaseOnDisk(entry.board.root, entry.card, before.config);
       const { card: updated, persisted } = act(fresh);
-      withModel(entry.board.path, withUpdatedCard(before, updated));
+      // against the current model, not the one this write was planned on — a
+      // watched change may have landed while the disk read was in flight
+      updateModel(entry.board.path, (model) => withUpdatedCard(model, updated));
       setError(null);
       await persisted;
     } catch (failure) {
-      withModel(entry.board.path, before);
+      updateModel(entry.board.path, () => before);
       setError(failure instanceof Error ? failure.message : String(failure));
     }
   };
@@ -285,7 +287,7 @@ export function MultiProject({
           onLoaded={onLoaded}
           onMissing={onMissing}
           onDropped={onDropped}
-          onChanged={onChangedRef}
+          onChanged={handleChange}
         />
       ))}
 
