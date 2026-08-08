@@ -46,23 +46,23 @@ colours, and every write.
 
 ## Acceptance criteria
 
-- [ ] A mode presents ready / in-progress / review columns aggregating the
+- [x] A mode presents ready / in-progress / review columns aggregating the
       cards of all selected projects
-- [ ] Projects are chosen from the known/recent list; adding or removing one
+- [x] Projects are chosen from the known/recent list; adding or removing one
       updates the view without a manual reload
-- [ ] Each selected project's board is watched; a card moving in any project
+- [x] Each selected project's board is watched; a card moving in any project
       updates the view live
-- [ ] Cards are keyed by project + id, so same-id cards from different projects
+- [x] Cards are keyed by project + id, so same-id cards from different projects
       never collide
-- [ ] Each card shows its source project's colour; the colour is assignable in
+- [x] Each card shows its source project's colour; the colour is assignable in
       the view and written to that project's `board.yaml` (surgical edit)
-- [ ] Dropping a review card on the done area sets it `done` in its own project,
+- [x] Dropping a review card on the done area sets it `done` in its own project,
       stamping `status-changed`
-- [ ] A card with `awaiting: input` shows the needs-input badge and can be
+- [x] A card with `awaiting: input` shows the needs-input badge and can be
       answered inline; the answer writes to that card's project
-- [ ] Opening a card shows its detail scoped to its project
-- [ ] The view reads no `.companion/state.json` — it is board-only
-- [ ] Every cross-project write (done, answer, colour) goes through the same
+- [x] Opening a card shows its detail scoped to its project
+- [x] The view reads no `.companion/state.json` — it is board-only
+- [x] Every cross-project write (done, answer, colour) goes through the same
       atomic write + conflict rebase as a single-project edit, against the
       owning project's root
 
@@ -88,11 +88,12 @@ colours, and every write.
 - **`(project, id)` keying**: the one correctness trap — per-board ids collide
   across projects, so the aggregate disambiguates by project in state, in the
   colour map, and in every write path.
-- **Open**: how many projects to watch and by what mechanism (N Rust watchers
-  vs. a poll) and its cost; the `board.yaml` colour key name and an auto-default
-  when unset; whether a project with no running companion is still shown (yes —
-  it is board-based); whether `done` cards ever appear (only transiently, as the
-  drop's feedback).
+- **Settled while building**: N Rust watchers, one per selected board, keyed by
+  a watch id (a poll over N boards would cost a full re-read per interval). The
+  colour key is `project_color`, and an unset one falls back to a palette slot
+  hashed from the project path, so every project has a colour from the start. A
+  project with no running companion is shown — the view is board-based. A `done`
+  card never appears: accepting drops it from the aggregate.
 
 ## Notes
 
@@ -133,4 +134,9 @@ colours, and every write.
 - 2026-08-06 status → backlog (app)
 - 2026-08-06 status → discuss (app)
 - 2026-08-08 status → ready (app)
+- 2026-08-08 status → in-progress (agent)
+- 2026-08-08 built: multi-watcher Rust registry + `unwatch_board`, `project_color`
+  in board.yaml, `multi.ts` aggregation, the `MultiProject` view, and the project
+  menu entry. All acceptance criteria have tests.
+- 2026-08-08 status → review (agent)
 - 2026-08-08 status → in-progress (agent)
