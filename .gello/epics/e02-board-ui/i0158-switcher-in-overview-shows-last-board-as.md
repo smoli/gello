@@ -8,6 +8,8 @@ epic: e02
 created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T11:41:47
+usage-tokens: 21508
+usage-cost: 2.504049
 ---
 Switching itself does not work properly. Add overview to switcher
 
