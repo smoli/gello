@@ -1548,10 +1548,114 @@ describe("App", () => {
     }
   });
 
-  it("c0083: does not auto-commit when the setting is off (default)", async () => {
+  it("c0154: auto-commits by default in a git repo the human hasn't chosen for", async () => {
     vi.useFakeTimers();
     try {
-      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null (off)
+      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null (no choice)
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "status",
+        board_dirty: false,
+        code_dirty: false,
+      });
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      vi.mocked(gitBoardChanges).mockResolvedValue({
+        kind: "changes",
+        changes: [
+          {
+            path: ".gello/cards/c001-hello.md",
+            head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+            work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
+          },
+        ],
+      });
+      vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "committed" });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).toHaveBeenCalledTimes(1);
+      // the default is recorded for the project, so it survives as a choice
+      expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("auto-commit:/repo", "1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0154: respects a git repo the human switched auto-commit off for", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "status",
+        board_dirty: false,
+        code_dirty: false,
+      });
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key.startsWith("auto-commit:") ? "0" : null,
+      );
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0154: does not default auto-commit on when git can't say whether it's a repo", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "unavailable",
+        message: "detected dubious ownership in repository at '/repo'",
+      });
+      vi.mocked(appFlagSet).mockClear();
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+      expect(vi.mocked(appFlagSet)).not.toHaveBeenCalledWith("auto-commit:/repo", "1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0083/c0154: does not auto-commit when the project is not a git repo", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null, not_a_repo
       let emitChange: ((paths: string[]) => void) | null = null;
       watchMock.mockImplementation(async (_root, onChange) => {
         emitChange = onChange;

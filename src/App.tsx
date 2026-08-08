@@ -133,7 +133,8 @@ const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
 const ARCHIVED_FLAG = "show-archived"; // c018: show archived cards on the board
 const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
-// c0083: per-project auto-commit — off by default, keyed by project path
+// c0083: per-project auto-commit, keyed by project path. c0154: a project with
+// no stored choice defaults to on when it is a git repo.
 const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
 const autoCommitWindowKey = (projectPath: string) => `auto-commit-window:${projectPath}`;
 const AUTO_COMMIT_DEFAULT_MS = 30_000;
@@ -853,8 +854,18 @@ function App() {
     const path = projectFolder(board.root).path;
     let cancelled = false;
     flushed.current = false;
-    void appFlagGet(autoCommitKey(path)).then((v) => {
-      if (!cancelled) setAutoCommit(v === "1");
+    void appFlagGet(autoCommitKey(path)).then(async (v) => {
+      if (v !== null) {
+        if (!cancelled) setAutoCommit(v === "1");
+        return;
+      }
+      // c0154: first time gello opens this project — turn auto-commit on if it
+      // is a git repo, and record that as the project's choice. `unavailable`
+      // is not a detected repo: git couldn't answer, so leave it off.
+      const status = await gitWorktreeStatus(board.root);
+      if (cancelled || status.kind !== "status") return;
+      setAutoCommit(true);
+      void appFlagSet(autoCommitKey(path), "1");
     });
     void appFlagGet(autoCommitWindowKey(path)).then((v) => {
       const ms = v ? Number(v) : NaN;
