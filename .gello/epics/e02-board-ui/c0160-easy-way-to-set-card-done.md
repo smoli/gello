@@ -1,12 +1,14 @@
 ---
 id: c0160
 title: Easy way to set card done
-status: in-progress
+status: review
 ref: c0138
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T11:31:20
+status-changed: 2026-08-08T11:35:06
+usage-tokens: 15434
+usage-cost: 1.920964
 ---
 
 Right now, in the overview user needs to set status via card detail
@@ -53,3 +55,4 @@ write every other cross-project edit uses.
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 built: a "Mark done" button on the activity-view card front,
   writing `done` to the card's own project through `markDone`.
+- 2026-08-08 status → review (agent)
