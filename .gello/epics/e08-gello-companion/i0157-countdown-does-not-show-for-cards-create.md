@@ -1,13 +1,15 @@
 ---
 id: i0157
 title: Countdown does not show for cards created in ready
-status: in-progress
+status: review
 type: issue
 ref: c0117
 epic: e08
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T10:38:42
+status-changed: 2026-08-08T10:46:07
+usage-tokens: 26114
+usage-cost: 4.111059
 ---
 
 If the card is created with its initial status being ready, the countdown does not show.
@@ -58,3 +60,4 @@ If the card is created with its initial status being ready, the countdown does n
 - 2026-08-08 (agent) published the companion's first-seen pickup clock in
   `state.json` and made the card front's countdown fall back to it. 10 new
   tests; 1552 frontend tests, typecheck and lint green.
+- 2026-08-08 status → review (agent)
