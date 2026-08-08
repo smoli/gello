@@ -1,10 +1,10 @@
 ---
 id: c0138
 title: Multi project activity view.
-status: in-progress
+status: review
 created: 2026-07-24
 updated: 2026-08-08
-status-changed: 2026-08-08T07:19:50
+status-changed: 2026-08-08T07:46:46
 epic: e02
 ---
 
@@ -140,3 +140,4 @@ colours, and every write.
   menu entry. All acceptance criteria have tests.
 - 2026-08-08 status → review (agent)
 - 2026-08-08 status → in-progress (agent)
+- 2026-08-08 status → review (agent)
