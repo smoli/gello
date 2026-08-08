@@ -139,6 +139,7 @@ describe("parseCard", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      projectColor: null,
       followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
@@ -438,6 +439,7 @@ describe("card types and refs (c024)", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      projectColor: null,
       followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
@@ -844,6 +846,17 @@ describe("parseBoardConfig", () => {
     expect(parseBoardConfig("show_tags: true\n").config.showTags).toBe(true);
     // a non-boolean value is ignored — the default holds
     expect(parseBoardConfig("show_tags: nope\n").config.showTags).toBe(true);
+  });
+
+  it("c0138: parses the project colour, null when unset", () => {
+    expect(parseBoardConfig('project_color: "#e11d48"\n').config.projectColor).toBe(
+      "#e11d48",
+    );
+    expect(parseBoardConfig("columns: [a]\n").config.projectColor).toBeNull();
+    // a non-string (or blank) value is ignored — the view falls back to the
+    // colour derived from the project's own path
+    expect(parseBoardConfig("project_color: [a]\n").config.projectColor).toBeNull();
+    expect(parseBoardConfig('project_color: ""\n').config.projectColor).toBeNull();
   });
 });
 

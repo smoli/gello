@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./fs";
-import { removeDir, removeFile } from "./board-io";
+import { readFileRaw, removeDir, removeFile } from "./board-io";
 import { loadBoard } from "./board";
 import { parseCard, parseEpic, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
@@ -25,11 +25,16 @@ import {
   saveCardFields,
   saveEpicEdit,
   saveEpicFields,
+  rebaseOnDisk,
   triageCard,
 } from "./board-actions";
 
 vi.mock("./fs", () => ({ writeFileAtomic: vi.fn() }));
-vi.mock("./board-io", () => ({ removeFile: vi.fn(), removeDir: vi.fn() }));
+vi.mock("./board-io", () => ({
+  removeFile: vi.fn(),
+  removeDir: vi.fn(),
+  readFileRaw: vi.fn(),
+}));
 const writeMock = vi.mocked(writeFileAtomic);
 const removeMock = vi.mocked(removeFile);
 const removeDirMock = vi.mocked(removeDir);
@@ -295,6 +300,7 @@ describe("custom-column statuses (c033)", () => {
     background: null,
     tagColors: {},
     showTags: true,
+    projectColor: null,
     followupTarget: "ready",
   };
 
@@ -1458,5 +1464,41 @@ Ship dark theme.
     expect(written).toContain("status: in-progress");
     expect(written).toContain("Ship dark theme."); // body untouched
     expect(updated.status).toBe("in-progress");
+  });
+});
+
+// c015/c0138: the read-before-write half of the surgical-edit conflict policy.
+// It was inline in the App, against the one open board; the cross-project view
+// writes against an arbitrary root, so both now call this.
+describe("rebaseOnDisk (c0138)", () => {
+  const readMock = vi.mocked(readFileRaw);
+  const card = () => {
+    const parsed = parseCard("cards/c001-first.md", RAW, DEFAULT_BOARD_CONFIG);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  };
+
+  beforeEach(() => {
+    readMock.mockReset();
+  });
+
+  it("reads the card's file under the root it is given", async () => {
+    readMock.mockResolvedValue(RAW);
+    await rebaseOnDisk("/other/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(readMock).toHaveBeenCalledExactlyOnceWith(
+      "/other/.gello/cards/c001-first.md",
+    );
+  });
+
+  it("rebases the edit onto an external change to the same card", async () => {
+    readMock.mockResolvedValue(RAW.replace("First", "Renamed on disk"));
+    const fresh = await rebaseOnDisk("/repo/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(fresh.title).toBe("Renamed on disk");
+  });
+
+  it("keeps the card the caller acted on when the file is unreadable or gone", async () => {
+    readMock.mockImplementation(() => Promise.reject(new Error("ENOENT")));
+    const fresh = await rebaseOnDisk("/repo/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(fresh.raw).toBe(RAW);
   });
 });

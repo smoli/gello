@@ -325,7 +325,7 @@ export function applyFileChanges(
 }
 
 /** All cards on the board — standalone and epic-grouped alike. */
-function allCards(model: BoardModel): Card[] {
+export function allCards(model: BoardModel): Card[] {
   return [...model.cards, ...model.epics.flatMap((g) => g.cards)];
 }
 

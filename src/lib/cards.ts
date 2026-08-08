@@ -24,6 +24,10 @@ export interface BoardConfig {
   /** c0131: column a follow-up (c0115) lands in — a status name, or "ask" to
    *  pick per follow-up. Defaults to "ready" (the c0115 behaviour). */
   followupTarget: string;
+  /** c0138: the colour this project's cards carry in the cross-project activity
+   *  view. Null = unset, and the view derives one from the project path. It sits
+   *  in board.yaml, like tag_colors, so the colour belongs to the repo. */
+  projectColor: string | null;
 }
 
 export const DEFAULT_BOARD_CONFIG: BoardConfig = {
@@ -37,6 +41,7 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   tagColors: {},
   showTags: true,
   followupTarget: "ready",
+  projectColor: null,
 };
 
 export interface Card {
@@ -325,6 +330,7 @@ export function parseBoardConfig(raw: string): {
     tagColors: {},
     showTags: true,
     followupTarget: "ready",
+    projectColor: null,
   });
 
   let data: unknown;
@@ -375,6 +381,13 @@ export function parseBoardConfig(raw: string): {
   const followupTarget = record["followup_target"];
   if (typeof followupTarget === "string" && followupTarget.trim() !== "") {
     config.followupTarget = followupTarget;
+  }
+
+  // c0138: the project's colour in the cross-project view. Any string is kept
+  // (it goes straight into a style), so an odd value shows rather than hides.
+  const projectColorValue = record["project_color"];
+  if (typeof projectColorValue === "string" && projectColorValue.trim() !== "") {
+    config.projectColor = projectColorValue;
   }
 
   // c0058: per-tag colour overrides — a { tag: "#hex" } mapping.

@@ -41,6 +41,7 @@ import {
   saveCardFields,
   saveEpicEdit,
   saveEpicFields,
+  rebaseOnDisk as rebaseCardOnDisk,
   todayIsoDate,
   triageCard,
   type EpicEdit,
@@ -159,7 +160,6 @@ import {
 } from "./lib/cards";
 import { writeFileAtomic } from "./lib/fs";
 import type { InvalidFile } from "./lib/cards";
-import { rebaseCard } from "./lib/conflict";
 import { buildCommitMessage, type BoardChange } from "./lib/commit-message";
 import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
@@ -965,18 +965,12 @@ function App() {
    * c015: rebase a card on the current disk bytes before a surgical write, so a
    * status/field/task edit merges with an unrelated external change (e.g. an
    * agent rewriting the body while the user drags the card) instead of clobbering
-   * it. A read-before-write; the merge itself is the pure `rebaseCard`. Unchanged
-   * disk (the common case) returns the same card — nothing to merge.
+   * it. c0138 moved the read-and-merge into board-actions, where the
+   * cross-project view calls it against whichever root owns the card.
    */
   const rebaseOnDisk = async (card: Card): Promise<Card> => {
     if (!board) return card;
-    let diskRaw: unknown = null;
-    try {
-      diskRaw = await readFileRaw(`${board.root}/${card.path}`);
-    } catch {
-      diskRaw = null; // unreadable / just deleted — nothing external to merge
-    }
-    return rebaseCard(card, typeof diskRaw === "string" ? diskRaw : null, board.model.config);
+    return rebaseCardOnDisk(board.root, card, board.model.config);
   };
 
   /** c0119: a live run for this card that a move would strand — running or
