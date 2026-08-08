@@ -197,6 +197,9 @@ types: [task, issue]     # optional; card types, open set; default [task, issue]
 background: assets/board/bg.jpg  # optional; full-image board background
 show_tags: false         # optional; default true. False hides every board tag
                          # surface (card chips, filter, Manage tags button)
+project_color: "#0d9488" # optional; the colour this project's cards carry in
+                         # the cross-project activity view. Unset = a stable
+                         # colour derived from the project path
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```
