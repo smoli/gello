@@ -8,6 +8,8 @@ epic: e02
 created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T10:38:21
+usage-tokens: 8050
+usage-cost: 1.725351
 ---
 
 ![image](../../assets/i0156/image.png)
