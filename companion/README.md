@@ -136,6 +136,42 @@ What AFK changes for dispatch is being built on top of this flag: a parked run
 frees its WIP slot (c0163) and a `review` card gets an AI review (c0167). With
 this card alone, nothing about dispatch differs yet.
 
+## The review skill (c0166)
+
+A card in `review` is a claim, not a fact: the agent that implemented it also
+moved it. Under AFK a second agent checks that claim in a fresh session
+(c0167), following the review skill in `review.ts`. The skill rides in the
+prompt, so a review run works in a project that has no gello skills installed.
+
+It has the reviewer read the card and the card's diff, verify each acceptance
+criterion against the code rather than its checkbox, and run the repo's tests,
+lint and typecheck — with the commands taken from the repo's own docs, since
+the companion runs against any project. It is a fail if a criterion is unmet, a
+check is red, the diff reaches beyond the card's `## What`, or a test was
+weakened to pass. The reviewer changes no code and commits nothing.
+
+The verdict goes on the card, which is the only channel between the two agents:
+a `## Review` section, one entry per round, newest last.
+
+```markdown
+## Review
+
+### 2026-08-08T21:04:11 — fail
+
+Checked: acceptance criteria, tests, lint, typecheck, diff.
+
+- Criterion "a parked run frees its WIP slot" is unmet: `planDispatch` still
+  counts a parked run.
+- Tests red: 2 failures in `companion/runner.test.ts`.
+```
+
+The verdict word ends the heading line, which is what `parseReview` reads back
+for the dispatch side (c0167) and the fix loop (c0168). An entry that does not
+match the shape counts as no verdict rather than as a pass, so a malformed
+write cannot sign a card off. On a pass the reviewer moves the card to
+`signoff` via `set_status`; on a fail it writes the entry and stops — the card
+stays in `review` and the notes are the implementer's brief.
+
 ## Run output
 
 The companion pipes the agent's stdout and parses it, rather than letting it
