@@ -67,14 +67,25 @@ fn write_new_files(files: Vec<NewFile>) -> Result<(), FsError> {
     Ok(())
 }
 
-/// Keeps the active watcher alive; replaced when a new board is watched.
-struct WatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
+/// Keeps the live board watchers alive, one per watch id (c0138).
+struct WatcherState(std::sync::Mutex<fs_watch::Registry<notify::RecommendedWatcher>>);
 /// Keeps the git-HEAD watcher alive (c0057).
 struct GitWatcherState(std::sync::Mutex<Option<notify::RecommendedWatcher>>);
 
+/// c0138: what a board watcher reports. `id` names the watcher that saw the
+/// change, so a frontend watching several boards knows which one it came from.
+#[derive(Clone, serde::Serialize)]
+struct BoardFilesChanged {
+    id: String,
+    paths: Vec<String>,
+}
+
+/// Watch `root` under the caller's watch `id`. Several boards can be watched at
+/// once, and re-using an id replaces (stops) the watcher it held.
 #[tauri::command(async)]
 fn watch_board(
     root: String,
+    id: String,
     app: tauri::AppHandle,
     state: tauri::State<WatcherState>,
 ) -> Result<(), FsError> {
@@ -82,6 +93,7 @@ fn watch_board(
 
     let root_path = std::path::PathBuf::from(&root);
     let strip_root = root_path.clone();
+    let watch_id = id.clone();
     let watcher = fs_watch::start_watching(&root_path, move |paths| {
         let relative: Vec<String> = paths
             .iter()
@@ -94,7 +106,13 @@ fn watch_board(
             })
             .collect();
         if !relative.is_empty() {
-            let _ = app.emit("board-files-changed", relative);
+            let _ = app.emit(
+                "board-files-changed",
+                BoardFilesChanged {
+                    id: watch_id.clone(),
+                    paths: relative,
+                },
+            );
         }
     })
     .map_err(|error| FsError {
@@ -103,8 +121,14 @@ fn watch_board(
         path: root.clone(),
     })?;
 
-    *state.0.lock().unwrap() = Some(watcher);
+    state.0.lock().unwrap().insert(id, watcher);
     Ok(())
+}
+
+/// c0138: stop one board watcher. Unknown ids are tolerated.
+#[tauri::command(async)]
+fn unwatch_board(id: String, state: tauri::State<WatcherState>) {
+    state.0.lock().unwrap().remove(&id);
 }
 
 /// c0060: copy a chosen image into the board's assets/board/, return rel path.
@@ -409,7 +433,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .manage(WatcherState(std::sync::Mutex::new(None)))
+        .manage(WatcherState(std::sync::Mutex::new(fs_watch::Registry::new())))
         .manage(GitWatcherState(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             write_file_atomic,
@@ -419,6 +443,7 @@ pub fn run() {
             read_file_base64,
             read_board_files,
             watch_board,
+            unwatch_board,
             git_branch,
             git_commit_board,
             git_worktree_status,

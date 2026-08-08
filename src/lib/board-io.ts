@@ -214,20 +214,37 @@ export async function watchGitHead(
   return unlisten;
 }
 
+/** c0138: watch ids, unique within the window. Allocated here rather than in
+ *  Rust so the filter below is armed before the watcher can report anything. */
+let watchCounter = 0;
+
 /**
- * Watch the board directory. `onChange` receives root-relative paths of
- * changed board files. Subscribes to the event stream *before* starting the
- * Rust watcher so no early event is missed. Returns a stop function.
+ * Watch a board directory. `onChange` receives root-relative paths of changed
+ * board files. Subscribes to the event stream *before* starting the Rust watcher
+ * so no early event is missed. Returns a stop function.
+ *
+ * c0138: several boards are watched at once (the cross-project activity view),
+ * and they share one event channel — so each call carries its own watch id and
+ * takes only the events stamped with it. Stopping unwatches on the Rust side,
+ * not just here; the id keys the watcher registry.
  */
 export async function watchBoard(
   root: string,
   onChange: (paths: string[]) => void,
 ): Promise<() => void> {
-  const unlisten = await listen<string[]>("board-files-changed", (event) =>
-    onChange(event.payload),
+  watchCounter += 1;
+  const id = `watch-${watchCounter}`;
+  const unlisten = await listen<{ id: string; paths: string[] }>(
+    "board-files-changed",
+    (event) => {
+      if (event.payload.id === id) onChange(event.payload.paths);
+    },
   );
-  await invoke("watch_board", { root });
-  return unlisten;
+  await invoke("watch_board", { root, id });
+  return () => {
+    unlisten();
+    void invoke("unwatch_board", { id }).catch(() => {});
+  };
 }
 
 export interface LoadedBoard {

@@ -94,6 +94,34 @@ colours, and every write.
   it is board-based); whether `done` cards ever appear (only transiently, as the
   drop's feedback).
 
+## Notes
+
+- **Watching N boards needed a Rust change.** `WatcherState` held a single
+  `Option<Watcher>` (a second `watch_board` replaced the first) and the
+  `board-files-changed` payload was a bare path list, so with two boards watched
+  no listener could tell which board changed. The watcher registry is now a map
+  keyed by a caller-supplied watch id, `unwatch_board(id)` drops one, and the
+  event payload carries `{id, paths}`. `watchBoard` allocates the id and filters
+  the stream by it, so its signature is unchanged and the single-board caller is
+  untouched. Keying by id, not root, lets the same board be watched twice — the
+  activity view can include the open project.
+- **Colour key**: `project_color` in `board.yaml`, parsed in `cards.ts` like
+  every other config field, written with the existing `setBoardKey` surgical
+  edit. Unset falls back to a stable palette slot hashed from the project path,
+  so a project has a colour before anyone assigns one.
+- **The cross-project write path is the single-project one.** The
+  read-then-rebase that guarded surgical writes was inline in `App.tsx`; it is
+  now `rebaseOnDisk(root, card, config)` in `board-actions.ts`, taking the root
+  as an argument. The App and the activity view call the same function, and the
+  writes are the same `moveCard` / `answerGelloQuestion`.
+- **No debounce on the activity view's watchers** (the board view coalesces
+  bursts because each one also runs `git status` and a companion-state read).
+  Here a burst only re-reads the named files, and `applyFileChanges` returns the
+  same model reference for a no-op, so a repeat costs a read and no render.
+- Columns are not drop targets: the only drop the view offers is the done area,
+  as carded. A card moved between projects would be meaningless, and a status
+  change is what the card's own board is for.
+
 ## Log
 
 - 2026-07-24 status → discuss (app)

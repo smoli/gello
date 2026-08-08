@@ -186,14 +186,28 @@ describe("watchBoard", () => {
     listenMock.mockReset();
   });
 
-  it("subscribes to change events before starting the Rust watcher", async () => {
-    const unlisten = vi.fn();
-    let handler: ((event: { payload: string[] }) => void) | null = null;
+  type Payload = { id: string; paths: string[] };
+
+  /** Capture the event handler each watchBoard call subscribes with. */
+  function captureHandlers(unlisten = vi.fn()) {
+    const handlers: Array<(event: { payload: Payload }) => void> = [];
     listenMock.mockImplementation(async (_name, callback) => {
-      handler = callback as typeof handler;
+      handlers.push(callback as (event: { payload: Payload }) => void);
       return unlisten;
     });
-    invokeMock.mockResolvedValueOnce(undefined);
+    return handlers;
+  }
+
+  /** The watch id watchBoard passed on its `nth` (0-based) watch_board call. */
+  function watchId(nth: number): string {
+    const call = invokeMock.mock.calls.filter(([command]) => command === "watch_board")[nth];
+    return (call[1] as { id: string }).id;
+  }
+
+  it("subscribes to change events before starting the Rust watcher", async () => {
+    const unlisten = vi.fn();
+    const handlers = captureHandlers(unlisten);
+    invokeMock.mockResolvedValue(undefined);
     const onChange = vi.fn();
 
     const stop = await watchBoard("/repo/.gello", onChange);
@@ -204,17 +218,52 @@ describe("watchBoard", () => {
     );
     expect(invokeMock).toHaveBeenCalledExactlyOnceWith("watch_board", {
       root: "/repo/.gello",
+      id: watchId(0),
     });
     // both calls happened; listen strictly first (no missed events)
     expect(listenMock.mock.invocationCallOrder[0]).toBeLessThan(
       invokeMock.mock.invocationCallOrder[0],
     );
 
-    handler!({ payload: ["inbox/c001-x.md"] });
+    handlers[0]({ payload: { id: watchId(0), paths: ["inbox/c001-x.md"] } });
     expect(onChange).toHaveBeenCalledExactlyOnceWith(["inbox/c001-x.md"]);
 
     stop();
     expect(unlisten).toHaveBeenCalled();
+  });
+
+  // c0138: the activity view watches every selected board at once. The event
+  // stream is one channel, so each watcher only takes the events carrying its
+  // own id — otherwise every board would reconcile every other board's changes.
+  it("delivers each board's changes only to the watcher that asked for them", async () => {
+    const handlers = captureHandlers();
+    invokeMock.mockResolvedValue(undefined);
+    const onFirst = vi.fn();
+    const onSecond = vi.fn();
+
+    await watchBoard("/one/.gello", onFirst);
+    await watchBoard("/two/.gello", onSecond);
+
+    expect(watchId(0)).not.toBe(watchId(1));
+
+    const event = { payload: { id: watchId(1), paths: ["cards/c002-y.md"] } };
+    handlers[0](event);
+    handlers[1](event);
+
+    expect(onFirst).not.toHaveBeenCalled();
+    expect(onSecond).toHaveBeenCalledExactlyOnceWith(["cards/c002-y.md"]);
+  });
+
+  it("stops the Rust watcher too, so a dropped project is no longer watched", async () => {
+    const unlisten = vi.fn();
+    captureHandlers(unlisten);
+    invokeMock.mockResolvedValue(undefined);
+
+    const stop = await watchBoard("/one/.gello", vi.fn());
+    stop();
+
+    expect(unlisten).toHaveBeenCalled();
+    expect(invokeMock).toHaveBeenCalledWith("unwatch_board", { id: watchId(0) });
   });
 });
 
