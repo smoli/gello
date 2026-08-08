@@ -33,6 +33,7 @@ describe("parseCompanionState", () => {
       updated: "2026-07-19T10:00:00",
       pickupDelay: 10,
       owned: [],
+      afk: false, // c0162: absent in the file, off in the parsed state
     });
   });
 
@@ -53,6 +54,7 @@ describe("parseCompanionState", () => {
       updated: "",
       pickupDelay: 0,
       owned: [],
+      afk: false,
     });
   });
 
@@ -192,6 +194,21 @@ describe("pickupDelay parsing", () => {
       const raw = JSON.stringify({ status: "idle", pickupDelay: value, owned: [] });
       expect(parseCompanionState(raw)?.pickupDelay).toBe(0);
     }
+  });
+});
+
+// c0162: the companion echoes the AFK state it applied, so the app can show
+// whether a running companion picked the toggle up.
+describe("afk parsing", () => {
+  it("keeps the published AFK state", () => {
+    expect(parseCompanionState(JSON.stringify({ afk: true }))?.afk).toBe(true);
+    expect(parseCompanionState(JSON.stringify({ afk: false }))?.afk).toBe(false);
+  });
+
+  it("is off when the field is missing or not a boolean", () => {
+    expect(parseCompanionState(JSON.stringify({}))?.afk).toBe(false);
+    expect(parseCompanionState(JSON.stringify({ afk: "true" }))?.afk).toBe(false);
+    expect(parseCompanionState(JSON.stringify({ afk: 1 }))?.afk).toBe(false);
   });
 });
 

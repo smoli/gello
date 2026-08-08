@@ -394,6 +394,10 @@ export class Runner {
    *  this process, plus those recovered from a persisted `card:` session. Never
    *  a card a human moved to `in-progress`; it gates whether a restart may spawn. */
   private readonly owned = new Set<string>();
+  /** c0162: AFK mode, off until the flag file says otherwise. The dispatch layer
+   *  reads it through `isAfk()`; the companion sets it from
+   *  `.companion/afk.json` at startup and on every change (see afk.ts). */
+  private afk = false;
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
@@ -411,6 +415,17 @@ export class Runner {
       opts.now,
       opts.scheduler,
     );
+  }
+
+  /** c0162: whether AFK mode is on. The dispatch layer's read point — c0163
+   *  frees a parked run's WIP slot on this, c0167 dispatches AI reviews on it. */
+  isAfk(): boolean {
+    return this.afk;
+  }
+
+  /** c0162: apply an AFK toggle. Takes effect on the next sync; no restart. */
+  setAfk(afk: boolean): void {
+    this.afk = afk;
   }
 
   /** c0141: the card ids the companion owns a session for, for the state file. */

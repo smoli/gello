@@ -103,13 +103,38 @@ board change. The desktop app watches this file and renders a runner indicator
   "runs": [                // active runs
     { "cardId": "c0042", "phase": "running" }
   ],
-  "updated": "2026-07-20T09:30:00"
+  "updated": "2026-07-20T09:30:00",
+  "afk": false             // the AFK state the companion has applied
 }
 ```
 
 A run's `phase` is `running`, `waiting-for-input`, `done`, or `error`. A run
 also carries `usage` (input/output/cache tokens, `totalCostUsd`, `numTurns`,
 `durationMs`, `permissionDenials`) once the backend reports it — see below.
+
+## AFK mode (c0162)
+
+AFK mode lets the companion keep draining the queue while nobody is watching.
+It is off by default and switched from the app, which writes
+`.gello/.companion/afk.json`:
+
+```json
+{ "afk": true }
+```
+
+The **app is the sole writer**, the companion the sole reader — the same split
+as the control file, so there is no two-writer race. The companion reads the
+flag at startup and re-reads it whenever that file changes, so a toggle applies
+with no restart, and echoes the value it applied in `state.json` (`afk`).
+
+AFK is off unless the file says `{"afk": true}`: no file, unparseable content, a
+missing field or a non-boolean value all read as off. The flag is per-machine
+and momentary ("I'm leaving now"), which is why it is a `.companion/` file
+rather than a committed `companion.yaml` setting — `.companion/` is gitignored.
+
+What AFK changes for dispatch is being built on top of this flag: a parked run
+frees its WIP slot (c0163) and a `review` card gets an AI review (c0167). With
+this card alone, nothing about dispatch differs yet.
 
 ## Run output
 

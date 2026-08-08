@@ -61,6 +61,11 @@ export interface CompanionState {
    *  The pickup clock for a card created straight in `ready`, which has no
    *  `status-changed` (i0124). Absent when the companion publishes none. */
   firstSeen?: Record<string, string>;
+  /** c0162: the AFK state the companion applied from the flag file the app
+   *  writes (`.companion/afk.json`). The app writes the flag; this is the
+   *  running companion's echo of it. Optional: a companion predating c0162
+   *  publishes no field, which reads as AFK off. */
+  afk?: boolean;
 }
 
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
@@ -221,6 +226,7 @@ export function parseCompanionState(raw: string): CompanionState | null {
         ? record.pickupDelay
         : 0,
     owned: stringArray(record.owned),
+    afk: record.afk === true,
     ...(firstSeen ? { firstSeen } : {}),
   };
 }

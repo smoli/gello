@@ -116,6 +116,11 @@ export interface CompanionState {
    *  a local ISO datetime. The pickup clock for a card with no `status-changed`
    *  (i0124), so the app can show that card's countdown too. */
   firstSeen?: Record<string, string>;
+  /** c0162: the AFK state the companion has applied, echoed back from the flag
+   *  file the app writes (`.companion/afk.json`). The app reads it to confirm a
+   *  running companion picked the toggle up. Optional so a state file written
+   *  before c0162 still parses; absent means off. */
+  afk?: boolean;
 }
 
 export interface RunState {
@@ -133,7 +138,16 @@ export interface RunState {
 }
 
 export function initialState(now: string): CompanionState {
-  return { status: "idle", ready: [], waiting: [], runs: [], updated: now, pickupDelay: 0, owned: [] };
+  return {
+    status: "idle",
+    ready: [],
+    waiting: [],
+    runs: [],
+    updated: now,
+    pickupDelay: 0,
+    owned: [],
+    afk: false,
+  };
 }
 
 /** Absolute path of the companion state file (`<root>/.companion/state.json`). */
