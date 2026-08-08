@@ -8,8 +8,8 @@ epic: e02
 created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T15:31:02
-usage-tokens: 9330
-usage-cost: 1.186941
+usage-tokens: 18734
+usage-cost: 3.248855
 ---
 
 The switcher's `Ctrl+Tab` gesture requires holding Control, which on macOS is the right-click modifier — so while the overlay is open, clicking an entry is a secondary click. How do you want it fixed?
