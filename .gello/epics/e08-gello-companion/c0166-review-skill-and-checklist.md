@@ -1,13 +1,12 @@
 ---
 id: c0166
 title: Review skill + checklist
-status: ready
+status: in-progress
 epic: e08
 depends: []
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T23:35:43
-order: 10
+status-changed: 2026-08-08T23:44:57
 ---
 
 ## What
@@ -37,3 +36,4 @@ to the review run ([[c0167]]).
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
 - 2026-08-08 status → ready (app)
+- 2026-08-08 status → in-progress (agent)
