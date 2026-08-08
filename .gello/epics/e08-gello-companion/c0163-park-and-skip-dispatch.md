@@ -1,11 +1,13 @@
 ---
 id: c0163
 title: Park-and-skip dispatch in AFK
-status: backlog
+status: ready
 epic: e08
 depends: [c0162]
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:27
+order: 20
 ---
 
 ## What
@@ -35,3 +37,4 @@ the parked card waits. AFK off: unchanged (a parked run holds its slot).
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)

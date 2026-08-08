@@ -1,11 +1,13 @@
 ---
 id: c0164
 title: Sign-off status + column
-status: backlog
+status: ready
 epic: e08
 depends: []
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:30
+order: 30
 ---
 
 ## What
@@ -35,3 +37,4 @@ types, `board.yaml` parsing, column rendering, status-change writes
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)

@@ -6,7 +6,14 @@ created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T23:29:01
 epic: e08
+depends: [c0162, c0163, c0164, c0165, c0166, c0167, c0168, c0169, c0170]
 ---
+
+> **Umbrella card.** This is the AFK-mode spec, not a unit of work — the
+> implementation is the child cards [[c0162]]–[[c0170]] (see the epic's *AFK
+> mode plan*). It `depends` on all of them, so it stays blocked until the
+> feature is complete; do not pick it up directly. Move the roots ([[c0162]],
+> [[c0164]], [[c0166]]) to `ready` to start.
 
 ## What
 

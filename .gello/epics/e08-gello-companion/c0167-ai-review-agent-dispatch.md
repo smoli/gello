@@ -1,11 +1,13 @@
 ---
 id: c0167
 title: AI review agent dispatch
-status: backlog
+status: ready
 epic: e08
 depends: [c0162, c0164, c0166]
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:48
+order: 60
 ---
 
 ## What
@@ -32,3 +34,4 @@ review run respects the WIP limit and the session gate like any run.
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)

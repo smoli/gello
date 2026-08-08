@@ -1,11 +1,13 @@
 ---
 id: c0165
 title: Companion dep gate accepts sign-off
-status: backlog
+status: ready
 epic: e08
 depends: [c0164]
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:38
+order: 40
 ---
 
 ## What
@@ -37,3 +39,4 @@ revisit if it should be AFK-gated.
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)

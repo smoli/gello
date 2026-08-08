@@ -1,11 +1,13 @@
 ---
 id: c0168
 title: Reject fix-loop
-status: backlog
+status: ready
 epic: e08
 depends: [c0163, c0167]
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:51
+order: 70
 ---
 
 ## What
@@ -31,3 +33,4 @@ exhaustion the card parks a question for the human and the queue skips ahead
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)

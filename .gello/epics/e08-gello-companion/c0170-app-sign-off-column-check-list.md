@@ -1,11 +1,13 @@
 ---
 id: c0170
 title: 'App: sign-off column + check-list'
-status: backlog
+status: ready
 epic: e08
 depends: [c0164]
 created: 2026-08-08
 updated: 2026-08-08
+status-changed: 2026-08-08T23:35:56
+order: 90
 ---
 
 ## What
@@ -28,3 +30,4 @@ glance on return; the recorded review verdict is visible on each card.
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
+- 2026-08-08 status → ready (app)
