@@ -66,7 +66,11 @@ let watchers: Record<string, (paths: string[]) => void>;
 /** The stop functions watchBoard handed back, by board root. */
 let stops: Record<string, ReturnType<typeof vi.fn>>;
 
-function renderView(projects = [GELLO, POPEXEL], known = [GELLO, POPEXEL, "/repo/third"]) {
+function renderView(
+  projects = [GELLO, POPEXEL],
+  known = [GELLO, POPEXEL, "/repo/third"],
+  extra: { background?: string; onBackgroundContextMenu?: (x: number, y: number) => void } = {},
+) {
   const onChangeProjects = vi.fn();
   const onClose = vi.fn();
   const view = render(
@@ -75,6 +79,7 @@ function renderView(projects = [GELLO, POPEXEL], known = [GELLO, POPEXEL, "/repo
       known={known}
       onChangeProjects={onChangeProjects}
       onClose={onClose}
+      {...extra}
     />,
   );
   return { ...view, onChangeProjects, onClose };
@@ -438,6 +443,71 @@ describe("MultiProject (c0138)", () => {
     const detail = await screen.findByRole("dialog", { name: /gello/i });
     // the dependency, not the card whose front was clicked
     expect(within(detail).getByText("Gello running card")).toBeInTheDocument();
+  });
+
+  // c0158: the view carries a background of its own, set app-locally — it spans
+  // projects, so no single board.yaml owns it.
+  describe("background (c0158)", () => {
+    it("renders a colour background on its own surface", async () => {
+      const { container } = renderView([GELLO], [GELLO], { background: "#123456" });
+
+      await screen.findByText("Gello ready card");
+      const view = container.querySelector(".multi") as HTMLElement;
+      expect(view).toHaveClass("multi-with-bg");
+      expect(view).toHaveStyle({ backgroundColor: "#123456" });
+    });
+
+    it("renders an image background as a background-image", async () => {
+      const { container } = renderView([GELLO], [GELLO], {
+        background: "url(data:image/png;base64,QQ==)",
+      });
+
+      await screen.findByText("Gello ready card");
+      expect(container.querySelector(".multi")).toHaveStyle({
+        backgroundImage: "url(data:image/png;base64,QQ==)",
+      });
+    });
+
+    it("stays plain with no background set", async () => {
+      const { container } = renderView([GELLO], [GELLO]);
+
+      await screen.findByText("Gello ready card");
+      expect(container.querySelector(".multi")).not.toHaveClass("multi-with-bg");
+    });
+
+    it("reports a right-click on its own empty surface", async () => {
+      const onBackgroundContextMenu = vi.fn();
+      const { container } = renderView([GELLO], [GELLO], { onBackgroundContextMenu });
+
+      await screen.findByText("Gello ready card");
+      const view = container.querySelector(".multi") as HTMLElement;
+      fireEvent.contextMenu(view, { clientX: 12, clientY: 34 });
+
+      expect(onBackgroundContextMenu).toHaveBeenCalledExactlyOnceWith(12, 34);
+    });
+
+    it("reports a right-click on the empty area between the columns", async () => {
+      const onBackgroundContextMenu = vi.fn();
+      const { container } = renderView([GELLO], [GELLO], { onBackgroundContextMenu });
+
+      await screen.findByText("Gello ready card");
+      fireEvent.contextMenu(container.querySelector(".multi-columns") as HTMLElement, {
+        clientX: 5,
+        clientY: 6,
+      });
+
+      expect(onBackgroundContextMenu).toHaveBeenCalledExactlyOnceWith(5, 6);
+    });
+
+    it("leaves a right-click on a card alone", async () => {
+      const onBackgroundContextMenu = vi.fn();
+      renderView([GELLO], [GELLO], { onBackgroundContextMenu });
+
+      await screen.findByText("Gello ready card");
+      fireEvent.contextMenu(front("gello", "Gello ready card"));
+
+      expect(onBackgroundContextMenu).not.toHaveBeenCalled();
+    });
   });
 
   it("leaves the view when the board is asked for", async () => {

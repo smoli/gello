@@ -41,6 +41,7 @@ import {
   watchBoard,
   writeNewFiles,
 } from "../lib/board-io";
+import { backgroundStyle } from "../lib/background";
 import { readRawOrNull } from "../lib/safe-read";
 import { setBoardKey } from "../lib/boardyaml";
 import type { Card, CardFieldChanges } from "../lib/cards";
@@ -123,6 +124,8 @@ export function MultiProject({
   onChangeProjects,
   onClose,
   darkChips = false,
+  background,
+  onBackgroundContextMenu,
 }: {
   /** Selected project folders, in display order. */
   projects: string[];
@@ -132,6 +135,10 @@ export function MultiProject({
   onClose: () => void;
   /** i0114: shade the project chips dark in dark mode. */
   darkChips?: boolean;
+  /** c0158: full CSS background value (url(...), #hex, or gradient). */
+  background?: string;
+  /** c0158: right-click on the view's own empty surface. */
+  onBackgroundContextMenu?: (x: number, y: number) => void;
 }) {
   const [boards, setBoards] = useState<Record<string, ProjectBoard>>({});
   const [missing, setMissing] = useState<string[]>([]);
@@ -281,8 +288,28 @@ export function MultiProject({
   const answering = entryFor(answeringKey);
   const answeringQuestion = answering ? parseGelloQuestion(answering.card.body) : null;
 
+  /** c0158: a right-click on a pure-background surface (its own area, not a
+   *  card or a column), as the board's does. */
+  const bgContext = (event: React.MouseEvent) => {
+    if (event.target === event.currentTarget && onBackgroundContextMenu) {
+      event.preventDefault();
+      onBackgroundContextMenu(event.clientX, event.clientY);
+    }
+  };
+
   return (
-    <section className="multi" aria-label="Activity across projects">
+    <section
+      className={[
+        "multi",
+        background ? "multi-with-bg" : "",
+        dragging ? "multi-dragging" : "", // i0133: no blur under a live drag
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label="Activity across projects"
+      style={backgroundStyle(background)}
+      onContextMenu={bgContext}
+    >
       {projects.map((path) => (
         <ProjectFeed
           key={path}
@@ -379,7 +406,7 @@ export function MultiProject({
         </p>
       ))}
 
-      <div className="multi-columns">
+      <div className="multi-columns" onContextMenu={bgContext}>
         {MULTI_COLUMNS.map((column) => {
           const entries = columnCards(ordered, column);
           return (

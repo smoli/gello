@@ -12,6 +12,31 @@
   position: relative;
 }
 
+/* c0158: the view's own background, set app-locally. Same treatment as the
+   board's (c047): the image covers, and the surfaces on top go translucent so
+   they read against it. */
+.multi-with-bg {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.multi-with-bg .multi-column {
+  background: color-mix(in srgb, Canvas 72%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+/* i0133: WebKit ghosts a blurred backdrop under a native drag, so cards render
+   doubled. Drop the blur while a card is in flight; the translucent fill stays. */
+.multi-with-bg.multi-dragging .multi-column {
+  backdrop-filter: none;
+}
+
+.multi-with-bg .multi-back,
+.multi-with-bg .multi-add > button {
+  background: color-mix(in srgb, Canvas 85%, transparent);
+}
+
 .multi-bar {
   display: flex;
   align-items: center;

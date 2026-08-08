@@ -47,3 +47,17 @@ export function backgroundCss(
       return value;
   }
 }
+
+/**
+ * c0060/c0158: the style longhands for a resolved CSS background value. Use
+ * longhands so the surface's own `background-size: cover` etc. survive — the
+ * `background` shorthand would reset them and render an image at full size.
+ */
+export function backgroundStyle(
+  css: string | undefined,
+): { backgroundImage: string } | { backgroundColor: string } | undefined {
+  if (!css) return undefined;
+  return css.startsWith("url(") || css.startsWith("linear-gradient(")
+    ? { backgroundImage: css }
+    : { backgroundColor: css };
+}

@@ -19,6 +19,8 @@ import {
   openFolder,
   openInTerminal,
   pickFolder,
+  pickImageFile,
+  setBoardImage,
   readFileRaw,
   removeDir,
   removeFile,
@@ -52,6 +54,8 @@ vi.mock("./lib/board-io", () => ({
   openFolder: vi.fn(),
   openInTerminal: vi.fn(),
   pickFolder: vi.fn(),
+  pickImageFile: vi.fn(),
+  setBoardImage: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
   writeAsset: vi.fn(),
@@ -2678,6 +2682,89 @@ describe("App", () => {
       await openActivity();
       fireEvent.click(screen.getByRole("button", { name: /back to board/i }));
       expect(await screen.findByText("Hello board")).toBeInTheDocument();
+    });
+
+    // c0158: the view spans projects, so its background is an app-local setting
+    // rather than a board.yaml key.
+    describe("its background (c0158)", () => {
+      it("sets a colour from the right-click picker and stores it app-locally", async () => {
+        const view = await openActivity();
+        fireEvent.contextMenu(view);
+
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Color" }));
+        fireEvent.change(screen.getByLabelText("Background color"), {
+          target: { value: "#123456" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+            "activity-background",
+            "#123456",
+          ),
+        );
+        // no project's board.yaml is touched — the view has no single board
+        expect(
+          vi.mocked(writeNewFiles).mock.calls.filter((c) =>
+            c[0][0].path.endsWith("/board.yaml"),
+          ),
+        ).toHaveLength(0);
+        expect(view).toHaveStyle({ backgroundColor: "#123456" });
+      });
+
+      it("remembers an image by its absolute path, copying nothing into a project", async () => {
+        vi.mocked(pickImageFile).mockResolvedValue("/pictures/wall.png");
+        vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,QQ==");
+        const view = await openActivity();
+        fireEvent.contextMenu(view);
+
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Image" }));
+        fireEvent.click(screen.getByRole("button", { name: /choose image/i }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+            "activity-background",
+            "/pictures/wall.png",
+          ),
+        );
+        expect(vi.mocked(setBoardImage)).not.toHaveBeenCalled();
+        await waitFor(() =>
+          expect(view).toHaveStyle({ backgroundImage: "url(data:image/png;base64,QQ==)" }),
+        );
+        expect(vi.mocked(imageDataUrl)).toHaveBeenCalledWith("/pictures/wall.png");
+      });
+
+      it("restores the stored background when the view opens", async () => {
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "activity-background" ? "#654321" : null,
+        );
+        const view = await openActivity();
+
+        await waitFor(() => expect(view).toHaveStyle({ backgroundColor: "#654321" }));
+        // the board keeps its own background — the two are independent
+        fireEvent.click(screen.getByRole("button", { name: /back to board/i }));
+        const board = (await screen.findByText("Hello board")).closest(".board");
+        expect(board).not.toHaveStyle({ backgroundColor: "#654321" });
+      });
+
+      it("clears the background and the stored setting", async () => {
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "activity-background" ? "#654321" : null,
+        );
+        const view = await openActivity();
+        await waitFor(() => expect(view).toHaveStyle({ backgroundColor: "#654321" }));
+
+        fireEvent.contextMenu(view);
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("activity-background", ""),
+        );
+        expect(view).not.toHaveClass("multi-with-bg");
+      });
     });
   });
 });

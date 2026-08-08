@@ -4,6 +4,7 @@ import {
   formatGradient,
   parseGradient,
   backgroundCss,
+  backgroundStyle,
 } from "./background";
 
 describe("classifyBackground", () => {
@@ -53,5 +54,26 @@ describe("backgroundCss", () => {
 
   it("returns null for an empty background", () => {
     expect(backgroundCss(null, undefined)).toBeNull();
+  });
+});
+
+// c0158: the board and the activity view apply a background the same way, so
+// the longhand choice is one shared function rather than two inline copies.
+describe("backgroundStyle", () => {
+  it("puts images and gradients on background-image (longhand)", () => {
+    expect(backgroundStyle("url(data:image/png;base64,QQ==)")).toEqual({
+      backgroundImage: "url(data:image/png;base64,QQ==)",
+    });
+    expect(backgroundStyle("linear-gradient(45deg, #a1a1a1, #b2b2b2)")).toEqual({
+      backgroundImage: "linear-gradient(45deg, #a1a1a1, #b2b2b2)",
+    });
+  });
+
+  it("puts a plain colour on background-color", () => {
+    expect(backgroundStyle("#1a2b3c")).toEqual({ backgroundColor: "#1a2b3c" });
+  });
+
+  it("styles nothing without a background", () => {
+    expect(backgroundStyle(undefined)).toBeUndefined();
   });
 });

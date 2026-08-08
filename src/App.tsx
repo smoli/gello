@@ -139,6 +139,9 @@ const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
 // c0138: projects the cross-project activity view watches (app-local, like the
 // recent list — the per-project *colour* is board.yaml's business, not this).
 const ACTIVITY_FLAG = "activity-projects";
+// c0158: the activity view's background. App-local too: the view spans projects,
+// so no single board.yaml owns it, and an image is kept by absolute path.
+const ACTIVITY_BG_FLAG = "activity-background";
 // c0083: per-project auto-commit, keyed by project path. c0154: a project with
 // no stored choice defaults to on when it is a git repo.
 const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
@@ -278,6 +281,11 @@ function App() {
   // c0138: the cross-project activity view is open, and the projects it watches
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityProjects, setActivityProjects] = useState<string[]>([]);
+  // c0158: the activity view's own background (config value + resolved image)
+  const [activityBackground, setActivityBackground] = useState<string | null>(null);
+  const [activityBackgroundUrl, setActivityBackgroundUrl] = useState<string | undefined>(
+    undefined,
+  );
 
   const rememberProject = async (boardRoot: string) => {
     const path = projectFolder(boardRoot).path;
@@ -309,6 +317,9 @@ function App() {
     });
     void appFlagGet(ACTIVITY_FLAG).then((v) => {
       if (!cancelled) setActivityProjects(parseProjectList(v));
+    });
+    void appFlagGet(ACTIVITY_BG_FLAG).then((v) => {
+      if (!cancelled) setActivityBackground(v || null);
     });
     void loadBoardFromDisk()
       .then((loaded) => {
@@ -617,6 +628,32 @@ function App() {
   // the CSS background to render: live preview override, else the saved value
   const effectiveBackground =
     backgroundCss(bgPreview ?? savedBackground, backgroundUrl) ?? undefined;
+
+  // c0158: the same for the activity view, whose image is an absolute path (no
+  // board root to resolve against) held in an app-local flag.
+  const activityImagePath =
+    activityBackground && classifyBackground(activityBackground) === "image"
+      ? activityBackground
+      : null;
+  useEffect(() => {
+    if (!activityImagePath) {
+      setActivityBackgroundUrl(undefined);
+      return;
+    }
+    let cancelled = false;
+    void imageDataUrl(activityImagePath)
+      .then((url) => {
+        if (!cancelled) setActivityBackgroundUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setActivityBackgroundUrl(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activityImagePath]);
+  const effectiveActivityBackground =
+    backgroundCss(bgPreview ?? activityBackground, activityBackgroundUrl) ?? undefined;
 
   // c0060: persist a background value via a surgical board.yaml edit
   const writeBoardYaml = async (newRaw: string) => {
@@ -1633,6 +1670,25 @@ function App() {
     }
   };
 
+  /** c0158: persist the activity view's background, or clear it. An image is
+   *  stored as the absolute path picked — the view has no repo to copy into. */
+  const commitActivityBackground = (value: string) => {
+    setActivityBackground(value);
+    setBgPreview(null);
+    void appFlagSet(ACTIVITY_BG_FLAG, value);
+  };
+  const removeActivityBackground = () => {
+    setActivityBackground(null);
+    setBgPreview(null);
+    void appFlagSet(ACTIVITY_BG_FLAG, "");
+  };
+  const pickActivityBackgroundImage = async () => {
+    const source = await pickImageFile();
+    if (!source) return;
+    commitActivityBackground(source);
+    setBgMenu(null);
+  };
+
   /** c0138: persist the activity view's selection app-locally. */
   const chooseActivityProjects = (next: string[]) => {
     setActivityProjects(next);
@@ -1715,9 +1771,54 @@ function App() {
           projects={activityProjects}
           known={recent}
           darkChips={darkChips}
+          background={effectiveActivityBackground}
+          onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
           onChangeProjects={chooseActivityProjects}
           onClose={() => setActivityOpen(false)}
         />
+        {/* c0158: the view's own background menu — the app-wide entries only,
+            since the board's per-project settings have no meaning here. */}
+        {ctxMenu && (
+          <ContextMenu
+            position={ctxMenu}
+            onClose={() => setCtxMenu(null)}
+            items={[
+              { label: "Reload", onSelect: () => window.location.reload() },
+              { label: "Background…", onSelect: () => setBgMenu(ctxMenu) },
+              {
+                label: "Theme",
+                items: [
+                  {
+                    label: "Follow OS",
+                    checked: theme === "system",
+                    onSelect: () => chooseTheme("system"),
+                  },
+                  {
+                    label: "Light",
+                    checked: theme === "light",
+                    onSelect: () => chooseTheme("light"),
+                  },
+                  {
+                    label: "Dark",
+                    checked: theme === "dark",
+                    onSelect: () => chooseTheme("dark"),
+                  },
+                ],
+              },
+            ]}
+          />
+        )}
+        {bgMenu && (
+          <BackgroundPicker
+            current={activityBackground}
+            position={bgMenu}
+            onPreview={setBgPreview}
+            onCommit={commitActivityBackground}
+            onRemove={removeActivityBackground}
+            onPickImage={() => void pickActivityBackgroundImage()}
+            onClose={() => setBgMenu(null)}
+          />
+        )}
       </div>
     );
   }
