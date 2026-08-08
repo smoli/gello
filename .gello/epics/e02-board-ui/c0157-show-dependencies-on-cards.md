@@ -7,6 +7,8 @@ epic: e02
 created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T11:06:37
+usage-tokens: 14635
+usage-cost: 2.834859
 ---
 
 Multi does not show card dependencies. Hard to understand why card is not queued
