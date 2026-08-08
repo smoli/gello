@@ -112,6 +112,10 @@ export interface CompanionState {
    *  stopped in-progress cards to know which it may offer a restart for — never
    *  a card a human moved to `in-progress` with no companion session. */
   owned: string[];
+  /** i0157: card id → when the companion first saw it in the trigger status, as
+   *  a local ISO datetime. The pickup clock for a card with no `status-changed`
+   *  (i0124), so the app can show that card's countdown too. */
+  firstSeen?: Record<string, string>;
 }
 
 export interface RunState {

@@ -221,13 +221,13 @@ function main(): void {
         runStartedAt.delete(cardId);
       }
       runs = next;
-      publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
+      publish(root, model, runs, trigger, pickupDelay, runner.ownedCards(), runner.firstSeenAt());
       dashboard?.draw();
     },
     log,
   });
 
-  publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
+  publish(root, model, runs, trigger, pickupDelay, runner.ownedCards(), runner.firstSeenAt());
 
   if (mode === "tui") {
     const titleOf = (cardId: string) =>
@@ -329,7 +329,7 @@ function main(): void {
       }
       model = next;
       runner.sync(next);
-      publish(root, next, runs, trigger, pickupDelay, runner.ownedCards());
+      publish(root, next, runs, trigger, pickupDelay, runner.ownedCards(), runner.firstSeenAt());
     }, 150);
   });
 }
@@ -347,6 +347,7 @@ function publish(
   trigger: string,
   pickupDelay: number,
   owned: string[],
+  firstSeen: Record<string, string>,
 ): void {
   const ready = cardsEnteringReady(null, model, trigger).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
@@ -358,6 +359,7 @@ function publish(
     status: overallStatus(runs, waiting),
     pickupDelay,
     owned,
+    firstSeen,
   };
   try {
     writeStateFile(root, state);

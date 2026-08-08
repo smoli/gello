@@ -12,7 +12,7 @@
 import { join } from "node:path";
 import type { BoardModel } from "../src/lib/board.ts";
 import { withUsageAdded, type BoardConfig, type Card } from "../src/lib/cards.ts";
-import { todayIsoDate } from "../src/lib/dates.ts";
+import { isoDateTime, todayIsoDate } from "../src/lib/dates.ts";
 import { withAwaitingCleared } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
 import { writeCardAtomic, type RunState } from "./core.ts";
@@ -416,6 +416,18 @@ export class Runner {
   /** c0141: the card ids the companion owns a session for, for the state file. */
   ownedCards(): string[] {
     return [...this.owned];
+  }
+
+  /**
+   * i0157: the first-seen clocks, as local ISO datetimes, for the state file.
+   * A card created straight in the trigger status has no `status-changed`, so
+   * this is the only clock its grace period runs on — published so the card
+   * front can count down the window instead of it passing invisibly.
+   */
+  firstSeenAt(): Record<string, string> {
+    const clocks: Record<string, string> = {};
+    for (const [cardId, at] of this.firstSeen) clocks[cardId] = isoDateTime(new Date(at));
+    return clocks;
   }
 
   /**

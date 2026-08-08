@@ -1444,6 +1444,42 @@ describe("Runner — pickup delay (c0117)", () => {
     h.advance(5_000);
     expect(h.spawned).toHaveLength(1);
   });
+
+  // i0157: the first-seen clock is in the companion's memory, so the card front
+  // had nothing to count down for an unstamped card and its window ran
+  // invisibly. The clock goes into the state file the app already reads.
+  it("exposes the first-seen clocks as local ISO datetimes", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "backlog" },
+    });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    expect(h.runner.firstSeenAt()).toEqual({ c001: STAMP });
+  });
+
+  it("keeps a card's first-seen stamp across later syncs", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+    h.advance(5_000);
+    h.runner.sync(start);
+
+    expect(h.runner.firstSeenAt()).toEqual({ c001: STAMP }); // not re-stamped
+  });
+
+  it("drops the clock of a card that left the trigger status", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    const pulled = board({ c001: { status: "backlog" } });
+    h.setModel(pulled);
+    h.runner.sync(pulled);
+
+    expect(h.runner.firstSeenAt()).toEqual({});
+  });
 });
 
 // c0112: the TUI gives each run its own pane, so lines must be routable by

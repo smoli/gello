@@ -363,6 +363,32 @@ describe("Board", () => {
     expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
   });
 
+  // i0157: a card created straight in `ready` never changed status, so it has no
+  // `status-changed`. The companion times its window from when it first saw the
+  // card and publishes that clock, so the front counts down like any other.
+  it("i0157: shows the countdown for a card created in ready, with no stamp", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress]\n"),
+      file(
+        "cards/c001-new.md",
+        `---\nid: c001\ntitle: Fresh card\nstatus: ready\n---\nbody\n`,
+      ),
+    ]);
+    const runner = {
+      status: "idle" as const,
+      ready: ["c001"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 10,
+      owned: [],
+      firstSeen: { c001: localNow() },
+    };
+    render(<Board model={model} runner={runner} />);
+    const front = screen.getByText("Fresh card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+  });
+
   // c0141: a stopped card (companion-owned, in-progress, no live run) offers a
   // manual restart; a human-worked in-progress card (no session) does not.
   function inProgressBoard() {

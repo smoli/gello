@@ -195,6 +195,28 @@ describe("pickupDelay parsing", () => {
   });
 });
 
+// i0157: the pickup clock for a card with no `status-changed` — when the
+// companion first saw it in the trigger status.
+describe("firstSeen parsing", () => {
+  it("keeps the published clocks", () => {
+    const raw = JSON.stringify({ firstSeen: { c001: "2026-08-08T10:00:00" } });
+    expect(parseCompanionState(raw)?.firstSeen).toEqual({ c001: "2026-08-08T10:00:00" });
+  });
+
+  it("drops non-string entries rather than failing the parse", () => {
+    const raw = JSON.stringify({ firstSeen: { c001: 42, c002: "2026-08-08T10:00:00" } });
+    expect(parseCompanionState(raw)?.firstSeen).toEqual({ c002: "2026-08-08T10:00:00" });
+  });
+
+  // an older companion publishes no clocks at all — absent, not empty
+  it("leaves it absent when missing or not an object", () => {
+    for (const value of [undefined, "c001", 42, null, []]) {
+      const raw = JSON.stringify({ status: "idle", firstSeen: value });
+      expect(parseCompanionState(raw)?.firstSeen).toBeUndefined();
+    }
+  });
+});
+
 // c0147: a card front offers a stop only when the card has a stoppable run.
 describe("hasLiveRun", () => {
   const withRun = (phase: RunState["phase"]): CompanionState => ({
