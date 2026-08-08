@@ -1,13 +1,13 @@
 ---
 id: i0159
 title: Only for cards in Done
-status: review
+status: done
 type: issue
 ref: c0160
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T12:27:29
+status-changed: 2026-08-08T12:28:05
 usage-tokens: 6879
 usage-cost: 1.05909
 ---
@@ -39,3 +39,4 @@ It belongs on review cards only — the same work the done drop area takes.
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 built: the done button renders only for `status: review` cards.
 - 2026-08-08 status → review (agent)
+- 2026-08-08 status → done (app)

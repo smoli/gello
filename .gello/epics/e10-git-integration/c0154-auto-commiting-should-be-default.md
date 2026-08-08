@@ -1,10 +1,10 @@
 ---
 id: c0154
 title: Auto-Commiting should be default
-status: review
+status: done
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T06:35:25
+status-changed: 2026-08-08T12:28:19
 epic: e10
 usage-tokens: 9995
 usage-cost: 1.599301
@@ -38,3 +38,4 @@ When gello detects upon onboarding that the project is a git repo, auto-commit s
 - 2026-08-08 status → ready (app)
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 status → review (agent)
+- 2026-08-08 status → done (app)
