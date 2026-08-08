@@ -1,12 +1,14 @@
 ---
 id: c0164
 title: Sign-off status + column
-status: in-progress
+status: review
 epic: e08
 depends: []
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T23:50:25
+updated: 2026-08-09
+status-changed: 2026-08-09T00:00:15
+usage-tokens: 31813
+usage-cost: 6.463612
 ---
 
 ## What
@@ -63,3 +65,4 @@ types, `board.yaml` parsing, column rendering, status-change writes
   and our own board.yaml; `canFollowUp` replaces the duplicated review/done
   check; README + concept.md updated. 1629 tests, 77 Rust tests, typecheck and
   lint green.
+- 2026-08-09 status → review (agent)
