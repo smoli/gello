@@ -31,7 +31,11 @@ body,
   position: relative;
 }
 
-.app-shell-frameless .board {
+/* i0156: the c0138 activity view replaces the board in the shell and needs the
+   same clearance — its bar (back, project chips) is otherwise behind the
+   title bar's drag region, where a click drags the window. */
+.app-shell-frameless .board,
+.app-shell-frameless .multi {
   padding-top: calc(0.75rem + var(--titlebar-height));
 }
 
