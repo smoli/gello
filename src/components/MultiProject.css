@@ -259,6 +259,13 @@
   line-height: 1.35;
 }
 
+/* c0157: the blocked-dependency line under the title. Board.css owns the
+   .card-activity treatments; the line only needs its spacing here, so the two
+   card fronts show it identically. */
+.multi-card .card-activity {
+  margin-top: 0.3rem;
+}
+
 /* accepting is a deliberate drop, so the target is always on screen — it wakes
    up while a card is in flight */
 .multi-done {

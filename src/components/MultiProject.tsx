@@ -13,6 +13,7 @@ import {
 } from "../lib/multi";
 import {
   applyFileChanges,
+  blockersFor,
   blockingCards,
   dependenciesOf,
   dependencyOptions,
@@ -50,8 +51,10 @@ import {
 } from "../lib/gello-question";
 import { resolveFromCard } from "../lib/assets";
 import { tagChipStyle } from "../lib/tags";
+import { blockedStatusLine } from "../lib/card-status";
 import { BoardError } from "./BoardError";
 import { CardDetail, type CardEdit, type MilestoneOption, type SaveBodyResult } from "./CardDetail";
+import { CardStatusLine } from "./CardStatusLine";
 import { QuestionModal } from "./QuestionModal";
 import "./MultiProject.css";
 
@@ -394,6 +397,7 @@ export function MultiProject({
                     darkChips={darkChips}
                     onOpen={() => setSelectedKey(entry.key)}
                     onAnswer={() => setAnsweringKey(entry.key)}
+                    onOpenId={(id) => setSelectedKey(cardKey(entry.board.path, id))}
                     onDragState={setDragging}
                   />
                 ))}
@@ -448,6 +452,7 @@ function ProjectCardFront({
   darkChips,
   onOpen,
   onAnswer,
+  onOpenId,
   onDragState,
 }: {
   entry: ProjectCard;
@@ -455,10 +460,16 @@ function ProjectCardFront({
   darkChips: boolean;
   onOpen: () => void;
   onAnswer: () => void;
+  /** c0157: open another card of the same project, by id. */
+  onOpenId: (id: string) => void;
   onDragState: (dragging: boolean) => void;
 }) {
   const { card, board } = entry;
   const name = projectName(board.path);
+  // c0157: why a queued card is not being picked up — the dependencies still
+  // open, resolved against its *own* board (ids repeat between projects). A
+  // board fact, so it needs no companion state, which this view never reads.
+  const blocked = blockedStatusLine(blockersFor(board.model, card));
   return (
     <article
       className="multi-card"
@@ -501,6 +512,9 @@ function ProjectCardFront({
         )}
       </div>
       <p className="multi-card-title">{card.title}</p>
+      {/* the same line the board front shows, so the two read alike; each named
+          id opens that card's detail in this project */}
+      <CardStatusLine line={blocked} onOpenBlocker={onOpenId} />
     </article>
   );
 }

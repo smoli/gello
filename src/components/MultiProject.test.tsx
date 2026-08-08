@@ -41,11 +41,18 @@ const FILES: Record<string, Array<{ path: string; content: string }>> = {
     card("c003", "Gello finished card", "review"),
     card("c004", "Gello parked card", "in-progress", "awaiting: input\n"),
     card("c005", "Gello backlog card", "backlog"),
+    // c0157: three dependency shapes — one still open, one cleared, one typo
+    card("c006", "Gello blocked card", "ready", "depends: [c002]\n"),
+    card("c007", "Gello cleared card", "ready", "depends: [c008]\n"),
+    card("c008", "Gello dependency", "done"),
+    card("c010", "Gello typo card", "ready", "depends: [c999]\n"),
   ],
   [POPEXEL]: [
     // c001 again: ids are per-board, so the two must not collide
     card("c001", "Popexel ready card", "ready"),
     card("c009", "Popexel finished card", "review"),
+    // depends on an id only the *other* project has — resolved per board
+    card("c003", "Popexel cross card", "ready", "depends: [c002]\n"),
   ],
 };
 
@@ -389,6 +396,48 @@ describe("MultiProject (c0138)", () => {
     expect(await screen.findByText(/no gello board/i)).toHaveTextContent(POPEXEL);
     // the projects that do load are unaffected
     expect(screen.getByText("Gello ready card")).toBeInTheDocument();
+  });
+
+  it("names a card's unfinished dependencies on its front (c0157)", async () => {
+    renderView();
+
+    const blocked = await screen.findByLabelText(/^gello\/c006: Gello blocked card$/);
+    expect(within(blocked).getByRole("status")).toHaveTextContent("waiting on c002");
+  });
+
+  it("shows no dependency line once every dependency is done (c0157)", async () => {
+    renderView();
+
+    const cleared = await screen.findByLabelText(/^gello\/c007: Gello cleared card$/);
+    expect(within(cleared).queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("marks a dependency no card on that board carries (c0157)", async () => {
+    renderView();
+
+    const typo = await screen.findByLabelText(/^gello\/c010: Gello typo card$/);
+    expect(within(typo).getByRole("status")).toHaveTextContent("waiting on c999 (missing)");
+    // a missing id names nothing to open
+    expect(within(typo).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("resolves a dependency against the card's own project (c0157)", async () => {
+    renderView();
+
+    // gello has a c002; popexel does not, so popexel's card waits on a missing id
+    const cross = await screen.findByLabelText(/^popexel\/c003: Popexel cross card$/);
+    expect(within(cross).getByRole("status")).toHaveTextContent("waiting on c002 (missing)");
+  });
+
+  it("opens the blocking card's detail from the front (c0157)", async () => {
+    renderView();
+
+    const blocked = await screen.findByLabelText(/^gello\/c006: Gello blocked card$/);
+    fireEvent.click(within(blocked).getByRole("button", { name: "c002" }));
+
+    const detail = await screen.findByRole("dialog", { name: /gello/i });
+    // the dependency, not the card whose front was clicked
+    expect(within(detail).getByText("Gello running card")).toBeInTheDocument();
   });
 
   it("leaves the view when the board is asked for", async () => {
