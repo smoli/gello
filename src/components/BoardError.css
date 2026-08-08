@@ -1,10 +1,13 @@
-/* i0141: the banner is bounded — one summary line, details behind a toggle. */
+/* i0141: the banner is bounded — one summary line, details behind a toggle.
+   i0155: it sits at the foot of the shell, so the border is on top and the bar
+   grows upward as the detail box opens. */
 .board-error {
   background: color-mix(in srgb, #e5484d 15%, Canvas);
   color: #e5484d;
-  border-bottom: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
+  border-top: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
+  flex: none;
 }
 
 .board-error-line {

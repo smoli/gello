@@ -2301,6 +2301,28 @@ describe("App", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("puts the error below the board, clear of the title bar (i0155)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockRejectedValueOnce(new Error("disk full"));
+
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    const alert = await screen.findByRole("alert");
+    const board = document.querySelector(".board")!;
+    const titlebar = document.querySelector(".titlebar")!;
+    // the frameless title bar overlays the top of the shell, so a banner in the
+    // first flow slot sits under the traffic lights — it belongs after the board
+    expect(
+      board.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      titlebar.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(alert.parentElement).toBe(board.parentElement);
+  });
+
   it("reorders a card within the backlog and persists its rank (c056)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",

@@ -1723,7 +1723,6 @@ function App() {
             }}
           />
         )}
-        {error && <BoardError message={error} onDismiss={() => setError(null)} />}
         {/* c0119: dragging a card out of its running status stops its agent —
             confirm before destroying in-flight work. */}
         {pendingStop && (
@@ -1800,6 +1799,10 @@ function App() {
           onRestartCard={(cardId) => void handleRestartCard(cardId)}
           onStopRun={(cardId) => void handleStopRun(cardId)}
         />
+        {/* i0155: at the foot of the shell, like the needs-attention lane. At
+            the top it landed under the frameless title bar, where the traffic
+            lights covered the text and the dismiss button. */}
+        {error && <BoardError message={error} onDismiss={() => setError(null)} />}
         {managingTags && (
           <TagManager
             tags={collectTags(board.model)}
