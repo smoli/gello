@@ -1,12 +1,14 @@
 ---
 id: c0158
 title: Want so set background for this view as well
-status: in-progress
+status: review
 ref: c0138
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T11:24:03
+status-changed: 2026-08-08T11:31:05
+usage-tokens: 24622
+usage-cost: 5.17792
 ---
 
 ## What
@@ -59,3 +61,4 @@ its absolute path — there is no repo to copy it into.
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 built: `background`/`onBackgroundContextMenu` on MultiProject, the
   app-local `activity-background` flag, and the shared `backgroundStyle` helper.
+- 2026-08-08 status → review (agent)
