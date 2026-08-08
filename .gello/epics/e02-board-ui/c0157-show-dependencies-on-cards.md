@@ -1,12 +1,12 @@
 ---
 id: c0157
 title: Show dependencies on cards
-status: review
+status: done
 ref: c0138
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T11:06:37
+status-changed: 2026-08-08T12:22:18
 usage-tokens: 14635
 usage-cost: 2.834859
 ---
@@ -54,3 +54,4 @@ the multi front should say the same thing.
 - 2026-08-08 built: `blockedStatusLine` extracted in card-status.ts, the multi
   card front renders it through CardStatusLine with per-project blocker links.
 - 2026-08-08 status → review (agent)
+- 2026-08-08 status → done (app)

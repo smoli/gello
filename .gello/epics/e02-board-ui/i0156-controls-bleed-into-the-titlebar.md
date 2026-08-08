@@ -1,13 +1,13 @@
 ---
 id: i0156
 title: Controls bleed into the titlebar
-status: review
+status: done
 type: issue
 ref: c0138
 epic: e02
 created: 2026-08-08
 updated: 2026-08-08
-status-changed: 2026-08-08T10:38:21
+status-changed: 2026-08-08T12:22:13
 usage-tokens: 8050
 usage-cost: 1.725351
 ---
@@ -39,3 +39,4 @@ Makes them unusable
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 pad `.multi` below the title bar, status → review
 - 2026-08-08 status → review (agent)
+- 2026-08-08 status → done (app)

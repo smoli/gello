@@ -1,10 +1,10 @@
 ---
 id: c0138
 title: Multi project activity view.
-status: review
+status: done
 created: 2026-07-24
 updated: 2026-08-08
-status-changed: 2026-08-08T07:46:46
+status-changed: 2026-08-08T12:22:10
 epic: e02
 usage-tokens: 108130
 usage-cost: 19.125643
@@ -143,3 +143,4 @@ colours, and every write.
 - 2026-08-08 status → review (agent)
 - 2026-08-08 status → in-progress (agent)
 - 2026-08-08 status → review (agent)
+- 2026-08-08 status → done (app)
