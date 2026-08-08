@@ -347,16 +347,14 @@ describe("MultiProject (c0138)", () => {
       expect(content).toMatch(/status-changed: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/);
     });
 
-    it("sets an in-progress card done without opening its detail", async () => {
+    it("does not open the card's detail", async () => {
       renderView();
 
-      await screen.findByText("Gello running card");
-      const running = front("gello", "Gello running card");
-      fireEvent.click(within(running).getByRole("button", { name: "Mark done" }));
+      await screen.findByText("Popexel finished card");
+      const finished = front("popexel", "Popexel finished card");
+      fireEvent.click(within(finished).getByRole("button", { name: "Mark done" }));
 
       await waitFor(() => expect(writeMock).toHaveBeenCalled());
-      expect(writeMock.mock.calls[0][0]).toBe("/repo/gello/.gello/cards/c002-x.md");
-      expect(writeMock.mock.calls[0][1]).toContain("status: done");
       // the button is not a way into the card — the front's own click is
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -364,13 +362,33 @@ describe("MultiProject (c0138)", () => {
     it("drops the card from the view once it is done", async () => {
       renderView();
 
-      await screen.findByText("Gello running card");
-      const running = front("gello", "Gello running card");
-      fireEvent.click(within(running).getByRole("button", { name: "Mark done" }));
+      await screen.findByText("Popexel finished card");
+      const finished = front("popexel", "Popexel finished card");
+      fireEvent.click(within(finished).getByRole("button", { name: "Mark done" }));
 
       await waitFor(() =>
-        expect(screen.queryByText("Gello running card")).not.toBeInTheDocument(),
+        expect(screen.queryByText("Popexel finished card")).not.toBeInTheDocument(),
       );
+    });
+
+    // i0159: done is what a review card becomes; a ready or running card is
+    // finished by working it, not by a stray click on the overview.
+    it("offers the button on review cards only", async () => {
+      renderView();
+
+      await screen.findByText("Gello ready card");
+      for (const [project, title] of [
+        ["gello", "Gello ready card"],
+        ["gello", "Gello running card"],
+        ["popexel", "Popexel ready card"],
+      ]) {
+        expect(
+          within(front(project, title)).queryByRole("button", { name: "Mark done" }),
+        ).not.toBeInTheDocument();
+      }
+      expect(
+        within(front("gello", "Gello finished card")).getByRole("button", { name: "Mark done" }),
+      ).toBeInTheDocument();
     });
 
     it("rebases the write on the owning project's disk content", async () => {

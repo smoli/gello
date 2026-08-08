@@ -547,21 +547,23 @@ function ProjectCardFront({
               ?
             </button>
           )}
-          {/* c0160: the one status change this view is for. It writes to the
-              card's own board, like the done drop — a click, so a card that
-              never passes review needs no trip through its detail. */}
-          <button
-            type="button"
-            className="multi-card-done"
-            aria-label="Mark done"
-            title="Mark done"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDone();
-            }}
-          >
-            ✓
-          </button>
+          {/* c0160: the one status change this view is for — a click instead
+              of a drag onto the done area, writing to the card's own board.
+              i0159: on review cards only, the same work the drop area takes. */}
+          {card.status === "review" && (
+            <button
+              type="button"
+              className="multi-card-done"
+              aria-label="Mark done"
+              title="Mark done"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDone();
+              }}
+            >
+              ✓
+            </button>
+          )}
         </span>
       </div>
       <p className="multi-card-title">{card.title}</p>
