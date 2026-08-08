@@ -6,6 +6,8 @@ created: 2026-08-08
 updated: 2026-08-08
 status-changed: 2026-08-08T06:35:25
 epic: e10
+usage-tokens: 9995
+usage-cost: 1.599301
 ---
 
 When gello detects upon onboarding that the project is a git repo, auto-commit should be on by default
