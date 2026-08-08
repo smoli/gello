@@ -1,11 +1,12 @@
 ---
 id: c0138
 title: Multi project activity view.
-status: discuss
+status: ready
 created: 2026-07-24
-updated: 2026-08-06
-status-changed: 2026-08-06T05:52:37
+updated: 2026-08-08
+status-changed: 2026-08-08T07:19:32
 epic: e02
+order: 10
 ---
 
 ## What
@@ -104,3 +105,4 @@ colours, and every write.
   by (project, id).
 - 2026-08-06 status → backlog (app)
 - 2026-08-06 status → discuss (app)
+- 2026-08-08 status → ready (app)
