@@ -23,18 +23,43 @@ types, `board.yaml` parsing, column rendering, status-change writes
 
 ## Acceptance criteria
 
-- [ ] `board.yaml` `columns` includes `signoff` between `review` and `done`.
-- [ ] The board renders a `signoff` column in that position.
-- [ ] A card can be set to `status: signoff` and parses/loads like any status,
+- [x] `board.yaml` `columns` includes `signoff` between `review` and `done`.
+- [x] The board renders a `signoff` column in that position.
+- [x] A card can be set to `status: signoff` and parses/loads like any status,
       with `status-changed` handled.
-- [ ] Moving `signoff → done` is available to the human (drag/menu) as for
+- [x] Moving `signoff → done` is available to the human (drag/menu) as for
       other columns.
-- [ ] Status ordering (by `status-changed`) covers `signoff`.
-- [ ] Everywhere statuses are enumerated handles `signoff` (no crash / dropped
+- [x] Status ordering (by `status-changed`) covers `signoff`.
+- [x] Everywhere statuses are enumerated handles `signoff` (no crash / dropped
       column) — covered by parsing/board tests.
+
+## Notes
+
+- Columns are data, not code: the board renders `config.columns`, drag/drop and
+  the keyboard move step through that list, and `columnComparator` falls back to
+  the `status-changed` rule for any column that is not `discuss`/`backlog`/
+  `ready`. So the status itself is three list edits — `DEFAULT_BOARD_CONFIG`
+  (the no-board.yaml fallback), the `scaffold.ts` lineup a fresh board is
+  written from, and our own `.gello/board.yaml` — plus tests pinning the
+  position and the ordering.
+- The one place that enumerated statuses by hand was the follow-up action,
+  duplicated as `status === "review" || status === "done"` on the card front and
+  in the card detail. Both now call `canFollowUp` (board.ts), which includes
+  `signoff` — reviewed work is finished work, so a follow-up makes the same
+  sense there.
+- The demo board (c0114) must fill every column, so it gained a `signoff` card.
+- Left out deliberately, carded instead: existing boards keep their own
+  `columns:` and so have no `signoff` column ([[c0171]]), and the cross-project
+  view still aggregates `review` rather than `signoff` ([[c0172]]).
+- Not touched: the companion's dependency gate still counts only `done` — that
+  is [[c0165]]. Column presentation and the verdict are [[c0170]].
 
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
 - 2026-08-08 status → ready (app)
 - 2026-08-08 status → in-progress (agent)
+- 2026-08-08 implemented (agent): `signoff` in the default lineup, the scaffold
+  and our own board.yaml; `canFollowUp` replaces the duplicated review/done
+  check; README + concept.md updated. 1629 tests, 77 Rust tests, typecheck and
+  lint green.
