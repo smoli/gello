@@ -1182,3 +1182,36 @@ describe("archive action (c018)", () => {
     expect(onArchive).toHaveBeenCalledWith(false);
   });
 });
+
+// c0138: the same detail opens from the cross-project activity view, where the
+// card's project has to be on screen — a bare `c009` says nothing about which
+// board it came from, and Report issue / Follow up are the open board's actions.
+describe("a card scoped to a project (c0138)", () => {
+  it("names the project alongside the card id", () => {
+    renderDetail({ scopeLabel: "popexel" });
+
+    expect(screen.getByRole("dialog", { name: "popexel / c009" })).toBeInTheDocument();
+    expect(screen.getByText("popexel")).toBeInTheDocument();
+  });
+
+  it("labels the dialog with the card id alone when no project is given", () => {
+    renderDetail();
+    expect(screen.getByRole("dialog", { name: "c009" })).toBeInTheDocument();
+  });
+
+  it("leaves out the actions it was given no handler for", () => {
+    const parsed = parseCard(
+      "epics/e05-projects/c009-detail.md",
+      RAW.replace("status: in-progress", "status: done"),
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+    renderDetail({
+      card: parsed.card,
+      onReportIssue: undefined,
+      onFollowUp: undefined,
+    });
+
+    expect(screen.queryByRole("button", { name: "Report issue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Follow up" })).not.toBeInTheDocument();
+  });
+});
