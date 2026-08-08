@@ -275,6 +275,15 @@ of the file tree:
   watching cards move while the agent works).
 - Markdown fallback guarantee: everything degrades gracefully to plain files.
 
+### Across projects
+
+A cross-project activity view aggregates the ready / in-progress / review cards
+of several selected projects, each board watched live. A card carries its
+project's colour, set in that project's `board.yaml` (`project_color:`).
+Finished work is accepted by dropping a review card on the done area, and a
+parked question is answered inline; every write goes to the project that owns
+the card. The view reads boards only, never companion state.
+
 ### Later (explicitly not MVP)
 
 - Git awareness: show commits/branch linked to a card by ID.
@@ -282,7 +291,6 @@ of the file tree:
 - Optional MCP server / CLI for stricter validation (`gello move c003 ready`).
 - Launch the agent from the app ("run Claude on this card").
 - Metrics: cycle time, throughput per epic.
-- Multi-board overview across projects.
 
 ## 7. Tech stack
 
