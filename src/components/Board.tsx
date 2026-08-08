@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { edgeScrollDelta } from "../lib/autoscroll";
 import {
   blockersFor,
+  canFollowUp,
   openDependencies,
   columnComparator,
   duplicateIdOf,
@@ -1012,10 +1013,11 @@ function CardFront({
             </button>
           )}
           {/* c0118: queue more work without opening the card first. Gated to
-              review/done like the detail-view action (c0115), and it opens the
-              same draft — it never creates a card outright, so the note about
-              landing in ready still gets its say before any agent starts. */}
-          {onFollowUp && (card.status === "review" || card.status === "done") && (
+              the finished-work statuses like the detail-view action (c0115),
+              and it opens the same draft — it never creates a card outright, so
+              the note about landing in ready still gets its say before any
+              agent starts. */}
+          {onFollowUp && canFollowUp(card.status) && (
             <span className="card-meta-badges-followups">
               {/* i0130: the two kinds read as "i" and "c" on screen, so the
                   label has to name the kind — otherwise both buttons announce

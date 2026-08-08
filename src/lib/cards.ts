@@ -34,7 +34,18 @@ export const DEFAULT_BOARD_CONFIG: BoardConfig = {
   // c0088: `inbox` is a normal status and the first column (was a folder).
   // i0033: `discuss` ships by default so the gello-discuss skill works out of
   // the box (a triage stage between inbox capture and backlog).
-  columns: ["inbox", "discuss", "backlog", "ready", "in-progress", "review", "done"],
+  // c0164: `signoff` sits between `review` and `done` — cards the AI review
+  // agent passed, waiting for the human to accept them.
+  columns: [
+    "inbox",
+    "discuss",
+    "backlog",
+    "ready",
+    "in-progress",
+    "review",
+    "signoff",
+    "done",
+  ],
   wipLimits: {},
   types: ["task", "issue"],
   background: null,

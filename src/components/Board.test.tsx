@@ -116,11 +116,12 @@ describe("Board", () => {
 
   describe("c0118: follow-up trigger on the card front", () => {
     const model = loadBoard([
-      file("board.yaml", "columns: [ready, in-progress, review, done]\n"),
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
       file("cards/c001-queued.md", card("c001", "Queued card", "ready")),
       file("cards/c002-running.md", card("c002", "Running card", "in-progress")),
       file("cards/c003-reviewing.md", card("c003", "Reviewing card", "review")),
       file("cards/c004-finished.md", card("c004", "Finished card", "done")),
+      file("cards/c005-vetted.md", card("c005", "Vetted card", "signoff")),
     ]);
     const front = (title: string) => screen.getByText(title).closest("article")!;
     // i0130: the front offers both kinds, so a trigger is addressed by kind —
@@ -132,13 +133,16 @@ describe("Board", () => {
     const triggers = (title: string) =>
       within(front(title)).queryAllByRole("button", { name: /follow up/i });
 
-    it("offers the trigger on review and done cards only", () => {
+    it("offers the trigger on review, signoff and done cards only", () => {
       render(<Board model={model} onFollowUpCard={vi.fn()} />);
 
       expect(trigger("Reviewing card", "issue")).toBeInTheDocument();
       expect(trigger("Reviewing card", "task")).toBeInTheDocument();
       expect(trigger("Finished card", "issue")).toBeInTheDocument();
       expect(trigger("Finished card", "task")).toBeInTheDocument();
+      // c0164: a signoff card is reviewed work, same as review/done
+      expect(trigger("Vetted card", "issue")).toBeInTheDocument();
+      expect(trigger("Vetted card", "task")).toBeInTheDocument();
       expect(triggers("Queued card")).toEqual([]);
       expect(triggers("Running card")).toEqual([]);
     });
@@ -1084,8 +1088,29 @@ describe("Board", () => {
   it("renders an entirely empty board without crashing", () => {
     render(<Board model={loadBoard([])} />);
 
-    // c0088: lead with inbox; i0033: discuss ships by default (7 columns)
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+    // c0088: lead with inbox; i0033: discuss ships by default; c0164: signoff
+    // sits before done (8 columns)
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(8);
+  });
+
+  it("c0164: renders signoff as a column between review and done", () => {
+    const model = loadBoard([
+      file(
+        "board.yaml",
+        "columns: [ready, in-progress, review, signoff, done]\n",
+      ),
+      file(
+        "cards/c001-vetted.md",
+        card("c001", "Vetted card", "signoff"),
+      ),
+    ]);
+    render(<Board model={model} />);
+
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(["ready", "in-progress", "review", "signoff", "done"]);
+    expect(within(column("signoff")).getByText("Vetted card")).toBeInTheDocument();
   });
 
   it("applies a background with readable translucent columns (c047/c0060)", () => {

@@ -8,7 +8,7 @@ export interface ScaffoldFile {
 
 /** The board config a fresh board starts with. Exported so the gello-concept
  *  skill (c0133) can embed the app's own scaffold instead of a copy. */
-export const BOARD_YAML = `columns: [inbox, discuss, backlog, ready, in-progress, review, done]
+export const BOARD_YAML = `columns: [inbox, discuss, backlog, ready, in-progress, review, signoff, done]
 types: [task, issue]
 wip_limits:
   in-progress: 2

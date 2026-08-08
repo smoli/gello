@@ -86,6 +86,23 @@ function byManualOrder(a: Card, b: Card): number {
 /** Columns the user can rearrange by hand (c056). */
 export const MANUAL_COLUMNS: ReadonlySet<string> = new Set(["backlog", "ready"]);
 
+/**
+ * Statuses where a card counts as finished work, so spinning off more work from
+ * it is a *follow-up* (c0115) rather than scope on the card itself. c0164 adds
+ * `signoff` — reviewed work waiting for the human — between the two originals.
+ * One rule for both surfaces that offer the action (card front, card detail).
+ */
+const FOLLOWUP_SOURCE_STATUSES: ReadonlySet<string> = new Set([
+  "review",
+  "signoff",
+  "done",
+]);
+
+/** Does a card in this status get the follow-up action? */
+export function canFollowUp(status: string): boolean {
+  return FOLLOWUP_SOURCE_STATUSES.has(status);
+}
+
 /** The c056 per-column sort rule. Unknown custom columns are treated as
  *  workflow stages (status-changed rule). */
 export function columnComparator(column: string): (a: Card, b: Card) => number {

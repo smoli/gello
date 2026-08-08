@@ -29,13 +29,15 @@ describe("scaffoldFiles", () => {
     expect(snippet).not.toContain(".gello/inbox");
   });
 
-  it("produces a board.yaml with the default column lineup (c0088/i0033)", () => {
+  it("produces a board.yaml with the default column lineup (c0088/i0033/c0164)", () => {
     const yaml = files.find((f) => f.path.endsWith("board.yaml"))!.content;
     const model = loadBoard([{ path: "board.yaml", content: yaml }]);
     expect(model.configError).toBeNull();
-    // inbox leads (c0088); discuss ships by default so gello-discuss works (i0033)
+    // inbox leads (c0088); discuss ships by default so gello-discuss works
+    // (i0033); signoff holds AI-reviewed cards awaiting the human (c0164)
     expect(model.config.columns).toEqual([
-      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review",
+      "signoff", "done",
     ]);
   });
 });

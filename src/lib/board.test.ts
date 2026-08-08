@@ -25,6 +25,8 @@ import {
   dependencyOptions,
   duplicateIdOf,
   isStartable,
+  canFollowUp,
+  MANUAL_COLUMNS,
   nextSlotWaiter,
   nextStartable,
   planManualInsert,
@@ -90,7 +92,8 @@ describe("loadBoard on this repo's own .gello tree", () => {
   it("finds the real milestones and cards", () => {
     expect(model.configError).toBeNull();
     expect(model.config.columns).toEqual([
-      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review",
+      "signoff", "done",
     ]);
     // i0130: the limit is edited from the app, so pin the parse, not the value
     expect(Object.keys(model.config.wipLimits)).toEqual(["in-progress"]);
@@ -792,12 +795,38 @@ describe("columnComparator (c056)", () => {
     expect(sorted.map((x) => x.id)).toEqual(["c004", "c003", "c002", "c001"]);
   });
 
+  it("c0164: signoff sorts by status-changed, earliest first", () => {
+    const later = sortCard("c001", { statusChanged: "2026-08-08T10:00:00" });
+    const earlier = sortCard("c002", { statusChanged: "2026-08-08T08:00:00" });
+    expect(
+      [later, earlier].sort(columnComparator("signoff")).map((x) => x.id),
+    ).toEqual(["c002", "c001"]);
+    // and it is not one of the hand-ordered columns
+    expect(MANUAL_COLUMNS.has("signoff")).toBe(false);
+  });
+
   it("unknown custom columns use the status-changed rule", () => {
     const later = sortCard("c001", { statusChanged: "2026-07-17T10:00:00" });
     const earlier = sortCard("c002", { statusChanged: "2026-07-17T08:00:00" });
     expect(
       [later, earlier].sort(columnComparator("custom")).map((x) => x.id),
     ).toEqual(["c002", "c001"]);
+  });
+});
+
+describe("canFollowUp (c0115/c0164)", () => {
+  it("offers a follow-up on finished work: review, signoff and done", () => {
+    expect(["review", "signoff", "done"].map(canFollowUp)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("says no in the earlier workflow stages", () => {
+    expect(
+      ["inbox", "discuss", "backlog", "ready", "in-progress"].map(canFollowUp),
+    ).toEqual([false, false, false, false, false]);
   });
 });
 

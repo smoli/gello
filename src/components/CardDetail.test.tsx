@@ -534,14 +534,14 @@ describe("CardDetail", () => {
     expect(props2.onReportIssue).toHaveBeenCalledTimes(1);
   });
 
-  it("offers Follow up only on a review or done card (c0115)", () => {
+  it("offers Follow up only on a review, signoff or done card (c0115/c0164)", () => {
     renderDetail(); // in-progress: more work is not "follow-up" yet
     expect(
       screen.queryByRole("button", { name: /follow up/i }),
     ).not.toBeInTheDocument();
     cleanup();
 
-    for (const status of ["review", "done"]) {
+    for (const status of ["review", "signoff", "done"]) {
       const props = renderDetail({ card: { ...fixture(), status } });
       fireEvent.click(screen.getByRole("button", { name: /follow up/i }));
       expect(props.onFollowUp).toHaveBeenCalledTimes(1);

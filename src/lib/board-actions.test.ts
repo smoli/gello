@@ -199,6 +199,37 @@ describe("moveCard", () => {
     expect(card.body).toContain("- 2026-07-16 status → done (app)");
   });
 
+  it("c0164: moves into signoff and on to done, stamping each move", async () => {
+    const intoSignoff = moveCard(
+      "/repo/.gello",
+      fixtureCard(),
+      "signoff",
+      DEFAULT_BOARD_CONFIG,
+      "2026-08-08T09:00:00",
+    );
+    expect(intoSignoff.card.status).toBe("signoff");
+    expect(intoSignoff.card.statusChanged).toBe("2026-08-08T09:00:00");
+    await intoSignoff.persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("status: signoff\n");
+
+    // the human accepts: signoff → done, from the card the first move returned
+    const intoDone = moveCard(
+      "/repo/.gello",
+      intoSignoff.card,
+      "done",
+      DEFAULT_BOARD_CONFIG,
+      "2026-08-08T10:00:00",
+    );
+    expect(intoDone.card.status).toBe("done");
+    expect(intoDone.card.statusChanged).toBe("2026-08-08T10:00:00");
+    await intoDone.persisted;
+    const written = writeMock.mock.calls[1][1];
+    expect(written).toContain("status: done\n");
+    expect(written).toContain("status-changed: 2026-08-08T10:00:00\n");
+    // one status-changed line, never two (i0034)
+    expect(written.match(/^status-changed:/gm)).toHaveLength(1);
+  });
+
   it("does not journal non-status field edits", async () => {
     const { persisted } = saveCardFields(
       "/repo/.gello",

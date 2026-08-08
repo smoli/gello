@@ -28,12 +28,14 @@ structured frontmatter, and renders it as a board:
 The board's status columns are configured in `.gello/board.yaml`; a fresh board
 starts with:
 
-`inbox` → `discuss` → `backlog` → `ready` → `in-progress` → `review` → `done`
+`inbox` → `discuss` → `backlog` → `ready` → `in-progress` → `review` →
+`signoff` → `done`
 
 **`inbox` is a status, not a folder** — the first column, where freshly captured
 cards land until you triage them. **`discuss`** is a triage stage for ideas you
 want to think through with the agent first, driven by the **gello-discuss**
-skill. Both ship by default.
+skill. **`signoff`** holds cards an AI review agent has passed, waiting for you
+to accept them. All three ship by default.
 
 ### The lifecycle of a card
 
@@ -52,7 +54,8 @@ skill. Both ship by default.
 4. **Ready.** Move a card to `ready` to tell the agent "pick this up next."
 5. **In progress → review.** The agent takes the top `ready` card whose
    dependencies are `done`, sets it `in-progress`, does the work test-first,
-   then moves it to `review`. **Only a human moves a card to `done`.**
+   then moves it to `review`. A reviewing agent that passes the card moves it to
+   `signoff`. **Only a human moves a card to `done`.**
 6. **Issues.** Found a bug in an existing card? Report it from that card's
    detail view — it creates a linked issue (its own `i`-namespace card) that
    references the original.

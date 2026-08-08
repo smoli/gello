@@ -3,7 +3,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
-import type { Dependency, DependencyOption } from "../lib/board";
+import { canFollowUp, type Dependency, type DependencyOption } from "../lib/board";
 import type { CardStatusLine as CardStatusLineData } from "../lib/card-status";
 import { CardStatusLine } from "./CardStatusLine";
 import { splitLogSection } from "../lib/markdown";
@@ -464,7 +464,7 @@ export function CardDetail({
                 Restart
               </button>
             )}
-            {onFollowUp && (card.status === "review" || card.status === "done") && (
+            {onFollowUp && canFollowUp(card.status) && (
               <button
                 type="button"
                 onClick={onFollowUp}
