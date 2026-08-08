@@ -262,8 +262,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-.multi-card-needs-input {
+.multi-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   margin-left: auto;
+}
+
+.multi-card-needs-input {
   width: 1.15rem;
   height: 1.15rem;
   padding: 0;
@@ -276,6 +282,34 @@
   background: #d97706;
   color: #ffffff;
   cursor: pointer;
+}
+
+/* c0160: shown on hover or keyboard focus. `visibility`, not opacity — an
+   invisible button that still takes the click would finish a card by accident. */
+.multi-card-done {
+  visibility: hidden;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  line-height: 1;
+  border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+  border-radius: 50%;
+  background: Canvas;
+  color: CanvasText;
+  cursor: pointer;
+}
+
+.multi-card:hover .multi-card-done,
+.multi-card:focus-within .multi-card-done {
+  visibility: visible;
+}
+
+.multi-card-done:hover {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .multi-card-title {

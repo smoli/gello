@@ -236,13 +236,18 @@ export function MultiProject({
     }
   };
 
-  /** Accept finished work: `done` in its own project, stamped like any move. */
-  const accept = (entry: ProjectCard) => {
-    // the done area accepts work waiting on review; nothing else is "accepted"
-    if (entry.card.status !== "review") return;
+  /** Finish a card: `done` in its own project, stamped like any move. */
+  const markDone = (entry: ProjectCard) => {
     void applyWrite(entry, (fresh) =>
       moveCard(entry.board.root, fresh, "done", entry.board.model.config, nowIsoDateTime()),
     );
+  };
+
+  /** Accept finished work by drop. */
+  const accept = (entry: ProjectCard) => {
+    // the done area accepts work waiting on review; nothing else is "accepted"
+    if (entry.card.status !== "review") return;
+    markDone(entry);
   };
 
   /** Answer a parked question — un-fenced in place, marker set (c0101/c0102). */
@@ -424,6 +429,7 @@ export function MultiProject({
                     darkChips={darkChips}
                     onOpen={() => setSelectedKey(entry.key)}
                     onAnswer={() => setAnsweringKey(entry.key)}
+                    onDone={() => markDone(entry)}
                     onOpenId={(id) => setSelectedKey(cardKey(entry.board.path, id))}
                     onDragState={setDragging}
                   />
@@ -479,6 +485,7 @@ function ProjectCardFront({
   darkChips,
   onOpen,
   onAnswer,
+  onDone,
   onOpenId,
   onDragState,
 }: {
@@ -487,6 +494,8 @@ function ProjectCardFront({
   darkChips: boolean;
   onOpen: () => void;
   onAnswer: () => void;
+  /** c0160: finish the card from its front. */
+  onDone: () => void;
   /** c0157: open another card of the same project, by id. */
   onOpenId: (id: string) => void;
   onDragState: (dragging: boolean) => void;
@@ -521,22 +530,39 @@ function ProjectCardFront({
           {name}
         </span>
         <span className="multi-card-id">{card.id}</span>
-        {/* c0100: read from the card's own marker, so a parked question shows
-            (and answers) with no companion process involved. */}
-        {card.awaiting === "input" && (
+        <span className="multi-card-actions">
+          {/* c0100: read from the card's own marker, so a parked question shows
+              (and answers) with no companion process involved. */}
+          {card.awaiting === "input" && (
+            <button
+              type="button"
+              className="multi-card-needs-input"
+              aria-label="Needs input"
+              title="Needs input — answer the open question"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAnswer();
+              }}
+            >
+              ?
+            </button>
+          )}
+          {/* c0160: the one status change this view is for. It writes to the
+              card's own board, like the done drop — a click, so a card that
+              never passes review needs no trip through its detail. */}
           <button
             type="button"
-            className="multi-card-needs-input"
-            aria-label="Needs input"
-            title="Needs input — answer the open question"
+            className="multi-card-done"
+            aria-label="Mark done"
+            title="Mark done"
             onClick={(event) => {
               event.stopPropagation();
-              onAnswer();
+              onDone();
             }}
           >
-            ?
+            ✓
           </button>
-        )}
+        </span>
       </div>
       <p className="multi-card-title">{card.title}</p>
       {/* the same line the board front shows, so the two read alike; each named

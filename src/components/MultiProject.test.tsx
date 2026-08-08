@@ -330,6 +330,68 @@ describe("MultiProject (c0138)", () => {
     expect(writeMock).not.toHaveBeenCalled();
   });
 
+  // c0160: finishing a card from the overview took a trip through its detail —
+  // the drop area only takes reviewed work, and only by drag.
+  describe("marking a card done from its front (c0160)", () => {
+    it("sets a review card done in its own project", async () => {
+      renderView();
+
+      await screen.findByText("Popexel finished card");
+      const finished = front("popexel", "Popexel finished card");
+      fireEvent.click(within(finished).getByRole("button", { name: "Mark done" }));
+
+      await waitFor(() => expect(writeMock).toHaveBeenCalled());
+      const [path, content] = writeMock.mock.calls[0];
+      expect(path).toBe("/repo/popexel/.gello/cards/c009-x.md");
+      expect(content).toContain("status: done");
+      expect(content).toMatch(/status-changed: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d/);
+    });
+
+    it("sets an in-progress card done without opening its detail", async () => {
+      renderView();
+
+      await screen.findByText("Gello running card");
+      const running = front("gello", "Gello running card");
+      fireEvent.click(within(running).getByRole("button", { name: "Mark done" }));
+
+      await waitFor(() => expect(writeMock).toHaveBeenCalled());
+      expect(writeMock.mock.calls[0][0]).toBe("/repo/gello/.gello/cards/c002-x.md");
+      expect(writeMock.mock.calls[0][1]).toContain("status: done");
+      // the button is not a way into the card — the front's own click is
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("drops the card from the view once it is done", async () => {
+      renderView();
+
+      await screen.findByText("Gello running card");
+      const running = front("gello", "Gello running card");
+      fireEvent.click(within(running).getByRole("button", { name: "Mark done" }));
+
+      await waitFor(() =>
+        expect(screen.queryByText("Gello running card")).not.toBeInTheDocument(),
+      );
+    });
+
+    it("rebases the write on the owning project's disk content", async () => {
+      renderView();
+
+      await screen.findByText("Popexel finished card");
+      // an agent renamed the card between the view's last read and the click
+      readMock.mockResolvedValue(
+        "---\nid: c009\ntitle: Renamed by an agent\nstatus: review\n---\n\nbody\n",
+      );
+      const finished = front("popexel", "Popexel finished card");
+      fireEvent.click(within(finished).getByRole("button", { name: "Mark done" }));
+
+      await waitFor(() => expect(writeMock).toHaveBeenCalled());
+      expect(readMock).toHaveBeenCalledWith("/repo/popexel/.gello/cards/c009-x.md");
+      const [, content] = writeMock.mock.calls[0];
+      expect(content).toContain("title: Renamed by an agent");
+      expect(content).toContain("status: done");
+    });
+  });
+
   it("badges a card with a parked question and answers it inline", async () => {
     renderView();
 
@@ -421,9 +483,11 @@ describe("MultiProject (c0138)", () => {
     renderView();
 
     const typo = await screen.findByLabelText(/^gello\/c010: Gello typo card$/);
-    expect(within(typo).getByRole("status")).toHaveTextContent("waiting on c999 (missing)");
-    // a missing id names nothing to open
-    expect(within(typo).queryByRole("button")).not.toBeInTheDocument();
+    const line = within(typo).getByRole("status");
+    expect(line).toHaveTextContent("waiting on c999 (missing)");
+    // a missing id names nothing to open. Scoped to the line, not the whole
+    // front — c0160 put a button of its own on every card.
+    expect(within(line).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("resolves a dependency against the card's own project (c0157)", async () => {
