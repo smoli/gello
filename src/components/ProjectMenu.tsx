@@ -55,11 +55,14 @@ export function ProjectMenu({
   recent,
   onOpenRecent,
   onPickFolder,
+  onOpenActivity,
 }: {
   currentPath: string;
   recent: string[];
   onOpenRecent: (path: string) => void;
   onPickFolder: () => void;
+  /** c0138: open the cross-project activity view. */
+  onOpenActivity?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const others = recent.filter((p) => p !== currentPath);
@@ -107,6 +110,20 @@ export function ProjectMenu({
                 Open folder…
               </button>
             </li>
+            {onOpenActivity && (
+              <li>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenActivity();
+                  }}
+                >
+                  Activity across projects…
+                </button>
+              </li>
+            )}
           </ul>
         </>
       )}

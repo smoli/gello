@@ -2638,4 +2638,46 @@ describe("App", () => {
       );
     });
   });
+
+  // c0138: a mode in the main app — the cross-project view replaces the board
+  // while it is open, and its project selection is app-local, like the recents.
+  describe("the cross-project activity view (c0138)", () => {
+    const openActivity = async () => {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: /repo/ }));
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: /activity across projects/i }),
+      );
+      return screen.findByRole("region", { name: "Activity across projects" });
+    };
+
+    it("opens from the project menu and replaces the board", async () => {
+      await openActivity();
+      expect(screen.queryByText("Hello board")).not.toBeInTheDocument();
+    });
+
+    it("starts on the open project, so the view is never empty", async () => {
+      const view = await openActivity();
+      expect(within(view).getByRole("button", { name: "Remove repo" })).toBeInTheDocument();
+      expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+        "activity-projects",
+        JSON.stringify(["/repo"]),
+      );
+    });
+
+    it("restores the projects it was last watching", async () => {
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key === "activity-projects" ? JSON.stringify(["/repo", "/other"]) : null,
+      );
+      const view = await openActivity();
+      expect(within(view).getByRole("button", { name: "Remove other" })).toBeInTheDocument();
+    });
+
+    it("goes back to the board", async () => {
+      await openActivity();
+      fireEvent.click(screen.getByRole("button", { name: /back to board/i }));
+      expect(await screen.findByText("Hello board")).toBeInTheDocument();
+    });
+  });
 });

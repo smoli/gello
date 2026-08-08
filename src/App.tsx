@@ -123,6 +123,8 @@ import {
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 import { MigrationGate } from "./components/MigrationGate";
+import { MultiProject } from "./components/MultiProject";
+import { parseProjectList, serializeProjectList } from "./lib/multi";
 import { BoardError } from "./components/BoardError";
 import { EpicDetail } from "./components/EpicDetail";
 
@@ -134,6 +136,9 @@ const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
 const ARCHIVED_FLAG = "show-archived"; // c018: show archived cards on the board
 const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
+// c0138: projects the cross-project activity view watches (app-local, like the
+// recent list — the per-project *colour* is board.yaml's business, not this).
+const ACTIVITY_FLAG = "activity-projects";
 // c0083: per-project auto-commit, keyed by project path. c0154: a project with
 // no stored choice defaults to on when it is a git repo.
 const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
@@ -270,6 +275,9 @@ function App() {
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
   const [initCandidate, setInitCandidate] = useState<string | null>(null);
+  // c0138: the cross-project activity view is open, and the projects it watches
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityProjects, setActivityProjects] = useState<string[]>([]);
 
   const rememberProject = async (boardRoot: string) => {
     const path = projectFolder(boardRoot).path;
@@ -298,6 +306,9 @@ function App() {
     });
     void appFlagGet(THEME_FLAG).then((v) => {
       if (!cancelled && (v === "light" || v === "dark")) setTheme(v);
+    });
+    void appFlagGet(ACTIVITY_FLAG).then((v) => {
+      if (!cancelled) setActivityProjects(parseProjectList(v));
     });
     void loadBoardFromDisk()
       .then((loaded) => {
@@ -1622,6 +1633,21 @@ function App() {
     }
   };
 
+  /** c0138: persist the activity view's selection app-locally. */
+  const chooseActivityProjects = (next: string[]) => {
+    setActivityProjects(next);
+    void appFlagSet(ACTIVITY_FLAG, serializeProjectList(next));
+  };
+
+  /** c0138: open the cross-project view. With nothing selected yet it starts on
+   *  the open project, so it always shows something to act on. */
+  const openActivity = () => {
+    if (activityProjects.length === 0 && board) {
+      chooseActivityProjects([projectFolder(board.root).path]);
+    }
+    setActivityOpen(true);
+  };
+
   if (loading) return null;
 
   const initPrompt = initCandidate && (
@@ -1670,6 +1696,27 @@ function App() {
           onMigrate={() => void handleMigrate()}
           busy={migrating}
           error={migrateError}
+        />
+      </div>
+    );
+  }
+
+  // c0138: the cross-project view is a mode — while it is open it takes the
+  // shell in place of the board. The title bar stays: the window still has a
+  // project open, and Ctrl+Tab still switches it. Search belongs to the board,
+  // so the bar carries none here.
+  if (board && activityOpen) {
+    return (
+      <div className="app-shell app-shell-frameless">
+        <TitleBar root={board.root} branch={branch} git={gitStatus} />
+        {switcherOverlay}
+        {switchingOverlay}
+        <MultiProject
+          projects={activityProjects}
+          known={recent}
+          darkChips={darkChips}
+          onChangeProjects={chooseActivityProjects}
+          onClose={() => setActivityOpen(false)}
         />
       </div>
     );
@@ -1775,6 +1822,7 @@ function App() {
               recent={recent}
               onOpenRecent={(path) => void openProject(path)}
               onPickFolder={() => void pickAndOpen()}
+              onOpenActivity={openActivity}
             />
           }
           onMoveCard={handleMove}

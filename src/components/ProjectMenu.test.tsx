@@ -27,6 +27,22 @@ describe("ProjectMenu", () => {
     expect(p.onOpenRecent).toHaveBeenCalledWith("/Users/x/other-proj");
   });
 
+  // c0138: the cross-project view spans several projects, so it belongs in the
+  // menu that is about projects rather than in the board's own settings.
+  it("opens the cross-project activity view", () => {
+    const p = { ...props(), onOpenActivity: vi.fn() };
+    render(<ProjectMenu {...p} />);
+    fireEvent.click(screen.getByRole("button", { name: /gello/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /activity across projects/i }));
+    expect(p.onOpenActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no activity entry when the host wires none", () => {
+    render(<ProjectMenu {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /gello/ }));
+    expect(screen.queryByText(/activity across projects/i)).not.toBeInTheDocument();
+  });
+
   it("offers Open folder…", () => {
     const p = props();
     render(<ProjectMenu {...p} />);
