@@ -1,12 +1,14 @@
 ---
 id: c0163
 title: Park-and-skip dispatch in AFK
-status: in-progress
+status: done
 epic: e08
 depends: [c0162]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T06:56:51
+status-changed: 2026-08-09T07:22:08
+usage-tokens: 21039
+usage-cost: 2.930141
 ---
 
 ## What
@@ -71,3 +73,5 @@ pinned by a test, and raised as [[i0173]] for a later call.
 - 2026-08-09 park-and-skip implemented: `slotFreed` on `occupiedSlots` /
   `planDispatch`, `Runner.slotFreed()` from the AFK flag, park re-syncs under
   AFK. Documented in companion/README.md; resume overshoot raised as [[i0173]]
+- 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)

@@ -1,12 +1,12 @@
 ---
 id: c0164
 title: Sign-off status + column
-status: review
+status: done
 epic: e08
 depends: []
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T00:00:15
+status-changed: 2026-08-09T07:22:10
 usage-tokens: 31813
 usage-cost: 6.463612
 ---
@@ -66,3 +66,4 @@ types, `board.yaml` parsing, column rendering, status-change writes
   check; README + concept.md updated. 1629 tests, 77 Rust tests, typecheck and
   lint green.
 - 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)

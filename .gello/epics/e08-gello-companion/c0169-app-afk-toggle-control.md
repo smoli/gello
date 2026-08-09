@@ -1,12 +1,14 @@
 ---
 id: c0169
 title: 'App: AFK toggle control'
-status: review
+status: done
 epic: e08
 depends: [c0162]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T07:15:58
+status-changed: 2026-08-09T07:22:06
+usage-tokens: 27174
+usage-cost: 5.067173
 ---
 
 ## What
@@ -61,3 +63,4 @@ when on.
   `TitleBar`, and the App wiring (poll reads the flag, click writes it).
   Documented in companion/README.md.
 - 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)
