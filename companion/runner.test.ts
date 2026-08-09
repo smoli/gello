@@ -15,6 +15,7 @@ import {
   needsReview,
   classifyExit,
   occupiedSlots,
+  occupiedSlotIds,
   buildTaskPrompt,
   Runner,
   type SpawnedRun,
@@ -123,6 +124,13 @@ describe("occupiedSlots", () => {
     expect(occupiedSlots(model, [])).toBe(1); // c001 in-progress
     expect(occupiedSlots(model, ["c002"])).toBe(2); // + c002 active run
     expect(occupiedSlots(model, ["c001"])).toBe(1); // c001 counted once (union)
+  });
+
+  // i0173: the resume gate asks which card holds a slot, not how many do.
+  it("names the cards holding a slot, minus the ones that freed theirs", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "ready" } });
+    expect([...occupiedSlotIds(model, ["c002"])].sort()).toEqual(["c001", "c002"]);
+    expect([...occupiedSlotIds(model, ["c002"], ["c001"])]).toEqual(["c002"]);
   });
 });
 
@@ -1556,41 +1564,6 @@ describe("Runner — park-and-skip under AFK (c0163)", () => {
     expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
   });
 
-  // The answer arrives whether or not the borrowed slot has come back. Resuming
-  // was never budgeted (a parked run held its slot), so it stays immediate — the
-  // human is back, and stalling their answer behind a run is the worse trade.
-  it("still resumes the parked card when the human answers", () => {
-    const start = board(
-      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
-      1,
-    );
-    const h = makeRunner(start);
-    h.runner.setAfk(true);
-    h.runner.sync(start);
-    h.setModel(
-      board(
-        { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
-        1,
-      ),
-    );
-    h.spawned[0].exit(0);
-    expect(h.spawned).toHaveLength(2); // c002 took the freed slot
-
-    const answered = board(
-      {
-        c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
-        c002: { status: "in-progress" },
-      },
-      1,
-    );
-    h.setModel(answered);
-    h.runner.sync(answered);
-
-    expect(h.spawned).toHaveLength(3);
-    expect(h.spawned[2].spec.args[0]).toBe("--resume");
-    expect(h.last().sort()).toEqual(["c001:running", "c002:running"]);
-  });
-
   it("AFK off after a park: the slot is c001's again and the queue stops", () => {
     const start = board(
       { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
@@ -1609,6 +1582,147 @@ describe("Runner — park-and-skip under AFK (c0163)", () => {
     h.runner.sync(parked);
 
     expect(h.spawned).toHaveLength(1);
+  });
+});
+
+// i0173: a resume used to dispatch straight from the answer marker, never
+// through a budget — so a card that gave its slot away under AFK (c0163) took a
+// second one back on resume and the board ran over its limit.
+describe("Runner — an answered resume waits for its slot (i0173)", () => {
+  const question = "### Which db?\n\n- [ ] Postgres\n";
+  const answer = "### Which db?\n\n- [x] Postgres\n";
+
+  it("holds the answer until the borrowed slot comes back, then resumes", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.setModel(
+      board(
+        { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+        1,
+      ),
+    );
+    h.spawned[0].exit(0);
+    expect(h.spawned).toHaveLength(2); // c002 took the freed slot
+
+    const answered = board(
+      { c001: { status: "in-progress", answered: answer }, c002: { status: "in-progress" } },
+      1,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(2); // the board is at its limit — no resume
+    expect(h.logs.join("\n")).toMatch(/c001 held: answered, waiting for a slot/);
+    // The marker is the resume trigger, so it must survive for the retry.
+    expect(h.writes).toEqual([]);
+
+    // c002 finishes: its exit reconciles, and the freed slot is c001's answer
+    h.setModel(
+      board({ c001: { status: "in-progress", answered: answer }, c002: { status: "review" } }, 1),
+    );
+    h.spawned[1].exit(0);
+
+    expect(h.spawned).toHaveLength(3);
+    expect(h.spawned[2].spec.args[0]).toBe("--resume");
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("AFK off: the answer resumes at once — that parked run never gave its slot up", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+    expect(h.spawned).toHaveLength(1); // c002 waited: the slot stayed c001's
+
+    const answered = board(
+      { c001: { status: "in-progress", answered: answer }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[0]).toBe("--resume");
+  });
+
+  // The case the card is titled for: two answers arriving together used to take
+  // two slots at once. They now share one budget, in board order.
+  it("two answers together take one free slot, in board order", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1 },
+        c002: { status: "ready", order: 2 },
+        c003: { status: "ready", order: 3 },
+      },
+      2,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(2); // c001, c002
+
+    // c001 parks; c003 takes its freed slot
+    h.setModel(
+      board(
+        {
+          c001: { status: "in-progress", order: 1, parked: question },
+          c002: { status: "in-progress", order: 2 },
+          c003: { status: "ready", order: 3 },
+        },
+        2,
+      ),
+    );
+    h.spawned[0].exit(0);
+    expect(h.spawned).toHaveLength(3);
+
+    // c002 parks too — nothing left in ready, so its slot stays free
+    h.setModel(
+      board(
+        {
+          c001: { status: "in-progress", order: 1, parked: question },
+          c002: { status: "in-progress", order: 2, parked: question },
+          c003: { status: "in-progress", order: 3 },
+        },
+        2,
+      ),
+    );
+    h.spawned[1].exit(0);
+    expect(h.spawned).toHaveLength(3);
+
+    // both answered at once: one free slot, so only the first card gets it
+    const answered = board(
+      {
+        c001: { status: "in-progress", order: 1, answered: answer },
+        c002: { status: "in-progress", order: 2, answered: answer },
+        c003: { status: "in-progress", order: 3 },
+      },
+      2,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(4);
+    expect(h.spawned[3].spec.args[0]).toBe("--resume");
+    expect(h.last().sort()).toEqual([
+      "c001:running",
+      "c002:waiting-for-input",
+      "c003:running",
+    ]);
+    expect(h.logs.join("\n")).toMatch(/c002 held: answered, waiting for a slot/);
   });
 });
 

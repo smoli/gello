@@ -45,25 +45,37 @@ function byId(model: BoardModel): Map<string, Card> {
 }
 
 /**
- * Slots occupied against the in-progress WIP limit: cards already
+ * The cards holding a slot against the in-progress WIP limit: cards already
  * `in-progress` on the board, unioned with cards that have an active run (a
  * dispatched run occupies a slot before the agent flips the status).
  *
  * c0163: `slotFreed` names cards that hold a slot in neither sense — under AFK,
  * a run parked on a question. Subtracted last, since such a card is normally
  * both `in-progress` on the board and active.
+ *
+ * i0173 wants the ids, not just the count: a resume is free for a card already
+ * holding a slot and costs budget for one that gave it away.
  */
-export function occupiedSlots(
+export function occupiedSlotIds(
   model: BoardModel,
   activeCardIds: string[],
   slotFreed: string[] = [],
-): number {
+): Set<string> {
   const ids = new Set(activeCardIds);
   for (const card of allCards(model)) {
     if (card.status === IN_PROGRESS) ids.add(card.id);
   }
   for (const id of slotFreed) ids.delete(id);
-  return ids.size;
+  return ids;
+}
+
+/** How many slots `occupiedSlotIds` names — the dispatch budget's subtrahend. */
+export function occupiedSlots(
+  model: BoardModel,
+  activeCardIds: string[],
+  slotFreed: string[] = [],
+): number {
+  return occupiedSlotIds(model, activeCardIds, slotFreed).size;
 }
 
 /**
@@ -551,11 +563,10 @@ export class Runner {
    * companion that was down while the human answered still sees it on startup.
    */
   sync(next: BoardModel): void {
-    // c0117: a resume is exempt from the grace period — you cannot accidentally
-    // answer a question, and delaying it would tax every turn of the Q&A loop.
-    for (const card of cardsAnswered(next)) this.maybeResume(card, next.config);
     const trigger = this.opts.trigger ?? READY;
     const wipLimit = wipLimitOf(next);
+    // Resumes go first, so an answer outbids a ready card for a free slot.
+    const answeredHeld = this.resumeAnswered(next, wipLimit);
     this.noteFirstSeen(next, trigger);
     // c0167: reviews are planned and started first, so with one slot the board
     // finishes a card (unblocking its dependents, c0165) before starting one.
@@ -575,10 +586,43 @@ export class Runner {
       this.slotFreed(),
       this.reviewing(),
     );
-    this.reportHeldBack(queued, blocked, sessionHeld, wipLimit, review.queued);
+    this.reportHeldBack(queued, blocked, sessionHeld, wipLimit, review.queued, answeredHeld);
     for (const card of dispatch) this.start(card, false);
     this.schedulePickupRecheck(delayed);
     this.publish();
+  }
+
+  /**
+   * Resume the cards whose question was answered, and return the ones that must
+   * wait for a slot (i0173).
+   *
+   * A resume is free for a card that still holds its slot — with AFK off a
+   * parked run kept it, so nothing here changes. It costs budget for a card in
+   * `slotFreed`: under AFK the park gave the slot away (c0163) and another card
+   * took it, so resuming without a check ran the board over its limit, once per
+   * answer. Answers compete in board order, and a held one needs no new trigger:
+   * the marker stays on the card (only `maybeResume` clears it), so the next
+   * sync retries — including the one a finishing run does.
+   *
+   * c0117: a resume is exempt from the pickup grace period — you cannot
+   * accidentally answer a question, and delaying it would tax every turn of the
+   * Q&A loop.
+   */
+  private resumeAnswered(next: BoardModel, wipLimit: number): Card[] {
+    const held: Card[] = [];
+    const answered = cardsAnswered(next).sort(
+      (a, b) => (a.order ?? Infinity) - (b.order ?? Infinity),
+    );
+    for (const card of answered) {
+      // Recomputed per card: a resume started just above holds a slot again.
+      const occupied = occupiedSlotIds(next, [...this.active.keys()], this.slotFreed());
+      if (!occupied.has(card.id) && occupied.size >= wipLimit) {
+        held.push(card);
+        continue;
+      }
+      this.maybeResume(card, next.config);
+    }
+    return held;
   }
 
   /**
@@ -751,6 +795,7 @@ export class Runner {
     sessionHeld: SessionHeldCard[],
     wipLimit: number,
     reviewQueued: Card[] = [],
+    answeredHeld: Card[] = [],
   ): void {
     const reasons = new Map<string, string>();
     for (const { card, missing } of blocked) {
@@ -768,6 +813,12 @@ export class Runner {
     // says so — otherwise a full board looks like a companion ignoring `review`.
     for (const card of reviewQueued) {
       reasons.set(card.id, `review waiting: at the in-progress WIP limit (${wipLimit})`);
+    }
+    // i0173: an answered card whose slot was re-let while it waited. Last, so
+    // it beats any other reason — the human is owed an explanation for their
+    // answer sitting there more than for a queued card.
+    for (const card of answeredHeld) {
+      reasons.set(card.id, `answered, waiting for a slot (in-progress WIP limit ${wipLimit})`);
     }
     for (const [cardId, reason] of reasons) {
       if (this.heldBack.get(cardId) !== reason) this.log(`${cardId} held: ${reason}`);

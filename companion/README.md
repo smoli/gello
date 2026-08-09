@@ -146,10 +146,13 @@ it and other epics and standalone cards proceed; under `scope: card` only the
 parked card waits. Parking reconciles immediately, so the next card starts
 without waiting for a board change.
 
-Answering is still dispatched at once, even if the freed slot has since been
-taken — a resume was never counted against the WIP limit, and holding the
-human's answer behind a running card is the worse trade. So a board can sit one
-run over its limit until that run ends.
+The answer takes a slot like any other run (i0173). A card that gave its slot
+away waits for a free one before it resumes, and the held-back line says
+`answered, waiting for a slot`; the answer marker stays on the card, so the sync
+after a run ends picks it up. A resume outbids a `ready` card for that slot, and
+several answers arriving together compete for it in board order instead of each
+taking one. With AFK off nothing changes: the parked run kept its slot, so its
+resume costs nothing and is immediate.
 
 The other AFK behaviour is the AI review below (c0167).
 
