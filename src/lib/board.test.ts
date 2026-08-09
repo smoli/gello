@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  allCards,
   applyFileChanges,
   findCardById,
   loadBoard,
@@ -30,6 +31,8 @@ import {
   nextSlotWaiter,
   nextStartable,
   planManualInsert,
+  signoffCount,
+  signoffMoves,
   wipState,
   type BoardFile,
   type BoardModel,
@@ -827,6 +830,50 @@ describe("canFollowUp (c0115/c0164)", () => {
     expect(
       ["inbox", "discuss", "backlog", "ready", "in-progress"].map(canFollowUp),
     ).toEqual([false, false, false, false, false]);
+  });
+});
+
+describe("the sign-off check-list (c0170)", () => {
+  const model = loadBoard([
+    file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+    file("cards/c001-vetted.md", card("c001", "signoff")),
+    file("cards/c002-open.md", card("c002", "review")),
+    file("cards/archive/c003-old.md", card("c003", "signoff")),
+    file("epics/e01-alpha/epic.md", milestone("e01", "Alpha")),
+    file("epics/e01-alpha/c004-vetted.md", card("c004", "signoff")),
+  ]);
+
+  it("counts the cards awaiting sign-off, standalone and epic alike", () => {
+    expect(signoffCount(model)).toBe(2);
+  });
+
+  it("leaves archived cards out — they are off the board", () => {
+    expect(allCards(model).some((c) => c.id === "c003")).toBe(true);
+    expect(signoffCount(model)).toBe(2);
+  });
+
+  it("counts nothing on a board with no card in sign-off", () => {
+    expect(
+      signoffCount(
+        loadBoard([
+          file("board.yaml", "columns: [ready, review, signoff, done]\n"),
+          file("cards/c001-open.md", card("c001", "review")),
+        ]),
+      ),
+    ).toBe(0);
+  });
+
+  it("offers accept and reopen as ordinary moves to configured columns", () => {
+    expect(signoffMoves(["review", "signoff", "done"]).map((m) => m.status)).toEqual(
+      ["done"],
+    );
+    expect(
+      signoffMoves(["in-progress", "review", "signoff", "done"]).map((m) => m.status),
+    ).toEqual(["done", "in-progress"]);
+  });
+
+  it("offers nothing on a board whose columns hold neither target", () => {
+    expect(signoffMoves(["signoff"])).toEqual([]);
   });
 });
 

@@ -8,34 +8,25 @@
 //
 //   REVIEW_SKILL       the checklist the review agent follows
 //   buildReviewPrompt  the prompt c0167 hands to the review run
-//   parseReview        the verdict entries on a card, for c0167 / c0168
 //
 // The skill travels in the prompt rather than as an installed agent skill: the
 // companion runs against any project, and a run must not depend on whether the
 // human ever installed something into `.claude/skills/`.
 //
-// The card is the only channel between the two agents, so the verdict is
-// markdown on the card — a `## Review` section, one `### <stamp> — <pass|fail>`
-// entry per round. Anything the format does not describe reads as no verdict,
-// never as a pass: a malformed entry must not sign a card off (the same safe
-// default as the AFK flag, afk.ts).
+// The verdict format — a `## Review` section, one `### <stamp> — <pass|fail>`
+// entry per round — is in src/lib/review.ts, because the board reads it too
+// (c0170 shows each sign-off card's verdict). Re-exported here so c0167 / c0168
+// keep reading the verdict off this module.
 
 import type { Card } from "../src/lib/cards.ts";
 
-export type ReviewVerdict = "pass" | "fail";
-
-export interface ReviewEntry {
-  verdict: ReviewVerdict;
-  /** The entry's datetime, as written in the heading (empty if it carried none). */
-  stamp: string;
-  /** What was checked and why it passed or failed, as markdown. */
-  notes: string;
-}
-
-/** One `## Review` entry in the documented shape. */
-export function formatReviewEntry(entry: ReviewEntry): string {
-  return `### ${entry.stamp} — ${entry.verdict}\n\n${entry.notes}\n`;
-}
+export {
+  formatReviewEntry,
+  latestReview,
+  parseReview,
+  type ReviewEntry,
+  type ReviewVerdict,
+} from "../src/lib/review.ts";
 
 /** The checklist the review agent follows. Passed to the run by c0167. */
 export const REVIEW_SKILL = `# Reviewing a gello card
@@ -103,50 +94,4 @@ export function buildReviewPrompt(card: Card): string {
     `the reviewer of someone else's work on this card, not its implementer. ` +
     `Follow this skill:\n\n${REVIEW_SKILL}`
   );
-}
-
-/** A level-2 heading line, e.g. `## Review` (but not `### …`). */
-const H2_RE = /^##\s+(.*?)\s*$/;
-/** An entry heading: `### <stamp> — <verdict>`, the verdict word last. */
-const ENTRY_RE = /^###\s+(.*?)(?:\s*[—–-]\s*)?(pass|fail)\s*$/i;
-
-/** Every verdict entry in the card body's `## Review` section, in order. */
-export function parseReview(body: string): ReviewEntry[] {
-  const entries: ReviewEntry[] = [];
-  let inSection = false;
-  let stamp = "";
-  let verdict: ReviewVerdict | null = null;
-  let notes: string[] = [];
-
-  const flush = () => {
-    if (verdict) entries.push({ verdict, stamp, notes: notes.join("\n").trim() });
-    verdict = null;
-    notes = [];
-  };
-
-  for (const line of body.split("\n")) {
-    const heading = H2_RE.exec(line);
-    if (heading) {
-      flush();
-      inSection = heading[1].toLowerCase() === "review";
-      continue;
-    }
-    if (!inSection) continue;
-    const entry = ENTRY_RE.exec(line);
-    if (entry) {
-      flush();
-      stamp = entry[1].trim();
-      verdict = entry[2].toLowerCase() as ReviewVerdict;
-      continue;
-    }
-    if (verdict) notes.push(line);
-  }
-  flush();
-  return entries;
-}
-
-/** The card's current verdict — the last review round, or `null` if none. */
-export function latestReview(body: string): ReviewEntry | null {
-  const entries = parseReview(body);
-  return entries.length > 0 ? entries[entries.length - 1] : null;
 }

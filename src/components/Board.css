@@ -743,3 +743,48 @@ button.tag-chip {
   background: #b97a0a;
   color: white;
 }
+
+/* c0170: the verdict an AI review agent recorded on the card (c0166), under the
+   title. Green for a pass — the card is waiting for the human, not for work;
+   red for a fail, which is a card that came back. The reasons are in the
+   tooltip; the full entry is in the card's `## Review` section. */
+.card-review {
+  margin: 0;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-review-pass {
+  color: #3a8a4f;
+}
+.card-review-fail {
+  color: #c0392b;
+}
+
+/* c0170: the sign-off check-list's two outcomes. Small pills at the foot of the
+   card, always visible — on the sign-off column, deciding is the work. */
+.card-signoff-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+.card-signoff-action {
+  font: inherit;
+  font-size: 0.65rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  background: color-mix(in srgb, CanvasText 5%, transparent);
+  color: color-mix(in srgb, CanvasText 70%, transparent);
+  cursor: pointer;
+}
+.card-signoff-done:hover {
+  border-color: transparent;
+  background: #3a8a4f;
+  color: white;
+}
+.card-signoff-in-progress:hover {
+  border-color: transparent;
+  background: #b97a0a;
+  color: white;
+}

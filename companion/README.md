@@ -187,7 +187,9 @@ for the dispatch side (c0167) and the fix loop (c0168). An entry that does not
 match the shape counts as no verdict rather than as a pass, so a malformed
 write cannot sign a card off. On a pass the reviewer moves the card to
 `signoff` via `set_status`; on a fail it writes the entry and stops — the card
-stays in `review` and the notes are the implementer's brief.
+stays in `review` and the notes are the implementer's brief. The parser is in
+`src/lib/review.ts`, shared with the app: the board reads the same entries to
+show each sign-off card's verdict (c0170).
 
 ## Run output
 

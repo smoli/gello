@@ -262,3 +262,16 @@
   background: #c0392b;
   color: white;
 }
+
+/* c0170: the sign-off pile size. A quiet green tick-and-count next to the AFK
+   switch — it reports, it is not a control. */
+.titlebar-signoff {
+  margin-left: 0.5em;
+  font-size: 0.7em;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: color-mix(in srgb, #3a8a4f 85%, CanvasText);
+  font-weight: 700;
+}

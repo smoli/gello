@@ -56,7 +56,11 @@ to accept them. All three ship by default.
    dependencies are `done`, sets it `in-progress`, does the work test-first,
    then moves it to `review`. A reviewing agent that passes the card moves it to
    `signoff`. **Only a human moves a card to `done`.**
-6. **Issues.** Found a bug in an existing card? Report it from that card's
+6. **Sign off.** The `signoff` column is your check-list. Each card front shows
+   the recorded verdict — hover it for what was checked — with **Sign off**
+   (→ `done`) and **Reopen** (→ `in-progress`) on it. The title bar carries the
+   count, so the pile is visible whatever the board is filtered to.
+7. **Issues.** Found a bug in an existing card? Report it from that card's
    detail view — it creates a linked issue (its own `i`-namespace card) that
    references the original.
 

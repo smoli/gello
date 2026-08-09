@@ -366,6 +366,28 @@ describe("TitleBar", () => {
     expect(screen.getByRole("button", { name: /AFK mode/ })).toBeInTheDocument();
   });
 
+  // c0170: the sign-off pile is the first thing to see on returning — the count
+  // rides the title bar, so it shows whatever the board is filtered or scrolled
+  // to.
+
+  it("c0170: reports how many cards await sign-off", () => {
+    render(<TitleBar root="/x/.gello" branch="main" signoffCount={3} />);
+    const badge = screen.getByRole("status", { name: /3 cards awaiting sign-off/i });
+    expect(badge.textContent).toContain("3");
+  });
+
+  it("c0170: names a single pending card in the singular", () => {
+    render(<TitleBar root="/x/.gello" branch="main" signoffCount={1} />);
+    expect(
+      screen.getByRole("status", { name: /1 card awaiting sign-off/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("c0170: shows nothing when the check-list is clear", () => {
+    render(<TitleBar root="/x/.gello" branch="main" signoffCount={0} />);
+    expect(screen.queryByRole("status", { name: /sign-off/i })).not.toBeInTheDocument();
+  });
+
   it("is a Tauri drag region", () => {
     const { container } = render(<TitleBar root="/x/.gello" branch={null} />);
     expect(container.querySelector("[data-tauri-drag-region]")).not.toBeNull();

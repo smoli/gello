@@ -103,6 +103,51 @@ export function canFollowUp(status: string): boolean {
   return FOLLOWUP_SOURCE_STATUSES.has(status);
 }
 
+// --- the sign-off check-list (c0170) --------------------------------------------
+
+/** The column holding AI-reviewed cards waiting for the human (c0164). */
+export const SIGNOFF_STATUS = "signoff";
+
+/** What the human does with a card in sign-off (c0170) — accept the review, or
+ *  send the work back. Both are ordinary status moves. */
+export interface SignoffMove {
+  status: string;
+  label: string;
+  title: string;
+}
+
+const SIGNOFF_MOVES: readonly SignoffMove[] = [
+  {
+    status: "done",
+    label: "Sign off",
+    title: "Sign off — accept the review and move this card to done",
+  },
+  {
+    status: "in-progress",
+    label: "Reopen",
+    title: "Reopen — send this card back for more work",
+  },
+];
+
+/**
+ * The one-click sign-off actions available on a board with these `columns`.
+ * Columns are data (c0164), so a board configured without one of the targets
+ * is simply not offered that move rather than being sent to a column it has no
+ * lane for.
+ */
+export function signoffMoves(columns: readonly string[]): SignoffMove[] {
+  return SIGNOFF_MOVES.filter((move) => columns.includes(move.status));
+}
+
+/** How many cards are waiting for the human's sign-off — the pile size the
+ *  title bar reports (c0170). Archived cards are off the board, so they are
+ *  out of the count too. */
+export function signoffCount(model: BoardModel): number {
+  return allCards(model).filter(
+    (card) => card.status === SIGNOFF_STATUS && !card.archived,
+  ).length;
+}
+
 /** The c056 per-column sort rule. Unknown custom columns are treated as
  *  workflow stages (status-changed rule). */
 export function columnComparator(column: string): (a: Card, b: Card) => number {

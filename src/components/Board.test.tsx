@@ -1113,6 +1113,115 @@ describe("Board", () => {
     expect(within(column("signoff")).getByText("Vetted card")).toBeInTheDocument();
   });
 
+  describe("c0170: the signoff column as the sign-off check-list", () => {
+    /** A card body carrying the c0166 verdict format. */
+    const reviewed = (verdict: string, notes: string) =>
+      `body\n\n## Review\n\n### 2026-08-09T07:10:00 — ${verdict}\n\n${notes}\n`;
+    const withBody = (id: string, title: string, status: string, body: string) =>
+      `---\nid: ${id}\ntitle: ${title}\nstatus: ${status}\n---\n${body}`;
+
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+      file(
+        "cards/c001-vetted.md",
+        withBody(
+          "c001",
+          "Vetted card",
+          "signoff",
+          reviewed("pass", "Checked: criteria, tests, lint, typecheck, diff."),
+        ),
+      ),
+      file("cards/c002-bare.md", card("c002", "Bare card", "signoff")),
+      file(
+        "cards/c003-bounced.md",
+        withBody("c003", "Bounced card", "review", reviewed("fail", "Criterion 2 unmet.")),
+      ),
+    ]);
+    const front = (title: string) => screen.getByText(title).closest("article")!;
+
+    it("shows each card's recorded verdict, with what was checked in reach", () => {
+      render(<Board model={model} />);
+
+      const verdict = within(front("Vetted card")).getByText(/AI review passed/);
+      expect(verdict).toHaveAttribute(
+        "title",
+        expect.stringContaining("Checked: criteria, tests, lint, typecheck, diff."),
+      );
+      expect(verdict.getAttribute("title")).toContain("2026-08-09T07:10:00");
+    });
+
+    it("reads a fail verdict as failed, wherever the card sits", () => {
+      render(<Board model={model} />);
+
+      expect(within(front("Bounced card")).getByText(/AI review failed/)).toBeInTheDocument();
+    });
+
+    it("says nothing about a card with no recorded verdict", () => {
+      render(<Board model={model} />);
+
+      expect(within(front("Bare card")).queryByText(/AI review/)).not.toBeInTheDocument();
+    });
+
+    it("counts the cards awaiting sign-off in the column header", () => {
+      render(<Board model={model} />);
+
+      expect(within(column("signoff")).getByText("2")).toBeInTheDocument();
+    });
+
+    it("signs a card off to done from its front", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.click(within(front("Vetted card")).getByRole("button", { name: /sign off c001/i }));
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "done",
+      );
+    });
+
+    it("reopens a card to in-progress from its front", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.click(within(front("Vetted card")).getByRole("button", { name: /reopen c001/i }));
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "in-progress",
+      );
+    });
+
+    it("offers the check-list actions on signoff cards only", () => {
+      render(<Board model={model} onMoveCard={vi.fn()} />);
+
+      expect(
+        within(front("Bounced card")).queryByRole("button", { name: /sign off/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("reopens to review with the keyboard, one column back", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.keyDown(front("Vetted card"), { key: "ArrowLeft" });
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "review",
+      );
+    });
+
+    it("leaves the actions out of a board with neither target column", () => {
+      const narrow = loadBoard([
+        file("board.yaml", "columns: [review, signoff]\n"),
+        file("cards/c001-vetted.md", card("c001", "Vetted card", "signoff")),
+      ]);
+      render(<Board model={narrow} onMoveCard={vi.fn()} />);
+
+      expect(
+        within(front("Vetted card")).queryByRole("button", { name: /sign off|reopen/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("applies a background with readable translucent columns (c047/c0060)", () => {
     const { container } = render(
       <Board model={MODEL} background="url(data:image/png;base64,xyz)" />,

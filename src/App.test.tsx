@@ -667,6 +667,67 @@ describe("App", () => {
     );
   });
 
+  // c0170: the sign-off check-list — the pile size in the title bar, and one
+  // click per card to clear it.
+  const signoffFixture = () => ({
+    root: "/repo/.gello",
+    legacy: false,
+    model: loadBoard([
+      {
+        path: "cards/c001-vetted.md",
+        content:
+          "---\nid: c001\ntitle: Vetted card\nstatus: signoff\n---\n\n## Review\n\n" +
+          "### 2026-08-09T07:10:00 — pass\n\nChecked: criteria, tests, lint.\n",
+      },
+    ]),
+  });
+
+  it("c0170: reports the sign-off pile in the title bar", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("status", { name: /1 card awaiting sign-off/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("c0170: signing a card off from its front writes done", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const front = (await screen.findByText("Vetted card")).closest("article")!;
+    fireEvent.click(within(front).getByRole("button", { name: /sign off c001/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/cards/c001-vetted.md",
+        expect.stringContaining("status: done"),
+      ),
+    );
+    // the check-list is clear, so the title bar drops the badge
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: /awaiting sign-off/i })).toBeNull(),
+    );
+  });
+
+  it("c0170: reopening a card from its front writes in-progress", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const front = (await screen.findByText("Vetted card")).closest("article")!;
+    fireEvent.click(within(front).getByRole("button", { name: /reopen c001/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/cards/c001-vetted.md",
+        expect.stringContaining("status: in-progress"),
+      ),
+    );
+  });
+
   it("opens the card detail on click and closes on Escape", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 

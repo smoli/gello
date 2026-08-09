@@ -210,7 +210,10 @@ outcomes are written back into the card, which then graduates to an epic.
 
 The `signoff` column (c0164) sits between `review` and `done`: cards an AI
 review agent has passed, waiting for the human to accept them. Only a human
-moves a card `signoff` → `done`.
+moves a card `signoff` → `done`. It is presented as a check-list (c0170): a
+card front shows the verdict recorded in its `## Review` section and carries a
+**Sign off** (→ `done`) and a **Reopen** (→ `in-progress`) action, and the
+title bar reports how many cards are waiting.
 
 **Card order within a column** (c056) is per-column:
 

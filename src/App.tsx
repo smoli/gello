@@ -14,6 +14,7 @@ import {
   dependenciesOf,
   dependencyOptions,
   duplicateIdOf,
+  signoffCount,
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
@@ -1911,6 +1912,7 @@ function App() {
           onStopRun={(cardId) => void handleStopRun(cardId)}
           afk={afk}
           onToggleAfk={(next) => void handleToggleAfk(next)}
+          signoffCount={signoffCount(board.model)}
           search={query}
           onSearch={setQuery}
         />
