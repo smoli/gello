@@ -303,6 +303,69 @@ describe("TitleBar", () => {
     expect(left?.contains(popover)).toBe(false);
   });
 
+  // c0169: the AFK toggle — the app-side switch for the c0162 flag. It sits in
+  // the runner corner and is offered whether or not a companion is running, so
+  // AFK can be armed before starting one.
+
+  it("c0169: shows the AFK toggle as off by default", () => {
+    render(
+      <TitleBar root="/x/.gello" branch="main" runner={null} onToggleAfk={vi.fn()} />,
+    );
+    const toggle = screen.getByRole("button", { name: /AFK mode/ });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle.className).not.toContain("titlebar-afk-on");
+  });
+
+  it("c0169: shows AFK on distinctly from off", () => {
+    const { rerender } = render(
+      <TitleBar root="/x/.gello" branch="main" afk={false} onToggleAfk={vi.fn()} />,
+    );
+    const off = screen.getByRole("button", { name: /AFK mode/ });
+    const offLook = [off.className, off.textContent, off.getAttribute("aria-pressed")];
+
+    rerender(<TitleBar root="/x/.gello" branch="main" afk onToggleAfk={vi.fn()} />);
+    const on = screen.getByRole("button", { name: /AFK mode/ });
+    expect(on).toHaveAttribute("aria-pressed", "true");
+    expect(on.className).toContain("titlebar-afk-on");
+    expect([on.className, on.textContent, on.getAttribute("aria-pressed")]).not.toEqual(
+      offLook,
+    );
+    expect(on.textContent).toContain("AFK");
+  });
+
+  it("c0169: toggling asks for the opposite state", () => {
+    const onToggleAfk = vi.fn();
+    const { rerender } = render(
+      <TitleBar root="/x/.gello" branch="main" afk={false} onToggleAfk={onToggleAfk} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /AFK mode/ }));
+    expect(onToggleAfk).toHaveBeenCalledExactlyOnceWith(true);
+
+    onToggleAfk.mockClear();
+    rerender(<TitleBar root="/x/.gello" branch="main" afk onToggleAfk={onToggleAfk} />);
+    fireEvent.click(screen.getByRole("button", { name: /AFK mode/ }));
+    expect(onToggleAfk).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  it("c0169: shows no AFK control without an onToggleAfk handler", () => {
+    render(<TitleBar root="/x/.gello" branch="main" afk />);
+    expect(screen.queryByRole("button", { name: /AFK mode/ })).not.toBeInTheDocument();
+  });
+
+  it("c0169: stays out of the runs popover's way while a companion runs", () => {
+    render(
+      <TitleBar
+        root="/x/.gello"
+        branch="main"
+        runner={freshRunner}
+        afk
+        onToggleAfk={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Companion:/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /AFK mode/ })).toBeInTheDocument();
+  });
+
   it("is a Tauri drag region", () => {
     const { container } = render(<TitleBar root="/x/.gello" branch={null} />);
     expect(container.querySelector("[data-tauri-drag-region]")).not.toBeNull();

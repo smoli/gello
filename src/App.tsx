@@ -69,6 +69,7 @@ import {
   pickFolder,
   type GitStatus,
   pickImageFile,
+  readAfkFlag,
   readFileRaw,
   removeFile,
   setBoardImage,
@@ -77,6 +78,7 @@ import {
   startCompanion,
   watchBoard,
   watchGitHead,
+  writeAfkFlag,
   writeAsset,
   writeNewFiles,
   type LoadedBoard,
@@ -275,6 +277,10 @@ function App() {
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   // c0100: companion runner state for the title-bar indicator (null = not running)
   const [runner, setRunner] = useState<CompanionState | null>(null);
+  // c0169: AFK mode, as the c0162 flag file has it. The file is the truth (the
+  // companion reads it, and it outlives both processes), so the control shows
+  // what the companion poll last read rather than a UI state of its own.
+  const [afk, setAfk] = useState(false);
   // i0028: epic creation + minimal-view selection. openEpicSignal opens the
   // capture form in epic mode from the filter / create-on-triage; epicAssign is
   // the card to assign to the epic once created (create-on-triage).
@@ -776,7 +782,9 @@ function App() {
 
   /** c0100: refresh the title-bar companion indicator from its state file.
    *  c0128: also fire an OS notification for any card newly parked on a
-   *  question since the last poll. */
+   *  question since the last poll.
+   *  c0169: the AFK flag rides along on the same poll — one more small read,
+   *  and the toggle then also reflects a flag set before this app run. */
   const refreshCompanion = async () => {
     if (!board) return;
     const next = await readCompanionState(board.root);
@@ -786,6 +794,7 @@ function App() {
     }
     prevWaitingRef.current = next?.waiting ?? [];
     setRunner(next);
+    setAfk(await readAfkFlag(board.root));
   };
   const refreshCompanionRef = useRef(refreshCompanion);
   refreshCompanionRef.current = refreshCompanion;
@@ -816,6 +825,22 @@ function App() {
     } catch (failure) {
       setError(
         `could not stop the run: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+    }
+  };
+
+  /** c0169: turn AFK mode on or off by writing the c0162 flag the companion
+   *  watches. The control moves at once; a failed write puts it back, so it
+   *  never claims an unattended board the companion knows nothing about. */
+  const handleToggleAfk = async (next: boolean) => {
+    if (!board) return;
+    setAfk(next);
+    try {
+      await writeAfkFlag(board.root, next);
+    } catch (failure) {
+      setAfk(!next);
+      setError(
+        `could not turn AFK mode ${next ? "on" : "off"}: ${failure instanceof Error ? failure.message : String(failure)}`,
       );
     }
   };
@@ -967,6 +992,7 @@ function App() {
     prevWaitingRef.current = null;
     if (!board) {
       setRunner(null);
+      setAfk(false); // c0169: AFK is a per-board flag — no board, nothing set
       return;
     }
     void refreshCompanionRef.current();
@@ -1883,6 +1909,8 @@ function App() {
           runner={runner}
           onStartCompanion={() => void handleStartCompanion()}
           onStopRun={(cardId) => void handleStopRun(cardId)}
+          afk={afk}
+          onToggleAfk={(next) => void handleToggleAfk(next)}
           search={query}
           onSearch={setQuery}
         />

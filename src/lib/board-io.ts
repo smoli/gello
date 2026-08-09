@@ -6,6 +6,7 @@ import { loadBoard, type BoardFile, type BoardModel } from "./board";
 import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
 import { writeFileAtomic } from "./fs";
 import { appendControlRequest } from "./companion-control";
+import { afkFileContent, afkFilePath, parseAfk } from "./companion-afk";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
@@ -92,6 +93,23 @@ export async function requestStopRun(root: string, cardId: string): Promise<void
 /** c0141: restart a stopped card — the companion resumes its session in place. */
 export async function requestRestartCard(root: string, cardId: string): Promise<void> {
   await writeControlRequest(root, "restart", cardId);
+}
+
+/** c0169: set AFK mode for the open board — an atomic write of the c0162 flag
+ *  the companion watches. Both states are written; off is a value, not a
+ *  missing file. */
+export async function writeAfkFlag(root: string, afk: boolean): Promise<void> {
+  await writeFileAtomic(afkFilePath(root), afkFileContent(afk));
+}
+
+/** c0169: the AFK state on disk, for the toggle to reflect. No file (no
+ *  companion has ever run here, or AFK was never armed) reads as off. */
+export async function readAfkFlag(root: string): Promise<boolean> {
+  try {
+    return parseAfk(await readFileRaw(afkFilePath(root)));
+  } catch {
+    return false; // absent → off
+  }
 }
 
 /** c032: existing agent-skill directories under the project root. */

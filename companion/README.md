@@ -115,8 +115,9 @@ also carries `usage` (input/output/cache tokens, `totalCostUsd`, `numTurns`,
 ## AFK mode (c0162)
 
 AFK mode lets the companion keep draining the queue while nobody is watching.
-It is off by default and switched from the app, which writes
-`.gello/.companion/afk.json`:
+It is off by default and switched from the app's title bar (c0169): the moon
+next to the companion indicator, which reads `☾ AFK` in amber while AFK is on.
+Toggling it writes `.gello/.companion/afk.json`:
 
 ```json
 { "afk": true }
@@ -125,7 +126,9 @@ It is off by default and switched from the app, which writes
 The **app is the sole writer**, the companion the sole reader — the same split
 as the control file, so there is no two-writer race. The companion reads the
 flag at startup and re-reads it whenever that file changes, so a toggle applies
-with no restart, and echoes the value it applied in `state.json` (`afk`).
+with no restart, and echoes the value it applied in `state.json` (`afk`). The
+app reads the file back on its companion poll, so the toggle shows the state a
+previous app run (or a hand edit) left behind.
 
 AFK is off unless the file says `{"afk": true}`: no file, unparseable content, a
 missing field or a non-boolean value all read as off. The flag is per-machine

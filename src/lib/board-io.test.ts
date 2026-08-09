@@ -6,8 +6,10 @@ import {
   imageDataUrl,
   loadBoardFromDisk,
   migrateBoard,
+  readAfkFlag,
   readFileRaw,
   watchBoard,
+  writeAfkFlag,
 } from "./board-io";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -313,5 +315,50 @@ describe("readFileRaw", () => {
     invokeMock.mockRejectedValueOnce({ kind: "NotFound", message: "gone" });
 
     await expect(readFileRaw("/x.md")).rejects.toBeTruthy();
+  });
+});
+
+// c0169: the app side of the AFK flag (c0162) — the toggle writes it, the
+// title-bar control reflects what is on disk.
+describe("the AFK flag (c0169)", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  it("writes the on state atomically to .companion/afk.json", async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await writeAfkFlag("/repo/.gello", true);
+
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("write_file_atomic", {
+      path: "/repo/.gello/.companion/afk.json",
+      contents: '{\n  "afk": true\n}\n',
+    });
+  });
+
+  it("writes the off state, so turning AFK off is a state the companion reads", async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await writeAfkFlag("/repo/.gello", false);
+
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("write_file_atomic", {
+      path: "/repo/.gello/.companion/afk.json",
+      contents: '{\n  "afk": false\n}\n',
+    });
+  });
+
+  it("reads the current state back off disk", async () => {
+    invokeMock.mockResolvedValueOnce('{"afk": true}\n');
+
+    expect(await readAfkFlag("/repo/.gello")).toBe(true);
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("read_file", {
+      path: "/repo/.gello/.companion/afk.json",
+    });
+  });
+
+  it("reads as off when no flag file has ever been written", async () => {
+    invokeMock.mockRejectedValueOnce({ kind: "NotFound", message: "gone" });
+
+    expect(await readAfkFlag("/repo/.gello")).toBe(false);
   });
 });

@@ -77,6 +77,8 @@ export function TitleBar({
   runner,
   onStartCompanion,
   onStopRun,
+  afk,
+  onToggleAfk,
   search,
   onSearch,
 }: {
@@ -90,6 +92,10 @@ export function TitleBar({
   onStartCompanion?: () => void;
   /** c0119: stop a live run from the popover. Omitted → no stop control. */
   onStopRun?: (cardId: string) => void;
+  /** c0169: current AFK state, read from the c0162 flag file. */
+  afk?: boolean;
+  /** c0169: set AFK mode. Omitted → no toggle. */
+  onToggleAfk?: (next: boolean) => void;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
@@ -233,6 +239,26 @@ export function TitleBar({
                 document.body,
               )}
           </span>
+        )}
+        {/* c0169: the AFK switch for the c0162 flag. Offered whether or not a
+            companion runs — the flag is read at startup too, so AFK can be
+            armed before starting one. Off is a dim moon; on adds the word and
+            the waiting amber, so the two states don't read alike. */}
+        {onToggleAfk && (
+          <button
+            type="button"
+            className={afk ? "titlebar-afk titlebar-afk-on" : "titlebar-afk"}
+            aria-pressed={afk === true}
+            aria-label={afk ? "AFK mode on" : "AFK mode off"}
+            title={
+              afk
+                ? "AFK mode on — the companion works the queue unattended. Click to turn off."
+                : "AFK mode off. Click to let the companion work the queue unattended."
+            }
+            onClick={() => onToggleAfk(!afk)}
+          >
+            {afk ? "☾ AFK" : "☾"}
+          </button>
         )}
       </div>
       {onSearch && (

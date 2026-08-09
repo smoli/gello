@@ -24,7 +24,9 @@ import {
   readFileRaw,
   removeDir,
   removeFile,
+  readAfkFlag,
   requestStopRun,
+  writeAfkFlag,
   writeAsset,
   writeNewFiles,
   watchBoard,
@@ -65,6 +67,8 @@ vi.mock("./lib/board-io", () => ({
   startCompanion: vi.fn(),
   requestStopRun: vi.fn(),
   requestRestartCard: vi.fn(),
+  readAfkFlag: vi.fn(),
+  writeAfkFlag: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 // c0100: the title-bar companion poll reads its own state file; stub it at the
@@ -145,6 +149,10 @@ describe("App", () => {
     vi.mocked(requestStopRun).mockReset();
     vi.mocked(requestStopRun).mockResolvedValue(undefined);
     vi.mocked(readCompanionState).mockResolvedValue(null);
+    vi.mocked(readAfkFlag).mockReset();
+    vi.mocked(readAfkFlag).mockResolvedValue(false);
+    vi.mocked(writeAfkFlag).mockReset();
+    vi.mocked(writeAfkFlag).mockResolvedValue(undefined);
     vi.mocked(gitBoardChanges).mockReset();
     vi.mocked(gitBoardChanges).mockResolvedValue({ kind: "not_a_repo" });
     vi.mocked(gitCommitBoard).mockReset();
@@ -600,6 +608,63 @@ describe("App", () => {
     );
     expect(screen.queryByRole("dialog", { name: /Stop the running agent/i })).not.toBeInTheDocument();
     expect(vi.mocked(requestStopRun)).not.toHaveBeenCalled();
+  });
+
+  // c0169: the AFK toggle. The flag file (c0162) is the truth: the control
+  // reflects what is on disk, and toggling writes it for the companion to read.
+  const afkToggle = async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    render(<App />);
+    await screen.findByText("Hello board");
+    return waitFor(() => screen.getByRole("button", { name: /AFK mode/ }));
+  };
+
+  it("c0169: the toggle reflects the flag file — off with none, on when set", async () => {
+    expect(await afkToggle()).toHaveAttribute("aria-pressed", "false");
+    expect(vi.mocked(readAfkFlag)).toHaveBeenCalledWith("/repo/.gello");
+  });
+
+  it("c0169: shows AFK on when the flag file says so", async () => {
+    vi.mocked(readAfkFlag).mockResolvedValue(true);
+    const toggle = await afkToggle();
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+  });
+
+  it("c0169: turning AFK on writes the flag", async () => {
+    const toggle = await afkToggle();
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(vi.mocked(writeAfkFlag)).toHaveBeenCalledExactlyOnceWith("/repo/.gello", true),
+    );
+    expect(screen.getByRole("button", { name: /AFK mode/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("c0169: turning it off writes the off state", async () => {
+    vi.mocked(readAfkFlag).mockResolvedValue(true);
+    const toggle = await afkToggle();
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(vi.mocked(writeAfkFlag)).toHaveBeenCalledExactlyOnceWith("/repo/.gello", false),
+    );
+  });
+
+  it("c0169: a failed write leaves the control showing the real state", async () => {
+    vi.mocked(writeAfkFlag).mockRejectedValue(new Error("read-only volume"));
+    const toggle = await afkToggle();
+    fireEvent.click(toggle);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/read-only volume/);
+    expect(screen.getByRole("button", { name: /AFK mode/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("opens the card detail on click and closes on Escape", async () => {
