@@ -23,8 +23,13 @@ interface CardRef {
   epic: string | null;
 }
 
-/** What a run does with its card: implement it, or review it (c0167). */
-export type RunKind = "implement" | "review";
+/**
+ * What a run does with its card: implement it, review it (c0167), or fix what
+ * the review rejected (c0168). A `fix` is the implementer picking its own work
+ * back up, so it shares the implementer's key — the point of the fix loop is
+ * that the context is still there.
+ */
+export type RunKind = "implement" | "review" | "fix";
 
 /**
  * The key a session is stored under. Per-epic scope shares one session across

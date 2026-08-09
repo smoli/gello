@@ -8,15 +8,18 @@ import type { AgentEvent, Level } from "./stream.ts";
 import type { RunState } from "./core.ts";
 import type { Scheduler } from "./throttle.ts";
 import { LogPanes } from "./tui-model.ts";
-import { buildReviewPrompt } from "./review.ts";
+import { buildReviewPrompt, fixRounds, latestReview } from "./review.ts";
 import {
   planDispatch,
   planReviewDispatch,
+  planFixDispatch,
   needsReview,
+  needsFix,
   classifyExit,
   occupiedSlots,
   occupiedSlotIds,
   buildTaskPrompt,
+  buildFixPrompt,
   Runner,
   type SpawnedRun,
 } from "./runner.ts";
@@ -67,15 +70,22 @@ interface CardSpec {
   /** c0150: pre-existing cumulative usage totals on the card. */
   usageTokens?: number;
   usageCost?: number;
-  /** c0167: a verdict already recorded in `## Review` — `[stamp, verdict]`.
-   *  An empty stamp writes the heading without one. */
-  review?: [string, string];
+  /** c0167: a verdict already recorded in `## Review` — `[stamp, verdict]`, or
+   *  (c0168, which counts the fail rounds) a list of them, oldest first. An
+   *  empty stamp writes the heading without one. */
+  review?: [string, string] | [string, string][];
 }
 
-/** A `## Review` section carrying one entry, as the review agent writes it. */
-function reviewSection([stamp, verdict]: [string, string]): string {
-  const heading = [stamp, verdict].filter(Boolean).join(" — ");
-  return `\n\n## Review\n\n### ${heading}\n\nChecked: criteria, tests, lint.\n`;
+/** A `## Review` section carrying the given entries, as the agent writes them. */
+function reviewSection(review: NonNullable<CardSpec["review"]>): string {
+  const rounds = (Array.isArray(review[0]) ? review : [review]) as [string, string][];
+  const entries = rounds
+    .map(([stamp, verdict]) => {
+      const heading = [stamp, verdict].filter(Boolean).join(" — ");
+      return `### ${heading}\n\nChecked: criteria, tests, lint.\n`;
+    })
+    .join("\n");
+  return `\n\n## Review\n\n${entries}`;
 }
 
 function cardFile(id: string, s: CardSpec): string {
@@ -682,6 +692,236 @@ describe("planReviewDispatch", () => {
     expect(planReviewDispatch(model, ["c001"], 1, ["c001"]).dispatch.map((c) => c.id)).toEqual([
       "c002",
     ]);
+  });
+});
+
+// c0168: a fail verdict is the other half of the review round — the card goes
+// back to the implementer that wrote it, for a bounded number of tries.
+describe("needsFix", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+
+  it("a review card rejected this round is waiting for its implementer", () => {
+    const model = board({ c001: { status: "review", statusChanged: at, review: [after, "fail"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(true);
+  });
+
+  it("a pass is not a rejection", () => {
+    const model = board({ c001: { status: "review", statusChanged: at, review: [after, "pass"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  it("an unreviewed card is not one either", () => {
+    const model = board({ c001: { status: "review", statusChanged: at } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The fix run moves the card on, so anywhere else it is either being fixed
+  // already or long past this round.
+  it("only applies while the card is in review", () => {
+    for (const status of ["ready", "in-progress", "signoff", "done"]) {
+      const model = board({ c001: { status, statusChanged: at, review: [after, "fail"] } });
+      expect(needsFix(cardOf(model, "c001"))).toBe(false);
+    }
+  });
+
+  // The card came back after that fail and has not been re-reviewed yet — the
+  // verdict on it belongs to the previous round.
+  it("ignores a fail from before the card re-entered review", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: "2026-08-09T12:00:00", review: [after, "fail"] },
+    });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The card is with the human now (the cap park below, or a question the
+  // implementer left); handing it back would talk over them.
+  it("leaves a card with an open or answered question alone", () => {
+    const parked = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [after, "fail"],
+        parked: "### Now what?\n",
+      },
+    });
+    expect(needsFix(cardOf(parked, "c001"))).toBe(false);
+    const answered = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [after, "fail"],
+        answered: "### Now what?\n\nfix it\n",
+      },
+    });
+    expect(needsFix(cardOf(answered, "c001"))).toBe(false);
+  });
+
+  it("treats unreadable stamps as nothing to do", () => {
+    const model = board({ c001: { status: "review", review: [after, "fail"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+});
+
+// The cap is counted off the card itself, so it survives a companion restart
+// and cannot drift from the verdicts the human reads.
+describe("fixRounds", () => {
+  it("counts the fail verdicts on the card", () => {
+    const none = board({ c001: { status: "review" } });
+    expect(fixRounds(cardOf(none, "c001").body)).toBe(0);
+    const once = board({ c001: { status: "review", review: ["2026-08-09T10:00:00", "fail"] } });
+    expect(fixRounds(cardOf(once, "c001").body)).toBe(1);
+    const twice = board({
+      c001: {
+        status: "review",
+        review: [
+          ["2026-08-09T10:00:00", "fail"],
+          ["2026-08-09T12:00:00", "fail"],
+        ],
+      },
+    });
+    expect(fixRounds(cardOf(twice, "c001").body)).toBe(2);
+  });
+
+  it("does not count a pass", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        review: [
+          ["2026-08-09T10:00:00", "fail"],
+          ["2026-08-09T12:00:00", "pass"],
+        ],
+      },
+    });
+    expect(fixRounds(cardOf(model, "c001").body)).toBe(1);
+  });
+});
+
+describe("planFixDispatch", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+  const rejected = (extra: Partial<CardSpec> = {}): CardSpec => ({
+    status: "review",
+    statusChanged: at,
+    review: [after, "fail"],
+    ...extra,
+  });
+
+  it("hands rejected cards back in board order, within the WIP budget", () => {
+    const model = board({
+      c001: rejected({ order: 2 }),
+      c002: rejected({ order: 1 }),
+      c003: rejected({ order: 3 }),
+    });
+    const plan = planFixDispatch(model, [], 2);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002", "c001"]);
+    expect(plan.queued.map((c) => c.id)).toEqual(["c003"]);
+    expect(plan.park).toEqual([]);
+  });
+
+  it("skips a card whose run is still active, or already handed back", () => {
+    const model = board({ c001: rejected() });
+    expect(planFixDispatch(model, ["c001"], 2).dispatch).toEqual([]);
+    expect(planFixDispatch(model, [], 2, "card", [], ["c001"]).dispatch).toEqual([]);
+  });
+
+  it("takes a parked run's freed slot (c0163)", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: rejected() }, 1);
+    expect(planFixDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+    expect(planFixDispatch(model, ["c001"], 1, "card", ["c001"]).dispatch.map((c) => c.id)).toEqual(
+      ["c002"],
+    );
+  });
+
+  // The fix resumes the implementer's session, so it queues behind a sibling
+  // holding it — under `scope: epic` that is the whole epic's session (c0126).
+  it("waits while the implementer session is busy elsewhere", () => {
+    const model = board(
+      { c001: rejected({ epic: "e01" }), c002: { status: "in-progress", epic: "e01" } },
+      4,
+    );
+    const plan = planFixDispatch(model, ["c002"], 4, "epic");
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.sessionHeld.map((h) => [h.card.id, h.heldBy])).toEqual([["c001", "c002"]]);
+    // a review run holds a key of its own, so it does not block the fix (c0167)
+    const reviewing = planFixDispatch(model, ["c002"], 4, "epic", [], [], ["c002"]);
+    expect(reviewing.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  // The cap is what bounds review↔fix cycling: after it the card is the
+  // human's, and parking costs no slot.
+  it("parks a card that has used up its rounds instead of dispatching it", () => {
+    const model = board({
+      c001: rejected({
+        review: [
+          ["2026-08-09T09:00:00", "fail"],
+          [after, "fail"],
+        ],
+      }),
+    });
+    const plan = planFixDispatch(model, [], 2);
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.park.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("parks over the cap even with no slot free", () => {
+    const model = board(
+      {
+        c001: rejected({
+          review: [
+            ["2026-08-09T09:00:00", "fail"],
+            [after, "fail"],
+          ],
+        }),
+        c002: { status: "in-progress" },
+      },
+      1,
+    );
+    expect(planFixDispatch(model, ["c002"], 1).park.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("takes the cap as a parameter", () => {
+    const model = board({ c001: rejected() });
+    expect(planFixDispatch(model, [], 2, "card", [], [], [], 1).park.map((c) => c.id)).toEqual([
+      "c001",
+    ]);
+  });
+});
+
+describe("buildFixPrompt", () => {
+  const model = board({
+    c001: {
+      status: "review",
+      statusChanged: "2026-08-09T10:00:00",
+      review: ["2026-08-09T10:19:00", "fail"],
+    },
+  });
+  const card = () => cardOf(model, "c001");
+  const verdict = () => latestReview(card().body)!;
+
+  it("names the card, its file, and carries the reviewer's notes", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toContain("c001");
+    expect(prompt).toContain("cards/c001-x.md");
+    expect(prompt).toContain("Checked: criteria, tests, lint.");
+  });
+
+  it("has the agent take the card back to in-progress first", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toContain("set_status");
+    expect(prompt).toMatch(/in-progress/);
+    expect(prompt).toMatch(/right away|before.*analysis|first/i);
+  });
+
+  it("has it re-enter review when the criteria pass", () => {
+    expect(buildFixPrompt(card(), verdict())).toMatch(/`review`/);
+  });
+
+  it("authorizes committing on the same terms as the task prompt", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toMatch(/commit/i);
+    expect(prompt).toContain("CLAUDE.md");
+    expect(prompt).toMatch(/never push|do not push/i);
   });
 });
 
@@ -1890,6 +2130,179 @@ describe("Runner — AI review dispatch (c0167)", () => {
     h.runner.sync(start);
     expect(h.runner.ownedCards()).toEqual([]);
     expect(h.persistedOwned).toEqual([]);
+  });
+});
+
+// c0168: what happens after a fail — the card goes back to the implementer
+// that wrote it, for at most two rounds, then to the human.
+describe("Runner — the reject fix-loop (c0168)", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+  /** A card the review agent has just rejected, its notes on the card. */
+  const rejected = (
+    extra: Record<string, CardSpec> = {},
+    wipLimit: number | null = 2,
+    rounds: [string, string][] = [[after, "fail"]],
+  ) =>
+    board(
+      { c001: { status: "review", statusChanged: at, review: rounds }, ...extra },
+      wipLimit,
+    );
+  /** The implementer session the companion recorded when it ran the card. */
+  const implemented = { "card:c001": "implementer-session" };
+
+  it("AFK off: a rejected card sits for the human", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+    expect(h.writes).toEqual([]);
+  });
+
+  it("resumes the implementer's own session with the reviewer's notes", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args).toContain("--resume"); // the original session, not a fresh one
+    expect(args).toContain("implementer-session");
+    expect(args[args.length - 1]).toBe(
+      buildFixPrompt(cardOf(start, "c001"), latestReview(cardOf(start, "c001").body)!),
+    );
+    expect(h.logs.join("\n")).toMatch(/c001 → fix resume/);
+  });
+
+  // The move itself is the agent's (the companion never edits cards), which is
+  // why the prompt orders it first thing.
+  it("sends the card back to in-progress and re-reviews the fix", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // the fix run took the card back and is working it
+    const fixing = board({
+      c001: { status: "in-progress", statusChanged: "2026-08-09T10:30:00", review: [after, "fail"] },
+    });
+    h.setModel(fixing);
+    h.runner.sync(fixing);
+    expect(h.spawned).toHaveLength(1); // still the one run
+
+    // it finished and re-entered review — a new round, so a fresh review
+    const redone = board({
+      c001: { status: "review", statusChanged: "2026-08-09T11:00:00", review: [after, "fail"] },
+    });
+    h.setModel(redone);
+    h.spawned[0].exit(0);
+
+    expect(h.spawned).toHaveLength(2);
+    const { args } = h.spawned[1].spec;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(redone, "c001")));
+  });
+
+  it("does not hand the same card back twice for one verdict", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.spawned[0].exit(1); // died before it could move the card
+
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  it("leaves a card the companion never implemented for the human", () => {
+    const start = rejected();
+    const h = makeRunner(start); // no session: the human worked this one
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*no implementer session/i);
+  });
+
+  it("parks a question on the card once the rounds are used up", () => {
+    const start = rejected({}, 2, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.writes).toHaveLength(1);
+    expect(h.writes[0].path).toBe("/project/.gello/cards/c001-x.md");
+    expect(h.writes[0].raw).toContain("awaiting: input");
+    expect(h.writes[0].raw).toContain("```gelloquestion");
+    expect(h.writes[0].raw).toContain("status: review"); // the card stays put
+    expect(h.logs.join("\n")).toMatch(/c001 .*(cap|rounds).*park/i);
+  });
+
+  it("parks once, not on every sync", () => {
+    const start = rejected({}, 2, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.runner.sync(start);
+    expect(h.writes).toHaveLength(1);
+  });
+
+  // c0163's skip-ahead: the parked card is the human's now, and the queue does
+  // not wait for them.
+  it("dispatches the next ready card past the parked one", () => {
+    const start = rejected({ c002: { status: "ready", order: 1 } }, 1, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args[args.length - 1]).toBe(buildTaskPrompt(cardOf(start, "c002"), false));
+  });
+
+  // The answer arrives on the card the human was asked on: the marker resumes
+  // the implementer, exactly as it does for a question the agent parked itself.
+  it("resumes the implementer when the human answers the parked question", () => {
+    const answered = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [
+          ["2026-08-09T09:00:00", "fail"],
+          [after, "fail"],
+        ],
+        answered: "### Now what?\n\nDrop the second criterion.\n",
+      },
+    });
+    const h = makeRunner(answered, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args).toContain("--resume");
+    expect(args[args.length - 1]).toBe(buildTaskPrompt(cardOf(answered, "c001"), true));
+  });
+
+  it("a fix run costs a WIP slot like any other", () => {
+    const start = rejected({ c002: { status: "in-progress" } }, 1);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*(wip|limit)/i);
   });
 });
 

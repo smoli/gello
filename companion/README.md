@@ -249,9 +249,57 @@ logs what the card ends up saying, e.g.
 `usage-tokens` / `usage-cost` totals like any other run — a card's cost includes
 what reviewing it cost.
 
-A fail leaves the card in `review` with its notes and no further review; c0168
-routes it back to the implementer, and the fixed card re-entering `review` is a
-new round.
+A fail leaves the card in `review` with its notes and no further review. What
+happens to it next is the fix loop below, and the fixed card re-entering
+`review` is a new round.
+
+### The fix loop (c0168)
+
+A card the reviewer rejected goes back to the agent that wrote it: the
+implementer's own session, resumed with the verdict as its brief
+(`buildFixPrompt`). It takes the card to `in-progress` first thing and back to
+`review` when the criteria pass, both through `set_status` — the companion never
+moves a card itself. From `review` it is reviewed again, so a round is
+review → fail → fix → review.
+
+The hand-back is a run like the others: it costs a WIP slot, takes one a parked
+run freed, and waits while its session is busy — under `scope: epic` that is the
+epic's session, shared with every card in it. Rejected cards are dispatched
+after reviews and before fresh `ready` cards. A card the companion never
+implemented has no session to resume, and resuming is the point (a fresh session
+would re-implement it from the criteria), so it is left alone with
+`rejected by review, and no implementer session to resume` in the held-back
+line.
+
+**The loop is capped at two rounds**, counted off the card: `fixRounds` is how
+many `fail` entries its `## Review` carries, so the count survives a companion
+restart and cannot drift from what the human reads. On the third rejection the
+companion parks a question on the card instead of dispatching, quoting the last
+verdict:
+
+```markdown
+### c0123 is not getting through review
+
+The review agent rejected it 2 times, which is the fix-loop cap, so I stopped
+and left the card in `review`. Answering this resumes the implementer on the
+card.
+```
+
+That is the one question the companion writes itself — the loop ends with no
+agent running, so there is nobody to call `add_question`. The card keeps its
+`review` status and its verdicts; `awaiting: input` is what takes it off the
+loop and onto the needs-input list. Parking starts nothing, so the queue goes
+straight past it (c0163's skip-ahead), and answering resumes the implementer
+through the ordinary marker path.
+
+Which cards are in the loop is read off the card, like the review side:
+`needsFix` is a `review` card whose latest verdict is a `fail` stamped after it
+entered `review`, and carrying no question. A card the human is holding, a stale
+verdict from a previous round, and stamps that cannot be read all mean nothing
+to do. On top of that the companion remembers, in process, which cards it has
+handed back or parked this stay in `review` — a fix run that died before moving
+the card leaves the fail in place, and would otherwise be re-dispatched on every
+tick. Both records are dropped when the card leaves `review`.
 
 ## Run output
 

@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { SIGNOFF_STATUS, type BoardModel } from "../src/lib/board.ts";
 import { withUsageAdded, type BoardConfig, type Card } from "../src/lib/cards.ts";
 import { isoDateTime, todayIsoDate } from "../src/lib/dates.ts";
-import { withAwaitingCleared } from "../src/lib/gello-question.ts";
+import { withAwaitingCleared, withQuestionAdded } from "../src/lib/gello-question.ts";
 import type { AgentAdapter, AskServerSpec, LaunchSpec } from "./adapters.ts";
 import { writeCardAtomic, type RunState } from "./core.ts";
 import { StreamSink, type Activity, type AgentEvent, type Level, type RunUsage } from "./stream.ts";
@@ -28,7 +28,7 @@ import {
   type SessionScope,
 } from "./sessions.ts";
 import { hasOpenQuestion, cardsAnswered } from "./qa.ts";
-import { buildReviewPrompt, latestReview } from "./review.ts";
+import { buildReviewPrompt, fixRounds, latestReview, type ReviewEntry } from "./review.ts";
 
 const IN_PROGRESS = "in-progress";
 const READY = "ready";
@@ -146,6 +146,32 @@ export interface DispatchPlan {
   sessionHeld: SessionHeldCard[];
 }
 
+/**
+ * The session key each active run holds, by the card holding it (c0126): a
+ * session id is single-threaded, so a candidate whose key is in here waits.
+ *
+ * c0167: an active *review* run holds a review key, not the card's implementer
+ * one — otherwise a card being reviewed would stall its whole epic. A fix run
+ * (c0168) is the implementer, and holds the implementer's key.
+ */
+function heldSessionKeys(
+  model: BoardModel,
+  activeCardIds: Iterable<string>,
+  scope: SessionScope,
+  reviewing: Iterable<string>,
+): Map<string, string> {
+  const index = byId(model);
+  const underReview = new Set(reviewing);
+  const heldBy = new Map<string, string>();
+  for (const activeId of activeCardIds) {
+    const card = index.get(activeId);
+    if (!card) continue;
+    const kind: RunKind = underReview.has(activeId) ? "review" : "implement";
+    heldBy.set(sessionKey(card, scope, kind), activeId);
+  }
+  return heldBy;
+}
+
 /** How the pickup grace period is evaluated (c0117). Defaults to no delay, so
  *  a caller that does not care keeps the pre-c0117 behaviour. */
 export interface PickupOptions {
@@ -204,22 +230,11 @@ export function planDispatch(
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
-  const underReview = new Set(reviewing);
   const waiting = allCards(model)
     .filter((c) => c.status === trigger && !active.has(c.id))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
 
-  // c0126: a session id is single-threaded. Seed the held keys with every
-  // active run's key, so a candidate whose session is already in use waits.
-  // c0167: an active *review* run holds a review key, not the card's implementer
-  // one — otherwise a card being reviewed would stall its whole epic.
-  const heldBy = new Map<string, string>();
-  for (const activeId of active) {
-    const card = index.get(activeId);
-    if (!card) continue;
-    const kind: RunKind = underReview.has(activeId) ? "review" : "implement";
-    heldBy.set(sessionKey(card, scope, kind), activeId);
-  }
+  const heldBy = heldSessionKeys(model, active, scope, reviewing);
 
   const blocked: BlockedCard[] = [];
   const delayed: DelayedCard[] = [];
@@ -323,6 +338,105 @@ export function planReviewDispatch(
   return { dispatch: candidates.slice(0, budget), queued: candidates.slice(budget) };
 }
 
+// --- the fix run (c0168) ----------------------------------------------------
+
+/**
+ * How many review→fix rounds a card gets before the companion stops and asks
+ * the human (c0168). Two: enough for the reviewer's notes to be acted on and
+ * checked again, few enough that a card the agent cannot fix does not spend the
+ * night reviewing and re-fixing itself.
+ */
+export const FIX_ROUND_CAP = 2;
+
+/**
+ * Whether the card is one the review agent has just rejected (c0168) — the
+ * mirror of `needsReview`: this round *has* been judged, and judged a fail, so
+ * the card waits for its implementer rather than for a reviewer.
+ *
+ * A card carrying a question is not one: it is with the human, either through
+ * the cap park below or a question its implementer left, and handing it back
+ * would talk over them. Stamps that cannot be read mean nothing to do — the
+ * same safe default as everywhere else in AFK.
+ */
+export function needsFix(card: Card): boolean {
+  if (card.status !== REVIEW || card.awaiting !== null) return false;
+  const verdict = latestReview(card.body);
+  if (verdict?.verdict !== "fail") return false;
+  const reviewedAt = Date.parse(verdict.stamp);
+  const enteredAt = card.statusChanged === null ? NaN : Date.parse(card.statusChanged);
+  if (Number.isNaN(reviewedAt) || Number.isNaN(enteredAt)) return false;
+  return reviewedAt >= enteredAt;
+}
+
+export interface FixPlan {
+  /** Rejected cards to hand back to their implementer now. */
+  dispatch: Card[];
+  /** Rejected cards out of rounds — park a question and leave them to the human. */
+  park: Card[];
+  /** Dispatchable-but-over-budget rejected cards, waiting for a free slot. */
+  queued: Card[];
+  /** Rejected cards whose implementer session is busy with another card. */
+  sessionHeld: SessionHeldCard[];
+}
+
+/**
+ * Which rejected cards go back to their implementer now (c0168), in board order
+ * and within the same WIP budget as any other run.
+ *
+ * A card that has used up its `cap` rounds is parked for the human instead —
+ * whatever the board's slots and sessions are doing, since a park starts
+ * nothing. The gates on the rest are the ones a dispatch always has: the fix
+ * resumes the implementer's session, so it waits while that session is busy
+ * (under `scope: epic`, with any card of the epic), and it waits for a slot.
+ *
+ * `attempted` names cards this companion has already handed back (or parked)
+ * during their current stay in `review` — a fix run that died before moving the
+ * card leaves the verdict in place, and would otherwise be retried every tick.
+ */
+export function planFixDispatch(
+  model: BoardModel,
+  activeCardIds: string[],
+  wipLimit: number,
+  scope: SessionScope = "card",
+  slotFreed: string[] = [],
+  attempted: string[] = [],
+  reviewing: string[] = [],
+  cap: number = FIX_ROUND_CAP,
+): FixPlan {
+  const active = new Set(activeCardIds);
+  const done = new Set(attempted);
+  const rejected = allCards(model)
+    .filter((c) => needsFix(c) && !active.has(c.id) && !done.has(c.id))
+    .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+
+  const heldBy = heldSessionKeys(model, active, scope, reviewing);
+  const park: Card[] = [];
+  const sessionHeld: SessionHeldCard[] = [];
+  const candidates: Card[] = [];
+  for (const card of rejected) {
+    if (fixRounds(card.body) >= cap) {
+      park.push(card);
+      continue;
+    }
+    const key = sessionKey(card, scope);
+    const holder = heldBy.get(key);
+    if (holder !== undefined) {
+      sessionHeld.push({ card, heldBy: holder });
+      continue;
+    }
+    heldBy.set(key, card.id);
+    candidates.push(card);
+  }
+
+  const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds, slotFreed));
+  return {
+    dispatch: candidates.slice(0, budget),
+    park,
+    queued: candidates.slice(budget),
+    sessionHeld,
+  };
+}
+
 export type RunPhase = RunState["phase"];
 
 /**
@@ -377,6 +491,47 @@ export function buildTaskPrompt(card: Card, resuming: boolean): string {
     `If you need a human decision, call the \`add_question\` tool and then exit ` +
     `— the human answers on the card and you are resumed. ` +
     COMMIT_CLAUSE
+  );
+}
+
+/**
+ * The prompt for a fix run (c0168): the implementer's own session, resumed with
+ * the verdict that rejected its work. The notes ride in the prompt as well as
+ * sitting on the card — the session is warm, so this is the turn's brief.
+ *
+ * The status moves are the agent's, as always: it takes the card back to
+ * `in-progress` first thing (same reason as `buildTaskPrompt` — otherwise the
+ * card sits in `review` while it works) and returns it to `review` for the next
+ * round of checking.
+ */
+export function buildFixPrompt(card: Card, review: ReviewEntry): string {
+  return (
+    `Your work on gello card ${card.id} — "${card.title}" (${card.path}) was ` +
+    `reviewed and rejected. First, right away and before any analysis, call ` +
+    `the \`set_status\` tool with \`in-progress\`, so the human sees the card ` +
+    `is being worked again. Then fix what the review found and call ` +
+    `\`set_status\` with \`review\` when the acceptance criteria pass — it is ` +
+    `checked again from there. If you disagree with the verdict, or need a ` +
+    `human decision, call the \`add_question\` tool and then exit. The review ` +
+    `said:\n\n${review.notes}\n\n` +
+    COMMIT_CLAUSE
+  );
+}
+
+/** The question the companion parks when a card runs out of fix rounds (c0168).
+ *  The verdict is quoted rather than inlined, so its bullets cannot read as
+ *  answer options. */
+export function buildFixCapQuestion(card: Card, review: ReviewEntry, cap: number): string {
+  const quoted = review.notes
+    .split("\n")
+    .map((line) => (line ? `> ${line}` : ">"))
+    .join("\n");
+  return (
+    `### ${card.id} is not getting through review\n\n` +
+    `The review agent rejected it ${cap} times, which is the fix-loop cap, so ` +
+    `I stopped and left the card in \`review\`. Answering this resumes the ` +
+    `implementer on the card.\n\n` +
+    `The last verdict${review.stamp ? ` (${review.stamp})` : ""}:\n\n${quoted}\n`
   );
 }
 
@@ -508,6 +663,11 @@ export class Runner {
    *  a verdict leaves no trace on the card, so this is what stops it being
    *  retried on every watcher tick. */
   private readonly reviewed = new Set<string>();
+  /** c0168: cards this companion has already acted on after a fail verdict —
+   *  handed back to their implementer, or parked at the cap. Cleared with
+   *  `reviewed` when the card leaves `review`, so a card that came back and was
+   *  rejected again gets its next round. */
+  private readonly fixAttempted = new Set<string>();
 
   constructor(private readonly opts: RunnerOptions) {
     this.sessions = opts.sessions ?? {};
@@ -572,6 +732,12 @@ export class Runner {
     // finishes a card (unblocking its dependents, c0165) before starting one.
     const review = this.planReviews(next, wipLimit);
     for (const card of review.dispatch) this.start(card, false, "review");
+    // c0168: then the cards a review rejected — nearly-finished work, so ahead
+    // of a fresh `ready` card for the same reason. A card out of rounds is
+    // parked here instead, which starts nothing and lets the queue past it.
+    const fix = this.planFixes(next, wipLimit);
+    for (const card of fix.park) this.parkForHuman(card, next.config);
+    for (const card of fix.dispatch) this.start(card, false, "fix");
     const { dispatch, queued, blocked, delayed, sessionHeld } = planDispatch(
       next,
       [...this.active.keys()],
@@ -586,7 +752,15 @@ export class Runner {
       this.slotFreed(),
       this.reviewing(),
     );
-    this.reportHeldBack(queued, blocked, sessionHeld, wipLimit, review.queued, answeredHeld);
+    this.reportHeldBack({
+      wipLimit,
+      blocked,
+      sessionHeld,
+      queued,
+      reviewQueued: review.queued,
+      fix,
+      answered: answeredHeld,
+    });
     for (const card of dispatch) this.start(card, false);
     this.schedulePickupRecheck(delayed);
     this.publish();
@@ -641,8 +815,9 @@ export class Runner {
     );
   }
 
-  /** Drop the one-review-per-stay record for cards no longer in `review`, so a
-   *  card sent back and finished again is reviewed afresh (c0167/c0168). */
+  /** Drop the one-review-per-stay and one-fix-per-verdict records for cards no
+   *  longer in `review`, so a card sent back and finished again is reviewed
+   *  afresh (c0167/c0168). */
   private forgetLeftReview(model: BoardModel): void {
     const inReview = new Set(
       allCards(model)
@@ -651,6 +826,70 @@ export class Runner {
     );
     for (const cardId of [...this.reviewed]) {
       if (!inReview.has(cardId)) this.reviewed.delete(cardId);
+    }
+    for (const cardId of [...this.fixAttempted]) {
+      if (!inReview.has(cardId)) this.fixAttempted.delete(cardId);
+    }
+  }
+
+  /**
+   * The rejected cards to hand back now (c0168) — AFK only, like the review
+   * that rejected them. With AFK off a failed card sits for the human.
+   *
+   * `orphan` is the ones with no implementer session to resume: a card the
+   * human worked and the companion only reviewed. Resuming is the whole point
+   * of the fix loop — a fresh session would re-implement the card from its
+   * criteria — so those are reported and left alone.
+   */
+  private planFixes(next: BoardModel, wipLimit: number): FixPlan & { orphan: Card[] } {
+    if (!this.afk) return { dispatch: [], park: [], queued: [], sessionHeld: [], orphan: [] };
+    const plan = planFixDispatch(
+      next,
+      [...this.active.keys()],
+      wipLimit,
+      this.opts.scope,
+      this.slotFreed(),
+      [...this.fixAttempted],
+      this.reviewing(),
+    );
+    const orphan = plan.dispatch.filter(
+      (card) => resolveSession(this.sessions, card, this.opts.scope).sessionId === null,
+    );
+    return {
+      ...plan,
+      dispatch: plan.dispatch.filter((card) => !orphan.includes(card)),
+      orphan,
+    };
+  }
+
+  /**
+   * c0168: the review↔fix loop is out of rounds — hand the card to the human.
+   * The companion writes the question itself, a third card write alongside the
+   * awaiting marker and the usage totals: the loop ends with no agent running,
+   * so there is nobody to call `add_question`. The card keeps its status and its
+   * verdicts, and `awaiting: input` is what takes it off the loop and onto the
+   * app's needs-input list. Answering resumes the implementer through the
+   * ordinary marker path, with the answer and the verdicts on the card.
+   */
+  private parkForHuman(card: Card, config: BoardConfig): void {
+    // Recorded even if the write fails: a card that cannot be parked must not
+    // be re-parked on every tick either. It is retried when the card next
+    // leaves `review`.
+    this.fixAttempted.add(card.id);
+    const verdict = latestReview(card.body);
+    if (!verdict) return; // planFixDispatch only parks cards carrying a fail
+    try {
+      const question = buildFixCapQuestion(card, verdict, FIX_ROUND_CAP);
+      const result = withQuestionAdded(card, question, todayIsoDate(), config);
+      if (result === null) {
+        this.log(`${card.id} out of fix rounds, but a question is already open`);
+        return;
+      }
+      const write = this.opts.writeCard ?? writeCardAtomic;
+      write(join(this.opts.boardRoot, card.path), result.raw);
+      this.log(`${card.id} out of fix rounds (${FIX_ROUND_CAP}) → parked for the human`);
+    } catch (error) {
+      this.log(`could not park ${card.id} at the fix cap: ${(error as Error).message}`);
     }
   }
 
@@ -789,35 +1028,48 @@ export class Runner {
    * from a companion that failed to start. `sync` runs on every watcher tick,
    * so each card's reason is logged when it changes, not on every pass.
    */
-  private reportHeldBack(
-    queued: Card[],
-    blocked: BlockedCard[],
-    sessionHeld: SessionHeldCard[],
-    wipLimit: number,
-    reviewQueued: Card[] = [],
-    answeredHeld: Card[] = [],
-  ): void {
+  private reportHeldBack(held: {
+    wipLimit: number;
+    blocked: BlockedCard[];
+    sessionHeld: SessionHeldCard[];
+    queued: Card[];
+    reviewQueued: Card[];
+    fix: FixPlan & { orphan: Card[] };
+    answered: Card[];
+  }): void {
+    const { wipLimit } = held;
     const reasons = new Map<string, string>();
-    for (const { card, missing } of blocked) {
+    for (const { card, missing } of held.blocked) {
       reasons.set(card.id, `waiting on ${missing.join(", ")} (not signed off)`);
     }
     // c0126: the epic's session is busy — name who holds it, so a serialised
     // epic reads as "waiting its turn", not stalled.
-    for (const { card, heldBy } of sessionHeld) {
+    for (const { card, heldBy } of held.sessionHeld) {
       reasons.set(card.id, `session busy with ${heldBy}`);
     }
-    for (const card of queued) {
+    for (const card of held.queued) {
       reasons.set(card.id, `at the in-progress WIP limit (${wipLimit})`);
     }
     // c0167: a review waiting for a slot is held back like any other run, and
     // says so — otherwise a full board looks like a companion ignoring `review`.
-    for (const card of reviewQueued) {
+    for (const card of held.reviewQueued) {
       reasons.set(card.id, `review waiting: at the in-progress WIP limit (${wipLimit})`);
+    }
+    // c0168: a rejected card waiting to go back to its implementer — for the
+    // session that implementer shares with its epic, for a slot, or for good.
+    for (const { card, heldBy } of held.fix.sessionHeld) {
+      reasons.set(card.id, `fix waiting: implementer session busy with ${heldBy}`);
+    }
+    for (const card of held.fix.queued) {
+      reasons.set(card.id, `fix waiting: at the in-progress WIP limit (${wipLimit})`);
+    }
+    for (const card of held.fix.orphan) {
+      reasons.set(card.id, `rejected by review, and no implementer session to resume`);
     }
     // i0173: an answered card whose slot was re-let while it waited. Last, so
     // it beats any other reason — the human is owed an explanation for their
     // answer sitting there more than for a queued card.
-    for (const card of answeredHeld) {
+    for (const card of held.answered) {
       reasons.set(card.id, `answered, waiting for a slot (in-progress WIP limit ${wipLimit})`);
     }
     for (const [cardId, reason] of reasons) {
@@ -838,8 +1090,10 @@ export class Runner {
     const run = this.active.get(card.id);
     if (run?.phase === "running") return;
     // c0167: a review run can park a question too — resume the reviewer, not
-    // the implementer, or the answer would go to the wrong agent.
-    const kind = run?.kind ?? "implement";
+    // the implementer, or the answer would go to the wrong agent. A fix run
+    // resumes as the implementer it is: same session, and the answered-question
+    // prompt rather than the verdict it has already read (c0168).
+    const kind: RunKind = run?.kind === "review" ? "review" : "implement";
     const { sessionId } = resolveSession(this.sessions, card, this.opts.scope, kind);
     if (sessionId === null) return; // never started by us — don't dispatch
     // Clear before dispatching: the marker is the resume trigger, so leaving it
@@ -912,7 +1166,7 @@ export class Runner {
     }
     const spec = this.opts.adapter.build({
       sessionId: id,
-      prompt: kind === "review" ? buildReviewPrompt(card) : buildTaskPrompt(card, answered),
+      prompt: this.promptFor(card, kind, answered),
       mode: "print",
       resume,
       permissionMode: this.opts.permissionMode,
@@ -934,6 +1188,9 @@ export class Runner {
       this.opts.persistOwned?.([...this.owned]);
     }
     if (kind === "review") this.reviewed.add(card.id);
+    // c0168: one hand-back per verdict. A fix run that died before moving the
+    // card leaves the fail in place, which on its own would re-dispatch forever.
+    if (kind === "fix") this.fixAttempted.add(card.id);
     this.active.set(card.id, {
       sessionId: id,
       phase: "running",
@@ -941,7 +1198,7 @@ export class Runner {
       ...(proc.kill ? { kill: () => proc.kill?.() } : {}),
     });
     const verb = resume ? "resume" : "run";
-    this.log(`${card.id} → ${kind === "review" ? `review ${verb}` : verb} (session ${id})`);
+    this.log(`${card.id} → ${kind === "implement" ? verb : `${kind} ${verb}`} (session ${id})`);
     // c0104: parse the piped stdout into neutral events — render per the level,
     // record every event to the transcript, and keep the latest usage so the
     // run's state entry can carry its tokens/cost.
@@ -959,6 +1216,18 @@ export class Runner {
       sink.end();
       this.handleExit(card.id, code, sink.usage());
     });
+  }
+
+  /** What the run is told to do: review the card (c0167), fix what a review
+   *  rejected (c0168), or work it. A fix run whose verdict has gone missing
+   *  falls back to the ordinary task prompt rather than running promptless. */
+  private promptFor(card: Card, kind: RunKind, answered: boolean): string {
+    if (kind === "review") return buildReviewPrompt(card);
+    if (kind === "fix") {
+      const verdict = latestReview(card.body);
+      if (verdict) return buildFixPrompt(card, verdict);
+    }
+    return buildTaskPrompt(card, answered);
   }
 
   /** Record the run's latest tool call and publish it — throttled, so a fast

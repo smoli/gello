@@ -17,6 +17,7 @@
 // keep reading the verdict off this module.
 
 import type { Card } from "../src/lib/cards.ts";
+import { parseReview } from "../src/lib/review.ts";
 import { REVIEW_SKILL, skillInstructions } from "../src/lib/skills.ts";
 
 export {
@@ -26,6 +27,16 @@ export {
   type ReviewEntry,
   type ReviewVerdict,
 } from "../src/lib/review.ts";
+
+/**
+ * How many review→fix rounds the card has already had (c0168) — one per `fail`
+ * verdict on it. The card is the counter: it survives a companion restart, and
+ * it is the same record the human reads, so the cap cannot drift from what the
+ * card says happened.
+ */
+export function fixRounds(body: string): number {
+  return parseReview(body).filter((entry) => entry.verdict === "fail").length;
+}
 
 /** The prompt for a review run on `card` (c0167). Self-contained: the skill
  *  rides along, so the run depends on nothing being installed in the project. */

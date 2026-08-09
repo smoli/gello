@@ -50,6 +50,15 @@ describe("sessionKey", () => {
       sessionKey(c, "epic", "review"),
     );
   });
+
+  // c0168: a fix run is the implementer picking its own work back up, so it
+  // resumes that session — the context it needs is the one it worked in.
+  it("keys a fix run as the implementer's", () => {
+    for (const scope of ["card", "epic"] as const) {
+      const c = card("c001", "e01");
+      expect(sessionKey(c, scope, "fix")).toBe(sessionKey(c, scope));
+    }
+  });
 });
 
 describe("sessions store", () => {
