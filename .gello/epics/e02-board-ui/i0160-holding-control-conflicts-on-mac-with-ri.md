@@ -1,13 +1,13 @@
 ---
 id: i0160
 title: "Holding control conflicts on Mac with „right click\""
-status: review
+status: done
 type: issue
 ref: c0146
 epic: e02
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T15:31:02
+updated: 2026-08-09
+status-changed: 2026-08-09T07:42:58
 usage-tokens: 18734
 usage-cost: 3.248855
 ---
@@ -70,3 +70,4 @@ Decided (human): keep both bindings and make the overlay Control-click-safe.
 - 2026-08-08 secondary click in the switcher picks the entry, native menu
   suppressed across the overlay — 3 tests (2 component, 1 App)
 - 2026-08-08 status → review (agent)
+- 2026-08-09 status → done (app)

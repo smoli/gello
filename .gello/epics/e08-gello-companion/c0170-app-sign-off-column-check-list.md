@@ -1,12 +1,14 @@
 ---
 id: c0170
 title: 'App: sign-off column + check-list'
-status: in-progress
+status: review
 epic: e08
 depends: [c0164]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T07:22:22
+status-changed: 2026-08-09T07:35:13
+usage-tokens: 44361
+usage-cost: 9.230168
 ---
 
 ## What
@@ -67,3 +69,4 @@ glance on return; the recorded review verdict is visible on each card.
   carry Sign off / Reopen; the title bar reports the pile size. README,
   concept.md, companion README and the demo board updated. 1680 tests,
   typecheck, lint and cargo test green.
+- 2026-08-09 status → review (agent)
