@@ -23,9 +23,24 @@ interface CardRef {
   epic: string | null;
 }
 
-/** The key a session is stored under. Per-epic scope shares one session across
- *  the epic's cards; a card with no epic falls back to its own key. */
-export function sessionKey(card: CardRef, scope: SessionScope): string {
+/** What a run does with its card: implement it, or review it (c0167). */
+export type RunKind = "implement" | "review";
+
+/**
+ * The key a session is stored under. Per-epic scope shares one session across
+ * the epic's cards; a card with no epic falls back to its own key.
+ *
+ * c0167: a review run gets a key of its own, per card under either scope. It
+ * must not land in the implementer's session — under `scope: epic` that is the
+ * whole epic's, which would both collide with the epic's next card and hand the
+ * reviewer the context it is supposed to check from the outside.
+ */
+export function sessionKey(
+  card: CardRef,
+  scope: SessionScope,
+  kind: RunKind = "implement",
+): string {
+  if (kind === "review") return `review:card:${card.id}`;
   if (scope === "epic" && card.epic) return `epic:${card.epic}`;
   return `card:${card.id}`;
 }
@@ -68,8 +83,9 @@ export function resolveSession(
   map: SessionMap,
   card: CardRef,
   scope: SessionScope,
+  kind: RunKind = "implement",
 ): { key: string; sessionId: string | null } {
-  const key = sessionKey(card, scope);
+  const key = sessionKey(card, scope, kind);
   return { key, sessionId: map[key] ?? null };
 }
 

@@ -151,7 +151,7 @@ taken — a resume was never counted against the WIP limit, and holding the
 human's answer behind a running card is the worse trade. So a board can sit one
 run over its limit until that run ends.
 
-The other AFK behaviour, an AI review for a `review` card, comes with c0167.
+The other AFK behaviour is the AI review below (c0167).
 
 ### Sign-off unblocks dependents (c0165)
 
@@ -207,6 +207,49 @@ stays in `review` and the notes are the implementer's brief. The parser is in
 `src/lib/review.ts`, shared with the app: the board reads the same entries to
 show each sign-off card's verdict (c0170).
 
+### Dispatching the review (c0167)
+
+With AFK on, a card in `review` gets a review run the same way a card in `ready`
+gets an implementation run: `sync` plans both on every board change. With AFK
+off, `review` cards sit for the human as before.
+
+The review runs in its own session, keyed `review:card:<id>` — per card under
+either scope, never the implementer's key. Under `scope: epic` the implementer's
+key is the epic's, so sharing it would both collide with the epic's next card
+and hand the reviewer the context it is there to check from the outside. The
+reviewer gets the same tools as any run and its prompt is `buildReviewPrompt`,
+which carries the whole skill.
+
+A review is a run like any other: it counts against the in-progress WIP limit,
+takes a slot a parked run freed (c0163), and says so in the held-back line when
+there is no slot. Reviews are planned before fresh `ready` cards — on a board
+with one slot, finishing a card (and unblocking its dependents, c0165) comes
+before starting another. The pickup grace period does not apply: that window is
+the human's chance to catch a card before an agent takes it, and it was already
+spent on the way into `ready`.
+
+A card is reviewed once per stay in `review`:
+
+- A card whose `## Review` carries a verdict stamped after it entered `review`
+  has been reviewed this round. That is what the pass and the fail both leave
+  behind, and it survives a companion restart.
+- A run that exited without writing a verdict leaves nothing on the card, so the
+  companion also remembers, in process, which cards it has dispatched a review
+  for — cleared when the card leaves `review`. Without it a crashing review run
+  would be retried on every watcher tick.
+- Stamps it cannot read count as reviewed, the same safe default as the AFK flag.
+
+A card the implementer has moved to `review` while its run is still going (it
+still has a commit to write) is not reviewed until that run exits. Each exit
+logs what the card ends up saying, e.g.
+`c0167 review verdict: pass (signoff)`. The run's tokens are added to the card's
+`usage-tokens` / `usage-cost` totals like any other run — a card's cost includes
+what reviewing it cost.
+
+A fail leaves the card in `review` with its notes and no further review; c0168
+routes it back to the implementer, and the fixed card re-entering `review` is a
+new round.
+
 ## Run output
 
 The companion pipes the agent's stdout and parses it, rather than letting it
@@ -245,7 +288,9 @@ directly per the gello workflow.
 
 The prompt directs the agent to call `set_status` with `in-progress` as its
 first action, before any analysis — otherwise the human watches a card sit in
-`ready` while the agent thinks, unsure it was picked up.
+`ready` while the agent thinks, unsure it was picked up. *When* to move is the
+prompt's business, not the tool's: a review run (c0167) has the same tool and is
+told something else — move a passed card to `signoff`.
 
 ## Asking the human a question
 

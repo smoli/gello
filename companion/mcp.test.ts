@@ -103,6 +103,19 @@ describe("set_status MCP tool (c0105)", () => {
     expect(setStatus!.inputSchema.required).toEqual(["status"]);
   });
 
+  // c0167: a review run gets the same tool. A description that orders an
+  // in-progress move "the moment you start" would have the reviewer take the
+  // card it is supposed to be checking. The workflow instruction belongs to the
+  // implementer's prompt, which carries it (buildTaskPrompt).
+  it("describes the move without telling every run to take the card", async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+
+    const setStatus = tools.find((t) => t.name === "set_status");
+    expect(setStatus!.description).not.toMatch(/the moment you start|before any analysis/i);
+    expect(setStatus!.description).toMatch(/status|column/i);
+  });
+
   it("moves the run's card to the new status", async () => {
     const client = await connect();
     const result = await client.callTool({

@@ -38,6 +38,18 @@ describe("sessionKey", () => {
   it("falls back to the card key in epic scope when the card has no epic", () => {
     expect(sessionKey(card("c002", null), "epic")).toBe("card:c002");
   });
+
+  // c0167: the reviewer must not land in the implementer's session — under epic
+  // scope that is the whole epic's session, which is exactly the collision.
+  it("keys a review run apart from the implementer's, per card in either scope", () => {
+    const c = card("c001", "e01");
+    expect(sessionKey(c, "epic", "review")).not.toBe(sessionKey(c, "epic"));
+    expect(sessionKey(c, "card", "review")).not.toBe(sessionKey(c, "card"));
+    // per card even under epic scope, so two reviews in an epic don't share one
+    expect(sessionKey(card("c002", "e01"), "epic", "review")).not.toBe(
+      sessionKey(c, "epic", "review"),
+    );
+  });
 });
 
 describe("sessions store", () => {
@@ -105,6 +117,15 @@ describe("resolveSession / recordSession", () => {
     const map: SessionMap = { "epic:e01": "shared" };
     expect(resolveSession(map, card("c001", "e01"), "epic").sessionId).toBe("shared");
     expect(resolveSession(map, card("c002", "e01"), "epic").sessionId).toBe("shared");
+  });
+
+  // c0167: a review run resolves its own key, so it never resumes the epic
+  // session the implementer is using.
+  it("resolves a review run against its own key", () => {
+    const map: SessionMap = { "epic:e01": "shared" };
+    const { key, sessionId } = resolveSession(map, card("c001", "e01"), "epic", "review");
+    expect(key).toBe(sessionKey(card("c001", "e01"), "epic", "review"));
+    expect(sessionId).toBeNull();
   });
 
   it("recordSession stores a new id under the key immutably", () => {

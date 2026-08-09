@@ -8,8 +8,11 @@ import type { AgentEvent, Level } from "./stream.ts";
 import type { RunState } from "./core.ts";
 import type { Scheduler } from "./throttle.ts";
 import { LogPanes } from "./tui-model.ts";
+import { buildReviewPrompt } from "./review.ts";
 import {
   planDispatch,
+  planReviewDispatch,
+  needsReview,
   classifyExit,
   occupiedSlots,
   buildTaskPrompt,
@@ -63,6 +66,15 @@ interface CardSpec {
   /** c0150: pre-existing cumulative usage totals on the card. */
   usageTokens?: number;
   usageCost?: number;
+  /** c0167: a verdict already recorded in `## Review` — `[stamp, verdict]`.
+   *  An empty stamp writes the heading without one. */
+  review?: [string, string];
+}
+
+/** A `## Review` section carrying one entry, as the review agent writes it. */
+function reviewSection([stamp, verdict]: [string, string]): string {
+  const heading = [stamp, verdict].filter(Boolean).join(" — ");
+  return `\n\n## Review\n\n### ${heading}\n\nChecked: criteria, tests, lint.\n`;
 }
 
 function cardFile(id: string, s: CardSpec): string {
@@ -86,7 +98,8 @@ function cardFile(id: string, s: CardSpec): string {
     : s.answered
       ? `\n\n${s.answered.trim()}`
       : "";
-  return `---\n${fm}\n---\n\n## What\n\ntask${question}\n`;
+  const review = s.review ? reviewSection(s.review) : "";
+  return `---\n${fm}\n---\n\n## What\n\ntask${question}${review}\n`;
 }
 
 function board(cards: Record<string, CardSpec>, wipLimit: number | null = 2): BoardModel {
@@ -548,6 +561,146 @@ describe("planDispatch — park-and-skip (c0163)", () => {
   });
 });
 
+// c0167: a card in `review` is a claim the review agent checks. `needsReview`
+// decides whether that claim has been checked *this* round — the durable,
+// files-truth guard against reviewing the same card over and over.
+describe("needsReview", () => {
+  const at = "2026-08-09T10:00:00";
+
+  it("a review card with no verdict needs one", () => {
+    const model = board({ c001: { status: "review", statusChanged: at } });
+    expect(needsReview(cardOf(model, "c001"))).toBe(true);
+  });
+
+  it("a card in any other status never does", () => {
+    for (const status of ["ready", "in-progress", "signoff", "done"]) {
+      const model = board({ c001: { status } });
+      expect(needsReview(cardOf(model, "c001"))).toBe(false);
+    }
+  });
+
+  it("a verdict recorded after the card entered review is this round's", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:05:00", "pass"] },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The loop c0168 closes: a fail leaves the card in `review` with its notes.
+  // Re-reviewing it on the next sync would burn the night on the same verdict.
+  it("a fail counts as reviewed, so the card is not reviewed again", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:05:00", "fail"] },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The fixed card comes back: it re-entered `review` after the old verdict.
+  it("a card that re-entered review after its verdict needs a fresh review", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        statusChanged: "2026-08-09T12:00:00",
+        review: ["2026-08-09T10:05:00", "fail"],
+      },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(true);
+  });
+
+  // Same safe default as the AFK flag (c0162): what cannot be read does not
+  // trigger the unattended behaviour.
+  it("treats an unreadable pair of stamps as already reviewed", () => {
+    const noStamp = board({
+      c001: { status: "review", statusChanged: at, review: ["", "pass"] },
+    });
+    expect(needsReview(cardOf(noStamp, "c001"))).toBe(false);
+    const noStatusChanged = board({
+      c001: { status: "review", review: ["2026-08-09T10:05:00", "pass"] },
+    });
+    expect(needsReview(cardOf(noStatusChanged, "c001"))).toBe(false);
+  });
+});
+
+describe("planReviewDispatch", () => {
+  it("dispatches review cards in board order, within the WIP budget", () => {
+    const model = board({
+      c001: { status: "review", order: 2 },
+      c002: { status: "review", order: 1 },
+      c003: { status: "review", order: 3 },
+    });
+    const { dispatch, queued } = planReviewDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c002", "c001"]);
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("counts in-progress work and active runs against the budget", () => {
+    const model = board({
+      c001: { status: "in-progress" },
+      c002: { status: "ready" },
+      c003: { status: "review" },
+    });
+    expect(planReviewDispatch(model, ["c002"], 2).dispatch).toEqual([]);
+    expect(planReviewDispatch(model, ["c002"], 3).dispatch.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  // The implementer moves the card to `review` and keeps running (it still has
+  // a commit to write). Reviewing before it exits reviews a half-finished card.
+  it("skips a review card whose implementer run is still active", () => {
+    const model = board({ c001: { status: "review" } });
+    expect(planReviewDispatch(model, ["c001"], 2).dispatch).toEqual([]);
+  });
+
+  it("skips a card whose verdict for this round is already on it", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        statusChanged: "2026-08-09T10:00:00",
+        review: ["2026-08-09T10:05:00", "fail"],
+      },
+    });
+    expect(planReviewDispatch(model, [], 2).dispatch).toEqual([]);
+  });
+
+  // In-process backstop over the files-truth one: a review run that died before
+  // writing anything leaves no verdict, and would otherwise be retried forever.
+  it("skips a card already attempted this visit to review", () => {
+    const model = board({ c001: { status: "review" } });
+    expect(planReviewDispatch(model, [], 2, [], ["c001"]).dispatch).toEqual([]);
+  });
+
+  it("a parked run's freed slot is available to a review (c0163)", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "review" } }, 1);
+    expect(planReviewDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+    expect(planReviewDispatch(model, ["c001"], 1, ["c001"]).dispatch.map((c) => c.id)).toEqual([
+      "c002",
+    ]);
+  });
+});
+
+// c0167: an active review run holds a review session key, not the card's
+// implementer key — so it must not stall its epic's implementer dispatch.
+describe("planDispatch — an active review does not hold the epic session", () => {
+  it("dispatches an epic sibling while one of its cards is being reviewed", () => {
+    const model = board({
+      c001: { status: "review", epic: "e01" }, // review run active
+      c002: { status: "ready", order: 1, epic: "e01" },
+    });
+    const held = planDispatch(model, ["c001"], 4, "ready", undefined, "epic");
+    expect(held.dispatch).toEqual([]); // without the hint, c001 looks like e01's implementer
+
+    const plan = planDispatch(model, ["c001"], 4, "ready", undefined, "epic", [], ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("still counts the reviewed card against the WIP limit", () => {
+    const model = board({ c001: { status: "review" }, c002: { status: "ready" } }, 1);
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "card", [], ["c001"]);
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.queued.map((c) => c.id)).toEqual(["c002"]);
+  });
+});
+
 describe("classifyExit", () => {
   it("non-zero exit is an error", () => {
     const model = board({ c001: { status: "in-progress" } });
@@ -714,6 +867,7 @@ function makeRunner(
   const cwds: string[] = [];
   const logs: string[] = [];
   const persistedOwned: string[][] = [];
+  const persistedSessions: Record<string, string>[] = [];
   const clock = fakeClock(pickup.clockStart ?? 0);
   const runner = new Runner({
     owned: ownedSeed,
@@ -743,6 +897,7 @@ function makeRunner(
       publishedRaw.push(runs);
     },
     sessions,
+    persistSessions: (map) => persistedSessions.push({ ...map }),
     log: (line) => logs.push(line),
     now: clock.now,
     scheduler: clock.scheduler,
@@ -760,6 +915,8 @@ function makeRunner(
     runLog,
     logs,
     persistedOwned,
+    sessionKeys: () => Object.keys(persistedSessions[persistedSessions.length - 1] ?? {}),
+    sessionsMap: () => persistedSessions[persistedSessions.length - 1] ?? {},
     advance: clock.advance,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -1452,6 +1609,173 @@ describe("Runner — park-and-skip under AFK (c0163)", () => {
     h.runner.sync(parked);
 
     expect(h.spawned).toHaveLength(1);
+  });
+});
+
+// c0167: under AFK a card entering `review` gets a second agent — a fresh
+// review run in its own session — instead of sitting until the human is back.
+describe("Runner — AI review dispatch (c0167)", () => {
+  const at = "2026-08-09T10:00:00";
+  const inReview = (extra: Record<string, CardSpec> = {}, wipLimit: number | null = 2) =>
+    board({ c001: { status: "review", statusChanged: at }, ...extra }, wipLimit);
+
+  it("AFK off: a review card is not auto-reviewed", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+  });
+
+  it("AFK on: dispatches a review run with the review skill's prompt", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(start, "c001")));
+    expect(h.last()).toEqual(["c001:running"]);
+    expect(h.logs.join("\n")).toMatch(/c001 → review/);
+  });
+
+  // The reason for a separate key: under epic scope the implementer's session is
+  // the epic's, and reviewing inside it would both collide with the epic's next
+  // card and hand the reviewer the implementer's own context.
+  it("runs in a session of its own, distinct from the implementer's", () => {
+    const start = board(
+      {
+        c001: { status: "review", statusChanged: at, epic: "e01" },
+        c002: { status: "ready", order: 1, epic: "e01" },
+      },
+      4,
+    );
+    const h = makeRunner(start, { "epic:e01": "implementer-session" }, "normal", {}, "epic");
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    // both run: the review holds its own key, so e01's implementer key is free
+    expect(h.spawned).toHaveLength(2);
+    const reviewKey = Object.keys(h.sessionsMap()).find((k) => k !== "epic:e01");
+    expect(reviewKey).toBeDefined();
+    expect(h.sessionsMap()[reviewKey!]).not.toBe("implementer-session");
+    // the sibling resumed the epic session; the review did not
+    expect(h.spawned[1].spec.args).toContain("--resume");
+    expect(h.spawned[0].spec.args).not.toContain("--resume");
+    expect(h.last().sort()).toEqual(["c001:running", "c002:running"]);
+  });
+
+  it("does not review a card whose implementer run has not exited yet", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // the agent moved the card on but is still finishing (its commit)
+    const moved = board({ c001: { status: "review", statusChanged: at } });
+    h.setModel(moved);
+    h.runner.sync(moved);
+    expect(h.spawned).toHaveLength(1);
+
+    h.spawned[0].exit(0); // now it is gone — the review takes over
+    expect(h.spawned).toHaveLength(2);
+    const args = h.spawned[1].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(moved, "c001")));
+  });
+
+  it("on a pass the card ends in signoff, with the verdict on the card", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    // the review agent recorded its verdict and moved the card (set_status)
+    const passed = board({
+      c001: {
+        status: "signoff",
+        statusChanged: "2026-08-09T10:20:00",
+        review: ["2026-08-09T10:19:00", "pass"],
+      },
+    });
+    h.setModel(passed);
+    h.spawned[0].exit(0);
+
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: pass \(signoff\)/);
+    expect(h.last()).toEqual([]);
+    h.runner.sync(passed);
+    expect(h.spawned).toHaveLength(1); // nothing left to review
+  });
+
+  it("on a fail the card stays in review and is not reviewed again", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    const failed = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:19:00", "fail"] },
+    });
+    h.setModel(failed);
+    h.spawned[0].exit(0);
+
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: fail \(review\)/);
+    h.runner.sync(failed);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // A review run that died before writing anything leaves no verdict on the
+  // card, so only the in-process record stops it being retried on every tick.
+  it("does not retry a review run that exited without a verdict", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.spawned[0].exit(1);
+
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: none/);
+  });
+
+  it("respects the WIP limit, and takes the slot once it frees", () => {
+    const start = inReview({ c002: { status: "in-progress" } }, 1);
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*(wip|limit)/i);
+
+    const freed = inReview({ c002: { status: "done" } }, 1);
+    h.setModel(freed);
+    h.runner.sync(freed);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // Reviewing finishes work and unblocks its dependents (c0165); starting a new
+  // card only adds to the pile. With one slot, the review goes first.
+  it("gives a review the slot ahead of a fresh ready card", () => {
+    const start = inReview({ c002: { status: "ready", order: 1 } }, 1);
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(start, "c001")));
+    expect(h.logs.join("\n")).toMatch(/c002 held: .*(wip|limit)/i);
+  });
+
+  // `owned` gates the restart of a stopped *implementer* run (c0141/i0135).
+  // Having reviewed a card says nothing about the companion having worked it.
+  it("does not claim the card as its own work", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.runner.ownedCards()).toEqual([]);
+    expect(h.persistedOwned).toEqual([]);
   });
 });
 
