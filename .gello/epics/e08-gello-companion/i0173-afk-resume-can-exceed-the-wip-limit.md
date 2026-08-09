@@ -1,12 +1,11 @@
 ---
 id: i0173
 title: AFK resume can exceed the WIP limit
-status: ready
+status: in-progress
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T10:06:02
+status-changed: 2026-08-09T10:06:24
 epic: e08
-order: 80
 ---
 
 ## What
@@ -23,3 +22,4 @@ than a brief overshoot. Decide whether a resume should instead wait for a slot
 ## Log
 
 - 2026-08-09 status → ready (app)
+- 2026-08-09 status → in-progress (agent)
