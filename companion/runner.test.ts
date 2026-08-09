@@ -408,6 +408,78 @@ describe("planDispatch — session gate", () => {
   });
 });
 
+// c0163: under AFK a parked run's card is named in `slotFreed` — it stops
+// counting against the WIP limit while still holding its session key, so the
+// queue drains around a card that is waiting on the human.
+describe("planDispatch — park-and-skip (c0163)", () => {
+  it("frees the parked card's WIP slot so the next card dispatches", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress" }, // parked run, still active
+        c002: { status: "ready", order: 1 },
+      },
+      1,
+    );
+    const held = planDispatch(model, ["c001"], 1);
+    expect(held.dispatch).toEqual([]); // AFK off: the slot is taken
+    expect(held.queued.map((c) => c.id)).toEqual(["c002"]);
+
+    const freed = planDispatch(model, ["c001"], 1, "ready", undefined, "card", ["c001"]);
+    expect(freed.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(freed.queued).toEqual([]);
+  });
+
+  it("keeps the parked card's session hold — its epic waits, other epics run", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress", epic: "e01" }, // parked
+        c002: { status: "ready", order: 1, epic: "e01" }, // same session
+        c003: { status: "ready", order: 2, epic: "e02" },
+      },
+      1,
+    );
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "epic", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c003"]);
+    expect(plan.sessionHeld.map((h) => h.card.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld[0].heldBy).toBe("c001");
+  });
+
+  it("under card scope only the parked card waits", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress", epic: "e01" }, // parked
+        c002: { status: "ready", order: 1, epic: "e01" },
+      },
+      1,
+    );
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "card", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("frees only the named card's slot, not another active run's", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress" }, // parked
+        c002: { status: "in-progress" }, // still running
+        c003: { status: "ready", order: 1 },
+        c004: { status: "ready", order: 2 },
+      },
+      2,
+    );
+    const plan = planDispatch(model, ["c001", "c002"], 2, "ready", undefined, "card", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c003"]); // one slot, not two
+    expect(plan.queued.map((c) => c.id)).toEqual(["c004"]); // c002 still holds the other
+  });
+
+  it("defaults to freeing nothing, so existing callers are unchanged", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "ready" } }, 1);
+    expect(occupiedSlots(model, ["c001"])).toBe(1);
+    expect(occupiedSlots(model, ["c001"], ["c001"])).toBe(0);
+    expect(planDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+  });
+});
+
 describe("classifyExit", () => {
   it("non-zero exit is an error", () => {
     const model = board({ c001: { status: "in-progress" } });
@@ -1125,6 +1197,167 @@ describe("Runner — one run per session id (c0126)", () => {
     h.runner.sync(h.reloadModel());
     expect(h.spawned).toHaveLength(3);
     expect(h.spawned[2].spec.args[h.spawned[2].spec.args.length - 1]).toContain("c002");
+  });
+});
+
+// c0163: with AFK on, a parked run gives up its WIP slot (keeping its session),
+// so the queue drains around a card waiting on the human. AFK off is unchanged.
+describe("Runner — park-and-skip under AFK (c0163)", () => {
+  const question = "### Which db?\n\n- [ ] Postgres\n";
+
+  it("AFK off: a parked run holds its slot, and the next card waits", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+
+    expect(h.last()).toEqual(["c001:waiting-for-input"]);
+    expect(h.spawned).toHaveLength(1); // the slot is still c001's
+  });
+
+  it("AFK on: the parked run keeps its session but frees the slot for the next card", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0); // no explicit sync — parking must reconcile itself
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+    expect(h.last().sort()).toEqual(["c001:waiting-for-input", "c002:running"]);
+  });
+
+  it("AFK on, epic scope: the parked card's epic waits, another epic proceeds", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1, epic: "e01" },
+        c002: { status: "ready", order: 2, epic: "e01" },
+        c003: { status: "ready", order: 3, epic: "e02" },
+      },
+      1,
+    );
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      {
+        c001: { status: "in-progress", epic: "e01", parked: question },
+        c002: { status: "ready", order: 2, epic: "e01" },
+        c003: { status: "ready", order: 3, epic: "e02" },
+      },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    // c003 (other epic) took the freed slot; c002 still waits on c001's session
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c003");
+    expect(h.logs.join("\n")).toMatch(/c002 held: session busy with c001/);
+  });
+
+  it("AFK on, card scope: only the parked card waits — its epic sibling runs", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1, epic: "e01" },
+        c002: { status: "ready", order: 2, epic: "e01" },
+      },
+      1,
+    );
+    const h = makeRunner(start); // card scope
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    const parked = board(
+      {
+        c001: { status: "in-progress", epic: "e01", parked: question },
+        c002: { status: "ready", order: 2, epic: "e01" },
+      },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+  });
+
+  // The answer arrives whether or not the borrowed slot has come back. Resuming
+  // was never budgeted (a parked run held its slot), so it stays immediate — the
+  // human is back, and stalling their answer behind a run is the worse trade.
+  it("still resumes the parked card when the human answers", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.setModel(
+      board(
+        { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+        1,
+      ),
+    );
+    h.spawned[0].exit(0);
+    expect(h.spawned).toHaveLength(2); // c002 took the freed slot
+
+    const answered = board(
+      {
+        c001: { status: "in-progress", answered: "### Which db?\n\n- [x] Postgres\n" },
+        c002: { status: "in-progress" },
+      },
+      1,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(3);
+    expect(h.spawned[2].spec.args[0]).toBe("--resume");
+    expect(h.last().sort()).toEqual(["c001:running", "c002:running"]);
+  });
+
+  it("AFK off after a park: the slot is c001's again and the queue stops", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.runner.setAfk(false);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+
+    expect(h.spawned).toHaveLength(1);
   });
 });
 

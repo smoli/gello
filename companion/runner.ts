@@ -45,12 +45,21 @@ function byId(model: BoardModel): Map<string, Card> {
  * Slots occupied against the in-progress WIP limit: cards already
  * `in-progress` on the board, unioned with cards that have an active run (a
  * dispatched run occupies a slot before the agent flips the status).
+ *
+ * c0163: `slotFreed` names cards that hold a slot in neither sense — under AFK,
+ * a run parked on a question. Subtracted last, since such a card is normally
+ * both `in-progress` on the board and active.
  */
-export function occupiedSlots(model: BoardModel, activeCardIds: string[]): number {
+export function occupiedSlots(
+  model: BoardModel,
+  activeCardIds: string[],
+  slotFreed: string[] = [],
+): number {
   const ids = new Set(activeCardIds);
   for (const card of allCards(model)) {
     if (card.status === IN_PROGRESS) ids.add(card.id);
   }
+  for (const id of slotFreed) ids.delete(id);
   return ids.size;
 }
 
@@ -150,6 +159,11 @@ export function pickupWait(
  * dependency-satisfied, taken in the board's manual order (c056); the WIP
  * budget (limit minus occupied slots) caps how many start — the rest queue and
  * drain on a later sync as slots free.
+ *
+ * c0163: `slotFreed` names active cards that do not count against the WIP limit
+ * — under AFK, runs parked on a question. They stay in `activeCardIds`, so they
+ * keep their session hold: their own key stays busy while the budget they
+ * released goes to a card with a free key.
  */
 export function planDispatch(
   model: BoardModel,
@@ -158,6 +172,7 @@ export function planDispatch(
   trigger: string = READY,
   pickup: PickupOptions = { now: 0, pickupDelayMs: 0 },
   scope: SessionScope = "card",
+  slotFreed: string[] = [],
 ): DispatchPlan {
   const index = byId(model);
   const active = new Set(activeCardIds);
@@ -211,7 +226,7 @@ export function planDispatch(
   }
   delayed.sort((a, b) => a.msRemaining - b.msRemaining);
 
-  const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds));
+  const budget = Math.max(0, wipLimit - occupiedSlots(model, activeCardIds, slotFreed));
   return {
     dispatch: candidates.slice(0, budget),
     queued: candidates.slice(budget),
@@ -470,11 +485,25 @@ export class Runner {
         firstSeen: this.firstSeen,
       },
       this.opts.scope,
+      this.slotFreed(),
     );
     this.reportHeldBack(queued, blocked, sessionHeld, wipLimit);
     for (const card of dispatch) this.start(card, false);
     this.schedulePickupRecheck(delayed);
     this.publish();
+  }
+
+  /**
+   * c0163: active runs that release their WIP slot — under AFK, the ones parked
+   * on a question. Nobody is there to answer, so the queue drains around them;
+   * they stay active, keeping the session hold that serialises their epic. With
+   * AFK off a parked run holds its slot, as before.
+   */
+  private slotFreed(): string[] {
+    if (!this.afk) return [];
+    return [...this.active]
+      .filter(([, run]) => run.phase === "waiting-for-input")
+      .map(([cardId]) => cardId);
   }
 
   /**
@@ -784,8 +813,13 @@ export class Runner {
       // can show what the turn cost while it waits on the human. It keeps its
       // slot and its session (c0126), so there is nothing to re-dispatch.
       this.active.set(cardId, { ...run, phase, usage: usage ?? run.usage });
-      this.log(`${cardId} parked → waiting for input`);
-      this.publish();
+      // c0163: under AFK the park frees a WIP slot, so reconcile now — the next
+      // card with a free session key takes it. The park itself writes the card
+      // (the question), which would wake the watcher too, but dispatch should
+      // not hang on that write landing.
+      this.log(`${cardId} parked → waiting for input${this.afk ? " (AFK: slot freed)" : ""}`);
+      if (this.afk && next) this.sync(next);
+      else this.publish();
       return;
     }
 

@@ -132,9 +132,23 @@ missing field or a non-boolean value all read as off. The flag is per-machine
 and momentary ("I'm leaving now"), which is why it is a `.companion/` file
 rather than a committed `companion.yaml` setting — `.companion/` is gitignored.
 
-What AFK changes for dispatch is being built on top of this flag: a parked run
-frees its WIP slot (c0163) and a `review` card gets an AI review (c0167). With
-this card alone, nothing about dispatch differs yet.
+### Park-and-skip (c0163)
+
+An agent that needs a decision parks a question and waits. With AFK off that run
+keeps its WIP slot, so a board at its limit stops until the human answers. With
+AFK on the parked run **releases its slot but keeps its session hold**: the next
+card whose session key is free takes the slot, while the parked card's own key
+stays busy. Under `scope: epic` that means the parked card's epic waits behind
+it and other epics and standalone cards proceed; under `scope: card` only the
+parked card waits. Parking reconciles immediately, so the next card starts
+without waiting for a board change.
+
+Answering is still dispatched at once, even if the freed slot has since been
+taken — a resume was never counted against the WIP limit, and holding the
+human's answer behind a running card is the worse trade. So a board can sit one
+run over its limit until that run ends.
+
+The other AFK behaviour, an AI review for a `review` card, comes with c0167.
 
 ## The review skill (c0166)
 
