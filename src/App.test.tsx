@@ -728,6 +728,25 @@ describe("App", () => {
     );
   });
 
+  it("i0175: turning AFK on brings the empty sign-off column onto the board", async () => {
+    const toggle = await afkToggle();
+    expect(screen.queryByRole("region", { name: "signoff" })).toBeNull();
+
+    fireEvent.click(toggle);
+
+    expect(await screen.findByRole("region", { name: "signoff" })).toBeInTheDocument();
+  });
+
+  it("i0175: a card waiting for sign-off shows the column with AFK off", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+
+    render(<App />);
+
+    expect(
+      within(await screen.findByRole("region", { name: "signoff" })).getByText("Vetted card"),
+    ).toBeInTheDocument();
+  });
+
   it("opens the card detail on click and closes on Escape", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 

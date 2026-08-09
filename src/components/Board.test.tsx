@@ -1088,9 +1088,19 @@ describe("Board", () => {
   it("renders an entirely empty board without crashing", () => {
     render(<Board model={loadBoard([])} />);
 
-    // c0088: lead with inbox; i0033: discuss ships by default; c0164: signoff
-    // sits before done (8 columns)
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(8);
+    // c0088: lead with inbox; i0033: discuss ships by default. i0175: signoff
+    // stays out of an empty board with AFK off, so 7 of the 8 columns render
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
+    ).toEqual([
+      "inbox",
+      "discuss",
+      "backlog",
+      "ready",
+      "in-progress",
+      "review",
+      "done",
+    ]);
   });
 
   it("c0164: renders signoff as a column between review and done", () => {
@@ -1207,6 +1217,34 @@ describe("Board", () => {
         expect.objectContaining({ id: "c001" }),
         "review",
       );
+    });
+
+    it("i0175: hides the empty sign-off column while AFK is off", () => {
+      const quiet = loadBoard([
+        file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+        file("cards/c001-open.md", card("c001", "Open card", "review")),
+      ]);
+      render(<Board model={quiet} />);
+
+      expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(
+        ["ready", "in-progress", "review", "done"],
+      );
+    });
+
+    it("i0175: shows the empty sign-off column while AFK is on", () => {
+      const quiet = loadBoard([
+        file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+        file("cards/c001-open.md", card("c001", "Open card", "review")),
+      ]);
+      render(<Board model={quiet} afk />);
+
+      expect(within(column("signoff")).getByText("0")).toBeInTheDocument();
+    });
+
+    it("i0175: shows it with AFK off as soon as a card waits there", () => {
+      render(<Board model={model} />);
+
+      expect(within(column("signoff")).getByText("Vetted card")).toBeInTheDocument();
     });
 
     it("leaves the actions out of a board with neither target column", () => {

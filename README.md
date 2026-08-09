@@ -35,7 +35,8 @@ starts with:
 cards land until you triage them. **`discuss`** is a triage stage for ideas you
 want to think through with the agent first, driven by the **gello-discuss**
 skill. **`signoff`** holds cards an AI review agent has passed, waiting for you
-to accept them. All three ship by default.
+to accept them; its column shows when a card is waiting in it or AFK mode is on,
+and stays off the board otherwise. All three ship by default.
 
 ### The lifecycle of a card
 

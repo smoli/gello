@@ -213,7 +213,10 @@ review agent has passed, waiting for the human to accept them. Only a human
 moves a card `signoff` → `done`. It is presented as a check-list (c0170): a
 card front shows the verdict recorded in its `## Review` section and carries a
 **Sign off** (→ `done`) and a **Reopen** (→ `in-progress`) action, and the
-title bar reports how many cards are waiting.
+title bar reports how many cards are waiting. The column renders when a card is
+in it or AFK mode is on (i0175) — a board with no review agent filling it does
+not carry the empty lane. Moves still step through the configured `columns`, so
+a card can be sent to sign-off whether or not the column is on screen.
 
 **Card order within a column** (c056) is per-column:
 

@@ -2000,6 +2000,7 @@ function App() {
           onFollowUpCard={(card, type: string) => startFollowUp(card, type)}
           query={query}
           showArchived={showArchived}
+          afk={afk}
           loadImage={showThumbnails ? handleLoadImage : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })

@@ -33,6 +33,7 @@ import {
   planManualInsert,
   signoffCount,
   signoffMoves,
+  visibleColumns,
   wipState,
   type BoardFile,
   type BoardModel,
@@ -874,6 +875,58 @@ describe("the sign-off check-list (c0170)", () => {
 
   it("offers nothing on a board whose columns hold neither target", () => {
     expect(signoffMoves(["signoff"])).toEqual([]);
+  });
+});
+
+describe("i0175: the sign-off column only shows when it is in play", () => {
+  const board = (...cards: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+      ...cards,
+    ]);
+  const LINEUP = ["ready", "in-progress", "review", "signoff", "done"];
+  const WITHOUT = ["ready", "in-progress", "review", "done"];
+
+  it("drops the empty sign-off column while AFK is off", () => {
+    expect(visibleColumns(board(file("cards/c001-open.md", card("c001", "review"))), false))
+      .toEqual(WITHOUT);
+  });
+
+  it("keeps it while AFK is on, empty or not", () => {
+    expect(visibleColumns(board(), true)).toEqual(LINEUP);
+  });
+
+  it("keeps it whenever a card is waiting in it", () => {
+    expect(
+      visibleColumns(board(file("cards/c001-vetted.md", card("c001", "signoff"))), false),
+    ).toEqual(LINEUP);
+  });
+
+  it("keeps it for an archived sign-off card too — no card without a column", () => {
+    expect(
+      visibleColumns(board(file("cards/archive/c001-old.md", card("c001", "signoff"))), false),
+    ).toEqual(LINEUP);
+  });
+
+  it("leaves every other column alone, empty or not", () => {
+    expect(visibleColumns(loadBoard([]), false)).toEqual([
+      "inbox",
+      "discuss",
+      "backlog",
+      "ready",
+      "in-progress",
+      "review",
+      "done",
+    ]);
+  });
+
+  it("says nothing about a board configured without a sign-off column", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, review, done]\n"),
+      file("cards/c001-open.md", card("c001", "review")),
+    ]);
+    expect(visibleColumns(model, false)).toEqual(["ready", "review", "done"]);
+    expect(visibleColumns(model, true)).toEqual(["ready", "review", "done"]);
   });
 });
 

@@ -15,6 +15,7 @@ import {
   planManualInsert,
   signoffMoves,
   SIGNOFF_STATUS,
+  visibleColumns,
   wipState,
   type Blocker,
   type BoardModel,
@@ -136,6 +137,7 @@ export function Board({
   loadImage,
   query = "",
   showArchived = false,
+  afk = false,
   runner,
   onRestartCard,
   onStopRun,
@@ -167,6 +169,9 @@ export function Board({
   /** c018: also show archived cards (`archive/` folders), which are off the
    *  board otherwise. A search still reaches them either way. */
   showArchived?: boolean;
+  /** i0175: AFK state (c0162). While it is on, the sign-off column renders even
+   *  empty — that is the lane the review agent fills. */
+  afk?: boolean;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c016: a control rendered at the start of the toolbar (project menu). */
@@ -328,6 +333,10 @@ export function Board({
     });
 
   const columns = model.config.columns;
+  // i0175: what gets a lane. Moves still step through the configured `columns`
+  // — a card can be sent to sign-off whether or not the column is on screen,
+  // and it appears the moment one lands there.
+  const shownColumns = useMemo(() => visibleColumns(model, afk), [model, afk]);
   const allCards = statusCards;
 
   /**
@@ -522,7 +531,7 @@ export function Board({
         onMouseDown={backgroundDrag}
         onContextMenu={bgContext}
       >
-        {columns.map((column) => {
+        {shownColumns.map((column) => {
           const entries = visible
             .filter((c) => c.card.status === column)
             // c056: per-column rules (global across milestones, c046) —

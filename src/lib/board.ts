@@ -148,6 +148,22 @@ export function signoffCount(model: BoardModel): number {
   ).length;
 }
 
+/**
+ * The columns the board renders (i0175). Every configured column renders,
+ * except `signoff`: it is only in play while an AI review agent fills it, so an
+ * empty one is dropped unless AFK is on. Archived cards count here (unlike the
+ * title-bar pile size) — a card must always have a column to sit in when the
+ * archived toggle shows it.
+ */
+export function visibleColumns(model: BoardModel, afk: boolean): string[] {
+  return model.config.columns.filter(
+    (column) =>
+      column !== SIGNOFF_STATUS ||
+      afk ||
+      allCards(model).some((card) => card.status === SIGNOFF_STATUS),
+  );
+}
+
 /** The c056 per-column sort rule. Unknown custom columns are treated as
  *  workflow stages (status-changed rule). */
 export function columnComparator(column: string): (a: Card, b: Card) => number {
