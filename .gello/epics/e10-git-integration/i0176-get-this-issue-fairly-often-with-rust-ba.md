@@ -1,12 +1,14 @@
 ---
 id: i0176
 title: get this issue fairly often with rust based proejcts
-status: in-progress
+status: done
 type: issue
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T14:18:53
+status-changed: 2026-08-09T21:50:17
 epic: e10
+usage-tokens: 10382
+usage-cost: 1.674671
 ---
 
 ![image](../../assets/i0176/image.png)
@@ -39,3 +41,5 @@ and the board move surfaces as an error banner.
 
 - 2026-08-09 status → ready (app)
 - 2026-08-09 status → in-progress (agent)
+- 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)

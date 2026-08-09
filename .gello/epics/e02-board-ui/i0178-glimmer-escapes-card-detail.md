@@ -1,12 +1,14 @@
 ---
 id: i0178
 title: Glimmer escapes card detail
-status: in-progress
+status: done
 type: issue
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T14:23:20
+status-changed: 2026-08-09T21:50:24
 epic: e02
+usage-tokens: 13048
+usage-cost: 1.271709
 ---
 
 ![image](../../assets/i0178/image.png)
@@ -48,3 +50,5 @@ blocked list wraps, and nothing clipped the band any more.
 
 - 2026-08-09 status → ready (app)
 - 2026-08-09 status → in-progress (agent)
+- 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)

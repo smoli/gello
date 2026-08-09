@@ -1,13 +1,13 @@
 ---
 id: i0157
 title: Countdown does not show for cards created in ready
-status: review
+status: done
 type: issue
 ref: c0117
 epic: e08
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T10:46:07
+updated: 2026-08-09
+status-changed: 2026-08-09T21:50:39
 usage-tokens: 26114
 usage-cost: 4.111059
 ---
@@ -61,3 +61,4 @@ If the card is created with its initial status being ready, the countdown does n
   `state.json` and made the card front's countdown fall back to it. 10 new
   tests; 1552 frontend tests, typecheck and lint green.
 - 2026-08-08 status → review (agent)
+- 2026-08-09 status → done (app)

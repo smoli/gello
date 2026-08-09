@@ -1,13 +1,13 @@
 ---
 id: i0175
 title: Should only show if there are items of AFK is active
-status: review
+status: done
 type: issue
 ref: c0170
 epic: e08
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T07:57:43
+status-changed: 2026-08-09T21:50:31
 usage-tokens: 19364
 usage-cost: 2.998846
 ---
@@ -50,3 +50,4 @@ waiting in it or AFK mode ([[c0162]]) is on.
   Board, wired from App; README and concept.md updated. 1697 tests, typecheck
   and lint green.
 - 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)
