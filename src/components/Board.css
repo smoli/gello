@@ -214,6 +214,12 @@
    untouched, so the truncation above keeps working as-is. */
 .card-activity-live {
   position: relative;
+  /* i0178: the clip that hides the band before it sweeps in belongs here, on the
+     line that owns the band. `overflow: hidden` on .card-activity used to do it,
+     but the card detail relaxes that to `visible` so a long line can wrap, and
+     the band then drew over the backdrop beside the dialog. `clip-path` clips a
+     pseudo-element to the border box whatever `overflow` says. */
+  clip-path: inset(0);
 }
 .card-activity-live::after {
   content: "";
@@ -227,8 +233,8 @@
     color-mix(in srgb, CanvasText 20%, transparent) 50%,
     transparent 100%
   );
-  /* the band starts off to the left and is clipped by the parent's
-     overflow:hidden until it sweeps through */
+  /* the band starts off to the left and is clipped by the line's own clip-path
+     until it sweeps through */
   transform: translateX(-100%);
   animation: card-activity-sweep 2.6s linear infinite;
   pointer-events: none;
