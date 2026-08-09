@@ -153,6 +153,17 @@ run over its limit until that run ends.
 
 The other AFK behaviour, an AI review for a `review` card, comes with c0167.
 
+### Sign-off unblocks dependents (c0165)
+
+A dependency counts as satisfied once it reaches `signoff`, not only `done`.
+`signoff` is work the review agent has vetted and the human has yet to accept,
+so waiting for `done` would stall a chain of dependents until morning. The
+relaxation is on top of the other gates, not instead of them: a card whose
+depends are satisfied still waits for its WIP slot, its session key and its
+pickup grace period. A dependency in `review` or earlier blocks as before, and
+the companion names it in the held-back line. This applies whether or not AFK
+is on — `signoff` means AI-vetted either way.
+
 ## The review skill (c0166)
 
 A card in `review` is a claim, not a fact: the agent that implemented it also

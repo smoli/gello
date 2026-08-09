@@ -10,7 +10,7 @@
 // flipped it to `in-progress` — so two dispatches can't race past the limit.
 
 import { join } from "node:path";
-import type { BoardModel } from "../src/lib/board.ts";
+import { SIGNOFF_STATUS, type BoardModel } from "../src/lib/board.ts";
 import { withUsageAdded, type BoardConfig, type Card } from "../src/lib/cards.ts";
 import { isoDateTime, todayIsoDate } from "../src/lib/dates.ts";
 import { withAwaitingCleared } from "../src/lib/gello-question.ts";
@@ -77,16 +77,28 @@ export function wipLimitOf(model: BoardModel): number {
   return model.config.wipLimits[IN_PROGRESS] ?? Infinity;
 }
 
-/** The `depends` of a card that are not `done` — an id absent from the board
- *  counts as missing. Empty means the card is dispatchable. */
+/**
+ * Statuses that satisfy a `depends` for dispatch. c0165: `signoff` counts as
+ * well as `done`, so a chain of dependents keeps moving overnight instead of
+ * stopping at the human's sign-off. This gate is lower than the human's notion
+ * of finished, which stays `done`.
+ */
+const SATISFIES_DEPENDS: ReadonlySet<string> = new Set([DONE, SIGNOFF_STATUS]);
+
+/** The `depends` of a card that are neither `signoff` nor `done` — an id absent
+ *  from the board counts as missing. Empty means the card is dispatchable. */
 function missingDepends(index: Map<string, Card>, card: Card): string[] {
-  return card.depends.filter((id) => index.get(id)?.status !== DONE);
+  return card.depends.filter((id) => {
+    const status = index.get(id)?.status;
+    return status === undefined || !SATISFIES_DEPENDS.has(status);
+  });
 }
 
 /** A trigger-status card held back by unfinished dependencies (i0119). */
 export interface BlockedCard {
   card: Card;
-  /** The `depends` ids that are not `done`, in the order the card lists them. */
+  /** The `depends` ids that are not yet signed off or done, in the order the
+   *  card lists them. */
   missing: string[];
 }
 
@@ -628,7 +640,7 @@ export class Runner {
   ): void {
     const reasons = new Map<string, string>();
     for (const { card, missing } of blocked) {
-      reasons.set(card.id, `waiting on ${missing.join(", ")} (not done)`);
+      reasons.set(card.id, `waiting on ${missing.join(", ")} (not signed off)`);
     }
     // c0126: the epic's session is busy — name who holds it, so a serialised
     // epic reads as "waiting its turn", not stalled.

@@ -1,13 +1,12 @@
 ---
 id: c0165
 title: Companion dep gate accepts sign-off
-status: ready
+status: in-progress
 epic: e08
 depends: [c0164]
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T23:35:38
-order: 40
+updated: 2026-08-09
+status-changed: 2026-08-09T07:58:05
 ---
 
 ## What
@@ -25,18 +24,33 @@ revisit if it should be AFK-gated.
 
 ## Acceptance criteria
 
-- [ ] `planDispatch` treats a dependency in `signoff` or `done` as satisfying
+- [x] `planDispatch` treats a dependency in `signoff` or `done` as satisfying
       `depends`.
-- [ ] A card whose only unfinished dependency is in `signoff` becomes
+- [x] A card whose only unfinished dependency is in `signoff` becomes
       dispatchable.
-- [ ] A card with a dependency still in `review` / `in-progress` / earlier is
+- [x] A card with a dependency still in `review` / `in-progress` / earlier is
       not dispatchable (unchanged).
-- [ ] The relaxation composes with the WIP and session gates, not instead of
+- [x] The relaxation composes with the WIP and session gates, not instead of
       them.
-- [ ] Unit-tested with the fake spawner (signoff dep dispatches; review dep does
+- [x] Unit-tested with the fake spawner (signoff dep dispatches; review dep does
       not).
+
+## Notes
+
+- The gate is `missingDepends` in `companion/runner.ts`: a dependency satisfies
+  `depends` when its status is in `{done, signoff}`. Applied on every dispatch,
+  not only under AFK — the epic's default, since `signoff` is AI-vetted either
+  way.
+- The held-back line now reads `waiting on c009 (not signed off)` instead of
+  `(not done)`, so the reported reason matches the gate.
+- Out of scope: the app's own blocked indicator (`blockedBy` in
+  `src/lib/board.ts`, `CardStatusLine`) still counts only `done` as finished.
+  That is the human's view of a dependency, which the card keeps at `done`.
+  Worth a follow-up if the two views should agree.
 
 ## Log
 
 - 2026-08-08 created from the e08 AFK-mode breakdown ([[c0161]])
 - 2026-08-08 status → ready (app)
+- 2026-08-09 status → in-progress (agent)
+- 2026-08-09 dep gate accepts `signoff`; 6 tests added in `runner.test.ts`

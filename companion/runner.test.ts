@@ -40,7 +40,8 @@ function resultLine(usage: Record<string, unknown>, extra: Record<string, unknow
 
 // --- board fixtures ---------------------------------------------------------
 
-const COLUMNS = "columns: [inbox, backlog, ready, in-progress, review, done]\n";
+const COLUMNS =
+  "columns: [inbox, backlog, ready, in-progress, review, signoff, done]\n";
 
 /** board.yaml with an in-progress WIP limit; `null` configures none (i0124). */
 function boardYaml(wipLimit: number | null): string {
@@ -214,6 +215,73 @@ describe("planDispatch", () => {
   it("does not report a card in another status as blocked", () => {
     const model = board({ c001: { status: "backlog", depends: ["c404"] } });
     expect(planDispatch(model, [], 2).blocked).toEqual([]);
+  });
+});
+
+// c0165: `signoff` is AI-vetted work waiting for the human. Dependents must not
+// wait for the human overnight, so the dispatch gate takes it as satisfying
+// `depends` — a lower bar than the human's `done`.
+describe("planDispatch — sign-off satisfies depends (c0165)", () => {
+  it("dispatches a card whose only unfinished dependency is in signoff", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    const { dispatch, blocked } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(blocked).toEqual([]);
+  });
+
+  it("still blocks on a dependency in review or earlier", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] },
+      c002: { status: "ready", order: 2, depends: ["c010"] },
+      c003: { status: "ready", order: 3, depends: ["c011"] },
+      c009: { status: "review" },
+      c010: { status: "in-progress" },
+      c011: { status: "backlog" },
+    });
+    const { dispatch, blocked } = planDispatch(model, [], 3);
+    expect(dispatch).toEqual([]);
+    expect(blocked.map((b) => [b.card.id, b.missing])).toEqual([
+      ["c001", ["c009"]],
+      ["c002", ["c010"]],
+      ["c003", ["c011"]],
+    ]);
+  });
+
+  it("lists only the unsatisfied depends when signoff and done are mixed in", () => {
+    const model = board({
+      c001: { status: "ready", depends: ["c009", "c010", "c011"] },
+      c009: { status: "signoff" },
+      c010: { status: "done" },
+      c011: { status: "review" },
+    });
+    expect(planDispatch(model, [], 2).blocked[0].missing).toEqual(["c011"]);
+  });
+
+  it("composes with the WIP gate — a signoff-dep card queues, it does not jump", () => {
+    const model = board({
+      c001: { status: "in-progress" },
+      c002: { status: "in-progress" },
+      c003: { status: "ready", depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    const { dispatch, queued } = planDispatch(model, [], 2);
+    expect(dispatch).toEqual([]);
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("composes with the session gate — a signoff-dep card waits its epic's turn", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01", depends: ["c009"] },
+      c009: { status: "signoff", epic: "e01" },
+    });
+    const plan = planDispatch(model, [], 2, "ready", { now: 0, pickupDelayMs: 0 }, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(plan.sessionHeld.map((s) => s.card.id)).toEqual(["c002"]);
+    expect(plan.blocked).toEqual([]);
   });
 });
 
@@ -791,6 +859,32 @@ describe("Runner — why a ready card is not running", () => {
     const h = makeRunner(start);
     h.runner.sync(start);
     expect(h.logs).toEqual([]);
+  });
+});
+
+// c0165 — the overnight chain: a dependent starts as soon as its dependency is
+// signed off by the review agent, without waiting for the human's `done`.
+describe("Runner — a dependency in sign-off unblocks its dependent", () => {
+  it("dispatches when the dependency reaches signoff", () => {
+    const inReview = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "review" },
+    });
+    const h = makeRunner(inReview);
+    h.runner.sync(inReview);
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toContain("c009");
+
+    const signedOff = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    h.setModel(signedOff);
+    h.runner.sync(signedOff);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toContain("c001"); // the prompt is the last arg
   });
 });
 
