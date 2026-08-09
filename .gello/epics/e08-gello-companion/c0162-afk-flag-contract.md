@@ -1,12 +1,12 @@
 ---
 id: c0162
 title: AFK flag contract + companion reads it
-status: review
+status: done
 epic: e08
 depends: []
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T23:44:42
+updated: 2026-08-09
+status-changed: 2026-08-09T06:56:46
 usage-tokens: 28811
 usage-cost: 4.737796
 ---
@@ -78,3 +78,4 @@ came up in AFK.
   reads it at start + on change, exposes it as `Runner.isAfk()`, echoes it in
   `state.json`. Documented in companion/README.md.
 - 2026-08-08 status → review (agent)
+- 2026-08-09 status → done (app)
