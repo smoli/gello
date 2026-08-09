@@ -1,13 +1,13 @@
 ---
 id: i0173
 title: AFK resume can exceed the WIP limit
-status: in-progress
+status: review
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T10:06:24
+status-changed: 2026-08-09T14:18:31
 epic: e08
-usage-tokens: 6779
-usage-cost: 1.127072
+usage-tokens: 27235
+usage-cost: 4.399761
 ---
 
 ## What
@@ -66,3 +66,4 @@ card keeps showing "needs input" after the answer landed.
 - 2026-08-09 status → in-progress (agent)
 - 2026-08-09 asked the human which way to resolve it; answered: gate the resume
 - 2026-08-09 resume gate + held-back line, companion README updated, [[i0177]] filed
+- 2026-08-09 status → review (agent)
