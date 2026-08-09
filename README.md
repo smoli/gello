@@ -176,7 +176,7 @@ The board doubles as the agent's task list. An agent:
 
 The convention is written into [CLAUDE.md](CLAUDE.md) (and appended to
 `AGENTS.md` when that file exists) at board init. The app can also install
-four gello-managed agent skills into a project (under `.claude/skills/`,
+five gello-managed agent skills into a project (under `.claude/skills/`,
 `.pi/`, or `.agents/`); it prompts to add or update them when they're missing
 or out-of-date:
 
@@ -194,6 +194,11 @@ or out-of-date:
   you and write one), propose the epic breakdown, and create one
   `epics/eNN-slug/epic.md` per epic once you approve. It scaffolds `.gello/`
   if there is none, stops at epics, and hands off to `gello-plan` for cards.
+- **`gello-review`** — check a card in `review`: verify each acceptance
+  criterion against the code, run the repo's tests, lint and typecheck, read
+  the diff, and record a pass/fail verdict in a `## Review` section on the
+  card. On a pass it moves the card to `signoff` for you to sign off. The
+  companion follows the same skill for its AFK review runs.
 
 ## Companion (agent runner)
 

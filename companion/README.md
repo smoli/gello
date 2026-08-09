@@ -157,8 +157,13 @@ The other AFK behaviour, an AI review for a `review` card, comes with c0167.
 
 A card in `review` is a claim, not a fact: the agent that implemented it also
 moved it. Under AFK a second agent checks that claim in a fresh session
-(c0167), following the review skill in `review.ts`. The skill rides in the
-prompt, so a review run works in a project that has no gello skills installed.
+(c0167), following the `gello-review` skill.
+
+The skill is in `src/lib/skills.ts`, alongside the other gello-managed skills
+the app installs into a project — so the human can invoke it by hand on a card
+too (i0174). `review.ts` embeds its text in the run's prompt rather than
+looking it up on disk, so a review run works in a project that has no gello
+skills installed.
 
 It has the reviewer read the card and the card's diff, verify each acceptance
 criterion against the code rather than its checkbox, and run the repo's tests,

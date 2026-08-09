@@ -43,6 +43,9 @@ to the review run ([[c0167]]).
   already has a skill installer (`src/lib/skills.ts` → `.claude/skills/`), but
   the companion runs against any project and a review run must not depend on
   whether the human ever ran the installer. Rejected for that reason.
+  *Superseded by [[i0174]]*: the skill is now `gello-review` in
+  `src/lib/skills.ts`, so the human can invoke it by hand; the companion still
+  embeds its text in the prompt, so a run depends on nothing being installed.
 - **Format**: a `## Review` section, one `### <local ISO datetime> — <pass|fail>`
   entry per round, newest last; the verdict word ends the heading line. Notes
   are the entry body. Parsing is tolerant on the separator and casing, and

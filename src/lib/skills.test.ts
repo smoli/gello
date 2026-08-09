@@ -6,6 +6,7 @@ import {
   DISCUSS_SKILL,
   ONBOARD_SKILL,
   PLAN_SKILL,
+  REVIEW_SKILL,
   SKILL_VERSION,
   type SkillTemplate,
   dirsNeedingInstall,
@@ -13,6 +14,7 @@ import {
   managedSkillFile,
   resolveInstallTargets,
   skillFilePath,
+  skillInstructions,
 } from "./skills";
 
 describe("dirsNeedingInstall (i0009)", () => {
@@ -44,11 +46,12 @@ describe("dirsNeedingInstall (i0009)", () => {
 });
 
 describe("ALL_SKILLS (c029)", () => {
-  it("ships the discuss, onboard, plan, and concept skills, each with a distinct folder", () => {
+  it("ships the discuss, onboard, plan, concept, and review skills, each with a distinct folder", () => {
     expect(ALL_SKILLS).toContain(DISCUSS_SKILL);
     expect(ALL_SKILLS).toContain(ONBOARD_SKILL);
     expect(ALL_SKILLS).toContain(PLAN_SKILL);
     expect(ALL_SKILLS).toContain(CONCEPT_SKILL);
+    expect(ALL_SKILLS).toContain(REVIEW_SKILL);
     const folders = ALL_SKILLS.map((s) => s.folder);
     expect(new Set(folders).size).toBe(folders.length);
   });
@@ -178,6 +181,54 @@ describe("concept skill (c0133)", () => {
 
   it("requires each epic to trace back to the concept", () => {
     expect(CONCEPT_SKILL.body.toLowerCase()).toContain("trace");
+  });
+});
+
+describe("review skill (i0174)", () => {
+  it("is a gello-review folder at the current version and round-trips", () => {
+    expect(REVIEW_SKILL.folder).toBe("gello-review");
+    expect(REVIEW_SKILL.version).toBe(SKILL_VERSION);
+    const file = managedSkillFile(REVIEW_SKILL);
+    expect(file).toContain("name: gello-review");
+    expect(installDecision(file, REVIEW_SKILL)).toBe("skip");
+  });
+
+  it("has a description triggering on reviewing a card", () => {
+    const description = /^description: (.*)$/m.exec(REVIEW_SKILL.body)?.[1];
+    expect(description).toBeDefined();
+    const text = (description ?? "").toLowerCase();
+    expect(text).toContain("review");
+    expect(text).toContain("card");
+  });
+
+  // i0174: the installer is the skill's only home, so an invocation by hand has
+  // no card handed to it — the skill has to find its own candidates.
+  it("finds review cards itself, for an invocation with no card named", () => {
+    expect(REVIEW_SKILL.body).toContain("^status: review");
+  });
+});
+
+describe("skillInstructions (i0174)", () => {
+  it("drops the frontmatter, leaving the instructions a prompt can carry", () => {
+    const text = skillInstructions(REVIEW_SKILL);
+    expect(text).not.toContain("name: gello-review");
+    expect(text).not.toContain("description:");
+    expect(text.startsWith("#")).toBe(true);
+    expect(REVIEW_SKILL.body).toContain(text);
+  });
+
+  it("returns a frontmatter-less body unchanged", () => {
+    const skill: SkillTemplate = { folder: "x", version: 1, body: "# X\n\nbody\n" };
+    expect(skillInstructions(skill)).toBe("# X\n\nbody\n");
+  });
+
+  it("stops at the closing delimiter, not at a later --- in the body", () => {
+    const skill: SkillTemplate = {
+      folder: "x",
+      version: 1,
+      body: "---\nname: x\n---\n\n# X\n\n---\n\nmore\n",
+    };
+    expect(skillInstructions(skill)).toBe("# X\n\n---\n\nmore\n");
   });
 });
 
