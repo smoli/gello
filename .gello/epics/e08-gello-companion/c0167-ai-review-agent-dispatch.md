@@ -1,12 +1,12 @@
 ---
 id: c0167
 title: AI review agent dispatch
-status: in-progress
+status: review
 epic: e08
 depends: [c0162, c0164, c0166]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T08:02:36
+status-changed: 2026-08-09T08:15:16
 ---
 
 ## What
@@ -78,3 +78,4 @@ review run respects the WIP limit and the session gate like any run.
   `planReviewDispatch`, review runs in `sync`), review session key in
   `sessions.ts`, neutral `set_status` description; documented in
   companion/README.md; 22 tests
+- 2026-08-09 status → review (agent)
