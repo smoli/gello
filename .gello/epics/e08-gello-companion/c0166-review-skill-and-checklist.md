@@ -1,12 +1,12 @@
 ---
 id: c0166
 title: Review skill + checklist
-status: review
+status: done
 epic: e08
 depends: []
 created: 2026-08-08
-updated: 2026-08-08
-status-changed: 2026-08-08T23:50:12
+updated: 2026-08-09
+status-changed: 2026-08-09T07:55:02
 usage-tokens: 21721
 usage-cost: 1.896769
 ---
@@ -66,3 +66,4 @@ to the review run ([[c0167]]).
 - 2026-08-08 review skill + `## Review` verdict format in `companion/review.ts`,
   documented in the companion README; 18 tests
 - 2026-08-08 status → review (agent)
+- 2026-08-09 status → done (app)

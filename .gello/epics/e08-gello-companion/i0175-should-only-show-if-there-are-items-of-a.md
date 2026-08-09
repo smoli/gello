@@ -1,13 +1,15 @@
 ---
 id: i0175
 title: Should only show if there are items of AFK is active
-status: in-progress
+status: review
 type: issue
 ref: c0170
 epic: e08
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T07:49:57
+status-changed: 2026-08-09T07:57:43
+usage-tokens: 19364
+usage-cost: 2.998846
 ---
 
 ## What
@@ -47,3 +49,4 @@ waiting in it or AFK mode ([[c0162]]) is on.
 - 2026-08-09 implemented (agent): `visibleColumns` in board.ts, `afk` prop on
   Board, wired from App; README and concept.md updated. 1697 tests, typecheck
   and lint green.
+- 2026-08-09 status → review (agent)

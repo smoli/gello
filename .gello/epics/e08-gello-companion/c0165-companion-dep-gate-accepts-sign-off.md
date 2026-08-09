@@ -1,12 +1,14 @@
 ---
 id: c0165
 title: Companion dep gate accepts sign-off
-status: in-progress
+status: review
 epic: e08
 depends: [c0164]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T07:58:05
+status-changed: 2026-08-09T08:02:21
+usage-tokens: 12582
+usage-cost: 1.831976
 ---
 
 ## What
@@ -54,3 +56,4 @@ revisit if it should be AFK-gated.
 - 2026-08-08 status → ready (app)
 - 2026-08-09 status → in-progress (agent)
 - 2026-08-09 dep gate accepts `signoff`; 6 tests added in `runner.test.ts`
+- 2026-08-09 status → review (agent)

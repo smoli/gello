@@ -7,6 +7,8 @@ depends: [c0162, c0164, c0166]
 created: 2026-08-08
 updated: 2026-08-09
 status-changed: 2026-08-09T08:15:16
+usage-tokens: 46708
+usage-cost: 6.533047
 ---
 
 ## What

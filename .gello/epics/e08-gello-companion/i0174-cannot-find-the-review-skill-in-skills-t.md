@@ -1,15 +1,15 @@
 ---
 id: i0174
 title: Cannot find the review-skill in skills.ts
-status: review
+status: done
 type: issue
 ref: c0166
 epic: e08
 created: 2026-08-09
 updated: 2026-08-09
-status-changed: 2026-08-09T07:49:28
-usage-tokens: 3590
-usage-cost: 0.551649
+status-changed: 2026-08-09T07:55:06
+usage-tokens: 27955
+usage-cost: 3.085145
 ---
 
 ## What
@@ -66,3 +66,4 @@ With the skill being in the skills directory, which is atm solely managed by the
 - 2026-08-09 `gello-review` in `src/lib/skills.ts` + `skillInstructions`;
   `companion/review.ts` derives the prompt from it; 11 tests
 - 2026-08-09 status → review (agent)
+- 2026-08-09 status → done (app)
