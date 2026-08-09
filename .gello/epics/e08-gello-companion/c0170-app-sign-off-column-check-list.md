@@ -1,12 +1,12 @@
 ---
 id: c0170
 title: 'App: sign-off column + check-list'
-status: done
+status: review
 epic: e08
 depends: [c0164]
 created: 2026-08-08
 updated: 2026-08-09
-status-changed: 2026-08-09T07:55:04
+status-changed: 2026-08-09T22:01:20
 usage-tokens: 44361
 usage-cost: 9.230168
 ---
@@ -71,3 +71,4 @@ glance on return; the recorded review verdict is visible on each card.
   typecheck, lint and cargo test green.
 - 2026-08-09 status → review (agent)
 - 2026-08-09 status → done (app)
+- 2026-08-09 status → review (app)

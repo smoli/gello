@@ -95,6 +95,14 @@ Decisions:
   flag (needs a restart) and a persistent `board.yaml` setting (not a momentary
   "I'm leaving" switch). Note: the published state file is companion→app, but
   the toggle is app→companion, so it needs a separate app-written file/field.
+- **Per board and machine-local** (chosen): the flag is keyed on the board root
+  (`<board>/.gello/.companion/afk.json`), so each board has its own independent
+  AFK state — never app-wide. It lives in the machine-local app↔companion
+  channel (`.gello/.companion/`, alongside `control.json`), not committed board
+  content, so it is per-machine and not shared through git: arming AFK on your
+  machine never turns it on for a teammate who pulls. Rejected: committed board
+  state (`board.yaml`/`companion.yaml`) — a momentary "I'm leaving" switch
+  should not travel with the repo.
 - **Parked question → free the WIP slot, keep the session hold** (chosen): AFK
   flips exactly the one calculation [[c0126]] made on purpose (a parked run
   holds its slot). Keeping the session hold makes skip-ahead correct across
