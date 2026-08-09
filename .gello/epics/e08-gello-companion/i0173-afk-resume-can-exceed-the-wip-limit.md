@@ -6,7 +6,28 @@ created: 2026-08-09
 updated: 2026-08-09
 status-changed: 2026-08-09T10:06:24
 epic: e08
+awaiting: input
+usage-tokens: 6779
+usage-cost: 1.127072
 ---
+
+```gelloquestion
+The card asks for a policy decision, so I want your call before I write code.
+
+What I found (details in Notes): the overshoot is bounded — a resumed run takes its slot back, so fresh dispatch stops until it ends. It only grows when several parked cards are answered at once: N answers while N freed slots were re-let means limit + N runs.
+
+A gate would be cheap and precise: a resume needs budget only when the card is in `slotFreed` (an AFK-parked run that gave its slot away). With AFK off nothing changes. A queued resume retries by itself — leave `awaiting: answered` on the card and the next sync (including the one after a run ends) picks it up.
+
+The cost of gating: your answer then waits behind an unrelated fresh run that may have just started, which is the thing the card currently calls "worse than a brief overshoot".
+
+Which way?
+
+- [ ] A — stay immediate. I document the bound in the companion README and pin it with a test, and close the issue.
+- [ ] B — a resume waits for a slot. Gated only when the card gave its slot away; reported as a held-back log line ("answered, waiting for a slot"). The misleading "needs input" badge on a waiting resume becomes its own card.
+- [ ] C — bounded overshoot: at most one resume may exceed the limit; further answered cards queue as in B. Keeps a single answer instant and stops the multiplication.
+
+I lean C: it fixes the case the title is about (several answers multiplying) without making your first answer wait on an unrelated run.
+```
 
 ## What
 
