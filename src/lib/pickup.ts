@@ -12,9 +12,12 @@ import { isCompanionLive, type CompanionState } from "./companion";
  * Seconds left before the companion picks this card up, or null when there is
  * no countdown to show: no companion attached (or a stale one), the delay
  * configured off, a card that is not queued, a run that has already started, a
- * card `blocked` by an open dependency (c0125), or a card with no usable
- * `status-changed` — the companion times that one from when it first saw the
- * card (i0124), which is not on the board, so there is no window to render.
+ * card `blocked` by an open dependency (c0125), or a card with no clock at all.
+ *
+ * The clock is `status-changed` when the card has one. A card created straight
+ * in the trigger status never changed status and has none, so the companion
+ * times it from when it first saw the card (i0124) and publishes that in the
+ * state file — i0157, which is what makes such a card count down here too.
  *
  * `blocked` and `slotFree` are passed in rather than derived: this module knows
  * the companion's state, not the board. The caller supplies those board facts.
@@ -40,8 +43,15 @@ export function pickupCountdown(
   // already dispatched — the c0109 activity line speaks for it from here
   if (state.runs.some((run) => run.cardId === cardId)) return null;
 
-  const since = statusChanged === null ? NaN : Date.parse(statusChanged);
-  if (Number.isNaN(since)) return null;
+  let since = statusChanged === null ? NaN : Date.parse(statusChanged);
+  if (Number.isNaN(since)) {
+    // i0157: no stamp — fall back to the companion's own first-seen clock, the
+    // one it actually times the window on. The stamp wins when both exist,
+    // matching the companion's order (runner.pickupWait).
+    const seen = state.firstSeen?.[cardId];
+    since = seen === undefined ? NaN : Date.parse(seen);
+    if (Number.isNaN(since)) return null;
+  }
 
   const remaining = state.pickupDelay * 1000 - (now - since);
   // round up, so a part-second never renders as a misleading 0

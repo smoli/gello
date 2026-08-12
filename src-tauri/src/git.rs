@@ -217,7 +217,8 @@ pub fn worktree_status(root: &Path) -> GitStatus {
 /// Stage and commit only `.gello/` changes (c0083). A pathspec commit: the
 /// user's staged/unstaged code changes are never swept in — that is the
 /// load-bearing safety property. `root` is the `.gello` dir, so pathspec `.`
-/// scopes both the stage and the commit to the board subtree.
+/// scopes both the stage and the commit to the board subtree. Commit hooks are
+/// skipped (i0176).
 pub fn commit_board(root: &Path, message: &str) -> CommitOutcome {
     let git_dir = match find_git_dir(root) {
         Some(dir) => dir,
@@ -244,7 +245,13 @@ pub fn commit_board(root: &Path, message: &str) -> CommitOutcome {
     if !has_changes {
         return CommitOutcome::Nothing;
     }
-    match run_git(root, &["commit", "-m", message, "--", "."]) {
+    // i0176: `--no-verify` — the commit holds `.gello/` markdown and nothing
+    // else, so the project's pre-commit/commit-msg hooks have nothing of theirs
+    // to check. Running them made every board move fail wherever a hook checks
+    // the working tree (a Rust project's fmt/clippy/test guard rejects a
+    // pathspec commit while any code edit is unstaged) or enforces a message
+    // convention gello's generated message does not follow.
+    match run_git(root, &["commit", "--no-verify", "-m", message, "--", "."]) {
         Some(out) if out.status.success() => CommitOutcome::Committed,
         Some(out) => CommitOutcome::Failed {
             message: String::from_utf8_lossy(&out.stderr).trim().to_string(),
@@ -483,6 +490,38 @@ mod tests {
         let porcelain = Command::new("git")
             .arg("-C").arg(top).args(["status", "--porcelain"]).output().unwrap();
         assert!(String::from_utf8_lossy(&porcelain.stdout).contains("A  code.rs"));
+    }
+
+    /// Write an executable `pre-commit` hook that records that it ran and then
+    /// rejects the commit.
+    fn install_failing_pre_commit(top: &Path) {
+        let hook = top.join(".git/hooks/pre-commit");
+        fs::write(&hook, "#!/bin/sh\ntouch \"$(dirname \"$0\")/../../hook-ran\"\nexit 1\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&hook, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+
+    /// i0176: the board commit carries `.gello/` markdown only, so the project's
+    /// pre-commit hook has nothing to check — and a hook that checks the working
+    /// tree (a `cargo fmt`/clippy guard, say) rejects it outright while the user
+    /// still has unstaged code, turning every board move into an error banner.
+    #[test]
+    fn commit_board_is_not_blocked_by_a_pre_commit_hook() {
+        let (dir, gello) = repo_with_board();
+        let top = dir.path();
+        let before = head_count(top);
+        install_failing_pre_commit(top);
+        // the working tree the hook would object to, plus the board change
+        fs::write(top.join("code.rs"), "fn main() {}\n").unwrap();
+        fs::write(gello.join("inbox/c001.md"), "---\nid: c001\n---\n").unwrap();
+
+        assert_eq!(commit_board(&gello, "board: 1 card updated"), CommitOutcome::Committed);
+
+        assert_eq!(head_count(top), before + 1);
+        assert!(!top.join("hook-ran").exists(), "the hook must not run for a board commit");
     }
 
     #[test]

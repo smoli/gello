@@ -122,6 +122,7 @@ describe("companion state file", () => {
     expect(s.waiting).toEqual([]);
     expect(s.runs).toEqual([]);
     expect(s.updated).toBe("2026-07-19T10:00:00");
+    expect(s.afk).toBe(false); // c0162: AFK is off until the flag says otherwise
   });
 
   it("writes the state file atomically under .companion/", () => {

@@ -29,6 +29,7 @@ import { runAsk } from "./ask-cli.ts";
 import { createGelloServer } from "./mcp.ts";
 import { MCP_SUBCOMMAND, askServerSpec, resolveMcpScope } from "./ask-server.ts";
 import { controlPath, parseControlRequests, takeUnseen } from "./control.ts";
+import { syncAfk } from "./afk.ts";
 import {
   LogPanes,
   addUsage,
@@ -221,13 +222,37 @@ function main(): void {
         runStartedAt.delete(cardId);
       }
       runs = next;
-      publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
+      publishAll();
       dashboard?.draw();
     },
     log,
   });
 
-  publish(root, model, runs, trigger, pickupDelay, runner.ownedCards());
+  const publishAll = () =>
+    publish(
+      root,
+      model,
+      runs,
+      trigger,
+      pickupDelay,
+      runner.ownedCards(),
+      runner.firstSeenAt(),
+      runner.isAfk(),
+    );
+
+  // c0162: AFK is the app→companion toggle in `.companion/afk.json`. Read it at
+  // startup so a companion started while AFK is on comes up in AFK, and re-read
+  // it on every change to that file (below), so a toggle applies with no
+  // restart. A change re-syncs: what may dispatch right now depends on it.
+  const applyAfk = (onChange: (afk: boolean) => void) =>
+    syncAfk(root, runner.isAfk(), (afk) => {
+      runner.setAfk(afk);
+      log(`AFK ${afk ? "on" : "off"}`);
+      onChange(afk);
+    });
+  applyAfk(() => {}); // startup: the sync + publish below cover it
+
+  publishAll();
 
   if (mode === "tui") {
     const titleOf = (cardId: string) =>
@@ -317,6 +342,14 @@ function main(): void {
       processControl();
       return;
     }
+    // c0162: the other app-written file under `.companion/` — the AFK toggle.
+    if (rel === ".companion/afk.json") {
+      applyAfk(() => {
+        runner.sync(model);
+        publishAll();
+      });
+      return;
+    }
     if (rel && rel.startsWith(".companion/")) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
@@ -329,7 +362,7 @@ function main(): void {
       }
       model = next;
       runner.sync(next);
-      publish(root, next, runs, trigger, pickupDelay, runner.ownedCards());
+      publishAll();
     }, 150);
   });
 }
@@ -347,6 +380,8 @@ function publish(
   trigger: string,
   pickupDelay: number,
   owned: string[],
+  firstSeen: Record<string, string>,
+  afk: boolean,
 ): void {
   const ready = cardsEnteringReady(null, model, trigger).map((c) => c.id);
   const waiting = cardsAwaitingInput(model).map((c) => c.id);
@@ -358,6 +393,8 @@ function publish(
     status: overallStatus(runs, waiting),
     pickupDelay,
     owned,
+    firstSeen,
+    afk,
   };
   try {
     writeStateFile(root, state);

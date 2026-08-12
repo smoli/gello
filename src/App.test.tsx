@@ -16,11 +16,17 @@ import {
   loadBoardFromDisk,
   migrateLegacyBoard,
   openExternal,
+  openFolder,
+  openInTerminal,
   pickFolder,
+  pickImageFile,
+  setBoardImage,
   readFileRaw,
   removeDir,
   removeFile,
+  readAfkFlag,
   requestStopRun,
+  writeAfkFlag,
   writeAsset,
   writeNewFiles,
   watchBoard,
@@ -47,7 +53,11 @@ vi.mock("./lib/board-io", () => ({
   boardExistsAt: vi.fn(),
   migrateLegacyBoard: vi.fn(),
   openExternal: vi.fn(),
+  openFolder: vi.fn(),
+  openInTerminal: vi.fn(),
   pickFolder: vi.fn(),
+  pickImageFile: vi.fn(),
+  setBoardImage: vi.fn(),
   initBoard: vi.fn(),
   writeNewFiles: vi.fn(),
   writeAsset: vi.fn(),
@@ -57,6 +67,8 @@ vi.mock("./lib/board-io", () => ({
   startCompanion: vi.fn(),
   requestStopRun: vi.fn(),
   requestRestartCard: vi.fn(),
+  readAfkFlag: vi.fn(),
+  writeAfkFlag: vi.fn(),
 }));
 vi.mock("./lib/fs", () => ({ writeFileAtomic: vi.fn() }));
 // c0100: the title-bar companion poll reads its own state file; stub it at the
@@ -118,6 +130,10 @@ describe("App", () => {
     vi.mocked(writeAsset).mockReset();
     vi.mocked(openExternal).mockReset();
     vi.mocked(openExternal).mockResolvedValue(undefined);
+    vi.mocked(openFolder).mockReset();
+    vi.mocked(openFolder).mockResolvedValue(undefined);
+    vi.mocked(openInTerminal).mockReset();
+    vi.mocked(openInTerminal).mockResolvedValue(undefined);
     vi.mocked(gitBranch).mockResolvedValue(null);
     vi.mocked(watchGitHead).mockResolvedValue(() => {});
     vi.mocked(detectSkillDirs).mockResolvedValue([]);
@@ -133,6 +149,10 @@ describe("App", () => {
     vi.mocked(requestStopRun).mockReset();
     vi.mocked(requestStopRun).mockResolvedValue(undefined);
     vi.mocked(readCompanionState).mockResolvedValue(null);
+    vi.mocked(readAfkFlag).mockReset();
+    vi.mocked(readAfkFlag).mockResolvedValue(false);
+    vi.mocked(writeAfkFlag).mockReset();
+    vi.mocked(writeAfkFlag).mockResolvedValue(undefined);
     vi.mocked(gitBoardChanges).mockReset();
     vi.mocked(gitBoardChanges).mockResolvedValue({ kind: "not_a_repo" });
     vi.mocked(gitCommitBoard).mockReset();
@@ -414,6 +434,62 @@ describe("App", () => {
     expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("theme", "light");
   });
 
+  it("c0152: the context menu shows the project folder in the file manager", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open project folder" }));
+
+    // the project folder, not the .gello board dir
+    await vi.waitFor(() =>
+      expect(vi.mocked(openFolder)).toHaveBeenCalledExactlyOnceWith("/repo"),
+    );
+  });
+
+  it("c0153: the context menu opens a terminal at the project folder", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in terminal" }));
+
+    // the project folder, not the .gello board dir
+    await vi.waitFor(() =>
+      expect(vi.mocked(openInTerminal)).toHaveBeenCalledExactlyOnceWith("/repo"),
+    );
+  });
+
+  it("c0153: a terminal that will not open shows in the error banner", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(openInTerminal).mockRejectedValueOnce(new Error("no such folder"));
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in terminal" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain("no such folder");
+  });
+
+  it("c0152: a folder that will not open shows in the error banner", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    vi.mocked(openFolder).mockRejectedValueOnce(new Error("no such directory"));
+
+    const { container } = render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.contextMenu(container.querySelector(".board") as HTMLElement);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open project folder" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "no such directory",
+    );
+  });
+
   it("renders the board once loaded", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
@@ -534,6 +610,143 @@ describe("App", () => {
     expect(vi.mocked(requestStopRun)).not.toHaveBeenCalled();
   });
 
+  // c0169: the AFK toggle. The flag file (c0162) is the truth: the control
+  // reflects what is on disk, and toggling writes it for the companion to read.
+  const afkToggle = async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    render(<App />);
+    await screen.findByText("Hello board");
+    return waitFor(() => screen.getByRole("button", { name: /AFK mode/ }));
+  };
+
+  it("c0169: the toggle reflects the flag file — off with none, on when set", async () => {
+    expect(await afkToggle()).toHaveAttribute("aria-pressed", "false");
+    expect(vi.mocked(readAfkFlag)).toHaveBeenCalledWith("/repo/.gello");
+  });
+
+  it("c0169: shows AFK on when the flag file says so", async () => {
+    vi.mocked(readAfkFlag).mockResolvedValue(true);
+    const toggle = await afkToggle();
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+  });
+
+  it("c0169: turning AFK on writes the flag", async () => {
+    const toggle = await afkToggle();
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(vi.mocked(writeAfkFlag)).toHaveBeenCalledExactlyOnceWith("/repo/.gello", true),
+    );
+    expect(screen.getByRole("button", { name: /AFK mode/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("c0169: turning it off writes the off state", async () => {
+    vi.mocked(readAfkFlag).mockResolvedValue(true);
+    const toggle = await afkToggle();
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "true"));
+
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(vi.mocked(writeAfkFlag)).toHaveBeenCalledExactlyOnceWith("/repo/.gello", false),
+    );
+  });
+
+  it("c0169: a failed write leaves the control showing the real state", async () => {
+    vi.mocked(writeAfkFlag).mockRejectedValue(new Error("read-only volume"));
+    const toggle = await afkToggle();
+    fireEvent.click(toggle);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/read-only volume/);
+    expect(screen.getByRole("button", { name: /AFK mode/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  // c0170: the sign-off check-list — the pile size in the title bar, and one
+  // click per card to clear it.
+  const signoffFixture = () => ({
+    root: "/repo/.gello",
+    legacy: false,
+    model: loadBoard([
+      {
+        path: "cards/c001-vetted.md",
+        content:
+          "---\nid: c001\ntitle: Vetted card\nstatus: signoff\n---\n\n## Review\n\n" +
+          "### 2026-08-09T07:10:00 — pass\n\nChecked: criteria, tests, lint.\n",
+      },
+    ]),
+  });
+
+  it("c0170: reports the sign-off pile in the title bar", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("status", { name: /1 card awaiting sign-off/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("c0170: signing a card off from its front writes done", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const front = (await screen.findByText("Vetted card")).closest("article")!;
+    fireEvent.click(within(front).getByRole("button", { name: /sign off c001/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/cards/c001-vetted.md",
+        expect.stringContaining("status: done"),
+      ),
+    );
+    // the check-list is clear, so the title bar drops the badge
+    await waitFor(() =>
+      expect(screen.queryByRole("status", { name: /awaiting sign-off/i })).toBeNull(),
+    );
+  });
+
+  it("c0170: reopening a card from its front writes in-progress", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    const front = (await screen.findByText("Vetted card")).closest("article")!;
+    fireEvent.click(within(front).getByRole("button", { name: /reopen c001/i }));
+
+    await waitFor(() =>
+      expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+        "/repo/.gello/cards/c001-vetted.md",
+        expect.stringContaining("status: in-progress"),
+      ),
+    );
+  });
+
+  it("i0175: turning AFK on brings the empty sign-off column onto the board", async () => {
+    const toggle = await afkToggle();
+    expect(screen.queryByRole("region", { name: "signoff" })).toBeNull();
+
+    fireEvent.click(toggle);
+
+    expect(await screen.findByRole("region", { name: "signoff" })).toBeInTheDocument();
+  });
+
+  it("i0175: a card waiting for sign-off shows the column with AFK off", async () => {
+    loadMock.mockResolvedValueOnce(signoffFixture());
+
+    render(<App />);
+
+    expect(
+      within(await screen.findByRole("region", { name: "signoff" })).getByText("Vetted card"),
+    ).toBeInTheDocument();
+  });
+
   it("opens the card detail on click and closes on Escape", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
 
@@ -650,6 +863,26 @@ describe("App", () => {
       await Promise.resolve();
     });
   };
+
+  it("i0140: a burst of watch events runs git status once, not once per event", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    await act(async () => void (await Promise.resolve()));
+
+    // `git status` walks the whole repo; one run per file in a burst (an agent
+    // writing a card, a checkout touching many) is what freezes the window
+    vi.mocked(gitWorktreeStatus).mockClear();
+    const cb = watchMock.mock.calls[0][1] as (paths: string[]) => void;
+    await act(async () => {
+      for (let i = 0; i < 8; i += 1) cb([`cards/c00${i}-x.md`]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(gitWorktreeStatus).toHaveBeenCalled());
+    expect(gitWorktreeStatus).toHaveBeenCalledTimes(1);
+  });
 
   it("c0128: fires one notification when a card newly parks, naming it", async () => {
     vi.mocked(notifyPark).mockClear();
@@ -1464,10 +1697,114 @@ describe("App", () => {
     }
   });
 
-  it("c0083: does not auto-commit when the setting is off (default)", async () => {
+  it("c0154: auto-commits by default in a git repo the human hasn't chosen for", async () => {
     vi.useFakeTimers();
     try {
-      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null (off)
+      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null (no choice)
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "status",
+        board_dirty: false,
+        code_dirty: false,
+      });
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+      vi.mocked(gitBoardChanges).mockResolvedValue({
+        kind: "changes",
+        changes: [
+          {
+            path: ".gello/cards/c001-hello.md",
+            head: "---\nid: c001\ntitle: Hello board\nstatus: backlog\n---\nx\n",
+            work: "---\nid: c001\ntitle: Hello board\nstatus: ready\n---\nx\n",
+          },
+        ],
+      });
+      vi.mocked(gitCommitBoard).mockResolvedValue({ kind: "committed" });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).toHaveBeenCalledTimes(1);
+      // the default is recorded for the project, so it survives as a choice
+      expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("auto-commit:/repo", "1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0154: respects a git repo the human switched auto-commit off for", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "status",
+        board_dirty: false,
+        code_dirty: false,
+      });
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key.startsWith("auto-commit:") ? "0" : null,
+      );
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0154: does not default auto-commit on when git can't say whether it's a repo", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      vi.mocked(gitWorktreeStatus).mockResolvedValue({
+        kind: "unavailable",
+        message: "detected dubious ownership in repository at '/repo'",
+      });
+      vi.mocked(appFlagSet).mockClear();
+      let emitChange: ((paths: string[]) => void) | null = null;
+      watchMock.mockImplementation(async (_root, onChange) => {
+        emitChange = onChange;
+        return () => {};
+      });
+
+      render(<App />);
+      await vi.waitFor(() => expect(screen.getByText("Hello board")).toBeInTheDocument());
+
+      emitChange!(["cards/c001-hello.md"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(vi.mocked(gitCommitBoard)).not.toHaveBeenCalled();
+      expect(vi.mocked(appFlagSet)).not.toHaveBeenCalledWith("auto-commit:/repo", "1");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("c0083/c0154: does not auto-commit when the project is not a git repo", async () => {
+    vi.useFakeTimers();
+    try {
+      loadMock.mockResolvedValueOnce(loadedFixture()); // appFlagGet → null, not_a_repo
       let emitChange: ((paths: string[]) => void) | null = null;
       watchMock.mockImplementation(async (_root, onChange) => {
         emitChange = onChange;
@@ -2091,6 +2428,50 @@ describe("App", () => {
     expect(within(backlog).getByText("Board card")).toBeInTheDocument();
   });
 
+  it("keeps a huge error to one line and lets it be dismissed (i0141)", async () => {
+    const huge = `write failed: pre-commit hook\n${"cargo test output line\n".repeat(200)}`;
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockRejectedValueOnce(new Error(huge));
+
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("write failed: pre-commit hook");
+    expect(alert.textContent).not.toContain("cargo test output line");
+
+    fireEvent.click(screen.getByRole("button", { name: /show details/i }));
+    expect(screen.getByTestId("board-error-detail").textContent).toContain(
+      "cargo test output line",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss/i }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("puts the error below the board, clear of the title bar (i0155)", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockRejectedValueOnce(new Error("disk full"));
+
+    render(<App />);
+    const card = (await screen.findByText("Board card")).closest("article")!;
+    fireEvent.keyDown(card, { key: "ArrowRight" });
+
+    const alert = await screen.findByRole("alert");
+    const board = document.querySelector(".board")!;
+    const titlebar = document.querySelector(".titlebar")!;
+    // the frameless title bar overlays the top of the shell, so a banner in the
+    // first flow slot sits under the traffic lights — it belongs after the board
+    expect(
+      board.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      titlebar.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(alert.parentElement).toBe(board.parentElement);
+  });
+
   it("reorders a card within the backlog and persists its rank (c056)", async () => {
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
@@ -2361,6 +2742,21 @@ describe("App", () => {
       expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
     });
 
+    // i0160: on macOS the held Control turns the click-to-commit fallback into
+    // a secondary click — it must still pick the entry, not raise a menu.
+    it("i0160: a Control-click on an entry commits it and closes the switcher", async () => {
+      const dialog = await openSwitcher();
+      fireEvent.contextMenu(within(dialog).getByRole("option", { name: /holzhof/ }), {
+        ctrlKey: true,
+      });
+      await waitFor(() =>
+        expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/proj/holzhof"),
+      );
+      expect(
+        screen.queryByRole("dialog", { name: /switch project/i }),
+      ).not.toBeInTheDocument();
+    });
+
     it("does not open with fewer than two recent projects", async () => {
       loadMock.mockResolvedValue(null);
       vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
@@ -2404,6 +2800,216 @@ describe("App", () => {
       await waitFor(() =>
         expect(screen.queryByText(/opening/i)).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  // c0138: a mode in the main app — the cross-project view replaces the board
+  // while it is open, and its project selection is app-local, like the recents.
+  describe("the cross-project activity view (c0138)", () => {
+    const openActivity = async () => {
+      loadMock.mockResolvedValueOnce(loadedFixture());
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: /repo/ }));
+      fireEvent.click(
+        screen.getByRole("menuitem", { name: /activity across projects/i }),
+      );
+      return screen.findByRole("region", { name: "Activity across projects" });
+    };
+
+    it("opens from the project menu and replaces the board", async () => {
+      await openActivity();
+      expect(screen.queryByText("Hello board")).not.toBeInTheDocument();
+    });
+
+    it("starts on the open project, so the view is never empty", async () => {
+      const view = await openActivity();
+      expect(within(view).getByRole("button", { name: "Remove repo" })).toBeInTheDocument();
+      expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+        "activity-projects",
+        JSON.stringify(["/repo"]),
+      );
+    });
+
+    it("restores the projects it was last watching", async () => {
+      vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+        key === "activity-projects" ? JSON.stringify(["/repo", "/other"]) : null,
+      );
+      const view = await openActivity();
+      expect(within(view).getByRole("button", { name: "Remove other" })).toBeInTheDocument();
+    });
+
+    it("goes back to the board", async () => {
+      await openActivity();
+      fireEvent.click(screen.getByRole("button", { name: /back to board/i }));
+      expect(await screen.findByText("Hello board")).toBeInTheDocument();
+    });
+
+    // c0158: the view spans projects, so its background is an app-local setting
+    // rather than a board.yaml key.
+    describe("its background (c0158)", () => {
+      it("sets a colour from the right-click picker and stores it app-locally", async () => {
+        const view = await openActivity();
+        fireEvent.contextMenu(view);
+
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Color" }));
+        fireEvent.change(screen.getByLabelText("Background color"), {
+          target: { value: "#123456" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+            "activity-background",
+            "#123456",
+          ),
+        );
+        // no project's board.yaml is touched — the view has no single board
+        expect(
+          vi.mocked(writeNewFiles).mock.calls.filter((c) =>
+            c[0][0].path.endsWith("/board.yaml"),
+          ),
+        ).toHaveLength(0);
+        expect(view).toHaveStyle({ backgroundColor: "#123456" });
+      });
+
+      it("remembers an image by its absolute path, copying nothing into a project", async () => {
+        vi.mocked(pickImageFile).mockResolvedValue("/pictures/wall.png");
+        vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,QQ==");
+        const view = await openActivity();
+        fireEvent.contextMenu(view);
+
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Image" }));
+        fireEvent.click(screen.getByRole("button", { name: /choose image/i }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith(
+            "activity-background",
+            "/pictures/wall.png",
+          ),
+        );
+        expect(vi.mocked(setBoardImage)).not.toHaveBeenCalled();
+        await waitFor(() =>
+          expect(view).toHaveStyle({ backgroundImage: "url(data:image/png;base64,QQ==)" }),
+        );
+        expect(vi.mocked(imageDataUrl)).toHaveBeenCalledWith("/pictures/wall.png");
+      });
+
+      it("restores the stored background when the view opens", async () => {
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "activity-background" ? "#654321" : null,
+        );
+        const view = await openActivity();
+
+        await waitFor(() => expect(view).toHaveStyle({ backgroundColor: "#654321" }));
+        // the board keeps its own background — the two are independent
+        fireEvent.click(screen.getByRole("button", { name: /back to board/i }));
+        const board = (await screen.findByText("Hello board")).closest(".board");
+        expect(board).not.toHaveStyle({ backgroundColor: "#654321" });
+      });
+
+      it("clears the background and the stored setting", async () => {
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "activity-background" ? "#654321" : null,
+        );
+        const view = await openActivity();
+        await waitFor(() => expect(view).toHaveStyle({ backgroundColor: "#654321" }));
+
+        fireEvent.contextMenu(view);
+        fireEvent.click(screen.getByRole("menuitem", { name: "Background…" }));
+        fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+        await waitFor(() =>
+          expect(vi.mocked(appFlagSet)).toHaveBeenCalledWith("activity-background", ""),
+        );
+        expect(view).not.toHaveClass("multi-with-bg");
+      });
+    });
+
+    // i0158: the view is a place Ctrl+Tab reaches, and while it is open the
+    // switcher used to call the board behind it "current" — and switching out
+    // of the view left you in it.
+    describe("in the project switcher (i0158)", () => {
+      const seedRecent = (paths: string[]) =>
+        vi.mocked(appFlagGet).mockImplementation(async (key: string) =>
+          key === "recent-projects" ? JSON.stringify(paths) : null,
+        );
+
+      it("is the current entry while it is open, ahead of the board behind it", async () => {
+        await openActivity();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+
+        const dialog = screen.getByRole("dialog", { name: /switch project/i });
+        const options = within(dialog).getAllByRole("option");
+        expect(options[0]).toHaveTextContent(/activity across projects/i);
+        expect(within(options[0]).getByText("current")).toBeInTheDocument();
+        // the board is the *previous* place, so one hit goes back to it
+        expect(options[1]).toHaveAttribute("aria-selected", "true");
+        expect(options[1]).toHaveTextContent("repo");
+      });
+
+      it("goes back to the board without reloading it", async () => {
+        await openActivity();
+        vi.mocked(loadBoardAt).mockClear();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+        fireEvent.keyUp(window, { key: "Control" });
+
+        expect(await screen.findByText("Hello board")).toBeInTheDocument();
+        expect(vi.mocked(loadBoardAt)).not.toHaveBeenCalled();
+      });
+
+      it("leaves the view when another project is picked", async () => {
+        seedRecent(["/repo", "/other"]);
+        await openActivity();
+        loadMock.mockResolvedValueOnce(loadedFixture());
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true }); // → repo
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true }); // → other
+        fireEvent.keyUp(window, { key: "Control" });
+
+        await waitFor(() =>
+          expect(vi.mocked(loadBoardAt)).toHaveBeenCalledWith("/other"),
+        );
+        await waitFor(() =>
+          expect(
+            screen.queryByRole("region", { name: "Activity across projects" }),
+          ).not.toBeInTheDocument(),
+        );
+      });
+
+      it("opens the view when it is picked from the board", async () => {
+        loadMock.mockResolvedValueOnce(loadedFixture());
+        render(<App />);
+        await screen.findByText("Hello board");
+
+        // the lone project plus the view: Ctrl+Tab preselects the view
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+        fireEvent.keyUp(window, { key: "Control" });
+
+        expect(
+          await screen.findByRole("region", { name: "Activity across projects" }),
+        ).toBeInTheDocument();
+      });
+
+      it("never greys the view as a board that has gone missing", async () => {
+        vi.mocked(boardExistsAt).mockResolvedValue(false);
+        await openActivity();
+        fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+
+        const dialog = screen.getByRole("dialog", { name: /switch project/i });
+        const view = within(dialog).getByRole("option", {
+          name: /activity across projects/i,
+        });
+        await waitFor(() =>
+          expect(
+            within(dialog).getByRole("option", { name: /repo/ }),
+          ).toHaveClass("switcher-item-dead"),
+        );
+        expect(view).not.toHaveClass("switcher-item-dead");
+        expect(vi.mocked(boardExistsAt)).not.toHaveBeenCalledWith(
+          expect.stringContaining("\0"),
+        );
+      });
     });
   });
 });

@@ -21,6 +21,11 @@ function runnerLabel(runner: CompanionState): string {
   return "Companion: idle";
 }
 
+/** c0170: how the sign-off badge announces itself. */
+function signoffLabel(count: number): string {
+  return `${count} card${count === 1 ? "" : "s"} awaiting sign-off`;
+}
+
 /** Phases a run can still be stopped in (c0119) — it is live. A done/error/
  *  aborted run has already ended, so it gets no stop control. */
 const STOPPABLE: ReadonlySet<CompanionState["runs"][number]["phase"]> = new Set([
@@ -77,6 +82,9 @@ export function TitleBar({
   runner,
   onStartCompanion,
   onStopRun,
+  afk,
+  onToggleAfk,
+  signoffCount = 0,
   search,
   onSearch,
 }: {
@@ -90,6 +98,12 @@ export function TitleBar({
   onStartCompanion?: () => void;
   /** c0119: stop a live run from the popover. Omitted → no stop control. */
   onStopRun?: (cardId: string) => void;
+  /** c0169: current AFK state, read from the c0162 flag file. */
+  afk?: boolean;
+  /** c0169: set AFK mode. Omitted → no toggle. */
+  onToggleAfk?: (next: boolean) => void;
+  /** c0170: how many cards sit in the sign-off column. 0 → no badge. */
+  signoffCount?: number;
   /** c0066: current fulltext query (owned by the app, applied by the board). */
   search?: string;
   onSearch?: (query: string) => void;
@@ -233,6 +247,40 @@ export function TitleBar({
                 document.body,
               )}
           </span>
+        )}
+        {/* c0170: the sign-off pile. After a stretch of AFK the check-list is
+            what you come back to, so its size sits in the title bar rather than
+            only in the column header, which any filter or scroll can take off
+            screen. */}
+        {signoffCount > 0 && (
+          <span
+            className="titlebar-signoff"
+            role="status"
+            aria-label={signoffLabel(signoffCount)}
+            title={`${signoffLabel(signoffCount)} — reviewed cards in the signoff column`}
+          >
+            ✓ {signoffCount}
+          </span>
+        )}
+        {/* c0169: the AFK switch for the c0162 flag. Offered whether or not a
+            companion runs — the flag is read at startup too, so AFK can be
+            armed before starting one. Off is a dim moon; on adds the word and
+            the waiting amber, so the two states don't read alike. */}
+        {onToggleAfk && (
+          <button
+            type="button"
+            className={afk ? "titlebar-afk titlebar-afk-on" : "titlebar-afk"}
+            aria-pressed={afk === true}
+            aria-label={afk ? "AFK mode on" : "AFK mode off"}
+            title={
+              afk
+                ? "AFK mode on — the companion works the queue unattended. Click to turn off."
+                : "AFK mode off. Click to let the companion work the queue unattended."
+            }
+            onClick={() => onToggleAfk(!afk)}
+          >
+            {afk ? "☾ AFK" : "☾"}
+          </button>
         )}
       </div>
       {onSearch && (

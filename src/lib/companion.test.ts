@@ -33,6 +33,7 @@ describe("parseCompanionState", () => {
       updated: "2026-07-19T10:00:00",
       pickupDelay: 10,
       owned: [],
+      afk: false, // c0162: absent in the file, off in the parsed state
     });
   });
 
@@ -53,6 +54,7 @@ describe("parseCompanionState", () => {
       updated: "",
       pickupDelay: 0,
       owned: [],
+      afk: false,
     });
   });
 
@@ -191,6 +193,43 @@ describe("pickupDelay parsing", () => {
     for (const value of [undefined, "10", -1, null, {}]) {
       const raw = JSON.stringify({ status: "idle", pickupDelay: value, owned: [] });
       expect(parseCompanionState(raw)?.pickupDelay).toBe(0);
+    }
+  });
+});
+
+// c0162: the companion echoes the AFK state it applied, so the app can show
+// whether a running companion picked the toggle up.
+describe("afk parsing", () => {
+  it("keeps the published AFK state", () => {
+    expect(parseCompanionState(JSON.stringify({ afk: true }))?.afk).toBe(true);
+    expect(parseCompanionState(JSON.stringify({ afk: false }))?.afk).toBe(false);
+  });
+
+  it("is off when the field is missing or not a boolean", () => {
+    expect(parseCompanionState(JSON.stringify({}))?.afk).toBe(false);
+    expect(parseCompanionState(JSON.stringify({ afk: "true" }))?.afk).toBe(false);
+    expect(parseCompanionState(JSON.stringify({ afk: 1 }))?.afk).toBe(false);
+  });
+});
+
+// i0157: the pickup clock for a card with no `status-changed` — when the
+// companion first saw it in the trigger status.
+describe("firstSeen parsing", () => {
+  it("keeps the published clocks", () => {
+    const raw = JSON.stringify({ firstSeen: { c001: "2026-08-08T10:00:00" } });
+    expect(parseCompanionState(raw)?.firstSeen).toEqual({ c001: "2026-08-08T10:00:00" });
+  });
+
+  it("drops non-string entries rather than failing the parse", () => {
+    const raw = JSON.stringify({ firstSeen: { c001: 42, c002: "2026-08-08T10:00:00" } });
+    expect(parseCompanionState(raw)?.firstSeen).toEqual({ c002: "2026-08-08T10:00:00" });
+  });
+
+  // an older companion publishes no clocks at all — absent, not empty
+  it("leaves it absent when missing or not an object", () => {
+    for (const value of [undefined, "c001", 42, null, []]) {
+      const raw = JSON.stringify({ status: "idle", firstSeen: value });
+      expect(parseCompanionState(raw)?.firstSeen).toBeUndefined();
     }
   });
 });

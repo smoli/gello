@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { edgeScrollDelta } from "../lib/autoscroll";
 import {
   blockersFor,
+  canFollowUp,
   openDependencies,
   columnComparator,
   duplicateIdOf,
@@ -12,11 +13,17 @@ import {
   nextStartable,
   MANUAL_COLUMNS,
   planManualInsert,
+  signoffMoves,
+  SIGNOFF_STATUS,
+  visibleColumns,
   wipState,
   type Blocker,
   type BoardModel,
+  type SignoffMove,
   type WipState,
 } from "../lib/board";
+import { latestReview, type ReviewEntry } from "../lib/review";
+import { backgroundStyle } from "../lib/background";
 import { collapseDuplicateFrontmatterKeys, formatCardUsage } from "../lib/cards";
 import type { Card, InvalidFile } from "../lib/cards";
 import { cardMatchesQuery } from "../lib/search";
@@ -130,6 +137,7 @@ export function Board({
   loadImage,
   query = "",
   showArchived = false,
+  afk = false,
   runner,
   onRestartCard,
   onStopRun,
@@ -161,6 +169,9 @@ export function Board({
   /** c018: also show archived cards (`archive/` folders), which are off the
    *  board otherwise. A search still reaches them either way. */
   showArchived?: boolean;
+  /** i0175: AFK state (c0162). While it is on, the sign-off column renders even
+   *  empty — that is the lane the review agent fills. */
+  afk?: boolean;
   /** c012: resolve a card's first image to a data URL for its thumbnail. */
   loadImage?: (card: Card, src: string) => Promise<string | null>;
   /** c016: a control rendered at the start of the toolbar (project menu). */
@@ -322,6 +333,10 @@ export function Board({
     });
 
   const columns = model.config.columns;
+  // i0175: what gets a lane. Moves still step through the configured `columns`
+  // — a card can be sent to sign-off whether or not the column is on screen,
+  // and it appears the moment one lands there.
+  const shownColumns = useMemo(() => visibleColumns(model, afk), [model, afk]);
   const allCards = statusCards;
 
   /**
@@ -374,6 +389,15 @@ export function Board({
     else onReorderCard?.(entry.card, plan.order);
   };
 
+  // c0170: the sign-off column is the human's check-list, so clearing it is one
+  // click per card — accept the AI review (→ done) or send the work back
+  // (→ in-progress). Both go through onMoveCard, like a drag; a board without
+  // one of those columns is not offered that move.
+  const checklistMoves = useMemo(
+    () => (onMoveCard ? signoffMoves(columns) : []),
+    [onMoveCard, columns],
+  );
+
   const moveByKey = (card: Card, direction: -1 | 1) => {
     const target = columns[columns.indexOf(card.status) + direction];
     if (target) onMoveCard?.(card, target);
@@ -386,15 +410,6 @@ export function Board({
       onBackgroundContextMenu(event.clientX, event.clientY);
     }
   };
-
-  // c0060: use longhands so .board-with-bg's cover/center/no-repeat (c047)
-  // still apply — the `background` shorthand would reset them (image would
-  // render at full resolution). url()/gradients are background-images.
-  const backgroundStyle: React.CSSProperties | undefined = background
-    ? background.startsWith("url(") || background.startsWith("linear-gradient(")
-      ? { backgroundImage: background }
-      : { backgroundColor: background }
-    : undefined;
 
   const boardClasses = [
     "board",
@@ -409,7 +424,7 @@ export function Board({
       className={boardClasses}
       onMouseDown={backgroundDrag}
       onContextMenu={bgContext}
-      style={backgroundStyle}
+      style={backgroundStyle(background)}
     >
       <header className="board-toolbar" onMouseDown={backgroundDrag}>
         <div className="toolbar-filters">
@@ -516,7 +531,7 @@ export function Board({
         onMouseDown={backgroundDrag}
         onContextMenu={bgContext}
       >
-        {columns.map((column) => {
+        {shownColumns.map((column) => {
           const entries = visible
             .filter((c) => c.card.status === column)
             // c056: per-column rules (global across milestones, c046) —
@@ -537,6 +552,8 @@ export function Board({
                 dropAtIndex(column, entries, path, zoneIndex)
               }
               onMoveByKey={moveByKey}
+              onMoveTo={onMoveCard}
+              signoffMoves={checklistMoves}
               onSelect={onSelectCard}
               onOpenCardId={openBlocker}
               onFollowUp={onFollowUpCard}
@@ -652,6 +669,8 @@ function Column({
   onDropCard,
   onDropAt,
   onMoveByKey,
+  onMoveTo,
+  signoffMoves,
   onSelect,
   onOpenCardId,
   onFollowUp,
@@ -672,6 +691,10 @@ function Column({
 }: {
   name: string;
   cards: BoardCard[];
+  /** c0170: the sign-off check-list's one-click moves, for signoff card fronts. */
+  signoffMoves: SignoffMove[];
+  /** c0170: move a card to a named column, as a drag would. */
+  onMoveTo?: MoveCardHandler;
   /** c008: WIP state for this column; null when no limit is configured. */
   wip: WipState | null;
   /** c0109: companion state, forwarded to each card front for its activity line. */
@@ -787,6 +810,8 @@ function Column({
                 entry={entry}
                 isOrigin={draggingPath === entry.card.path}
                 onMoveByKey={onMoveByKey}
+                onMoveTo={onMoveTo}
+                signoffMoves={signoffMoves}
                 onSelect={onSelect}
                 onOpenCardId={onOpenCardId}
                 onFollowUp={onFollowUp}
@@ -866,10 +891,20 @@ function InsertZone({
   );
 }
 
+/** c0170: the recorded verdict as a card front reads it — the outcome, plus
+ *  when it was decided and what was checked in the tooltip. */
+function reviewTitle(review: ReviewEntry): string {
+  const verdict = review.verdict === "pass" ? "AI review passed" : "AI review failed";
+  const head = review.stamp === "" ? verdict : `${verdict} ${review.stamp}`;
+  return review.notes === "" ? head : `${head}\n\n${review.notes}`;
+}
+
 function CardFront({
   entry,
   isOrigin,
   onMoveByKey,
+  onMoveTo,
+  signoffMoves,
   onSelect,
   onOpenCardId,
   onFollowUp,
@@ -899,6 +934,10 @@ function CardFront({
   /** True while this card is the one being dragged (i0004 origin marker). */
   isOrigin?: boolean;
   onMoveByKey: (card: Card, direction: -1 | 1) => void;
+  /** c0170: the sign-off actions this board offers (empty → none). */
+  signoffMoves: SignoffMove[];
+  /** c0170: take one of them — an ordinary status move. */
+  onMoveTo?: MoveCardHandler;
   onSelect?: (card: Card) => void;
   /** c0123: open a card named on a front (a blocker) by its id. */
   onOpenCardId?: (id: string) => void;
@@ -937,6 +976,13 @@ function CardFront({
   // c018: an archived card is shown for reference — moving it would leave it
   // in `archive/` with a live status, so it stays put until it is unarchived.
   const archived = card.archived;
+  // c0170: the verdict an AI review agent recorded on the card (c0166). Shown
+  // wherever it exists — it is what a card in the sign-off column is waiting on,
+  // and a failed round explains a card that came back.
+  const review = latestReview(card.body);
+  // c0170: the check-list actions, on the cards that are actually waiting.
+  const checklist =
+    card.status === SIGNOFF_STATUS && !archived && onMoveTo ? signoffMoves : [];
   const className = [
     "card-front",
     isOrigin ? "card-origin" : "",
@@ -1020,10 +1066,11 @@ function CardFront({
             </button>
           )}
           {/* c0118: queue more work without opening the card first. Gated to
-              review/done like the detail-view action (c0115), and it opens the
-              same draft — it never creates a card outright, so the note about
-              landing in ready still gets its say before any agent starts. */}
-          {onFollowUp && (card.status === "review" || card.status === "done") && (
+              the finished-work statuses like the detail-view action (c0115),
+              and it opens the same draft — it never creates a card outright, so
+              the note about landing in ready still gets its say before any
+              agent starts. */}
+          {onFollowUp && canFollowUp(card.status) && (
             <span className="card-meta-badges-followups">
               {/* i0130: the two kinds read as "i" and "c" on screen, so the
                   label has to name the kind — otherwise both buttons announce
@@ -1073,6 +1120,14 @@ function CardFront({
         }
         onOpenBlocker={onOpenCardId}
       />
+      {/* c0170: the recorded review verdict — what a card in the sign-off
+          column is waiting on. The reasons are in the tooltip and, in full, in
+          the card's own `## Review` section. */}
+      {review && (
+        <p className={`card-review card-review-${review.verdict}`} title={reviewTitle(review)}>
+          {review.verdict === "pass" ? "✓ AI review passed" : "✗ AI review failed"}
+        </p>
+      )}
       {thumbSrc && loadImage && (
         <AssetImage
           src={thumbSrc}
@@ -1090,6 +1145,29 @@ function CardFront({
             <span key={tag} className="tag-chip" style={tagChipStyle(tagColor(tag, tagColors), darkChips)}>
               {tag}
             </span>
+          ))}
+        </div>
+      )}
+      {/* c0170: clear the check-list one card at a time — accept the review, or
+          send the work back. Always shown (not hover-revealed): on the sign-off
+          column they are the point of the card, not an extra. */}
+      {checklist.length > 0 && (
+        <div className="card-signoff-actions" role="group" aria-label={`Sign-off ${card.id}`}>
+          {checklist.map((move) => (
+            <button
+              key={move.status}
+              type="button"
+              className={`card-signoff-action card-signoff-${move.status}`}
+              aria-label={`${move.label} ${card.id}`}
+              title={move.title}
+              onClick={(event) => {
+                // the whole front is clickable; keep this from opening the card
+                event.stopPropagation();
+                onMoveTo?.(card, move.status);
+              }}
+            >
+              {move.label}
+            </button>
           ))}
         </div>
       )}

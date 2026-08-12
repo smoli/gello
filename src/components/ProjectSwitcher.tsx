@@ -1,4 +1,5 @@
 import "./ProjectSwitcher.css";
+import { OVERVIEW } from "../lib/switcher";
 
 // c0146: the MRU project-switcher overlay (Alt+Tab model). A view over the
 // frozen `recent` snapshot: the App owns the keys and the selection state
@@ -27,16 +28,27 @@ export function ProjectSwitcher({
   onPick: (index: number) => void;
 }) {
   return (
-    <div className="switcher-overlay" role="dialog" aria-label="Switch project">
+    <div
+      className="switcher-overlay"
+      role="dialog"
+      aria-label="Switch project"
+      // i0160: the overlay covers the window while Control is held, and on
+      // macOS that makes every click a secondary click — so no click in here
+      // may reach the webview's own menu.
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <div className="switcher-panel">
         <p className="switcher-heading">Switch project</p>
         <ul className="switcher-list" role="listbox" aria-label="Recent projects">
           {items.map((path, i) => {
+            // i0158: the activity view is an entry too — named, never "dead"
+            const isOverview = path === OVERVIEW;
             const isDead = dead.has(path);
             const className = [
               "switcher-item",
               i === selected ? "switcher-item-selected" : "",
               isDead ? "switcher-item-dead" : "",
+              isOverview ? "switcher-item-overview" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -47,10 +59,20 @@ export function ProjectSwitcher({
                   role="option"
                   aria-selected={i === selected}
                   className={className}
-                  title={path}
+                  title={isOverview ? "Activity across projects" : path}
                   onClick={() => onPick(i)}
+                  // i0160: a Control-click on macOS is a secondary click, so
+                  // the pick arrives here instead of onClick. Nothing in the
+                  // switcher wants a context menu, so any secondary click on an
+                  // entry picks it — the same as a plain click.
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    onPick(i);
+                  }}
                 >
-                  <span className="switcher-name">{baseName(path)}</span>
+                  <span className="switcher-name">
+                    {isOverview ? "Activity across projects" : baseName(path)}
+                  </span>
                   {i === 0 && <span className="switcher-tag">current</span>}
                   {isDead && <span className="switcher-missing">not found</span>}
                 </button>

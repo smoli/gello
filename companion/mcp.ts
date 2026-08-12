@@ -37,17 +37,19 @@ const ASK_TOOL = {
 
 const SET_STATUS_TOOL = {
   name: "set_status",
+  // c0167: a review run gets this tool too, so the description says what the
+  // tool does and leaves *when* to call it to the run's own prompt — an
+  // implementer is told to move to `in-progress` first thing (buildTaskPrompt),
+  // a reviewer to move a passed card to `signoff` (the review skill).
   description:
-    "Move the card you are working on to a new status (board column). Call this " +
-    "with `in-progress` the moment you start, before any analysis, so the human " +
-    "sees you have picked the card up; call it with `review` when the acceptance " +
-    "criteria pass. It stamps the change and adds a Log line for you.",
+    "Move the card you are working on to a new status (board column), as your " +
+    "task tells you to. It stamps the change and adds a Log line for you.",
   inputSchema: {
     type: "object" as const,
     properties: {
       status: {
         type: "string",
-        description: "The target status, e.g. `in-progress` or `review`.",
+        description: "The target status, e.g. `in-progress`, `review` or `signoff`.",
       },
     },
     required: ["status"],

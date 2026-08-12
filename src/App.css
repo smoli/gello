@@ -31,7 +31,11 @@ body,
   position: relative;
 }
 
-.app-shell-frameless .board {
+/* i0156: the c0138 activity view replaces the board in the shell and needs the
+   same clearance — its bar (back, project chips) is otherwise behind the
+   title bar's drag region, where a click drags the window. */
+.app-shell-frameless .board,
+.app-shell-frameless .multi {
   padding-top: calc(0.75rem + var(--titlebar-height));
 }
 
@@ -182,14 +186,6 @@ body,
 .init-prompt-actions button:first-child {
   background: color-mix(in srgb, #4c8bf5 18%, Canvas);
   border-color: color-mix(in srgb, #4c8bf5 45%, transparent);
-}
-
-.board-error {
-  background: color-mix(in srgb, #e5484d 15%, Canvas);
-  color: #e5484d;
-  border-bottom: 1px solid color-mix(in srgb, #e5484d 30%, transparent);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.85rem;
 }
 
 /* c0119: confirm dialog for a destructive drag (stopping a live run). Mirrors

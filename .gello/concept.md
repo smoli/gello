@@ -115,14 +115,14 @@ Notes:
 ---
 id: c003
 title: Kanban view with drag & drop
-status: ready            # discuss | backlog | ready | in-progress | review | done
+status: ready            # discuss | backlog | ready | in-progress | review | signoff | done
 type: issue              # optional; default task; allowed values from board.yaml types
 ref: c001                # optional; card this issue was found in (provenance, not dependency)
 epic: e02                # optional; the epic this card belongs to (its folder is epics/e02-*); absent → standalone in cards/
 depends: [c001]
 tags: [ui]
 order: 15                # optional; manual rank in backlog/ready (fractional; unranked cards sort last)
-status-changed: 2026-07-16T14:32:07  # optional; when the current status was assigned (in-progress/review/done order by it)
+status-changed: 2026-07-16T14:32:07  # optional; when the current status was assigned (in-progress/review/signoff/done order by it)
 created: 2026-07-16T09:00:00          # date or ISO datetime; new cards stamp the time
 updated: 2026-07-16
 ---
@@ -192,11 +192,14 @@ is removed).
 ### board.yaml
 
 ```yaml
-columns: [inbox, discuss, backlog, ready, in-progress, review, done]  # default lineup
+columns: [inbox, discuss, backlog, ready, in-progress, review, signoff, done]  # default lineup
 types: [task, issue]     # optional; card types, open set; default [task, issue]
 background: assets/board/bg.jpg  # optional; full-image board background
 show_tags: false         # optional; default true. False hides every board tag
                          # surface (card chips, filter, Manage tags button)
+project_color: "#0d9488" # optional; the colour this project's cards carry in
+                         # the cross-project activity view. Unset = a stable
+                         # colour derived from the project path
 wip_limits:
   in-progress: 2       # optional; the board warns, agents respect it
 ```
@@ -205,6 +208,16 @@ The `discuss` column is a triage stage: the human flags a card (typically a
 raw inbox idea) for a structured conversation with an agent; the discussion's
 outcomes are written back into the card, which then graduates to an epic.
 
+The `signoff` column (c0164) sits between `review` and `done`: cards an AI
+review agent has passed, waiting for the human to accept them. Only a human
+moves a card `signoff` → `done`. It is presented as a check-list (c0170): a
+card front shows the verdict recorded in its `## Review` section and carries a
+**Sign off** (→ `done`) and a **Reopen** (→ `in-progress`) action, and the
+title bar reports how many cards are waiting. The column renders when a card is
+in it or AFK mode is on (i0175) — a board with no review agent filling it does
+not carry the empty lane. Moves still step through the configured `columns`, so
+a card can be sent to sign-off whether or not the column is on screen.
+
 **Card order within a column** (c056) is per-column:
 
 - **inbox** and **discuss** — by `created`, oldest on top (a capture queue;
@@ -212,9 +225,9 @@ outcomes are written back into the card, which then graduates to an epic.
 - **backlog** and **ready** — manual: the user drags to insert, persisted as
   a fractional `order` rank on the moved card. Unranked cards (e.g. just
   created by an agent) sort after ranked ones, by `created`/id.
-- **in-progress**, **review**, **done** — by `status-changed`, earliest on
-  top (the order work entered the stage). Missing `status-changed` falls back
-  to `updated` → `created` → id.
+- **in-progress**, **review**, **signoff**, **done** — by `status-changed`,
+  earliest on top (the order work entered the stage). Missing `status-changed`
+  falls back to `updated` → `created` → id.
 
 The manual `order` in backlog/ready *is* the priority signal (i0025 removed the
 `priority` field). Timestamps are local-time ISO (`YYYY-MM-DDTHH:MM:SS`),
@@ -272,6 +285,15 @@ of the file tree:
   watching cards move while the agent works).
 - Markdown fallback guarantee: everything degrades gracefully to plain files.
 
+### Across projects
+
+A cross-project activity view aggregates the ready / in-progress / review cards
+of several selected projects, each board watched live. A card carries its
+project's colour, set in that project's `board.yaml` (`project_color:`).
+Finished work is accepted by dropping a review card on the done area, and a
+parked question is answered inline; every write goes to the project that owns
+the card. The view reads boards only, never companion state.
+
 ### Later (explicitly not MVP)
 
 - Git awareness: show commits/branch linked to a card by ID.
@@ -279,7 +301,6 @@ of the file tree:
 - Optional MCP server / CLI for stricter validation (`gello move c003 ready`).
 - Launch the agent from the app ("run Claude on this card").
 - Metrics: cycle time, throughput per epic.
-- Multi-board overview across projects.
 
 ## 7. Tech stack
 

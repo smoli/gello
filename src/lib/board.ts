@@ -86,6 +86,84 @@ function byManualOrder(a: Card, b: Card): number {
 /** Columns the user can rearrange by hand (c056). */
 export const MANUAL_COLUMNS: ReadonlySet<string> = new Set(["backlog", "ready"]);
 
+/**
+ * Statuses where a card counts as finished work, so spinning off more work from
+ * it is a *follow-up* (c0115) rather than scope on the card itself. c0164 adds
+ * `signoff` — reviewed work waiting for the human — between the two originals.
+ * One rule for both surfaces that offer the action (card front, card detail).
+ */
+const FOLLOWUP_SOURCE_STATUSES: ReadonlySet<string> = new Set([
+  "review",
+  "signoff",
+  "done",
+]);
+
+/** Does a card in this status get the follow-up action? */
+export function canFollowUp(status: string): boolean {
+  return FOLLOWUP_SOURCE_STATUSES.has(status);
+}
+
+// --- the sign-off check-list (c0170) --------------------------------------------
+
+/** The column holding AI-reviewed cards waiting for the human (c0164). */
+export const SIGNOFF_STATUS = "signoff";
+
+/** What the human does with a card in sign-off (c0170) — accept the review, or
+ *  send the work back. Both are ordinary status moves. */
+export interface SignoffMove {
+  status: string;
+  label: string;
+  title: string;
+}
+
+const SIGNOFF_MOVES: readonly SignoffMove[] = [
+  {
+    status: "done",
+    label: "Sign off",
+    title: "Sign off — accept the review and move this card to done",
+  },
+  {
+    status: "in-progress",
+    label: "Reopen",
+    title: "Reopen — send this card back for more work",
+  },
+];
+
+/**
+ * The one-click sign-off actions available on a board with these `columns`.
+ * Columns are data (c0164), so a board configured without one of the targets
+ * is simply not offered that move rather than being sent to a column it has no
+ * lane for.
+ */
+export function signoffMoves(columns: readonly string[]): SignoffMove[] {
+  return SIGNOFF_MOVES.filter((move) => columns.includes(move.status));
+}
+
+/** How many cards are waiting for the human's sign-off — the pile size the
+ *  title bar reports (c0170). Archived cards are off the board, so they are
+ *  out of the count too. */
+export function signoffCount(model: BoardModel): number {
+  return allCards(model).filter(
+    (card) => card.status === SIGNOFF_STATUS && !card.archived,
+  ).length;
+}
+
+/**
+ * The columns the board renders (i0175). Every configured column renders,
+ * except `signoff`: it is only in play while an AI review agent fills it, so an
+ * empty one is dropped unless AFK is on. Archived cards count here (unlike the
+ * title-bar pile size) — a card must always have a column to sit in when the
+ * archived toggle shows it.
+ */
+export function visibleColumns(model: BoardModel, afk: boolean): string[] {
+  return model.config.columns.filter(
+    (column) =>
+      column !== SIGNOFF_STATUS ||
+      afk ||
+      allCards(model).some((card) => card.status === SIGNOFF_STATUS),
+  );
+}
+
 /** The c056 per-column sort rule. Unknown custom columns are treated as
  *  workflow stages (status-changed rule). */
 export function columnComparator(column: string): (a: Card, b: Card) => number {
@@ -325,7 +403,7 @@ export function applyFileChanges(
 }
 
 /** All cards on the board — standalone and epic-grouped alike. */
-function allCards(model: BoardModel): Card[] {
+export function allCards(model: BoardModel): Card[] {
   return [...model.cards, ...model.epics.flatMap((g) => g.cards)];
 }
 

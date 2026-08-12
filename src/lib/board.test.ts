@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  allCards,
   applyFileChanges,
   findCardById,
   loadBoard,
@@ -25,9 +26,14 @@ import {
   dependencyOptions,
   duplicateIdOf,
   isStartable,
+  canFollowUp,
+  MANUAL_COLUMNS,
   nextSlotWaiter,
   nextStartable,
   planManualInsert,
+  signoffCount,
+  signoffMoves,
+  visibleColumns,
   wipState,
   type BoardFile,
   type BoardModel,
@@ -90,7 +96,8 @@ describe("loadBoard on this repo's own .gello tree", () => {
   it("finds the real milestones and cards", () => {
     expect(model.configError).toBeNull();
     expect(model.config.columns).toEqual([
-      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review",
+      "signoff", "done",
     ]);
     // i0130: the limit is edited from the app, so pin the parse, not the value
     expect(Object.keys(model.config.wipLimits)).toEqual(["in-progress"]);
@@ -792,12 +799,134 @@ describe("columnComparator (c056)", () => {
     expect(sorted.map((x) => x.id)).toEqual(["c004", "c003", "c002", "c001"]);
   });
 
+  it("c0164: signoff sorts by status-changed, earliest first", () => {
+    const later = sortCard("c001", { statusChanged: "2026-08-08T10:00:00" });
+    const earlier = sortCard("c002", { statusChanged: "2026-08-08T08:00:00" });
+    expect(
+      [later, earlier].sort(columnComparator("signoff")).map((x) => x.id),
+    ).toEqual(["c002", "c001"]);
+    // and it is not one of the hand-ordered columns
+    expect(MANUAL_COLUMNS.has("signoff")).toBe(false);
+  });
+
   it("unknown custom columns use the status-changed rule", () => {
     const later = sortCard("c001", { statusChanged: "2026-07-17T10:00:00" });
     const earlier = sortCard("c002", { statusChanged: "2026-07-17T08:00:00" });
     expect(
       [later, earlier].sort(columnComparator("custom")).map((x) => x.id),
     ).toEqual(["c002", "c001"]);
+  });
+});
+
+describe("canFollowUp (c0115/c0164)", () => {
+  it("offers a follow-up on finished work: review, signoff and done", () => {
+    expect(["review", "signoff", "done"].map(canFollowUp)).toEqual([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("says no in the earlier workflow stages", () => {
+    expect(
+      ["inbox", "discuss", "backlog", "ready", "in-progress"].map(canFollowUp),
+    ).toEqual([false, false, false, false, false]);
+  });
+});
+
+describe("the sign-off check-list (c0170)", () => {
+  const model = loadBoard([
+    file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+    file("cards/c001-vetted.md", card("c001", "signoff")),
+    file("cards/c002-open.md", card("c002", "review")),
+    file("cards/archive/c003-old.md", card("c003", "signoff")),
+    file("epics/e01-alpha/epic.md", milestone("e01", "Alpha")),
+    file("epics/e01-alpha/c004-vetted.md", card("c004", "signoff")),
+  ]);
+
+  it("counts the cards awaiting sign-off, standalone and epic alike", () => {
+    expect(signoffCount(model)).toBe(2);
+  });
+
+  it("leaves archived cards out — they are off the board", () => {
+    expect(allCards(model).some((c) => c.id === "c003")).toBe(true);
+    expect(signoffCount(model)).toBe(2);
+  });
+
+  it("counts nothing on a board with no card in sign-off", () => {
+    expect(
+      signoffCount(
+        loadBoard([
+          file("board.yaml", "columns: [ready, review, signoff, done]\n"),
+          file("cards/c001-open.md", card("c001", "review")),
+        ]),
+      ),
+    ).toBe(0);
+  });
+
+  it("offers accept and reopen as ordinary moves to configured columns", () => {
+    expect(signoffMoves(["review", "signoff", "done"]).map((m) => m.status)).toEqual(
+      ["done"],
+    );
+    expect(
+      signoffMoves(["in-progress", "review", "signoff", "done"]).map((m) => m.status),
+    ).toEqual(["done", "in-progress"]);
+  });
+
+  it("offers nothing on a board whose columns hold neither target", () => {
+    expect(signoffMoves(["signoff"])).toEqual([]);
+  });
+});
+
+describe("i0175: the sign-off column only shows when it is in play", () => {
+  const board = (...cards: BoardFile[]) =>
+    loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+      ...cards,
+    ]);
+  const LINEUP = ["ready", "in-progress", "review", "signoff", "done"];
+  const WITHOUT = ["ready", "in-progress", "review", "done"];
+
+  it("drops the empty sign-off column while AFK is off", () => {
+    expect(visibleColumns(board(file("cards/c001-open.md", card("c001", "review"))), false))
+      .toEqual(WITHOUT);
+  });
+
+  it("keeps it while AFK is on, empty or not", () => {
+    expect(visibleColumns(board(), true)).toEqual(LINEUP);
+  });
+
+  it("keeps it whenever a card is waiting in it", () => {
+    expect(
+      visibleColumns(board(file("cards/c001-vetted.md", card("c001", "signoff"))), false),
+    ).toEqual(LINEUP);
+  });
+
+  it("keeps it for an archived sign-off card too — no card without a column", () => {
+    expect(
+      visibleColumns(board(file("cards/archive/c001-old.md", card("c001", "signoff"))), false),
+    ).toEqual(LINEUP);
+  });
+
+  it("leaves every other column alone, empty or not", () => {
+    expect(visibleColumns(loadBoard([]), false)).toEqual([
+      "inbox",
+      "discuss",
+      "backlog",
+      "ready",
+      "in-progress",
+      "review",
+      "done",
+    ]);
+  });
+
+  it("says nothing about a board configured without a sign-off column", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, review, done]\n"),
+      file("cards/c001-open.md", card("c001", "review")),
+    ]);
+    expect(visibleColumns(model, false)).toEqual(["ready", "review", "done"]);
+    expect(visibleColumns(model, true)).toEqual(["ready", "review", "done"]);
   });
 });
 

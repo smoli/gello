@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeFileAtomic } from "./fs";
-import { removeDir, removeFile } from "./board-io";
+import { readFileRaw, removeDir, removeFile } from "./board-io";
 import { loadBoard } from "./board";
 import { parseCard, parseEpic, DEFAULT_BOARD_CONFIG } from "./cards";
 import {
@@ -25,11 +25,16 @@ import {
   saveCardFields,
   saveEpicEdit,
   saveEpicFields,
+  rebaseOnDisk,
   triageCard,
 } from "./board-actions";
 
 vi.mock("./fs", () => ({ writeFileAtomic: vi.fn() }));
-vi.mock("./board-io", () => ({ removeFile: vi.fn(), removeDir: vi.fn() }));
+vi.mock("./board-io", () => ({
+  removeFile: vi.fn(),
+  removeDir: vi.fn(),
+  readFileRaw: vi.fn(),
+}));
 const writeMock = vi.mocked(writeFileAtomic);
 const removeMock = vi.mocked(removeFile);
 const removeDirMock = vi.mocked(removeDir);
@@ -194,6 +199,37 @@ describe("moveCard", () => {
     expect(card.body).toContain("- 2026-07-16 status → done (app)");
   });
 
+  it("c0164: moves into signoff and on to done, stamping each move", async () => {
+    const intoSignoff = moveCard(
+      "/repo/.gello",
+      fixtureCard(),
+      "signoff",
+      DEFAULT_BOARD_CONFIG,
+      "2026-08-08T09:00:00",
+    );
+    expect(intoSignoff.card.status).toBe("signoff");
+    expect(intoSignoff.card.statusChanged).toBe("2026-08-08T09:00:00");
+    await intoSignoff.persisted;
+    expect(writeMock.mock.calls[0][1]).toContain("status: signoff\n");
+
+    // the human accepts: signoff → done, from the card the first move returned
+    const intoDone = moveCard(
+      "/repo/.gello",
+      intoSignoff.card,
+      "done",
+      DEFAULT_BOARD_CONFIG,
+      "2026-08-08T10:00:00",
+    );
+    expect(intoDone.card.status).toBe("done");
+    expect(intoDone.card.statusChanged).toBe("2026-08-08T10:00:00");
+    await intoDone.persisted;
+    const written = writeMock.mock.calls[1][1];
+    expect(written).toContain("status: done\n");
+    expect(written).toContain("status-changed: 2026-08-08T10:00:00\n");
+    // one status-changed line, never two (i0034)
+    expect(written.match(/^status-changed:/gm)).toHaveLength(1);
+  });
+
   it("does not journal non-status field edits", async () => {
     const { persisted } = saveCardFields(
       "/repo/.gello",
@@ -295,6 +331,7 @@ describe("custom-column statuses (c033)", () => {
     background: null,
     tagColors: {},
     showTags: true,
+    projectColor: null,
     followupTarget: "ready",
   };
 
@@ -1458,5 +1495,41 @@ Ship dark theme.
     expect(written).toContain("status: in-progress");
     expect(written).toContain("Ship dark theme."); // body untouched
     expect(updated.status).toBe("in-progress");
+  });
+});
+
+// c015/c0138: the read-before-write half of the surgical-edit conflict policy.
+// It was inline in the App, against the one open board; the cross-project view
+// writes against an arbitrary root, so both now call this.
+describe("rebaseOnDisk (c0138)", () => {
+  const readMock = vi.mocked(readFileRaw);
+  const card = () => {
+    const parsed = parseCard("cards/c001-first.md", RAW, DEFAULT_BOARD_CONFIG);
+    if (!parsed.ok) throw new Error("fixture must parse");
+    return parsed.card;
+  };
+
+  beforeEach(() => {
+    readMock.mockReset();
+  });
+
+  it("reads the card's file under the root it is given", async () => {
+    readMock.mockResolvedValue(RAW);
+    await rebaseOnDisk("/other/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(readMock).toHaveBeenCalledExactlyOnceWith(
+      "/other/.gello/cards/c001-first.md",
+    );
+  });
+
+  it("rebases the edit onto an external change to the same card", async () => {
+    readMock.mockResolvedValue(RAW.replace("First", "Renamed on disk"));
+    const fresh = await rebaseOnDisk("/repo/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(fresh.title).toBe("Renamed on disk");
+  });
+
+  it("keeps the card the caller acted on when the file is unreadable or gone", async () => {
+    readMock.mockImplementation(() => Promise.reject(new Error("ENOENT")));
+    const fresh = await rebaseOnDisk("/repo/.gello", card(), DEFAULT_BOARD_CONFIG);
+    expect(fresh.raw).toBe(RAW);
   });
 });

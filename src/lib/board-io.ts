@@ -6,6 +6,7 @@ import { loadBoard, type BoardFile, type BoardModel } from "./board";
 import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
 import { writeFileAtomic } from "./fs";
 import { appendControlRequest } from "./companion-control";
+import { afkFileContent, afkFilePath, parseAfk } from "./companion-afk";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
@@ -35,6 +36,18 @@ export async function imageDataUrl(path: string): Promise<string> {
  */
 export async function openExternal(root: string, relative: string): Promise<void> {
   await invoke("open_asset", { root, relative });
+}
+
+/** c0152: show a folder — the open project's — in the OS file manager. Rejects
+ *  when the path is gone or the desktop has no handler for it. */
+export async function openFolder(path: string): Promise<void> {
+  await invoke("open_folder", { path });
+}
+
+/** c0153: open an OS terminal with `path` as its working directory. Rejects
+ *  when the path is gone or no terminal could be launched. */
+export async function openInTerminal(path: string): Promise<void> {
+  await invoke("open_in_terminal", { path });
 }
 
 /** Delete one file (absolute path) — used by triage after the rewrite. */
@@ -80,6 +93,23 @@ export async function requestStopRun(root: string, cardId: string): Promise<void
 /** c0141: restart a stopped card — the companion resumes its session in place. */
 export async function requestRestartCard(root: string, cardId: string): Promise<void> {
   await writeControlRequest(root, "restart", cardId);
+}
+
+/** c0169: set AFK mode for the open board — an atomic write of the c0162 flag
+ *  the companion watches. Both states are written; off is a value, not a
+ *  missing file. */
+export async function writeAfkFlag(root: string, afk: boolean): Promise<void> {
+  await writeFileAtomic(afkFilePath(root), afkFileContent(afk));
+}
+
+/** c0169: the AFK state on disk, for the toggle to reflect. No file (no
+ *  companion has ever run here, or AFK was never armed) reads as off. */
+export async function readAfkFlag(root: string): Promise<boolean> {
+  try {
+    return parseAfk(await readFileRaw(afkFilePath(root)));
+  } catch {
+    return false; // absent → off
+  }
 }
 
 /** c032: existing agent-skill directories under the project root. */
@@ -202,20 +232,37 @@ export async function watchGitHead(
   return unlisten;
 }
 
+/** c0138: watch ids, unique within the window. Allocated here rather than in
+ *  Rust so the filter below is armed before the watcher can report anything. */
+let watchCounter = 0;
+
 /**
- * Watch the board directory. `onChange` receives root-relative paths of
- * changed board files. Subscribes to the event stream *before* starting the
- * Rust watcher so no early event is missed. Returns a stop function.
+ * Watch a board directory. `onChange` receives root-relative paths of changed
+ * board files. Subscribes to the event stream *before* starting the Rust watcher
+ * so no early event is missed. Returns a stop function.
+ *
+ * c0138: several boards are watched at once (the cross-project activity view),
+ * and they share one event channel — so each call carries its own watch id and
+ * takes only the events stamped with it. Stopping unwatches on the Rust side,
+ * not just here; the id keys the watcher registry.
  */
 export async function watchBoard(
   root: string,
   onChange: (paths: string[]) => void,
 ): Promise<() => void> {
-  const unlisten = await listen<string[]>("board-files-changed", (event) =>
-    onChange(event.payload),
+  watchCounter += 1;
+  const id = `watch-${watchCounter}`;
+  const unlisten = await listen<{ id: string; paths: string[] }>(
+    "board-files-changed",
+    (event) => {
+      if (event.payload.id === id) onChange(event.payload.paths);
+    },
   );
-  await invoke("watch_board", { root });
-  return unlisten;
+  await invoke("watch_board", { root, id });
+  return () => {
+    unlisten();
+    void invoke("unwatch_board", { id }).catch(() => {});
+  };
 }
 
 export interface LoadedBoard {

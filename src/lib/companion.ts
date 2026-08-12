@@ -57,6 +57,15 @@ export interface CompanionState {
    *  against stopped in-progress cards to know which may be restarted — never a
    *  card a human moved to `in-progress` with no companion session. */
   owned: string[];
+  /** i0157: card id → when the companion first saw it in the trigger status.
+   *  The pickup clock for a card created straight in `ready`, which has no
+   *  `status-changed` (i0124). Absent when the companion publishes none. */
+  firstSeen?: Record<string, string>;
+  /** c0162: the AFK state the companion applied from the flag file the app
+   *  writes (`.companion/afk.json`). The app writes the flag; this is the
+   *  running companion's echo of it. Optional: a companion predating c0162
+   *  publishes no field, which reads as AFK off. */
+  afk?: boolean;
 }
 
 const STATUSES: RunnerStatus[] = ["idle", "running", "waiting"];
@@ -116,6 +125,18 @@ export function newlyParkedIds(
 
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** i0157: a card id → ISO datetime map, or undefined when the field is absent
+ *  or not a plain object. Non-string entries are dropped, so a partial file
+ *  degrades to the clocks it can trust. */
+function stringMap(value: unknown): Record<string, string> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const map: Record<string, string> = {};
+  for (const [key, at] of Object.entries(value)) {
+    if (typeof at === "string") map[key] = at;
+  }
+  return map;
 }
 
 const USAGE_KEYS = [
@@ -188,6 +209,8 @@ export function parseCompanionState(raw: string): CompanionState | null {
         })
     : [];
 
+  const firstSeen = stringMap(record.firstSeen);
+
   return {
     status: STATUSES.includes(record.status as RunnerStatus)
       ? (record.status as RunnerStatus)
@@ -203,6 +226,8 @@ export function parseCompanionState(raw: string): CompanionState | null {
         ? record.pickupDelay
         : 0,
     owned: stringArray(record.owned),
+    afk: record.afk === true,
+    ...(firstSeen ? { firstSeen } : {}),
   };
 }
 

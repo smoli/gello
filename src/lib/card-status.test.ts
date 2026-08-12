@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardStatusLine, type CardStatusFacts } from "./card-status";
+import { blockedStatusLine, cardStatusLine, type CardStatusFacts } from "./card-status";
 import type { CompanionState } from "./companion";
 import { parseCard, type Card } from "./cards";
 
@@ -103,6 +103,19 @@ describe("cardStatusLine (c0148)", () => {
       kind: "startable",
       text: "startable",
     });
+  });
+
+  it("builds the blocked line from blockers alone (c0157)", () => {
+    const line = blockedStatusLine([
+      { id: "c002", missing: false },
+      { id: "c003", missing: true },
+    ]);
+    expect(line).toMatchObject({ kind: "blocked", text: "waiting on c002, c003 (missing)" });
+    expect(line?.className).toContain("card-activity-blocked");
+  });
+
+  it("has no blocked line when nothing is open (c0157)", () => {
+    expect(blockedStatusLine([])).toBeNull();
   });
 
   it("prioritises a live activity line over a blocked one", () => {

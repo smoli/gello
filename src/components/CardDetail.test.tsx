@@ -534,14 +534,14 @@ describe("CardDetail", () => {
     expect(props2.onReportIssue).toHaveBeenCalledTimes(1);
   });
 
-  it("offers Follow up only on a review or done card (c0115)", () => {
+  it("offers Follow up only on a review, signoff or done card (c0115/c0164)", () => {
     renderDetail(); // in-progress: more work is not "follow-up" yet
     expect(
       screen.queryByRole("button", { name: /follow up/i }),
     ).not.toBeInTheDocument();
     cleanup();
 
-    for (const status of ["review", "done"]) {
+    for (const status of ["review", "signoff", "done"]) {
       const props = renderDetail({ card: { ...fixture(), status } });
       fireEvent.click(screen.getByRole("button", { name: /follow up/i }));
       expect(props.onFollowUp).toHaveBeenCalledTimes(1);
@@ -1180,5 +1180,38 @@ describe("archive action (c018)", () => {
     expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
     expect(onArchive).toHaveBeenCalledWith(false);
+  });
+});
+
+// c0138: the same detail opens from the cross-project activity view, where the
+// card's project has to be on screen — a bare `c009` says nothing about which
+// board it came from, and Report issue / Follow up are the open board's actions.
+describe("a card scoped to a project (c0138)", () => {
+  it("names the project alongside the card id", () => {
+    renderDetail({ scopeLabel: "popexel" });
+
+    expect(screen.getByRole("dialog", { name: "popexel / c009" })).toBeInTheDocument();
+    expect(screen.getByText("popexel")).toBeInTheDocument();
+  });
+
+  it("labels the dialog with the card id alone when no project is given", () => {
+    renderDetail();
+    expect(screen.getByRole("dialog", { name: "c009" })).toBeInTheDocument();
+  });
+
+  it("leaves out the actions it was given no handler for", () => {
+    const parsed = parseCard(
+      "epics/e05-projects/c009-detail.md",
+      RAW.replace("status: in-progress", "status: done"),
+    );
+    if (!parsed.ok) throw new Error("fixture must parse");
+    renderDetail({
+      card: parsed.card,
+      onReportIssue: undefined,
+      onFollowUp: undefined,
+    });
+
+    expect(screen.queryByRole("button", { name: "Report issue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Follow up" })).not.toBeInTheDocument();
   });
 });

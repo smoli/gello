@@ -14,6 +14,7 @@ import {
   dependenciesOf,
   dependencyOptions,
   duplicateIdOf,
+  signoffCount,
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
@@ -41,6 +42,7 @@ import {
   saveCardFields,
   saveEpicEdit,
   saveEpicFields,
+  rebaseOnDisk as rebaseCardOnDisk,
   todayIsoDate,
   triageCard,
   type EpicEdit,
@@ -63,9 +65,12 @@ import {
   loadBoardFromDisk,
   migrateLegacyBoard,
   openExternal,
+  openFolder,
+  openInTerminal,
   pickFolder,
   type GitStatus,
   pickImageFile,
+  readAfkFlag,
   readFileRaw,
   removeFile,
   setBoardImage,
@@ -74,6 +79,7 @@ import {
   startCompanion,
   watchBoard,
   watchGitHead,
+  writeAfkFlag,
   writeAsset,
   writeNewFiles,
   type LoadedBoard,
@@ -94,7 +100,14 @@ import {
   suggestedFileAssetName,
 } from "./lib/assets";
 import { addRecent, normalizeRecent, parseRecent, serializeRecent } from "./lib/recent";
-import { openSwitcher, cycleSwitcher, type SwitcherState } from "./lib/switcher";
+import {
+  openSwitcher,
+  cycleSwitcher,
+  switcherItems,
+  OVERVIEW,
+  type OverviewMode,
+  type SwitcherState,
+} from "./lib/switcher";
 import { resolveCardStatusLine } from "./lib/card-status";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { isMacOS } from "./lib/platform";
@@ -120,6 +133,9 @@ import {
 import { TitleBar } from "./components/TitleBar";
 import { SkillPrompt } from "./components/SkillPrompt";
 import { MigrationGate } from "./components/MigrationGate";
+import { MultiProject } from "./components/MultiProject";
+import { parseProjectList, serializeProjectList } from "./lib/multi";
+import { BoardError } from "./components/BoardError";
 import { EpicDetail } from "./components/EpicDetail";
 
 // i0010: the "don't ask about skills" choice is per-project, not global —
@@ -130,7 +146,14 @@ const RECENT_FLAG = "recent-projects";
 const THUMBNAILS_FLAG = "show-thumbnails"; // c0063: board thumbnail toggle
 const ARCHIVED_FLAG = "show-archived"; // c018: show archived cards on the board
 const THEME_FLAG = "theme"; // c0068: "system" | "light" | "dark"
-// c0083: per-project auto-commit — off by default, keyed by project path
+// c0138: projects the cross-project activity view watches (app-local, like the
+// recent list — the per-project *colour* is board.yaml's business, not this).
+const ACTIVITY_FLAG = "activity-projects";
+// c0158: the activity view's background. App-local too: the view spans projects,
+// so no single board.yaml owns it, and an image is kept by absolute path.
+const ACTIVITY_BG_FLAG = "activity-background";
+// c0083: per-project auto-commit, keyed by project path. c0154: a project with
+// no stored choice defaults to on when it is a git repo.
 const autoCommitKey = (projectPath: string) => `auto-commit:${projectPath}`;
 const autoCommitWindowKey = (projectPath: string) => `auto-commit-window:${projectPath}`;
 const AUTO_COMMIT_DEFAULT_MS = 30_000;
@@ -155,7 +178,6 @@ import {
 } from "./lib/cards";
 import { writeFileAtomic } from "./lib/fs";
 import type { InvalidFile } from "./lib/cards";
-import { rebaseCard } from "./lib/conflict";
 import { buildCommitMessage, type BoardChange } from "./lib/commit-message";
 import type { SaveBodyResult } from "./components/CardDetail";
 import "./App.css";
@@ -256,6 +278,10 @@ function App() {
   const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
   // c0100: companion runner state for the title-bar indicator (null = not running)
   const [runner, setRunner] = useState<CompanionState | null>(null);
+  // c0169: AFK mode, as the c0162 flag file has it. The file is the truth (the
+  // companion reads it, and it outlives both processes), so the control shows
+  // what the companion poll last read rather than a UI state of its own.
+  const [afk, setAfk] = useState(false);
   // i0028: epic creation + minimal-view selection. openEpicSignal opens the
   // capture form in epic mode from the filter / create-on-triage; epicAssign is
   // the card to assign to the epic once created (create-on-triage).
@@ -266,6 +292,14 @@ function App() {
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
   const [initCandidate, setInitCandidate] = useState<string | null>(null);
+  // c0138: the cross-project activity view is open, and the projects it watches
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityProjects, setActivityProjects] = useState<string[]>([]);
+  // c0158: the activity view's own background (config value + resolved image)
+  const [activityBackground, setActivityBackground] = useState<string | null>(null);
+  const [activityBackgroundUrl, setActivityBackgroundUrl] = useState<string | undefined>(
+    undefined,
+  );
 
   const rememberProject = async (boardRoot: string) => {
     const path = projectFolder(boardRoot).path;
@@ -294,6 +328,12 @@ function App() {
     });
     void appFlagGet(THEME_FLAG).then((v) => {
       if (!cancelled && (v === "light" || v === "dark")) setTheme(v);
+    });
+    void appFlagGet(ACTIVITY_FLAG).then((v) => {
+      if (!cancelled) setActivityProjects(parseProjectList(v));
+    });
+    void appFlagGet(ACTIVITY_BG_FLAG).then((v) => {
+      if (!cancelled) setActivityBackground(v || null);
     });
     void loadBoardFromDisk()
       .then((loaded) => {
@@ -337,16 +377,26 @@ function App() {
   const switcherDeadRef = useRef<ReadonlySet<string>>(switcherDead);
   switcherDeadRef.current = switcherDead;
   const openProjectRef = useRef((_folder: string) => {});
+  // i0158: the switcher lists the activity view as a place, so its listeners
+  // need to know where we are and how to get in and out of it.
+  const overviewRef = useRef<{
+    mode: OverviewMode;
+    project: string | null;
+    open: () => void;
+    close: () => void;
+  }>({ mode: "unavailable", project: null, open: () => {}, close: () => {} });
   const isMac = isMacOS();
 
   // c0146: which of the frozen recent entries no longer have a board — greyed,
   // and refused on commit. Cheap existence check per entry, ignored if the
-  // switcher has since closed.
+  // switcher has since closed. The activity view is no folder, so it is skipped.
   const checkSwitcherDead = (items: string[]) => {
     setSwitcherDead(new Set());
     switcherDeadRef.current = new Set();
     void Promise.all(
-      items.map(async (path) => ((await boardExistsAt(path)) ? null : path)),
+      items.map(async (path) =>
+        path === OVERVIEW || (await boardExistsAt(path)) ? null : path,
+      ),
     ).then((results) => {
       const dead = new Set(results.filter((p): p is string => p !== null));
       setSwitcherDead(dead);
@@ -354,16 +404,26 @@ function App() {
     });
   };
 
-  /** c0146: open the highlighted project (or warn if its board is gone); a
-   *  commit to the current project (index 0) is a no-op. Always closes. */
+  /** c0146: go to the highlighted place (or warn if its board is gone); a
+   *  commit to where we already are (index 0) is a no-op. Always closes.
+   *  i0158: the place can be the activity view, and leaving it for a project
+   *  closes it — an open one otherwise stays over whatever board loads. */
   const commitSwitcher = (state: SwitcherState) => {
     const path = state.items[state.selected];
     setSwitcherState(null);
-    if (state.selected === 0) return; // already on the current project
+    if (state.selected === 0) return; // already there
+    if (path === OVERVIEW) {
+      overviewRef.current.open();
+      return;
+    }
     if (switcherDeadRef.current.has(path)) {
       setError(`Can't switch: no gello board found at ${path}`);
       return;
     }
+    const leavingOverview = overviewRef.current.mode === "open";
+    if (leavingOverview) overviewRef.current.close();
+    // back to the board the view sat on: nothing to load, just the close above
+    if (leavingOverview && path === overviewRef.current.project) return;
     void openProjectRef.current(path);
   };
 
@@ -377,7 +437,9 @@ function App() {
       const open = switcherRef.current;
       if (open === null) {
         if (opensSwitcher(e)) {
-          const next = openSwitcher(recentRef.current);
+          const next = openSwitcher(
+            switcherItems(recentRef.current, overviewRef.current.mode),
+          );
           if (next) {
             e.preventDefault();
             setSwitcherState(next);
@@ -603,6 +665,32 @@ function App() {
   const effectiveBackground =
     backgroundCss(bgPreview ?? savedBackground, backgroundUrl) ?? undefined;
 
+  // c0158: the same for the activity view, whose image is an absolute path (no
+  // board root to resolve against) held in an app-local flag.
+  const activityImagePath =
+    activityBackground && classifyBackground(activityBackground) === "image"
+      ? activityBackground
+      : null;
+  useEffect(() => {
+    if (!activityImagePath) {
+      setActivityBackgroundUrl(undefined);
+      return;
+    }
+    let cancelled = false;
+    void imageDataUrl(activityImagePath)
+      .then((url) => {
+        if (!cancelled) setActivityBackgroundUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setActivityBackgroundUrl(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activityImagePath]);
+  const effectiveActivityBackground =
+    backgroundCss(bgPreview ?? activityBackground, activityBackgroundUrl) ?? undefined;
+
   // c0060: persist a background value via a surgical board.yaml edit
   const writeBoardYaml = async (newRaw: string) => {
     if (!board) return;
@@ -695,7 +783,9 @@ function App() {
 
   /** c0100: refresh the title-bar companion indicator from its state file.
    *  c0128: also fire an OS notification for any card newly parked on a
-   *  question since the last poll. */
+   *  question since the last poll.
+   *  c0169: the AFK flag rides along on the same poll — one more small read,
+   *  and the toggle then also reflects a flag set before this app run. */
   const refreshCompanion = async () => {
     if (!board) return;
     const next = await readCompanionState(board.root);
@@ -705,6 +795,7 @@ function App() {
     }
     prevWaitingRef.current = next?.waiting ?? [];
     setRunner(next);
+    setAfk(await readAfkFlag(board.root));
   };
   const refreshCompanionRef = useRef(refreshCompanion);
   refreshCompanionRef.current = refreshCompanion;
@@ -735,6 +826,22 @@ function App() {
     } catch (failure) {
       setError(
         `could not stop the run: ${failure instanceof Error ? failure.message : String(failure)}`,
+      );
+    }
+  };
+
+  /** c0169: turn AFK mode on or off by writing the c0162 flag the companion
+   *  watches. The control moves at once; a failed write puts it back, so it
+   *  never claims an unattended board the companion knows nothing about. */
+  const handleToggleAfk = async (next: boolean) => {
+    if (!board) return;
+    setAfk(next);
+    try {
+      await writeAfkFlag(board.root, next);
+    } catch (failure) {
+      setAfk(!next);
+      setError(
+        `could not turn AFK mode ${next ? "on" : "off"}: ${failure instanceof Error ? failure.message : String(failure)}`,
       );
     }
   };
@@ -792,6 +899,15 @@ function App() {
     const reconcile = async () => {
       const paths = [...pending];
       pending.clear();
+      // i0140: both of these hit disk — `git status` walks the whole repo — so
+      // they run once per coalesced burst, not once per file event. A single
+      // agent write already arrives as several events, and a checkout as
+      // hundreds; per-event refreshes queued that many git runs.
+      void refreshDirtyRef.current();
+      // c0100: a companion run mutates cards, so a board change is a good moment
+      // to refresh the runner indicator too (the poll below covers state-only
+      // transitions like idle → running before any card is touched)
+      void refreshCompanionRef.current();
       const changes = await Promise.all(
         paths.map(async (path) => ({
           path,
@@ -812,13 +928,8 @@ function App() {
       for (const path of paths) pending.add(path);
       clearTimeout(timer);
       timer = setTimeout(() => void reconcile(), 150);
-      // c0083: a board change → refresh the dirty indicator and (re)arm the
-      // auto-commit debounce so a burst of writes collapses into one commit
-      void refreshDirtyRef.current();
-      // c0100: a companion run mutates cards, so a board change is a good moment
-      // to refresh the runner indicator too (the poll below covers state-only
-      // transitions like idle → running before any card is touched)
-      void refreshCompanionRef.current();
+      // c0083: (re)arm the auto-commit debounce so a burst of writes collapses
+      // into one commit
       if (autoCommitRef.current) {
         clearTimeout(commitTimer.current);
         commitTimer.current = setTimeout(
@@ -846,8 +957,18 @@ function App() {
     const path = projectFolder(board.root).path;
     let cancelled = false;
     flushed.current = false;
-    void appFlagGet(autoCommitKey(path)).then((v) => {
-      if (!cancelled) setAutoCommit(v === "1");
+    void appFlagGet(autoCommitKey(path)).then(async (v) => {
+      if (v !== null) {
+        if (!cancelled) setAutoCommit(v === "1");
+        return;
+      }
+      // c0154: first time gello opens this project — turn auto-commit on if it
+      // is a git repo, and record that as the project's choice. `unavailable`
+      // is not a detected repo: git couldn't answer, so leave it off.
+      const status = await gitWorktreeStatus(board.root);
+      if (cancelled || status.kind !== "status") return;
+      setAutoCommit(true);
+      void appFlagSet(autoCommitKey(path), "1");
     });
     void appFlagGet(autoCommitWindowKey(path)).then((v) => {
       const ms = v ? Number(v) : NaN;
@@ -872,6 +993,7 @@ function App() {
     prevWaitingRef.current = null;
     if (!board) {
       setRunner(null);
+      setAfk(false); // c0169: AFK is a per-board flag — no board, nothing set
       return;
     }
     void refreshCompanionRef.current();
@@ -947,18 +1069,12 @@ function App() {
    * c015: rebase a card on the current disk bytes before a surgical write, so a
    * status/field/task edit merges with an unrelated external change (e.g. an
    * agent rewriting the body while the user drags the card) instead of clobbering
-   * it. A read-before-write; the merge itself is the pure `rebaseCard`. Unchanged
-   * disk (the common case) returns the same card — nothing to merge.
+   * it. c0138 moved the read-and-merge into board-actions, where the
+   * cross-project view calls it against whichever root owns the card.
    */
   const rebaseOnDisk = async (card: Card): Promise<Card> => {
     if (!board) return card;
-    let diskRaw: unknown = null;
-    try {
-      diskRaw = await readFileRaw(`${board.root}/${card.path}`);
-    } catch {
-      diskRaw = null; // unreadable / just deleted — nothing external to merge
-    }
-    return rebaseCard(card, typeof diskRaw === "string" ? diskRaw : null, board.model.config);
+    return rebaseCardOnDisk(board.root, card, board.model.config);
   };
 
   /** c0119: a live run for this card that a move would strand — running or
@@ -1550,6 +1666,27 @@ function App() {
     );
   };
 
+  /** c0152: show the project folder — the one holding `.gello`, not the board
+   *  dir — in the OS file manager. */
+  const handleOpenProjectFolder = async () => {
+    if (!board) return;
+    try {
+      await openFolder(projectFolder(board.root).path);
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
+  /** c0153: open a terminal at the project folder — the one holding `.gello`. */
+  const handleOpenInTerminal = async () => {
+    if (!board) return;
+    try {
+      await openInTerminal(projectFolder(board.root).path);
+    } catch (failure: unknown) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    }
+  };
+
   // c0151: hand a reference to the OS (PDFs and the like), and read a
   // text/markdown one for the inline view. Both take the card-relative link.
   const handleOpenReference = async (card: Card, target: string) => {
@@ -1587,6 +1724,49 @@ function App() {
     } catch {
       return null;
     }
+  };
+
+  /** c0158: persist the activity view's background, or clear it. An image is
+   *  stored as the absolute path picked — the view has no repo to copy into. */
+  const commitActivityBackground = (value: string) => {
+    setActivityBackground(value);
+    setBgPreview(null);
+    void appFlagSet(ACTIVITY_BG_FLAG, value);
+  };
+  const removeActivityBackground = () => {
+    setActivityBackground(null);
+    setBgPreview(null);
+    void appFlagSet(ACTIVITY_BG_FLAG, "");
+  };
+  const pickActivityBackgroundImage = async () => {
+    const source = await pickImageFile();
+    if (!source) return;
+    commitActivityBackground(source);
+    setBgMenu(null);
+  };
+
+  /** c0138: persist the activity view's selection app-locally. */
+  const chooseActivityProjects = (next: string[]) => {
+    setActivityProjects(next);
+    void appFlagSet(ACTIVITY_FLAG, serializeProjectList(next));
+  };
+
+  /** c0138: open the cross-project view. With nothing selected yet it starts on
+   *  the open project, so it always shows something to act on. */
+  const openActivity = () => {
+    if (activityProjects.length === 0 && board) {
+      chooseActivityProjects([projectFolder(board.root).path]);
+    }
+    setActivityOpen(true);
+  };
+
+  // i0158: what the switcher's window listeners need to treat the activity view
+  // as a place — refreshed every render, like openProjectRef.
+  overviewRef.current = {
+    mode: !board ? "unavailable" : activityOpen ? "open" : "closed",
+    project: board ? projectFolder(board.root).path : null,
+    open: openActivity,
+    close: () => setActivityOpen(false),
   };
 
   if (loading) return null;
@@ -1642,6 +1822,72 @@ function App() {
     );
   }
 
+  // c0138: the cross-project view is a mode — while it is open it takes the
+  // shell in place of the board. The title bar stays: the window still has a
+  // project open, and Ctrl+Tab still switches it. Search belongs to the board,
+  // so the bar carries none here.
+  if (board && activityOpen) {
+    return (
+      <div className="app-shell app-shell-frameless">
+        <TitleBar root={board.root} branch={branch} git={gitStatus} />
+        {switcherOverlay}
+        {switchingOverlay}
+        <MultiProject
+          projects={activityProjects}
+          known={recent}
+          darkChips={darkChips}
+          background={effectiveActivityBackground}
+          onBackgroundContextMenu={(x, y) => setCtxMenu({ x, y })}
+          onChangeProjects={chooseActivityProjects}
+          onClose={() => setActivityOpen(false)}
+        />
+        {/* c0158: the view's own background menu — the app-wide entries only,
+            since the board's per-project settings have no meaning here. */}
+        {ctxMenu && (
+          <ContextMenu
+            position={ctxMenu}
+            onClose={() => setCtxMenu(null)}
+            items={[
+              { label: "Reload", onSelect: () => window.location.reload() },
+              { label: "Background…", onSelect: () => setBgMenu(ctxMenu) },
+              {
+                label: "Theme",
+                items: [
+                  {
+                    label: "Follow OS",
+                    checked: theme === "system",
+                    onSelect: () => chooseTheme("system"),
+                  },
+                  {
+                    label: "Light",
+                    checked: theme === "light",
+                    onSelect: () => chooseTheme("light"),
+                  },
+                  {
+                    label: "Dark",
+                    checked: theme === "dark",
+                    onSelect: () => chooseTheme("dark"),
+                  },
+                ],
+              },
+            ]}
+          />
+        )}
+        {bgMenu && (
+          <BackgroundPicker
+            current={activityBackground}
+            position={bgMenu}
+            onPreview={setBgPreview}
+            onCommit={commitActivityBackground}
+            onRemove={removeActivityBackground}
+            onPickImage={() => void pickActivityBackgroundImage()}
+            onClose={() => setBgMenu(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
   if (board) {
     const selected = selectedPath ? findCard(board.model, selectedPath) : null;
     const milestoneOptions: MilestoneOption[] = [
@@ -1664,6 +1910,9 @@ function App() {
           runner={runner}
           onStartCompanion={() => void handleStartCompanion()}
           onStopRun={(cardId) => void handleStopRun(cardId)}
+          afk={afk}
+          onToggleAfk={(next) => void handleToggleAfk(next)}
+          signoffCount={signoffCount(board.model)}
           search={query}
           onSearch={setQuery}
         />
@@ -1683,11 +1932,6 @@ function App() {
               setSkillDirs([]);
             }}
           />
-        )}
-        {error && (
-          <div role="alert" className="board-error">
-            {error}
-          </div>
         )}
         {/* c0119: dragging a card out of its running status stops its agent —
             confirm before destroying in-flight work. */}
@@ -1747,6 +1991,7 @@ function App() {
               recent={recent}
               onOpenRecent={(path) => void openProject(path)}
               onPickFolder={() => void pickAndOpen()}
+              onOpenActivity={openActivity}
             />
           }
           onMoveCard={handleMove}
@@ -1755,6 +2000,7 @@ function App() {
           onFollowUpCard={(card, type: string) => startFollowUp(card, type)}
           query={query}
           showArchived={showArchived}
+          afk={afk}
           loadImage={showThumbnails ? handleLoadImage : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })
@@ -1765,6 +2011,10 @@ function App() {
           onRestartCard={(cardId) => void handleRestartCard(cardId)}
           onStopRun={(cardId) => void handleStopRun(cardId)}
         />
+        {/* i0155: at the foot of the shell, like the needs-attention lane. At
+            the top it landed under the frameless title bar, where the traffic
+            lights covered the text and the dismiss button. */}
+        {error && <BoardError message={error} onDismiss={() => setError(null)} />}
         {managingTags && (
           <TagManager
             tags={collectTags(board.model)}
@@ -1868,6 +2118,14 @@ function App() {
             onClose={() => setCtxMenu(null)}
             items={[
               { label: "Reload", onSelect: () => window.location.reload() },
+              {
+                label: "Open project folder",
+                onSelect: () => void handleOpenProjectFolder(),
+              },
+              {
+                label: "Open in terminal",
+                onSelect: () => void handleOpenInTerminal(),
+              },
               {
                 label: "Background…",
                 // hand the menu's anchor point to the picker
@@ -2052,11 +2310,7 @@ function App() {
       {initPrompt}
       {/* c0146: a warning (e.g. switching to a project whose board is gone)
           must be visible here too, not only in the board view. */}
-      {error && (
-        <div role="alert" className="board-error">
-          {error}
-        </div>
-      )}
+      {error && <BoardError message={error} onDismiss={() => setError(null)} />}
       <h1>gello</h1>
       <p className="empty-state">No board loaded.</p>
       <button type="button" className="empty-open" onClick={() => void pickAndOpen()}>

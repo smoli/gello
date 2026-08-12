@@ -79,6 +79,10 @@
 .card-detail-status .card-activity {
   white-space: normal;
   overflow: visible;
+  /* i0178: with the truncation relaxed, an unbreakable token (a long path, a
+     backticked identifier) has no place to wrap and would run out of the dialog.
+     Break it mid-token, as .card-title does since i0125. */
+  overflow-wrap: anywhere;
 }
 
 .card-detail-fields {

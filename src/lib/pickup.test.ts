@@ -61,11 +61,37 @@ describe("pickupCountdown", () => {
     expect(pickupCountdown(state({ updated: "2026-07-22T10:00:11" }), "c001", STAMP, late)).toBeNull();
   });
 
-  // the companion treats these as eligible immediately, so there is nothing to
-  // count down — the card front must agree rather than invent a window
+  // with no stamp and no published clock there is no window to render — the
+  // card front must not invent one
   it("shows nothing when the card has no usable status-changed", () => {
     expect(pickupCountdown(state(), "c001", null, NOW)).toBeNull();
     expect(pickupCountdown(state(), "c001", "not a date", NOW)).toBeNull();
+  });
+
+  // i0157: a card created straight in `ready` carries no `status-changed`, so
+  // the companion times its window from when it first saw the card (i0124) and
+  // publishes that clock. The front counts down the same window.
+  it("counts down from the published first-seen when the stamp is missing", () => {
+    const seen = state({ firstSeen: { c001: STAMP } });
+    expect(pickupCountdown(seen, "c001", null, NOW)).toBe(5);
+    expect(pickupCountdown(seen, "c001", "not a date", NOW)).toBe(5);
+  });
+
+  it("prefers the card's own status-changed over the published clock", () => {
+    // seen 4s late; the stamp is the companion's clock too, so it wins
+    const seen = state({ firstSeen: { c001: "2026-07-22T10:00:04" } });
+    expect(pickupCountdown(seen, "c001", STAMP, NOW)).toBe(5);
+  });
+
+  it("shows nothing when the published clock is for another card or garbage", () => {
+    expect(pickupCountdown(state({ firstSeen: { c002: STAMP } }), "c001", null, NOW)).toBeNull();
+    expect(pickupCountdown(state({ firstSeen: { c001: "nope" } }), "c001", null, NOW)).toBeNull();
+  });
+
+  it("still hides an unstamped card's countdown while it is blocked", () => {
+    const seen = state({ firstSeen: { c001: STAMP } });
+    expect(pickupCountdown(seen, "c001", null, NOW, true)).toBeNull();
+    expect(pickupCountdown(seen, "c001", null, NOW, false, false)).toBeNull();
   });
 
   // c0125: the companion gates on `depends` *before* the grace period, so a

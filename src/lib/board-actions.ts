@@ -1,7 +1,8 @@
 // Board mutations: pure planning via cards.ts, persistence via fs.ts.
 
 import { nextCardId, nextEpicId, nextIssueId, type BoardModel } from "./board";
-import { removeDir, removeFile } from "./board-io";
+import { readFileRaw, removeDir, removeFile } from "./board-io";
+import { rebaseCard } from "./conflict";
 import {
   newCardRaw,
   newEpicRaw,
@@ -21,7 +22,27 @@ import {
 import { writeFileAtomic } from "./fs";
 import { withAwaitingCleared, withQuestionAdded } from "./gello-question";
 import { appendLogLine, replaceSection, retargetAssetLinks } from "./markdown";
+import { readRawOrNull } from "./safe-read";
 import { planTagRename } from "./tags";
+
+/**
+ * c015: read the card's current disk bytes and rebase the app's copy on them,
+ * so a surgical write (status, a field, a task line) merges with an unrelated
+ * external change instead of clobbering it. The merge itself is the pure
+ * `rebaseCard`; this is the read in front of it.
+ *
+ * c0138: `root` is a parameter because the cross-project view writes against
+ * whichever project owns the card, and must do it exactly as the open board does.
+ */
+export async function rebaseOnDisk(
+  root: string,
+  card: Card,
+  config: BoardConfig,
+): Promise<Card> {
+  // unreadable / just deleted → null: nothing external to merge
+  const diskRaw = await readRawOrNull(readFileRaw, `${root}/${card.path}`);
+  return rebaseCard(card, diskRaw, config);
+}
 
 export interface MoveResult {
   /** The card with new status/updated — available synchronously for

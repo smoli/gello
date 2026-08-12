@@ -163,6 +163,36 @@
   color: color-mix(in srgb, #f5a623 85%, CanvasText);
   font-weight: 700;
 }
+/* c0169: the AFK toggle, in the runner corner. Off it is a muted moon, the
+   weight of the c0083 dirty dot; on it grows the word and the amber the
+   companion's waiting state uses, so an unattended board is unmistakable. */
+.titlebar-afk {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: 0.5em;
+  font: inherit;
+  font-size: 0.7em;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  vertical-align: middle;
+  white-space: nowrap;
+  color: color-mix(in srgb, CanvasText 45%, transparent);
+}
+.titlebar-afk:hover {
+  color: color-mix(in srgb, CanvasText 80%, transparent);
+}
+.titlebar-afk-on,
+.titlebar-afk-on:hover {
+  color: color-mix(in srgb, #f5a623 85%, CanvasText);
+  font-weight: 700;
+}
+
 /* i0037: portaled to <body> and anchored under the glyph via inline top/left,
    so no title-bar ancestor's overflow:hidden can clip it. */
 .titlebar-runner-popover {
@@ -231,4 +261,17 @@
   border-color: transparent;
   background: #c0392b;
   color: white;
+}
+
+/* c0170: the sign-off pile size. A quiet green tick-and-count next to the AFK
+   switch — it reports, it is not a control. */
+.titlebar-signoff {
+  margin-left: 0.5em;
+  font-size: 0.7em;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: color-mix(in srgb, #3a8a4f 85%, CanvasText);
+  font-weight: 700;
 }

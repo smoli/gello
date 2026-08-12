@@ -139,6 +139,7 @@ describe("parseCard", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      projectColor: null,
       followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
@@ -438,6 +439,7 @@ describe("card types and refs (c024)", () => {
       background: null,
       tagColors: {},
       showTags: true,
+      projectColor: null,
       followupTarget: "ready",
     };
     const result = parseCard("x.md", raw, config);
@@ -763,7 +765,8 @@ describe("reassignCardId (c0132)", () => {
 describe("parseBoardConfig", () => {
   it("i0033: the default lineup includes inbox and discuss in order", () => {
     expect(DEFAULT_BOARD_CONFIG.columns).toEqual([
-      "inbox", "discuss", "backlog", "ready", "in-progress", "review", "done",
+      "inbox", "discuss", "backlog", "ready", "in-progress", "review",
+      "signoff", "done",
     ]);
     // discuss parses as a valid status on a board with no board.yaml
     const parsed = parseCard(
@@ -771,6 +774,21 @@ describe("parseBoardConfig", () => {
       "---\nid: c001\ntitle: X\nstatus: discuss\n---\n",
     );
     expect(parsed.ok).toBe(true);
+  });
+
+  it("c0164: signoff sits between review and done and parses as a status", () => {
+    const columns = DEFAULT_BOARD_CONFIG.columns;
+    expect(columns.indexOf("signoff")).toBe(columns.indexOf("review") + 1);
+    expect(columns.indexOf("done")).toBe(columns.indexOf("signoff") + 1);
+    // signoff parses as a valid status on a board with no board.yaml
+    const parsed = parseCard(
+      "cards/c001-x.md",
+      "---\nid: c001\ntitle: X\nstatus: signoff\nstatus-changed: 2026-08-08T10:00:00\n---\n",
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.card.status).toBe("signoff");
+    expect(parsed.card.statusChanged).toBe("2026-08-08T10:00:00");
   });
 
   it("parses columns and wip limits", () => {
@@ -844,6 +862,17 @@ describe("parseBoardConfig", () => {
     expect(parseBoardConfig("show_tags: true\n").config.showTags).toBe(true);
     // a non-boolean value is ignored — the default holds
     expect(parseBoardConfig("show_tags: nope\n").config.showTags).toBe(true);
+  });
+
+  it("c0138: parses the project colour, null when unset", () => {
+    expect(parseBoardConfig('project_color: "#e11d48"\n').config.projectColor).toBe(
+      "#e11d48",
+    );
+    expect(parseBoardConfig("columns: [a]\n").config.projectColor).toBeNull();
+    // a non-string (or blank) value is ignored — the view falls back to the
+    // colour derived from the project's own path
+    expect(parseBoardConfig("project_color: [a]\n").config.projectColor).toBeNull();
+    expect(parseBoardConfig('project_color: ""\n').config.projectColor).toBeNull();
   });
 });
 

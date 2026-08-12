@@ -103,13 +103,203 @@ board change. The desktop app watches this file and renders a runner indicator
   "runs": [                // active runs
     { "cardId": "c0042", "phase": "running" }
   ],
-  "updated": "2026-07-20T09:30:00"
+  "updated": "2026-07-20T09:30:00",
+  "afk": false             // the AFK state the companion has applied
 }
 ```
 
 A run's `phase` is `running`, `waiting-for-input`, `done`, or `error`. A run
 also carries `usage` (input/output/cache tokens, `totalCostUsd`, `numTurns`,
 `durationMs`, `permissionDenials`) once the backend reports it — see below.
+
+## AFK mode (c0162)
+
+AFK mode lets the companion keep draining the queue while nobody is watching.
+It is off by default and switched from the app's title bar (c0169): the moon
+next to the companion indicator, which reads `☾ AFK` in amber while AFK is on.
+Toggling it writes `.gello/.companion/afk.json`:
+
+```json
+{ "afk": true }
+```
+
+The **app is the sole writer**, the companion the sole reader — the same split
+as the control file, so there is no two-writer race. The companion reads the
+flag at startup and re-reads it whenever that file changes, so a toggle applies
+with no restart, and echoes the value it applied in `state.json` (`afk`). The
+app reads the file back on its companion poll, so the toggle shows the state a
+previous app run (or a hand edit) left behind.
+
+AFK is off unless the file says `{"afk": true}`: no file, unparseable content, a
+missing field or a non-boolean value all read as off. The flag is per-machine
+and momentary ("I'm leaving now"), which is why it is a `.companion/` file
+rather than a committed `companion.yaml` setting — `.companion/` is gitignored.
+
+### Park-and-skip (c0163)
+
+An agent that needs a decision parks a question and waits. With AFK off that run
+keeps its WIP slot, so a board at its limit stops until the human answers. With
+AFK on the parked run **releases its slot but keeps its session hold**: the next
+card whose session key is free takes the slot, while the parked card's own key
+stays busy. Under `scope: epic` that means the parked card's epic waits behind
+it and other epics and standalone cards proceed; under `scope: card` only the
+parked card waits. Parking reconciles immediately, so the next card starts
+without waiting for a board change.
+
+The answer takes a slot like any other run (i0173). A card that gave its slot
+away waits for a free one before it resumes, and the held-back line says
+`answered, waiting for a slot`; the answer marker stays on the card, so the sync
+after a run ends picks it up. A resume outbids a `ready` card for that slot, and
+several answers arriving together compete for it in board order instead of each
+taking one. With AFK off nothing changes: the parked run kept its slot, so its
+resume costs nothing and is immediate.
+
+The other AFK behaviour is the AI review below (c0167).
+
+### Sign-off unblocks dependents (c0165)
+
+A dependency counts as satisfied once it reaches `signoff`, not only `done`.
+`signoff` is work the review agent has vetted and the human has yet to accept,
+so waiting for `done` would stall a chain of dependents until morning. The
+relaxation is on top of the other gates, not instead of them: a card whose
+depends are satisfied still waits for its WIP slot, its session key and its
+pickup grace period. A dependency in `review` or earlier blocks as before, and
+the companion names it in the held-back line. This applies whether or not AFK
+is on — `signoff` means AI-vetted either way.
+
+## The review skill (c0166)
+
+A card in `review` is a claim, not a fact: the agent that implemented it also
+moved it. Under AFK a second agent checks that claim in a fresh session
+(c0167), following the `gello-review` skill.
+
+The skill is in `src/lib/skills.ts`, alongside the other gello-managed skills
+the app installs into a project — so the human can invoke it by hand on a card
+too (i0174). `review.ts` embeds its text in the run's prompt rather than
+looking it up on disk, so a review run works in a project that has no gello
+skills installed.
+
+It has the reviewer read the card and the card's diff, verify each acceptance
+criterion against the code rather than its checkbox, and run the repo's tests,
+lint and typecheck — with the commands taken from the repo's own docs, since
+the companion runs against any project. It is a fail if a criterion is unmet, a
+check is red, the diff reaches beyond the card's `## What`, or a test was
+weakened to pass. The reviewer changes no code and commits nothing.
+
+The verdict goes on the card, which is the only channel between the two agents:
+a `## Review` section, one entry per round, newest last.
+
+```markdown
+## Review
+
+### 2026-08-08T21:04:11 — fail
+
+Checked: acceptance criteria, tests, lint, typecheck, diff.
+
+- Criterion "a parked run frees its WIP slot" is unmet: `planDispatch` still
+  counts a parked run.
+- Tests red: 2 failures in `companion/runner.test.ts`.
+```
+
+The verdict word ends the heading line, which is what `parseReview` reads back
+for the dispatch side (c0167) and the fix loop (c0168). An entry that does not
+match the shape counts as no verdict rather than as a pass, so a malformed
+write cannot sign a card off. On a pass the reviewer moves the card to
+`signoff` via `set_status`; on a fail it writes the entry and stops — the card
+stays in `review` and the notes are the implementer's brief. The parser is in
+`src/lib/review.ts`, shared with the app: the board reads the same entries to
+show each sign-off card's verdict (c0170).
+
+### Dispatching the review (c0167)
+
+With AFK on, a card in `review` gets a review run the same way a card in `ready`
+gets an implementation run: `sync` plans both on every board change. With AFK
+off, `review` cards sit for the human as before.
+
+The review runs in its own session, keyed `review:card:<id>` — per card under
+either scope, never the implementer's key. Under `scope: epic` the implementer's
+key is the epic's, so sharing it would both collide with the epic's next card
+and hand the reviewer the context it is there to check from the outside. The
+reviewer gets the same tools as any run and its prompt is `buildReviewPrompt`,
+which carries the whole skill.
+
+A review is a run like any other: it counts against the in-progress WIP limit,
+takes a slot a parked run freed (c0163), and says so in the held-back line when
+there is no slot. Reviews are planned before fresh `ready` cards — on a board
+with one slot, finishing a card (and unblocking its dependents, c0165) comes
+before starting another. The pickup grace period does not apply: that window is
+the human's chance to catch a card before an agent takes it, and it was already
+spent on the way into `ready`.
+
+A card is reviewed once per stay in `review`:
+
+- A card whose `## Review` carries a verdict stamped after it entered `review`
+  has been reviewed this round. That is what the pass and the fail both leave
+  behind, and it survives a companion restart.
+- A run that exited without writing a verdict leaves nothing on the card, so the
+  companion also remembers, in process, which cards it has dispatched a review
+  for — cleared when the card leaves `review`. Without it a crashing review run
+  would be retried on every watcher tick.
+- Stamps it cannot read count as reviewed, the same safe default as the AFK flag.
+
+A card the implementer has moved to `review` while its run is still going (it
+still has a commit to write) is not reviewed until that run exits. Each exit
+logs what the card ends up saying, e.g.
+`c0167 review verdict: pass (signoff)`. The run's tokens are added to the card's
+`usage-tokens` / `usage-cost` totals like any other run — a card's cost includes
+what reviewing it cost.
+
+A fail leaves the card in `review` with its notes and no further review. What
+happens to it next is the fix loop below, and the fixed card re-entering
+`review` is a new round.
+
+### The fix loop (c0168)
+
+A card the reviewer rejected goes back to the agent that wrote it: the
+implementer's own session, resumed with the verdict as its brief
+(`buildFixPrompt`). It takes the card to `in-progress` first thing and back to
+`review` when the criteria pass, both through `set_status` — the companion never
+moves a card itself. From `review` it is reviewed again, so a round is
+review → fail → fix → review.
+
+The hand-back is a run like the others: it costs a WIP slot, takes one a parked
+run freed, and waits while its session is busy — under `scope: epic` that is the
+epic's session, shared with every card in it. Rejected cards are dispatched
+after reviews and before fresh `ready` cards. A card the companion never
+implemented has no session to resume, and resuming is the point (a fresh session
+would re-implement it from the criteria), so it is left alone with
+`rejected by review, and no implementer session to resume` in the held-back
+line.
+
+**The loop is capped at two rounds**, counted off the card: `fixRounds` is how
+many `fail` entries its `## Review` carries, so the count survives a companion
+restart and cannot drift from what the human reads. On the third rejection the
+companion parks a question on the card instead of dispatching, quoting the last
+verdict:
+
+```markdown
+### c0123 is not getting through review
+
+The review agent rejected it 2 times, which is the fix-loop cap, so I stopped
+and left the card in `review`. Answering this resumes the implementer on the
+card.
+```
+
+That is the one question the companion writes itself — the loop ends with no
+agent running, so there is nobody to call `add_question`. The card keeps its
+`review` status and its verdicts; `awaiting: input` is what takes it off the
+loop and onto the needs-input list. Parking starts nothing, so the queue goes
+straight past it (c0163's skip-ahead), and answering resumes the implementer
+through the ordinary marker path.
+
+Which cards are in the loop is read off the card, like the review side:
+`needsFix` is a `review` card whose latest verdict is a `fail` stamped after it
+entered `review`, and carrying no question. A card the human is holding, a stale
+verdict from a previous round, and stamps that cannot be read all mean nothing
+to do. On top of that the companion remembers, in process, which cards it has
+handed back or parked this stay in `review` — a fix run that died before moving
+the card leaves the fail in place, and would otherwise be re-dispatched on every
+tick. Both records are dropped when the card leaves `review`.
 
 ## Run output
 
@@ -149,7 +339,9 @@ directly per the gello workflow.
 
 The prompt directs the agent to call `set_status` with `in-progress` as its
 first action, before any analysis — otherwise the human watches a card sit in
-`ready` while the agent thinks, unsure it was picked up.
+`ready` while the agent thinks, unsure it was picked up. *When* to move is the
+prompt's business, not the tool's: a review run (c0167) has the same tool and is
+told something else — move a passed card to `signoff`.
 
 ## Asking the human a question
 

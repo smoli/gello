@@ -3,7 +3,7 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Card, CardFieldChanges } from "../lib/cards";
-import type { Dependency, DependencyOption } from "../lib/board";
+import { canFollowUp, type Dependency, type DependencyOption } from "../lib/board";
 import type { CardStatusLine as CardStatusLineData } from "../lib/card-status";
 import { CardStatusLine } from "./CardStatusLine";
 import { splitLogSection } from "../lib/markdown";
@@ -48,6 +48,7 @@ export interface RefCardInfo {
 
 export function CardDetail({
   card,
+  scopeLabel = null,
   milestoneLabel,
   columns,
   milestoneOptions,
@@ -80,6 +81,9 @@ export function CardDetail({
   onClose,
 }: {
   card: Card;
+  /** c0138: the project this card belongs to, when the detail is opened from a
+   *  surface holding more than one board. A bare id does not say which. */
+  scopeLabel?: string | null;
   milestoneLabel: string | null;
   /** c0148: the card's live status line, resolved by the App — shown read-only. */
   statusLine?: CardStatusLineData | null;
@@ -90,9 +94,9 @@ export function CardDetail({
   onChangeFields: (changes: CardFieldChanges) => void;
   onSaveEdit: (edit: CardEdit, force: boolean) => Promise<SaveBodyResult>;
   onTriage: (folder: string, epicId: string | null) => void;
-  onReportIssue: () => void;
+  onReportIssue?: () => void;
   /** c0115: start a follow-up task for this finished card. */
-  onFollowUp: () => void;
+  onFollowUp?: () => void;
   onOpenCardId: (id: string) => void;
   refCard: RefCardInfo | null;
   openIssues: Card[];
@@ -409,13 +413,18 @@ export function CardDetail({
     >
       <div
         role="dialog"
-        aria-label={card.id}
+        aria-label={scopeLabel === null ? card.id : `${scopeLabel} / ${card.id}`}
         className="card-detail"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="card-detail-header">
           <div className="card-detail-title">
             <span className="card-id">
+              {/* c0138: opened from a multi-board surface, the id needs its
+                  project — every board has its own c001. */}
+              {scopeLabel !== null && (
+                <span className="card-detail-scope">{scopeLabel}</span>
+              )}
               {card.id}
               {card.type !== "task" && (
                 <span className={`card-type type-${card.type}`}>{card.type}</span>
@@ -436,9 +445,11 @@ export function CardDetail({
           <div className="card-detail-actions">
             {/* c0115: a problem can surface at any point, so report-issue is
                 offered on every card; follow-up is about work already finished. */}
-            <button type="button" onClick={onReportIssue}>
-              Report issue
-            </button>
+            {onReportIssue && (
+              <button type="button" onClick={onReportIssue}>
+                Report issue
+              </button>
+            )}
             {/* i0135: a stopped run (quota, crash, connection) leaves the card
                 in-progress with nothing re-picking it up — restart it here,
                 resuming the session warm. Offered only for a companion-owned
@@ -453,7 +464,7 @@ export function CardDetail({
                 Restart
               </button>
             )}
-            {(card.status === "review" || card.status === "done") && (
+            {onFollowUp && canFollowUp(card.status) && (
               <button
                 type="button"
                 onClick={onFollowUp}

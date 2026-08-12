@@ -8,11 +8,18 @@ import type { AgentEvent, Level } from "./stream.ts";
 import type { RunState } from "./core.ts";
 import type { Scheduler } from "./throttle.ts";
 import { LogPanes } from "./tui-model.ts";
+import { buildReviewPrompt, fixRounds, latestReview } from "./review.ts";
 import {
   planDispatch,
+  planReviewDispatch,
+  planFixDispatch,
+  needsReview,
+  needsFix,
   classifyExit,
   occupiedSlots,
+  occupiedSlotIds,
   buildTaskPrompt,
+  buildFixPrompt,
   Runner,
   type SpawnedRun,
 } from "./runner.ts";
@@ -40,7 +47,8 @@ function resultLine(usage: Record<string, unknown>, extra: Record<string, unknow
 
 // --- board fixtures ---------------------------------------------------------
 
-const COLUMNS = "columns: [inbox, backlog, ready, in-progress, review, done]\n";
+const COLUMNS =
+  "columns: [inbox, backlog, ready, in-progress, review, signoff, done]\n";
 
 /** board.yaml with an in-progress WIP limit; `null` configures none (i0124). */
 function boardYaml(wipLimit: number | null): string {
@@ -62,6 +70,22 @@ interface CardSpec {
   /** c0150: pre-existing cumulative usage totals on the card. */
   usageTokens?: number;
   usageCost?: number;
+  /** c0167: a verdict already recorded in `## Review` — `[stamp, verdict]`, or
+   *  (c0168, which counts the fail rounds) a list of them, oldest first. An
+   *  empty stamp writes the heading without one. */
+  review?: [string, string] | [string, string][];
+}
+
+/** A `## Review` section carrying the given entries, as the agent writes them. */
+function reviewSection(review: NonNullable<CardSpec["review"]>): string {
+  const rounds = (Array.isArray(review[0]) ? review : [review]) as [string, string][];
+  const entries = rounds
+    .map(([stamp, verdict]) => {
+      const heading = [stamp, verdict].filter(Boolean).join(" — ");
+      return `### ${heading}\n\nChecked: criteria, tests, lint.\n`;
+    })
+    .join("\n");
+  return `\n\n## Review\n\n${entries}`;
 }
 
 function cardFile(id: string, s: CardSpec): string {
@@ -85,7 +109,8 @@ function cardFile(id: string, s: CardSpec): string {
     : s.answered
       ? `\n\n${s.answered.trim()}`
       : "";
-  return `---\n${fm}\n---\n\n## What\n\ntask${question}\n`;
+  const review = s.review ? reviewSection(s.review) : "";
+  return `---\n${fm}\n---\n\n## What\n\ntask${question}${review}\n`;
 }
 
 function board(cards: Record<string, CardSpec>, wipLimit: number | null = 2): BoardModel {
@@ -109,6 +134,13 @@ describe("occupiedSlots", () => {
     expect(occupiedSlots(model, [])).toBe(1); // c001 in-progress
     expect(occupiedSlots(model, ["c002"])).toBe(2); // + c002 active run
     expect(occupiedSlots(model, ["c001"])).toBe(1); // c001 counted once (union)
+  });
+
+  // i0173: the resume gate asks which card holds a slot, not how many do.
+  it("names the cards holding a slot, minus the ones that freed theirs", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "ready" } });
+    expect([...occupiedSlotIds(model, ["c002"])].sort()).toEqual(["c001", "c002"]);
+    expect([...occupiedSlotIds(model, ["c002"], ["c001"])]).toEqual(["c002"]);
   });
 });
 
@@ -214,6 +246,73 @@ describe("planDispatch", () => {
   it("does not report a card in another status as blocked", () => {
     const model = board({ c001: { status: "backlog", depends: ["c404"] } });
     expect(planDispatch(model, [], 2).blocked).toEqual([]);
+  });
+});
+
+// c0165: `signoff` is AI-vetted work waiting for the human. Dependents must not
+// wait for the human overnight, so the dispatch gate takes it as satisfying
+// `depends` — a lower bar than the human's `done`.
+describe("planDispatch — sign-off satisfies depends (c0165)", () => {
+  it("dispatches a card whose only unfinished dependency is in signoff", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    const { dispatch, blocked } = planDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(blocked).toEqual([]);
+  });
+
+  it("still blocks on a dependency in review or earlier", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, depends: ["c009"] },
+      c002: { status: "ready", order: 2, depends: ["c010"] },
+      c003: { status: "ready", order: 3, depends: ["c011"] },
+      c009: { status: "review" },
+      c010: { status: "in-progress" },
+      c011: { status: "backlog" },
+    });
+    const { dispatch, blocked } = planDispatch(model, [], 3);
+    expect(dispatch).toEqual([]);
+    expect(blocked.map((b) => [b.card.id, b.missing])).toEqual([
+      ["c001", ["c009"]],
+      ["c002", ["c010"]],
+      ["c003", ["c011"]],
+    ]);
+  });
+
+  it("lists only the unsatisfied depends when signoff and done are mixed in", () => {
+    const model = board({
+      c001: { status: "ready", depends: ["c009", "c010", "c011"] },
+      c009: { status: "signoff" },
+      c010: { status: "done" },
+      c011: { status: "review" },
+    });
+    expect(planDispatch(model, [], 2).blocked[0].missing).toEqual(["c011"]);
+  });
+
+  it("composes with the WIP gate — a signoff-dep card queues, it does not jump", () => {
+    const model = board({
+      c001: { status: "in-progress" },
+      c002: { status: "in-progress" },
+      c003: { status: "ready", depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    const { dispatch, queued } = planDispatch(model, [], 2);
+    expect(dispatch).toEqual([]);
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("composes with the session gate — a signoff-dep card waits its epic's turn", () => {
+    const model = board({
+      c001: { status: "ready", order: 1, epic: "e01" },
+      c002: { status: "ready", order: 2, epic: "e01", depends: ["c009"] },
+      c009: { status: "signoff", epic: "e01" },
+    });
+    const plan = planDispatch(model, [], 2, "ready", { now: 0, pickupDelayMs: 0 }, "epic");
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c001"]);
+    expect(plan.sessionHeld.map((s) => s.card.id)).toEqual(["c002"]);
+    expect(plan.blocked).toEqual([]);
   });
 });
 
@@ -408,6 +507,448 @@ describe("planDispatch — session gate", () => {
   });
 });
 
+// c0163: under AFK a parked run's card is named in `slotFreed` — it stops
+// counting against the WIP limit while still holding its session key, so the
+// queue drains around a card that is waiting on the human.
+describe("planDispatch — park-and-skip (c0163)", () => {
+  it("frees the parked card's WIP slot so the next card dispatches", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress" }, // parked run, still active
+        c002: { status: "ready", order: 1 },
+      },
+      1,
+    );
+    const held = planDispatch(model, ["c001"], 1);
+    expect(held.dispatch).toEqual([]); // AFK off: the slot is taken
+    expect(held.queued.map((c) => c.id)).toEqual(["c002"]);
+
+    const freed = planDispatch(model, ["c001"], 1, "ready", undefined, "card", ["c001"]);
+    expect(freed.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(freed.queued).toEqual([]);
+  });
+
+  it("keeps the parked card's session hold — its epic waits, other epics run", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress", epic: "e01" }, // parked
+        c002: { status: "ready", order: 1, epic: "e01" }, // same session
+        c003: { status: "ready", order: 2, epic: "e02" },
+      },
+      1,
+    );
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "epic", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c003"]);
+    expect(plan.sessionHeld.map((h) => h.card.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld[0].heldBy).toBe("c001");
+  });
+
+  it("under card scope only the parked card waits", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress", epic: "e01" }, // parked
+        c002: { status: "ready", order: 1, epic: "e01" },
+      },
+      1,
+    );
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "card", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("frees only the named card's slot, not another active run's", () => {
+    const model = board(
+      {
+        c001: { status: "in-progress" }, // parked
+        c002: { status: "in-progress" }, // still running
+        c003: { status: "ready", order: 1 },
+        c004: { status: "ready", order: 2 },
+      },
+      2,
+    );
+    const plan = planDispatch(model, ["c001", "c002"], 2, "ready", undefined, "card", ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c003"]); // one slot, not two
+    expect(plan.queued.map((c) => c.id)).toEqual(["c004"]); // c002 still holds the other
+  });
+
+  it("defaults to freeing nothing, so existing callers are unchanged", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "ready" } }, 1);
+    expect(occupiedSlots(model, ["c001"])).toBe(1);
+    expect(occupiedSlots(model, ["c001"], ["c001"])).toBe(0);
+    expect(planDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+  });
+});
+
+// c0167: a card in `review` is a claim the review agent checks. `needsReview`
+// decides whether that claim has been checked *this* round — the durable,
+// files-truth guard against reviewing the same card over and over.
+describe("needsReview", () => {
+  const at = "2026-08-09T10:00:00";
+
+  it("a review card with no verdict needs one", () => {
+    const model = board({ c001: { status: "review", statusChanged: at } });
+    expect(needsReview(cardOf(model, "c001"))).toBe(true);
+  });
+
+  it("a card in any other status never does", () => {
+    for (const status of ["ready", "in-progress", "signoff", "done"]) {
+      const model = board({ c001: { status } });
+      expect(needsReview(cardOf(model, "c001"))).toBe(false);
+    }
+  });
+
+  it("a verdict recorded after the card entered review is this round's", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:05:00", "pass"] },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The loop c0168 closes: a fail leaves the card in `review` with its notes.
+  // Re-reviewing it on the next sync would burn the night on the same verdict.
+  it("a fail counts as reviewed, so the card is not reviewed again", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:05:00", "fail"] },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The fixed card comes back: it re-entered `review` after the old verdict.
+  it("a card that re-entered review after its verdict needs a fresh review", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        statusChanged: "2026-08-09T12:00:00",
+        review: ["2026-08-09T10:05:00", "fail"],
+      },
+    });
+    expect(needsReview(cardOf(model, "c001"))).toBe(true);
+  });
+
+  // Same safe default as the AFK flag (c0162): what cannot be read does not
+  // trigger the unattended behaviour.
+  it("treats an unreadable pair of stamps as already reviewed", () => {
+    const noStamp = board({
+      c001: { status: "review", statusChanged: at, review: ["", "pass"] },
+    });
+    expect(needsReview(cardOf(noStamp, "c001"))).toBe(false);
+    const noStatusChanged = board({
+      c001: { status: "review", review: ["2026-08-09T10:05:00", "pass"] },
+    });
+    expect(needsReview(cardOf(noStatusChanged, "c001"))).toBe(false);
+  });
+});
+
+describe("planReviewDispatch", () => {
+  it("dispatches review cards in board order, within the WIP budget", () => {
+    const model = board({
+      c001: { status: "review", order: 2 },
+      c002: { status: "review", order: 1 },
+      c003: { status: "review", order: 3 },
+    });
+    const { dispatch, queued } = planReviewDispatch(model, [], 2);
+    expect(dispatch.map((c) => c.id)).toEqual(["c002", "c001"]);
+    expect(queued.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  it("counts in-progress work and active runs against the budget", () => {
+    const model = board({
+      c001: { status: "in-progress" },
+      c002: { status: "ready" },
+      c003: { status: "review" },
+    });
+    expect(planReviewDispatch(model, ["c002"], 2).dispatch).toEqual([]);
+    expect(planReviewDispatch(model, ["c002"], 3).dispatch.map((c) => c.id)).toEqual(["c003"]);
+  });
+
+  // The implementer moves the card to `review` and keeps running (it still has
+  // a commit to write). Reviewing before it exits reviews a half-finished card.
+  it("skips a review card whose implementer run is still active", () => {
+    const model = board({ c001: { status: "review" } });
+    expect(planReviewDispatch(model, ["c001"], 2).dispatch).toEqual([]);
+  });
+
+  it("skips a card whose verdict for this round is already on it", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        statusChanged: "2026-08-09T10:00:00",
+        review: ["2026-08-09T10:05:00", "fail"],
+      },
+    });
+    expect(planReviewDispatch(model, [], 2).dispatch).toEqual([]);
+  });
+
+  // In-process backstop over the files-truth one: a review run that died before
+  // writing anything leaves no verdict, and would otherwise be retried forever.
+  it("skips a card already attempted this visit to review", () => {
+    const model = board({ c001: { status: "review" } });
+    expect(planReviewDispatch(model, [], 2, [], ["c001"]).dispatch).toEqual([]);
+  });
+
+  it("a parked run's freed slot is available to a review (c0163)", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: { status: "review" } }, 1);
+    expect(planReviewDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+    expect(planReviewDispatch(model, ["c001"], 1, ["c001"]).dispatch.map((c) => c.id)).toEqual([
+      "c002",
+    ]);
+  });
+});
+
+// c0168: a fail verdict is the other half of the review round — the card goes
+// back to the implementer that wrote it, for a bounded number of tries.
+describe("needsFix", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+
+  it("a review card rejected this round is waiting for its implementer", () => {
+    const model = board({ c001: { status: "review", statusChanged: at, review: [after, "fail"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(true);
+  });
+
+  it("a pass is not a rejection", () => {
+    const model = board({ c001: { status: "review", statusChanged: at, review: [after, "pass"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  it("an unreviewed card is not one either", () => {
+    const model = board({ c001: { status: "review", statusChanged: at } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The fix run moves the card on, so anywhere else it is either being fixed
+  // already or long past this round.
+  it("only applies while the card is in review", () => {
+    for (const status of ["ready", "in-progress", "signoff", "done"]) {
+      const model = board({ c001: { status, statusChanged: at, review: [after, "fail"] } });
+      expect(needsFix(cardOf(model, "c001"))).toBe(false);
+    }
+  });
+
+  // The card came back after that fail and has not been re-reviewed yet — the
+  // verdict on it belongs to the previous round.
+  it("ignores a fail from before the card re-entered review", () => {
+    const model = board({
+      c001: { status: "review", statusChanged: "2026-08-09T12:00:00", review: [after, "fail"] },
+    });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+
+  // The card is with the human now (the cap park below, or a question the
+  // implementer left); handing it back would talk over them.
+  it("leaves a card with an open or answered question alone", () => {
+    const parked = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [after, "fail"],
+        parked: "### Now what?\n",
+      },
+    });
+    expect(needsFix(cardOf(parked, "c001"))).toBe(false);
+    const answered = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [after, "fail"],
+        answered: "### Now what?\n\nfix it\n",
+      },
+    });
+    expect(needsFix(cardOf(answered, "c001"))).toBe(false);
+  });
+
+  it("treats unreadable stamps as nothing to do", () => {
+    const model = board({ c001: { status: "review", review: [after, "fail"] } });
+    expect(needsFix(cardOf(model, "c001"))).toBe(false);
+  });
+});
+
+// The cap is counted off the card itself, so it survives a companion restart
+// and cannot drift from the verdicts the human reads.
+describe("fixRounds", () => {
+  it("counts the fail verdicts on the card", () => {
+    const none = board({ c001: { status: "review" } });
+    expect(fixRounds(cardOf(none, "c001").body)).toBe(0);
+    const once = board({ c001: { status: "review", review: ["2026-08-09T10:00:00", "fail"] } });
+    expect(fixRounds(cardOf(once, "c001").body)).toBe(1);
+    const twice = board({
+      c001: {
+        status: "review",
+        review: [
+          ["2026-08-09T10:00:00", "fail"],
+          ["2026-08-09T12:00:00", "fail"],
+        ],
+      },
+    });
+    expect(fixRounds(cardOf(twice, "c001").body)).toBe(2);
+  });
+
+  it("does not count a pass", () => {
+    const model = board({
+      c001: {
+        status: "review",
+        review: [
+          ["2026-08-09T10:00:00", "fail"],
+          ["2026-08-09T12:00:00", "pass"],
+        ],
+      },
+    });
+    expect(fixRounds(cardOf(model, "c001").body)).toBe(1);
+  });
+});
+
+describe("planFixDispatch", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+  const rejected = (extra: Partial<CardSpec> = {}): CardSpec => ({
+    status: "review",
+    statusChanged: at,
+    review: [after, "fail"],
+    ...extra,
+  });
+
+  it("hands rejected cards back in board order, within the WIP budget", () => {
+    const model = board({
+      c001: rejected({ order: 2 }),
+      c002: rejected({ order: 1 }),
+      c003: rejected({ order: 3 }),
+    });
+    const plan = planFixDispatch(model, [], 2);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002", "c001"]);
+    expect(plan.queued.map((c) => c.id)).toEqual(["c003"]);
+    expect(plan.park).toEqual([]);
+  });
+
+  it("skips a card whose run is still active, or already handed back", () => {
+    const model = board({ c001: rejected() });
+    expect(planFixDispatch(model, ["c001"], 2).dispatch).toEqual([]);
+    expect(planFixDispatch(model, [], 2, "card", [], ["c001"]).dispatch).toEqual([]);
+  });
+
+  it("takes a parked run's freed slot (c0163)", () => {
+    const model = board({ c001: { status: "in-progress" }, c002: rejected() }, 1);
+    expect(planFixDispatch(model, ["c001"], 1).dispatch).toEqual([]);
+    expect(planFixDispatch(model, ["c001"], 1, "card", ["c001"]).dispatch.map((c) => c.id)).toEqual(
+      ["c002"],
+    );
+  });
+
+  // The fix resumes the implementer's session, so it queues behind a sibling
+  // holding it — under `scope: epic` that is the whole epic's session (c0126).
+  it("waits while the implementer session is busy elsewhere", () => {
+    const model = board(
+      { c001: rejected({ epic: "e01" }), c002: { status: "in-progress", epic: "e01" } },
+      4,
+    );
+    const plan = planFixDispatch(model, ["c002"], 4, "epic");
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.sessionHeld.map((h) => [h.card.id, h.heldBy])).toEqual([["c001", "c002"]]);
+    // a review run holds a key of its own, so it does not block the fix (c0167)
+    const reviewing = planFixDispatch(model, ["c002"], 4, "epic", [], [], ["c002"]);
+    expect(reviewing.dispatch.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  // The cap is what bounds review↔fix cycling: after it the card is the
+  // human's, and parking costs no slot.
+  it("parks a card that has used up its rounds instead of dispatching it", () => {
+    const model = board({
+      c001: rejected({
+        review: [
+          ["2026-08-09T09:00:00", "fail"],
+          [after, "fail"],
+        ],
+      }),
+    });
+    const plan = planFixDispatch(model, [], 2);
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.park.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("parks over the cap even with no slot free", () => {
+    const model = board(
+      {
+        c001: rejected({
+          review: [
+            ["2026-08-09T09:00:00", "fail"],
+            [after, "fail"],
+          ],
+        }),
+        c002: { status: "in-progress" },
+      },
+      1,
+    );
+    expect(planFixDispatch(model, ["c002"], 1).park.map((c) => c.id)).toEqual(["c001"]);
+  });
+
+  it("takes the cap as a parameter", () => {
+    const model = board({ c001: rejected() });
+    expect(planFixDispatch(model, [], 2, "card", [], [], [], 1).park.map((c) => c.id)).toEqual([
+      "c001",
+    ]);
+  });
+});
+
+describe("buildFixPrompt", () => {
+  const model = board({
+    c001: {
+      status: "review",
+      statusChanged: "2026-08-09T10:00:00",
+      review: ["2026-08-09T10:19:00", "fail"],
+    },
+  });
+  const card = () => cardOf(model, "c001");
+  const verdict = () => latestReview(card().body)!;
+
+  it("names the card, its file, and carries the reviewer's notes", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toContain("c001");
+    expect(prompt).toContain("cards/c001-x.md");
+    expect(prompt).toContain("Checked: criteria, tests, lint.");
+  });
+
+  it("has the agent take the card back to in-progress first", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toContain("set_status");
+    expect(prompt).toMatch(/in-progress/);
+    expect(prompt).toMatch(/right away|before.*analysis|first/i);
+  });
+
+  it("has it re-enter review when the criteria pass", () => {
+    expect(buildFixPrompt(card(), verdict())).toMatch(/`review`/);
+  });
+
+  it("authorizes committing on the same terms as the task prompt", () => {
+    const prompt = buildFixPrompt(card(), verdict());
+    expect(prompt).toMatch(/commit/i);
+    expect(prompt).toContain("CLAUDE.md");
+    expect(prompt).toMatch(/never push|do not push/i);
+  });
+});
+
+// c0167: an active review run holds a review session key, not the card's
+// implementer key — so it must not stall its epic's implementer dispatch.
+describe("planDispatch — an active review does not hold the epic session", () => {
+  it("dispatches an epic sibling while one of its cards is being reviewed", () => {
+    const model = board({
+      c001: { status: "review", epic: "e01" }, // review run active
+      c002: { status: "ready", order: 1, epic: "e01" },
+    });
+    const held = planDispatch(model, ["c001"], 4, "ready", undefined, "epic");
+    expect(held.dispatch).toEqual([]); // without the hint, c001 looks like e01's implementer
+
+    const plan = planDispatch(model, ["c001"], 4, "ready", undefined, "epic", [], ["c001"]);
+    expect(plan.dispatch.map((c) => c.id)).toEqual(["c002"]);
+    expect(plan.sessionHeld).toEqual([]);
+  });
+
+  it("still counts the reviewed card against the WIP limit", () => {
+    const model = board({ c001: { status: "review" }, c002: { status: "ready" } }, 1);
+    const plan = planDispatch(model, ["c001"], 1, "ready", undefined, "card", [], ["c001"]);
+    expect(plan.dispatch).toEqual([]);
+    expect(plan.queued.map((c) => c.id)).toEqual(["c002"]);
+  });
+});
+
 describe("classifyExit", () => {
   it("non-zero exit is an error", () => {
     const model = board({ c001: { status: "in-progress" } });
@@ -574,6 +1115,7 @@ function makeRunner(
   const cwds: string[] = [];
   const logs: string[] = [];
   const persistedOwned: string[][] = [];
+  const persistedSessions: Record<string, string>[] = [];
   const clock = fakeClock(pickup.clockStart ?? 0);
   const runner = new Runner({
     owned: ownedSeed,
@@ -603,6 +1145,7 @@ function makeRunner(
       publishedRaw.push(runs);
     },
     sessions,
+    persistSessions: (map) => persistedSessions.push({ ...map }),
     log: (line) => logs.push(line),
     now: clock.now,
     scheduler: clock.scheduler,
@@ -620,6 +1163,8 @@ function makeRunner(
     runLog,
     logs,
     persistedOwned,
+    sessionKeys: () => Object.keys(persistedSessions[persistedSessions.length - 1] ?? {}),
+    sessionsMap: () => persistedSessions[persistedSessions.length - 1] ?? {},
     advance: clock.advance,
     setModel: (m: BoardModel) => (model = m),
     reloadModel: () => model,
@@ -719,6 +1264,32 @@ describe("Runner — why a ready card is not running", () => {
     const h = makeRunner(start);
     h.runner.sync(start);
     expect(h.logs).toEqual([]);
+  });
+});
+
+// c0165 — the overnight chain: a dependent starts as soon as its dependency is
+// signed off by the review agent, without waiting for the human's `done`.
+describe("Runner — a dependency in sign-off unblocks its dependent", () => {
+  it("dispatches when the dependency reaches signoff", () => {
+    const inReview = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "review" },
+    });
+    const h = makeRunner(inReview);
+    h.runner.sync(inReview);
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toContain("c009");
+
+    const signedOff = board({
+      c001: { status: "ready", depends: ["c009"] },
+      c009: { status: "signoff" },
+    });
+    h.setModel(signedOff);
+    h.runner.sync(signedOff);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toContain("c001"); // the prompt is the last arg
   });
 });
 
@@ -1128,6 +1699,613 @@ describe("Runner — one run per session id (c0126)", () => {
   });
 });
 
+// c0163: with AFK on, a parked run gives up its WIP slot (keeping its session),
+// so the queue drains around a card waiting on the human. AFK off is unchanged.
+describe("Runner — park-and-skip under AFK (c0163)", () => {
+  const question = "### Which db?\n\n- [ ] Postgres\n";
+
+  it("AFK off: a parked run holds its slot, and the next card waits", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+
+    expect(h.last()).toEqual(["c001:waiting-for-input"]);
+    expect(h.spawned).toHaveLength(1); // the slot is still c001's
+  });
+
+  it("AFK on: the parked run keeps its session but frees the slot for the next card", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0); // no explicit sync — parking must reconcile itself
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+    expect(h.last().sort()).toEqual(["c001:waiting-for-input", "c002:running"]);
+  });
+
+  it("AFK on, epic scope: the parked card's epic waits, another epic proceeds", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1, epic: "e01" },
+        c002: { status: "ready", order: 2, epic: "e01" },
+        c003: { status: "ready", order: 3, epic: "e02" },
+      },
+      1,
+    );
+    const h = makeRunner(start, undefined, "normal", {}, "epic");
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    const parked = board(
+      {
+        c001: { status: "in-progress", epic: "e01", parked: question },
+        c002: { status: "ready", order: 2, epic: "e01" },
+        c003: { status: "ready", order: 3, epic: "e02" },
+      },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    // c003 (other epic) took the freed slot; c002 still waits on c001's session
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c003");
+    expect(h.logs.join("\n")).toMatch(/c002 held: session busy with c001/);
+  });
+
+  it("AFK on, card scope: only the parked card waits — its epic sibling runs", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1, epic: "e01" },
+        c002: { status: "ready", order: 2, epic: "e01" },
+      },
+      1,
+    );
+    const h = makeRunner(start); // card scope
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    const parked = board(
+      {
+        c001: { status: "in-progress", epic: "e01", parked: question },
+        c002: { status: "ready", order: 2, epic: "e01" },
+      },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[h.spawned[1].spec.args.length - 1]).toContain("c002");
+  });
+
+  it("AFK off after a park: the slot is c001's again and the queue stops", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.runner.setAfk(false);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+
+    expect(h.spawned).toHaveLength(1);
+  });
+});
+
+// i0173: a resume used to dispatch straight from the answer marker, never
+// through a budget — so a card that gave its slot away under AFK (c0163) took a
+// second one back on resume and the board ran over its limit.
+describe("Runner — an answered resume waits for its slot (i0173)", () => {
+  const question = "### Which db?\n\n- [ ] Postgres\n";
+  const answer = "### Which db?\n\n- [x] Postgres\n";
+
+  it("holds the answer until the borrowed slot comes back, then resumes", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.setModel(
+      board(
+        { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+        1,
+      ),
+    );
+    h.spawned[0].exit(0);
+    expect(h.spawned).toHaveLength(2); // c002 took the freed slot
+
+    const answered = board(
+      { c001: { status: "in-progress", answered: answer }, c002: { status: "in-progress" } },
+      1,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(2); // the board is at its limit — no resume
+    expect(h.logs.join("\n")).toMatch(/c001 held: answered, waiting for a slot/);
+    // The marker is the resume trigger, so it must survive for the retry.
+    expect(h.writes).toEqual([]);
+
+    // c002 finishes: its exit reconciles, and the freed slot is c001's answer
+    h.setModel(
+      board({ c001: { status: "in-progress", answered: answer }, c002: { status: "review" } }, 1),
+    );
+    h.spawned[1].exit(0);
+
+    expect(h.spawned).toHaveLength(3);
+    expect(h.spawned[2].spec.args[0]).toBe("--resume");
+    expect(h.last()).toEqual(["c001:running"]);
+  });
+
+  it("AFK off: the answer resumes at once — that parked run never gave its slot up", () => {
+    const start = board(
+      { c001: { status: "ready", order: 1 }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    const parked = board(
+      { c001: { status: "in-progress", parked: question }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(parked);
+    h.spawned[0].exit(0);
+    h.runner.sync(parked);
+    expect(h.spawned).toHaveLength(1); // c002 waited: the slot stayed c001's
+
+    const answered = board(
+      { c001: { status: "in-progress", answered: answer }, c002: { status: "ready", order: 2 } },
+      1,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(2);
+    expect(h.spawned[1].spec.args[0]).toBe("--resume");
+  });
+
+  // The case the card is titled for: two answers arriving together used to take
+  // two slots at once. They now share one budget, in board order.
+  it("two answers together take one free slot, in board order", () => {
+    const start = board(
+      {
+        c001: { status: "ready", order: 1 },
+        c002: { status: "ready", order: 2 },
+        c003: { status: "ready", order: 3 },
+      },
+      2,
+    );
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(2); // c001, c002
+
+    // c001 parks; c003 takes its freed slot
+    h.setModel(
+      board(
+        {
+          c001: { status: "in-progress", order: 1, parked: question },
+          c002: { status: "in-progress", order: 2 },
+          c003: { status: "ready", order: 3 },
+        },
+        2,
+      ),
+    );
+    h.spawned[0].exit(0);
+    expect(h.spawned).toHaveLength(3);
+
+    // c002 parks too — nothing left in ready, so its slot stays free
+    h.setModel(
+      board(
+        {
+          c001: { status: "in-progress", order: 1, parked: question },
+          c002: { status: "in-progress", order: 2, parked: question },
+          c003: { status: "in-progress", order: 3 },
+        },
+        2,
+      ),
+    );
+    h.spawned[1].exit(0);
+    expect(h.spawned).toHaveLength(3);
+
+    // both answered at once: one free slot, so only the first card gets it
+    const answered = board(
+      {
+        c001: { status: "in-progress", order: 1, answered: answer },
+        c002: { status: "in-progress", order: 2, answered: answer },
+        c003: { status: "in-progress", order: 3 },
+      },
+      2,
+    );
+    h.setModel(answered);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(4);
+    expect(h.spawned[3].spec.args[0]).toBe("--resume");
+    expect(h.last().sort()).toEqual([
+      "c001:running",
+      "c002:waiting-for-input",
+      "c003:running",
+    ]);
+    expect(h.logs.join("\n")).toMatch(/c002 held: answered, waiting for a slot/);
+  });
+});
+
+// c0167: under AFK a card entering `review` gets a second agent — a fresh
+// review run in its own session — instead of sitting until the human is back.
+describe("Runner — AI review dispatch (c0167)", () => {
+  const at = "2026-08-09T10:00:00";
+  const inReview = (extra: Record<string, CardSpec> = {}, wipLimit: number | null = 2) =>
+    board({ c001: { status: "review", statusChanged: at }, ...extra }, wipLimit);
+
+  it("AFK off: a review card is not auto-reviewed", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+  });
+
+  it("AFK on: dispatches a review run with the review skill's prompt", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(start, "c001")));
+    expect(h.last()).toEqual(["c001:running"]);
+    expect(h.logs.join("\n")).toMatch(/c001 → review/);
+  });
+
+  // The reason for a separate key: under epic scope the implementer's session is
+  // the epic's, and reviewing inside it would both collide with the epic's next
+  // card and hand the reviewer the implementer's own context.
+  it("runs in a session of its own, distinct from the implementer's", () => {
+    const start = board(
+      {
+        c001: { status: "review", statusChanged: at, epic: "e01" },
+        c002: { status: "ready", order: 1, epic: "e01" },
+      },
+      4,
+    );
+    const h = makeRunner(start, { "epic:e01": "implementer-session" }, "normal", {}, "epic");
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    // both run: the review holds its own key, so e01's implementer key is free
+    expect(h.spawned).toHaveLength(2);
+    const reviewKey = Object.keys(h.sessionsMap()).find((k) => k !== "epic:e01");
+    expect(reviewKey).toBeDefined();
+    expect(h.sessionsMap()[reviewKey!]).not.toBe("implementer-session");
+    // the sibling resumed the epic session; the review did not
+    expect(h.spawned[1].spec.args).toContain("--resume");
+    expect(h.spawned[0].spec.args).not.toContain("--resume");
+    expect(h.last().sort()).toEqual(["c001:running", "c002:running"]);
+  });
+
+  it("does not review a card whose implementer run has not exited yet", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // the agent moved the card on but is still finishing (its commit)
+    const moved = board({ c001: { status: "review", statusChanged: at } });
+    h.setModel(moved);
+    h.runner.sync(moved);
+    expect(h.spawned).toHaveLength(1);
+
+    h.spawned[0].exit(0); // now it is gone — the review takes over
+    expect(h.spawned).toHaveLength(2);
+    const args = h.spawned[1].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(moved, "c001")));
+  });
+
+  it("on a pass the card ends in signoff, with the verdict on the card", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    // the review agent recorded its verdict and moved the card (set_status)
+    const passed = board({
+      c001: {
+        status: "signoff",
+        statusChanged: "2026-08-09T10:20:00",
+        review: ["2026-08-09T10:19:00", "pass"],
+      },
+    });
+    h.setModel(passed);
+    h.spawned[0].exit(0);
+
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: pass \(signoff\)/);
+    expect(h.last()).toEqual([]);
+    h.runner.sync(passed);
+    expect(h.spawned).toHaveLength(1); // nothing left to review
+  });
+
+  it("on a fail the card stays in review and is not reviewed again", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    const failed = board({
+      c001: { status: "review", statusChanged: at, review: ["2026-08-09T10:19:00", "fail"] },
+    });
+    h.setModel(failed);
+    h.spawned[0].exit(0);
+
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: fail \(review\)/);
+    h.runner.sync(failed);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // A review run that died before writing anything leaves no verdict on the
+  // card, so only the in-process record stops it being retried on every tick.
+  it("does not retry a review run that exited without a verdict", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.spawned[0].exit(1);
+
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+    expect(h.logs.join("\n")).toMatch(/c001 review verdict: none/);
+  });
+
+  it("respects the WIP limit, and takes the slot once it frees", () => {
+    const start = inReview({ c002: { status: "in-progress" } }, 1);
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*(wip|limit)/i);
+
+    const freed = inReview({ c002: { status: "done" } }, 1);
+    h.setModel(freed);
+    h.runner.sync(freed);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  // Reviewing finishes work and unblocks its dependents (c0165); starting a new
+  // card only adds to the pile. With one slot, the review goes first.
+  it("gives a review the slot ahead of a fresh ready card", () => {
+    const start = inReview({ c002: { status: "ready", order: 1 } }, 1);
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const args = h.spawned[0].spec.args;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(start, "c001")));
+    expect(h.logs.join("\n")).toMatch(/c002 held: .*(wip|limit)/i);
+  });
+
+  // `owned` gates the restart of a stopped *implementer* run (c0141/i0135).
+  // Having reviewed a card says nothing about the companion having worked it.
+  it("does not claim the card as its own work", () => {
+    const start = inReview();
+    const h = makeRunner(start);
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.runner.ownedCards()).toEqual([]);
+    expect(h.persistedOwned).toEqual([]);
+  });
+});
+
+// c0168: what happens after a fail — the card goes back to the implementer
+// that wrote it, for at most two rounds, then to the human.
+describe("Runner — the reject fix-loop (c0168)", () => {
+  const at = "2026-08-09T10:00:00";
+  const after = "2026-08-09T10:19:00";
+  /** A card the review agent has just rejected, its notes on the card. */
+  const rejected = (
+    extra: Record<string, CardSpec> = {},
+    wipLimit: number | null = 2,
+    rounds: [string, string][] = [[after, "fail"]],
+  ) =>
+    board(
+      { c001: { status: "review", statusChanged: at, review: rounds }, ...extra },
+      wipLimit,
+    );
+  /** The implementer session the companion recorded when it ran the card. */
+  const implemented = { "card:c001": "implementer-session" };
+
+  it("AFK off: a rejected card sits for the human", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(0);
+    expect(h.writes).toEqual([]);
+  });
+
+  it("resumes the implementer's own session with the reviewer's notes", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args).toContain("--resume"); // the original session, not a fresh one
+    expect(args).toContain("implementer-session");
+    expect(args[args.length - 1]).toBe(
+      buildFixPrompt(cardOf(start, "c001"), latestReview(cardOf(start, "c001").body)!),
+    );
+    expect(h.logs.join("\n")).toMatch(/c001 → fix resume/);
+  });
+
+  // The move itself is the agent's (the companion never edits cards), which is
+  // why the prompt orders it first thing.
+  it("sends the card back to in-progress and re-reviews the fix", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+
+    // the fix run took the card back and is working it
+    const fixing = board({
+      c001: { status: "in-progress", statusChanged: "2026-08-09T10:30:00", review: [after, "fail"] },
+    });
+    h.setModel(fixing);
+    h.runner.sync(fixing);
+    expect(h.spawned).toHaveLength(1); // still the one run
+
+    // it finished and re-entered review — a new round, so a fresh review
+    const redone = board({
+      c001: { status: "review", statusChanged: "2026-08-09T11:00:00", review: [after, "fail"] },
+    });
+    h.setModel(redone);
+    h.spawned[0].exit(0);
+
+    expect(h.spawned).toHaveLength(2);
+    const { args } = h.spawned[1].spec;
+    expect(args[args.length - 1]).toBe(buildReviewPrompt(cardOf(redone, "c001")));
+  });
+
+  it("does not hand the same card back twice for one verdict", () => {
+    const start = rejected();
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.spawned[0].exit(1); // died before it could move the card
+
+    h.runner.sync(start);
+    expect(h.spawned).toHaveLength(1);
+  });
+
+  it("leaves a card the companion never implemented for the human", () => {
+    const start = rejected();
+    const h = makeRunner(start); // no session: the human worked this one
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*no implementer session/i);
+  });
+
+  it("parks a question on the card once the rounds are used up", () => {
+    const start = rejected({}, 2, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.writes).toHaveLength(1);
+    expect(h.writes[0].path).toBe("/project/.gello/cards/c001-x.md");
+    expect(h.writes[0].raw).toContain("awaiting: input");
+    expect(h.writes[0].raw).toContain("```gelloquestion");
+    expect(h.writes[0].raw).toContain("status: review"); // the card stays put
+    expect(h.logs.join("\n")).toMatch(/c001 .*(cap|rounds).*park/i);
+  });
+
+  it("parks once, not on every sync", () => {
+    const start = rejected({}, 2, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+    h.runner.sync(start);
+    expect(h.writes).toHaveLength(1);
+  });
+
+  // c0163's skip-ahead: the parked card is the human's now, and the queue does
+  // not wait for them.
+  it("dispatches the next ready card past the parked one", () => {
+    const start = rejected({ c002: { status: "ready", order: 1 } }, 1, [
+      ["2026-08-09T09:00:00", "fail"],
+      [after, "fail"],
+    ]);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args[args.length - 1]).toBe(buildTaskPrompt(cardOf(start, "c002"), false));
+  });
+
+  // The answer arrives on the card the human was asked on: the marker resumes
+  // the implementer, exactly as it does for a question the agent parked itself.
+  it("resumes the implementer when the human answers the parked question", () => {
+    const answered = board({
+      c001: {
+        status: "review",
+        statusChanged: at,
+        review: [
+          ["2026-08-09T09:00:00", "fail"],
+          [after, "fail"],
+        ],
+        answered: "### Now what?\n\nDrop the second criterion.\n",
+      },
+    });
+    const h = makeRunner(answered, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(answered);
+
+    expect(h.spawned).toHaveLength(1);
+    const { args } = h.spawned[0].spec;
+    expect(args).toContain("--resume");
+    expect(args[args.length - 1]).toBe(buildTaskPrompt(cardOf(answered, "c001"), true));
+  });
+
+  it("a fix run costs a WIP slot like any other", () => {
+    const start = rejected({ c002: { status: "in-progress" } }, 1);
+    const h = makeRunner(start, { ...implemented });
+    h.runner.setAfk(true);
+    h.runner.sync(start);
+
+    expect(h.spawned).toHaveLength(0);
+    expect(h.logs.join("\n")).toMatch(/c001 held: .*(wip|limit)/i);
+  });
+});
+
 // c0119: stop an in-flight run. The kill is a small addition to the spawner;
 // a killed process exits and is classified `aborted` (a deliberate stop), not
 // `error` (a genuine crash).
@@ -1443,6 +2621,42 @@ describe("Runner — pickup delay (c0117)", () => {
 
     h.advance(5_000);
     expect(h.spawned).toHaveLength(1);
+  });
+
+  // i0157: the first-seen clock is in the companion's memory, so the card front
+  // had nothing to count down for an unstamped card and its window ran
+  // invisibly. The clock goes into the state file the app already reads.
+  it("exposes the first-seen clocks as local ISO datetimes", () => {
+    const start = board({
+      c001: { status: "ready", order: 1 },
+      c002: { status: "backlog" },
+    });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    expect(h.runner.firstSeenAt()).toEqual({ c001: STAMP });
+  });
+
+  it("keeps a card's first-seen stamp across later syncs", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+    h.advance(5_000);
+    h.runner.sync(start);
+
+    expect(h.runner.firstSeenAt()).toEqual({ c001: STAMP }); // not re-stamped
+  });
+
+  it("drops the clock of a card that left the trigger status", () => {
+    const start = board({ c001: { status: "ready", order: 1 } });
+    const h = makeRunner(start, undefined, "normal", opts);
+    h.runner.sync(start);
+
+    const pulled = board({ c001: { status: "backlog" } });
+    h.setModel(pulled);
+    h.runner.sync(pulled);
+
+    expect(h.runner.firstSeenAt()).toEqual({});
   });
 });
 

@@ -45,6 +45,22 @@ export interface CardStatusLine {
   blockers?: Blocker[];
 }
 
+/**
+ * The blocked line for `blockers`, or null when nothing is open. Split out of
+ * `cardStatusLine` (c0157) for a surface that has the board but no companion
+ * state — the cross-project view — so both phrase the line the same way.
+ */
+export function blockedStatusLine(blockers: Blocker[]): CardStatusLine | null {
+  if (blockers.length === 0) return null;
+  const text = blockers.map((b) => (b.missing ? `${b.id} (missing)` : b.id)).join(", ");
+  return {
+    kind: "blocked",
+    text: `waiting on ${text}`,
+    className: "card-activity card-activity-blocked",
+    blockers,
+  };
+}
+
 /** The board facts the status line needs beyond the companion state — all
  *  already computed per card by the board (c0123/c0125/c0137/c0139). */
 export interface CardStatusFacts {
@@ -115,17 +131,8 @@ export function cardStatusLine(
     };
   }
 
-  if (facts.blockers.length > 0) {
-    const text = facts.blockers
-      .map((b) => (b.missing ? `${b.id} (missing)` : b.id))
-      .join(", ");
-    return {
-      kind: "blocked",
-      text: `waiting on ${text}`,
-      className: "card-activity card-activity-blocked",
-      blockers: facts.blockers,
-    };
-  }
+  const blocked = blockedStatusLine(facts.blockers);
+  if (blocked) return blocked;
 
   if (facts.startable) {
     return {

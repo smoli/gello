@@ -116,11 +116,12 @@ describe("Board", () => {
 
   describe("c0118: follow-up trigger on the card front", () => {
     const model = loadBoard([
-      file("board.yaml", "columns: [ready, in-progress, review, done]\n"),
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
       file("cards/c001-queued.md", card("c001", "Queued card", "ready")),
       file("cards/c002-running.md", card("c002", "Running card", "in-progress")),
       file("cards/c003-reviewing.md", card("c003", "Reviewing card", "review")),
       file("cards/c004-finished.md", card("c004", "Finished card", "done")),
+      file("cards/c005-vetted.md", card("c005", "Vetted card", "signoff")),
     ]);
     const front = (title: string) => screen.getByText(title).closest("article")!;
     // i0130: the front offers both kinds, so a trigger is addressed by kind —
@@ -132,13 +133,16 @@ describe("Board", () => {
     const triggers = (title: string) =>
       within(front(title)).queryAllByRole("button", { name: /follow up/i });
 
-    it("offers the trigger on review and done cards only", () => {
+    it("offers the trigger on review, signoff and done cards only", () => {
       render(<Board model={model} onFollowUpCard={vi.fn()} />);
 
       expect(trigger("Reviewing card", "issue")).toBeInTheDocument();
       expect(trigger("Reviewing card", "task")).toBeInTheDocument();
       expect(trigger("Finished card", "issue")).toBeInTheDocument();
       expect(trigger("Finished card", "task")).toBeInTheDocument();
+      // c0164: a signoff card is reviewed work, same as review/done
+      expect(trigger("Vetted card", "issue")).toBeInTheDocument();
+      expect(trigger("Vetted card", "task")).toBeInTheDocument();
       expect(triggers("Queued card")).toEqual([]);
       expect(triggers("Running card")).toEqual([]);
     });
@@ -360,6 +364,32 @@ describe("Board", () => {
     };
     render(<Board model={readyBoard()} runner={runner} />);
     const front = screen.getByText("Waiting card").closest("article")!;
+    expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
+  });
+
+  // i0157: a card created straight in `ready` never changed status, so it has no
+  // `status-changed`. The companion times its window from when it first saw the
+  // card and publishes that clock, so the front counts down like any other.
+  it("i0157: shows the countdown for a card created in ready, with no stamp", () => {
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress]\n"),
+      file(
+        "cards/c001-new.md",
+        `---\nid: c001\ntitle: Fresh card\nstatus: ready\n---\nbody\n`,
+      ),
+    ]);
+    const runner = {
+      status: "idle" as const,
+      ready: ["c001"],
+      waiting: [],
+      runs: [],
+      updated: localNow(),
+      pickupDelay: 10,
+      owned: [],
+      firstSeen: { c001: localNow() },
+    };
+    render(<Board model={model} runner={runner} />);
+    const front = screen.getByText("Fresh card").closest("article")!;
     expect(within(front).getByText(/picking up in \d+s/)).toBeInTheDocument();
   });
 
@@ -1058,8 +1088,176 @@ describe("Board", () => {
   it("renders an entirely empty board without crashing", () => {
     render(<Board model={loadBoard([])} />);
 
-    // c0088: lead with inbox; i0033: discuss ships by default (7 columns)
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(7);
+    // c0088: lead with inbox; i0033: discuss ships by default. i0175: signoff
+    // stays out of an empty board with AFK off, so 7 of the 8 columns render
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent),
+    ).toEqual([
+      "inbox",
+      "discuss",
+      "backlog",
+      "ready",
+      "in-progress",
+      "review",
+      "done",
+    ]);
+  });
+
+  it("c0164: renders signoff as a column between review and done", () => {
+    const model = loadBoard([
+      file(
+        "board.yaml",
+        "columns: [ready, in-progress, review, signoff, done]\n",
+      ),
+      file(
+        "cards/c001-vetted.md",
+        card("c001", "Vetted card", "signoff"),
+      ),
+    ]);
+    render(<Board model={model} />);
+
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent);
+    expect(headings).toEqual(["ready", "in-progress", "review", "signoff", "done"]);
+    expect(within(column("signoff")).getByText("Vetted card")).toBeInTheDocument();
+  });
+
+  describe("c0170: the signoff column as the sign-off check-list", () => {
+    /** A card body carrying the c0166 verdict format. */
+    const reviewed = (verdict: string, notes: string) =>
+      `body\n\n## Review\n\n### 2026-08-09T07:10:00 — ${verdict}\n\n${notes}\n`;
+    const withBody = (id: string, title: string, status: string, body: string) =>
+      `---\nid: ${id}\ntitle: ${title}\nstatus: ${status}\n---\n${body}`;
+
+    const model = loadBoard([
+      file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+      file(
+        "cards/c001-vetted.md",
+        withBody(
+          "c001",
+          "Vetted card",
+          "signoff",
+          reviewed("pass", "Checked: criteria, tests, lint, typecheck, diff."),
+        ),
+      ),
+      file("cards/c002-bare.md", card("c002", "Bare card", "signoff")),
+      file(
+        "cards/c003-bounced.md",
+        withBody("c003", "Bounced card", "review", reviewed("fail", "Criterion 2 unmet.")),
+      ),
+    ]);
+    const front = (title: string) => screen.getByText(title).closest("article")!;
+
+    it("shows each card's recorded verdict, with what was checked in reach", () => {
+      render(<Board model={model} />);
+
+      const verdict = within(front("Vetted card")).getByText(/AI review passed/);
+      expect(verdict).toHaveAttribute(
+        "title",
+        expect.stringContaining("Checked: criteria, tests, lint, typecheck, diff."),
+      );
+      expect(verdict.getAttribute("title")).toContain("2026-08-09T07:10:00");
+    });
+
+    it("reads a fail verdict as failed, wherever the card sits", () => {
+      render(<Board model={model} />);
+
+      expect(within(front("Bounced card")).getByText(/AI review failed/)).toBeInTheDocument();
+    });
+
+    it("says nothing about a card with no recorded verdict", () => {
+      render(<Board model={model} />);
+
+      expect(within(front("Bare card")).queryByText(/AI review/)).not.toBeInTheDocument();
+    });
+
+    it("counts the cards awaiting sign-off in the column header", () => {
+      render(<Board model={model} />);
+
+      expect(within(column("signoff")).getByText("2")).toBeInTheDocument();
+    });
+
+    it("signs a card off to done from its front", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.click(within(front("Vetted card")).getByRole("button", { name: /sign off c001/i }));
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "done",
+      );
+    });
+
+    it("reopens a card to in-progress from its front", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.click(within(front("Vetted card")).getByRole("button", { name: /reopen c001/i }));
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "in-progress",
+      );
+    });
+
+    it("offers the check-list actions on signoff cards only", () => {
+      render(<Board model={model} onMoveCard={vi.fn()} />);
+
+      expect(
+        within(front("Bounced card")).queryByRole("button", { name: /sign off/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("reopens to review with the keyboard, one column back", () => {
+      const onMoveCard = vi.fn();
+      render(<Board model={model} onMoveCard={onMoveCard} />);
+
+      fireEvent.keyDown(front("Vetted card"), { key: "ArrowLeft" });
+      expect(onMoveCard).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "c001" }),
+        "review",
+      );
+    });
+
+    it("i0175: hides the empty sign-off column while AFK is off", () => {
+      const quiet = loadBoard([
+        file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+        file("cards/c001-open.md", card("c001", "Open card", "review")),
+      ]);
+      render(<Board model={quiet} />);
+
+      expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(
+        ["ready", "in-progress", "review", "done"],
+      );
+    });
+
+    it("i0175: shows the empty sign-off column while AFK is on", () => {
+      const quiet = loadBoard([
+        file("board.yaml", "columns: [ready, in-progress, review, signoff, done]\n"),
+        file("cards/c001-open.md", card("c001", "Open card", "review")),
+      ]);
+      render(<Board model={quiet} afk />);
+
+      expect(within(column("signoff")).getByText("0")).toBeInTheDocument();
+    });
+
+    it("i0175: shows it with AFK off as soon as a card waits there", () => {
+      render(<Board model={model} />);
+
+      expect(within(column("signoff")).getByText("Vetted card")).toBeInTheDocument();
+    });
+
+    it("leaves the actions out of a board with neither target column", () => {
+      const narrow = loadBoard([
+        file("board.yaml", "columns: [review, signoff]\n"),
+        file("cards/c001-vetted.md", card("c001", "Vetted card", "signoff")),
+      ]);
+      render(<Board model={narrow} onMoveCard={vi.fn()} />);
+
+      expect(
+        within(front("Vetted card")).queryByRole("button", { name: /sign off|reopen/i }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("applies a background with readable translucent columns (c047/c0060)", () => {
