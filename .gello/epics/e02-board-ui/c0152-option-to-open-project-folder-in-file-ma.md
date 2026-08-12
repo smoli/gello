@@ -1,5 +1,5 @@
 ---
-id: c0152
+id: c0173
 title: Option to open project folder in file manager
 status: done
 created: 2026-08-07
