@@ -56,6 +56,7 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  imageThumbnail,
   initBoard,
   boardExistsAt,
   gitBoardChanges,
@@ -1726,6 +1727,24 @@ function App() {
     }
   };
 
+  /** i0179: the same for a board-card thumbnail, but downscaled. A card front
+   *  draws its image into a 260x112 box; loading the full-resolution screenshot
+   *  for it kept every card's bitmap in the webview at once, which is what ran
+   *  the renderer out of memory. The card detail keeps handleLoadImage. */
+  const handleLoadThumbnail = async (
+    card: Card,
+    src: string,
+  ): Promise<string | null> => {
+    if (!board) return null;
+    const rel = resolveFromCard(card.path, src);
+    if (/^(https?:|data:)/i.test(rel)) return rel;
+    try {
+      return await imageThumbnail(`${board.root}/${rel}`);
+    } catch {
+      return null;
+    }
+  };
+
   /** c0158: persist the activity view's background, or clear it. An image is
    *  stored as the absolute path picked — the view has no repo to copy into. */
   const commitActivityBackground = (value: string) => {
@@ -2001,7 +2020,7 @@ function App() {
           query={query}
           showArchived={showArchived}
           afk={afk}
-          loadImage={showThumbnails ? handleLoadImage : undefined}
+          loadImage={showThumbnails ? handleLoadThumbnail : undefined}
           onInboxStatusDrop={(card, status, order) =>
             setPendingTriage({ card, status, order })
           }

@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   boardExistsAt,
   imageDataUrl,
+  imageThumbnail,
   loadBoardFromDisk,
   migrateBoard,
   readAfkFlag,
@@ -11,9 +12,12 @@ import {
   watchBoard,
   writeAfkFlag,
 } from "./board-io";
+import { decodeImage } from "./thumbnail-browser";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
+vi.mock("./thumbnail-browser", () => ({ decodeImage: vi.fn() }));
+const decodeMock = vi.mocked(decodeImage);
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
 
@@ -360,5 +364,99 @@ describe("the AFK flag (c0169)", () => {
     invokeMock.mockRejectedValueOnce({ kind: "NotFound", message: "gone" });
 
     expect(await readAfkFlag("/repo/.gello")).toBe(false);
+  });
+});
+
+// i0179: the board-thumbnail read. The canvas/Image decode is a browser seam
+// (thumbnail-browser.ts), stubbed here so the wiring — read the file, shrink it,
+// one decode at a time — is assertable without a real webview.
+describe("imageThumbnail (i0179)", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    decodeMock.mockReset();
+  });
+
+  /** A decode stand-in that resolves when `settle` is called. */
+  function pendingDecode(width: number, height: number, encoded: string) {
+    let settle = () => {};
+    const decoded = {
+      width,
+      height,
+      encode: () => encoded,
+      release: vi.fn(),
+    };
+    const promise = new Promise<typeof decoded>((resolve) => {
+      settle = () => resolve(decoded);
+    });
+    return { promise, settle, decoded };
+  }
+
+  it("reads the image and returns a downscaled copy, not the full-size one", async () => {
+    invokeMock.mockResolvedValueOnce("ZnVsbA==");
+    const release = vi.fn();
+    decodeMock.mockResolvedValueOnce({
+      width: 3024,
+      height: 1964,
+      encode: (size) => `data:image/webp;base64,thumb-${size.width}x${size.height}`,
+      release,
+    });
+
+    const url = await imageThumbnail("/repo/.gello/assets/i0133/image.png");
+
+    expect(invokeMock).toHaveBeenCalledExactlyOnceWith("read_file_base64", {
+      path: "/repo/.gello/assets/i0133/image.png",
+    });
+    // the full-size data URL is what gets decoded, and only transiently
+    expect(decodeMock).toHaveBeenCalledExactlyOnceWith("data:image/png;base64,ZnVsbA==");
+    expect(url).toBe("data:image/webp;base64,thumb-512x333");
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("decodes one image at a time, so a board of screenshots never holds them all", async () => {
+    invokeMock.mockResolvedValue("ZnVsbA==");
+    const first = pendingDecode(1000, 1000, "data:one");
+    const second = pendingDecode(1000, 1000, "data:two");
+    decodeMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+    const a = imageThumbnail("/repo/.gello/assets/a/image.png");
+    const b = imageThumbnail("/repo/.gello/assets/b/image.png");
+
+    // the second decode has not started while the first is still in flight
+    await vi.waitFor(() => expect(decodeMock).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(decodeMock).toHaveBeenCalledTimes(1);
+
+    first.settle();
+    expect(await a).toBe("data:one");
+    second.settle();
+    expect(await b).toBe("data:two");
+  });
+
+  it("is null when the file cannot be read", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("gone"));
+    expect(await imageThumbnail("/repo/.gello/assets/x/image.png")).toBeNull();
+    expect(decodeMock).not.toHaveBeenCalled();
+  });
+
+  it("is null when the image cannot be decoded", async () => {
+    invokeMock.mockResolvedValueOnce("bm90YW5pbWFnZQ==");
+    decodeMock.mockRejectedValueOnce(new Error("decode failed"));
+    expect(await imageThumbnail("/repo/.gello/assets/x/image.png")).toBeNull();
+  });
+
+  it("leaves a queued thumbnail unblocked after one fails", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("gone")).mockResolvedValueOnce("b2s=");
+    decodeMock.mockResolvedValueOnce({
+      width: 100,
+      height: 50,
+      encode: () => "data:ok",
+      release: vi.fn(),
+    });
+
+    const bad = imageThumbnail("/repo/.gello/assets/bad/image.png");
+    const good = imageThumbnail("/repo/.gello/assets/good/image.png");
+
+    expect(await bad).toBeNull();
+    expect(await good).toBe("data:ok");
   });
 });

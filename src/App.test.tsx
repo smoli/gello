@@ -8,6 +8,7 @@ import {
   detectSkillDirs,
   gitBranch,
   imageDataUrl,
+  imageThumbnail,
   initBoard,
   gitBoardChanges,
   gitCommitBoard,
@@ -44,6 +45,7 @@ vi.mock("./lib/board-io", () => ({
   removeDir: vi.fn(),
   watchBoard: vi.fn(),
   imageDataUrl: vi.fn(),
+  imageThumbnail: vi.fn(),
   gitBranch: vi.fn(),
   watchGitHead: vi.fn(),
   detectSkillDirs: vi.fn(),
@@ -381,7 +383,8 @@ describe("App", () => {
   });
 
   it("c0063: Settings › Show thumbnails toggles board thumbnails and persists it", async () => {
-    vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,QQ==");
+    // i0179: board thumbnails come from imageThumbnail now, not imageDataUrl
+    vi.mocked(imageThumbnail).mockResolvedValue("data:image/webp;base64,QQ==");
     loadMock.mockResolvedValueOnce({
       root: "/repo/.gello",
       legacy: false,
@@ -412,6 +415,64 @@ describe("App", () => {
     // thumbnail is gone
     await waitFor(() =>
       expect(container.querySelector("img.card-thumb")).toBeNull(),
+    );
+  });
+
+  // i0179: a board card front draws its thumbnail into a 260x112 box, so it must
+  // not hold the card's full-resolution screenshot. The full-size read stays for
+  // the card detail, where the image is actually looked at.
+  it("i0179: a board thumbnail is the downscaled copy, not the full-size image", async () => {
+    vi.mocked(imageThumbnail).mockResolvedValue("data:image/webp;base64,SMALL");
+    vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,HUGE");
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        {
+          path: "cards/c001-shot.md",
+          content:
+            "---\nid: c001\ntitle: Shot card\nstatus: backlog\n---\n\n![p](../assets/c001/p.png)\n",
+        },
+      ]),
+    });
+
+    const { container } = render(<App />);
+    const thumb = await waitFor(() => {
+      const img = container.querySelector("img.card-thumb");
+      expect(img).not.toBeNull();
+      return img as HTMLImageElement;
+    });
+
+    expect(thumb.getAttribute("src")).toBe("data:image/webp;base64,SMALL");
+    expect(vi.mocked(imageThumbnail)).toHaveBeenCalledWith(
+      "/repo/.gello/assets/c001/p.png",
+    );
+    // nothing on the board pulled the full-resolution image in
+    expect(vi.mocked(imageDataUrl)).not.toHaveBeenCalled();
+  });
+
+  it("i0179: the open card detail still shows the image at full resolution", async () => {
+    vi.mocked(imageThumbnail).mockResolvedValue("data:image/webp;base64,SMALL");
+    vi.mocked(imageDataUrl).mockResolvedValue("data:image/png;base64,HUGE");
+    loadMock.mockResolvedValueOnce({
+      root: "/repo/.gello",
+      legacy: false,
+      model: loadBoard([
+        { path: "board.yaml", content: "columns: [backlog, done]\n" },
+        {
+          path: "cards/c001-shot.md",
+          content:
+            "---\nid: c001\ntitle: Shot card\nstatus: backlog\n---\n\n![p](../assets/c001/p.png)\n",
+        },
+      ]),
+    });
+
+    render(<App />);
+    fireEvent.click(await screen.findByText("Shot card"));
+
+    await waitFor(() =>
+      expect(vi.mocked(imageDataUrl)).toHaveBeenCalledWith("/repo/.gello/assets/c001/p.png"),
     );
   });
 

@@ -6,12 +6,17 @@ import { loadBoard, type BoardFile, type BoardModel } from "./board";
 import { isLegacyBoard, planMigration, type MigrationPlan } from "./migration";
 import { writeFileAtomic } from "./fs";
 import { appendControlRequest } from "./companion-control";
+import { createSerialQueue, shrinkToThumbnail, THUMB_MAX_PX } from "./thumbnail";
+import { decodeImage } from "./thumbnail-browser";
 import { afkFileContent, afkFilePath, parseAfk } from "./companion-afk";
 
 /** Current content of one file (absolute path) — for conflict checks. */
 export async function readFileRaw(path: string): Promise<string> {
   return invoke<string>("read_file", { path });
 }
+
+/** i0179: one decode at a time — see createSerialQueue. */
+const thumbnailQueue = createSerialQueue();
 
 const IMAGE_MIME: Record<string, string> = {
   jpg: "image/jpeg",
@@ -27,6 +32,29 @@ export async function imageDataUrl(path: string): Promise<string> {
   const extension = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
   const mime = IMAGE_MIME[extension] ?? "image/png";
   return `data:${mime};base64,${base64}`;
+}
+
+/**
+ * i0179: a small, retained thumbnail of a local image — the copy a board card
+ * front shows. The full-size image is only decoded long enough to be drawn at
+ * thumbnail size (`shrinkToThumbnail` releases it), and the decodes are
+ * serialised, so a board of screenshots never holds more than one of them. Null
+ * when the file can't be read or decoded; the card then shows no thumbnail, as
+ * a broken image link already does (c012).
+ */
+export async function imageThumbnail(
+  path: string,
+  max: number = THUMB_MAX_PX,
+): Promise<string | null> {
+  return thumbnailQueue(async () => {
+    let full: string;
+    try {
+      full = await imageDataUrl(path);
+    } catch {
+      return null;
+    }
+    return shrinkToThumbnail(full, max, decodeImage);
+  });
 }
 
 /**
