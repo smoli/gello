@@ -1,11 +1,11 @@
 ---
 id: i0179
 title: Regular Out of memory issues
-status: in-progress
+status: review
 type: issue
 created: 2026-08-26
 updated: 2026-08-26
-status-changed: 2026-08-26T19:46:53
+status-changed: 2026-08-26T20:04:00
 ---
 
 ![image](../assets/i0179/image.png)
@@ -90,3 +90,4 @@ when the card closes.
   createSerialQueue) + `lib/thumbnail-browser.ts` (canvas seam) +
   `imageThumbnail` in board-io; board fronts use it, card detail keeps the
   full-size read. 18 thumbnail tests, 5 board-io tests, 2 App wiring tests.
+- 2026-08-26 status → review (agent)
