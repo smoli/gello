@@ -1,12 +1,12 @@
 ---
 id: c0168
 title: Reject fix-loop
-status: in-progress
+status: done
 epic: e08
 depends: [c0163, c0167]
 created: 2026-08-08
-updated: 2026-08-09
-status-changed: 2026-08-09T21:50:34
+updated: 2026-08-26
+status-changed: 2026-08-26T19:44:58
 ---
 
 ## What
@@ -70,3 +70,5 @@ exhaustion the card parks a question for the human and the queue skips ahead
 - 2026-08-09 fix loop in `companion/runner.ts` (`needsFix`, `planFixDispatch`,
   `buildFixPrompt`, the cap park), `fixRounds` in `companion/review.ts`, `fix`
   run kind in `sessions.ts`; documented in companion/README.md; 30 tests
+- 2026-08-26 status → review (app)
+- 2026-08-26 status → done (app)

@@ -1,12 +1,12 @@
 ---
 id: c0165
 title: Companion dep gate accepts sign-off
-status: review
+status: done
 epic: e08
 depends: [c0164]
 created: 2026-08-08
-updated: 2026-08-09
-status-changed: 2026-08-09T22:01:11
+updated: 2026-08-26
+status-changed: 2026-08-26T19:45:01
 usage-tokens: 12582
 usage-cost: 1.831976
 ---
@@ -59,3 +59,4 @@ revisit if it should be AFK-gated.
 - 2026-08-09 status → review (agent)
 - 2026-08-09 status → done (app)
 - 2026-08-09 status → review (app)
+- 2026-08-26 status → done (app)

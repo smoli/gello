@@ -1,10 +1,10 @@
 ---
 id: i0173
 title: AFK resume can exceed the WIP limit
-status: review
+status: done
 created: 2026-08-09
-updated: 2026-08-09
-status-changed: 2026-08-09T22:01:15
+updated: 2026-08-26
+status-changed: 2026-08-26T19:45:00
 epic: e08
 usage-tokens: 27235
 usage-cost: 4.399761
@@ -69,3 +69,4 @@ card keeps showing "needs input" after the answer landed.
 - 2026-08-09 status → review (agent)
 - 2026-08-09 status → done (app)
 - 2026-08-09 status → review (app)
+- 2026-08-26 status → done (app)
