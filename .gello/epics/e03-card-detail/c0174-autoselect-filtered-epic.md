@@ -1,10 +1,10 @@
 ---
 id: c0174
 title: Autoselect filtered Epic
-status: in-progress
+status: review
 created: 2026-08-27
 updated: 2026-08-27
-status-changed: 2026-08-27T11:55:09
+status-changed: 2026-08-27T12:05:54
 epic: e03
 ---
 
@@ -53,3 +53,4 @@ If the board is filtered on one epic, assign this epic automatically to a newly 
 - 2026-08-27 status → ready (app)
 - 2026-08-27 status → in-progress (agent)
 - 2026-08-27 capture files a card under the epic filter's epic; tests green
+- 2026-08-27 status → review (agent)
