@@ -6,6 +6,8 @@ created: 2026-08-27
 updated: 2026-08-27
 status-changed: 2026-08-27T12:05:54
 epic: e03
+usage-tokens: 28306
+usage-cost: 4.374247
 ---
 
 If the board is filtered on one epic, assign this epic automatically to a newly created card or issue
