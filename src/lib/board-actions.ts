@@ -258,15 +258,32 @@ function slugify(title: string): string {
   return slug || "idea";
 }
 
+/** c0174: the epic a captured card is born into — the folder that decides its
+ *  membership plus the id for its `epic:` line (null when the folder has no
+ *  epic.md, as in triageCard). */
+export interface NewCardEpic {
+  folder: string;
+  epicId: string | null;
+}
+
 /**
  * Quick capture (c0089): create a new unassigned card in `.gello/cards/` with
  * `status: inbox` (was `inbox/` + `status: backlog`). Inbox is a status now,
  * not a folder — the card lands in the inbox column.
+ *
+ * c0174: with `input.epic` the card is born inside that epic folder instead —
+ * capture picks up the epic the board is filtered to.
  */
 export function createCard(
   root: string,
   model: BoardModel,
-  input: { title: string; body: string; type?: string; id?: string },
+  input: {
+    title: string;
+    body: string;
+    type?: string;
+    id?: string;
+    epic?: NewCardEpic;
+  },
   today: string,
 ): MoveResult {
   // c043: issues get their own i-namespace; everything else allocates c-ids.
@@ -274,10 +291,12 @@ export function createCard(
   // before the card existed — reuse it so the asset folder/link line up.
   const id =
     input.id ?? (input.type === "issue" ? nextIssueId(model) : nextCardId(model));
-  const path = `cards/${id}-${slugify(input.title)}.md`;
+  const folder = input.epic ? `epics/${input.epic.folder}` : "cards";
+  const path = `${folder}/${id}-${slugify(input.title)}.md`;
   const raw = newCardRaw(id, input.title, input.body, today, {
     type: input.type,
     status: "inbox",
+    epic: input.epic?.epicId ?? undefined,
   });
   const parsed = parseCard(path, raw, model.config);
   if (!parsed.ok) {

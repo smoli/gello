@@ -621,6 +621,27 @@ export function withNewStandaloneCard(model: BoardModel, card: Card): BoardModel
 }
 
 /**
+ * c0174: immutably add a freshly captured card to its epic group (matched by
+ * folder), keeping sort order — the counterpart of withNewStandaloneCard for a
+ * card born inside the epic the board is filtered to. An unknown folder leaves
+ * the model as it was; the watcher brings the card in either way.
+ */
+export function withNewEpicCard(
+  model: BoardModel,
+  card: Card,
+  folder: string,
+): BoardModel {
+  return {
+    ...model,
+    epics: model.epics.map((group) =>
+      group.folder === folder
+        ? { ...group, cards: [...group.cards, card].sort(byCreatedThenId) }
+        : group,
+    ),
+  };
+}
+
+/**
  * i0028: immutably add a freshly created epic (empty, no cards yet) to the
  * model, keeping epics sorted by folder. A no-op if the folder already exists.
  */

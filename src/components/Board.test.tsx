@@ -1017,6 +1017,24 @@ describe("Board", () => {
     expect(screen.getByText("Inbox idea")).toBeInTheDocument();
   });
 
+  it("c0174: reports the active epic filter to the host, starting at all", () => {
+    const onEpicFilterChange = vi.fn();
+    render(<Board model={MODEL} onEpicFilterChange={onEpicFilterChange} />);
+
+    // on mount, so a remounted board (i0116) resets the host's copy
+    expect(onEpicFilterChange).toHaveBeenCalledExactlyOnceWith("all");
+
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m01-alpha" },
+    });
+    expect(onEpicFilterChange).toHaveBeenLastCalledWith("m01-alpha");
+
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "no-epic" },
+    });
+    expect(onEpicFilterChange).toHaveBeenLastCalledWith("no-epic");
+  });
+
   it("c0084: opens the filtered epic's detail from the toolbar", () => {
     const onOpenEpic = vi.fn();
     render(<Board model={MODEL} onOpenEpic={onOpenEpic} />);

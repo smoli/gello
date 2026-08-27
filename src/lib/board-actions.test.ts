@@ -497,6 +497,57 @@ describe("createCard", () => {
     expect(card.id).toBe("c0008");
     expect(card.path).toBe("cards/c0008-has-a-screenshot.md");
   });
+
+  it("c0174: an epic target puts the card in that epic folder with `epic:` set", async () => {
+    const { card, persisted } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      {
+        title: "Dark mode",
+        body: "",
+        epic: { folder: "m02-board-ui", epicId: "m02" },
+      },
+      "2026-07-16",
+    );
+
+    expect(card.path).toBe("epics/m02-board-ui/c0008-dark-mode.md");
+    expect(card.epic).toBe("m02");
+    expect(card.status).toBe("inbox");
+    await persisted;
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/m02-board-ui/c0008-dark-mode.md",
+      expect.stringContaining("epic: m02"),
+    );
+  });
+
+  it("c0174: writes no `epic:` line for an epic folder without an epic.md", async () => {
+    const { card, persisted } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      { title: "Orphan", body: "", epic: { folder: "e09-nameless", epicId: null } },
+      "2026-07-16",
+    );
+
+    expect(card.path).toBe("epics/e09-nameless/c0008-orphan.md");
+    expect(card.epic).toBeNull();
+    await persisted;
+    expect(writeMock.mock.calls[0][1]).not.toContain("epic:");
+  });
+
+  it("c0174: writes no `epic:` line and stays in cards/ without a target", async () => {
+    const { persisted } = createCard(
+      "/repo/.gello",
+      CAPTURE_MODEL,
+      { title: "Standalone", body: "" },
+      "2026-07-16",
+    );
+
+    await persisted;
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c0008-standalone.md",
+      expect.not.stringContaining("epic:"),
+    );
+  });
 });
 
 describe("issue creation (c024)", () => {

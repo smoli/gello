@@ -17,6 +17,7 @@ export function QuickCapture({
   onSaveImage,
   onDiscard,
   openEpicSignal,
+  epicName,
 }: {
   onCreate: (title: string, body: string, type: "task" | "issue") => void;
   /** i0028: create an epic from a captured title + goal. */
@@ -27,6 +28,9 @@ export function QuickCapture({
   onDiscard?: () => void;
   /** i0028: bump to open the form in epic mode from elsewhere (filter/triage). */
   openEpicSignal?: number;
+  /** c0174: title of the epic the board is filtered to, which the new card will
+   *  be assigned to. Absent → the card is born standalone. */
+  epicName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<CaptureMode>("task");
@@ -89,6 +93,9 @@ export function QuickCapture({
   return (
     <CaptureForm
       heading={heading}
+      // c0174: a filtered board assigns its epic to the new card — say so, so
+      // the assignment is visible before submit. An epic has no epic itself.
+      note={epicName && mode !== "epic" ? `Epic: ${epicName}` : undefined}
       detailsLabel={mode === "epic" ? "Goal" : "Details"}
       onSubmit={(title, body) => {
         if (mode === "epic") onCreateEpic(title, body);

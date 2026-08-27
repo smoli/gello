@@ -127,6 +127,7 @@ export function Board({
   onRenumber,
   onNewEpic,
   onOpenEpic,
+  onEpicFilterChange,
   onRepairDuplicates,
   onRepairDuplicateId,
   onManageTags,
@@ -157,6 +158,10 @@ export function Board({
   onNewEpic?: () => void;
   /** c0084: open the detail view of the epic the filter is narrowed to. */
   onOpenEpic?: (folder: string) => void;
+  /** c0174: the active epic filter ("all", an epic folder, or "no-epic"),
+   *  reported on mount and on every change so the host can create a captured
+   *  card in the epic being looked at. */
+  onEpicFilterChange?: (filterKey: string) => void;
   /** i0034: repair a needs-attention card with duplicate frontmatter keys. */
   onRepairDuplicates?: (entry: InvalidFile) => void;
   /** c0132: repair a needs-attention card that shares another card's id, by
@@ -229,6 +234,13 @@ export function Board({
     const id = setInterval(() => setPickupTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [pickupKey]);
+
+  // c0174: keep the host's copy of the epic filter in step. Firing on mount too
+  // means a board remounted for a project switch (i0116) resets it to "all",
+  // rather than leaving the previous board's epic behind.
+  useEffect(() => {
+    onEpicFilterChange?.(filter);
+  }, [filter, onEpicFilterChange]);
 
   const setDragState = (card: Card | null) => {
     setDragging(card);

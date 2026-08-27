@@ -18,6 +18,7 @@ import {
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
+  withNewEpicCard,
   withoutCard,
   withUpdatedCard,
   withUpdatedEpic,
@@ -289,6 +290,9 @@ function App() {
   const [selectedEpicFolder, setSelectedEpicFolder] = useState<string | null>(null);
   const [openEpicSignal, setOpenEpicSignal] = useState(0);
   const epicAssign = useRef<{ card: Card; status?: string; order?: number } | null>(null);
+  // c0174: the board's epic filter, mirrored here so quick capture can file a
+  // new card under the epic being looked at. "all" and "no-epic" mean none.
+  const [epicFilter, setEpicFilter] = useState("all");
   // c0066: fulltext search now lives in the top bar; the board filters by it
   const [query, setQuery] = useState("");
   // c017: a picked folder with no .gello — offer to initialize one
@@ -1375,6 +1379,11 @@ function App() {
     );
   };
 
+  // c0174: the epic group a captured card belongs in — null unless the board is
+  // narrowed to a single epic.
+  const captureEpic =
+    board?.model.epics.find((group) => group.folder === epicFilter) ?? null;
+
   const handleCreate =(title: string, body: string, type: "task" | "issue") => {
     if (!board) return;
     // i0013: if an image was pasted into this draft, an id was already reserved
@@ -1382,15 +1391,25 @@ function App() {
     const reserved = reservedCreate.current;
     const id = reserved && reserved.type === type ? reserved.id : undefined;
     reservedCreate.current = null;
+    const epic = captureEpic;
     applyAction(
       () =>
         createCard(
           board.root,
           board.model,
-          { title, body, type: type === "task" ? undefined : type, id },
+          {
+            title,
+            body,
+            type: type === "task" ? undefined : type,
+            id,
+            // c0174: born in the epic the board is filtered to, if any
+            epic: epic ? { folder: epic.folder, epicId: epic.epic?.id ?? null } : undefined,
+          },
           todayIsoDate(),
         ),
-      withNewStandaloneCard,
+      epic
+        ? (model, card) => withNewEpicCard(model, card, epic.folder)
+        : withNewStandaloneCard,
     );
   };
 
@@ -1427,8 +1446,9 @@ function App() {
   };
 
   // i0013: persist an image pasted into a quick-create draft. The card has no
-  // id yet, so reserve the next one (once per draft) and save under it; new
-  // cards land in the inbox, hence the `../` link prefix.
+  // id yet, so reserve the next one (once per draft) and save under it. c0174:
+  // the link depth follows the folder the card will be born in — `cards/` is
+  // one level down, an epic folder two.
   const handleCaptureImage = async (
     type: "task" | "issue",
     file: File,
@@ -1442,7 +1462,8 @@ function App() {
           ? nextIssueId(board.model)
           : nextCardId(board.model);
     reservedCreate.current = { type, id };
-    return `../${await persistImage(id, file)}`;
+    const folder = captureEpic ? `epics/${captureEpic.folder}` : "cards";
+    return `${assetLinkPrefix(`${folder}/${id}.md`)}${await persistImage(id, file)}`;
   };
 
   // c0068: set the theme override and persist it app-locally
@@ -1987,6 +2008,8 @@ function App() {
         <QuickCapture
           onCreate={handleCreate}
           onCreateEpic={handleCreateEpic}
+          // c0174: the draft names the epic it will be filed under
+          epicName={captureEpic ? (captureEpic.epic?.title ?? captureEpic.folder) : undefined}
           onSaveImage={handleCaptureImage}
           onDiscard={handleDiscardDraft}
           openEpicSignal={openEpicSignal}
@@ -2001,6 +2024,7 @@ function App() {
           model={board.model}
           onNewEpic={() => setOpenEpicSignal((n) => n + 1)}
           onOpenEpic={(folder) => setSelectedEpicFolder(folder)}
+          onEpicFilterChange={setEpicFilter}
           onRepairDuplicates={(entry) => void handleRepairDuplicates(entry)}
           onRepairDuplicateId={(entry) => void handleRepairDuplicateId(entry)}
           onManageTags={() => setManagingTags(true)}

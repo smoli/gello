@@ -14,6 +14,7 @@ import {
   withCardTriaged,
   withNewEpic,
   withNewStandaloneCard,
+  withNewEpicCard,
   withUpdatedCard,
   withUpdatedEpic,
   withoutCard,
@@ -279,6 +280,35 @@ describe("withNewStandaloneCard (c0088)", () => {
     // c056: capture order — priority does not jump the queue
     expect(next.cards.map((c) => c.id)).toEqual(["c103", "c106"]);
     expect(model.cards.map((c) => c.id)).toEqual(["c103"]);
+  });
+});
+
+describe("withNewEpicCard (c0174)", () => {
+  it("adds a captured card to its epic group in sorted position", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard("epics/m01-alpha/c106-new.md", card("c106", "inbox"));
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withNewEpicCard(model, parsed.card, "m01-alpha");
+
+    const group = next.epics.find((g) => g.folder === "m01-alpha")!;
+    expect(group.cards.map((c) => c.id)).toEqual(["c101", "c102", "c106"]);
+    expect(next.cards.map((c) => c.id)).toEqual(["c103"]);
+    // the source model is untouched
+    expect(model.epics.find((g) => g.folder === "m01-alpha")!.cards).toHaveLength(2);
+  });
+
+  it("leaves the model alone when the folder is unknown", () => {
+    const model = loadBoard(SYNTHETIC);
+    const parsed = parseCard("epics/e09-zeta/c106-new.md", card("c106", "inbox"));
+    if (!parsed.ok) throw new Error("fixture must parse");
+
+    const next = withNewEpicCard(model, parsed.card, "e09-zeta");
+
+    expect(next.epics.map((g) => g.folder)).toEqual(
+      model.epics.map((g) => g.folder),
+    );
+    expect(allCards(next)).toHaveLength(allCards(model).length);
   });
 });
 

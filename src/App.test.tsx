@@ -1446,6 +1446,114 @@ describe("App", () => {
     expect(within(inbox).getByText("Dark mode")).toBeInTheDocument();
   });
 
+  it("c0174: capture lands in the epic the board is filtered to", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    // the draft says where the card will land, so the assignment is not silent
+    expect(screen.getByText("Epic: Board UI")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dark mode" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/m02-board-ui/c0007-dark-mode.md",
+      expect.stringContaining("epic: m02"),
+    );
+    // and it shows up in the inbox column, which the epic filter still spans
+    const inbox = screen.getByRole("region", { name: "inbox" });
+    expect(within(inbox).getByText("Dark mode")).toBeInTheDocument();
+  });
+
+  it("c0174: a captured issue lands in the filtered epic too", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Column jitters" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/m02-board-ui/i0001-column-jitters.md",
+      expect.stringContaining("epic: m02"),
+    );
+  });
+
+  it("c0174: the No-epic filter still captures a standalone card", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "no-epic" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    expect(screen.queryByText(/^Epic: /)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Loose end" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/cards/c0007-loose-end.md",
+      expect.not.stringContaining("epic:"),
+    );
+  });
+
+  it("c0174: an image pasted while filtered to an epic is linked at epic depth", async () => {
+    loadMock.mockResolvedValueOnce(loadedFixture());
+    writeMock.mockResolvedValueOnce(undefined);
+    vi.mocked(writeAsset).mockResolvedValueOnce("assets/c0007/shot.png");
+
+    render(<App />);
+    await screen.findByText("Hello board");
+    fireEvent.change(screen.getByLabelText("Epic filter"), {
+      target: { value: "m02-board-ui" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+
+    const details = screen.getByLabelText("Details") as HTMLTextAreaElement;
+    const file = new File([new Uint8Array([1, 2, 3])], "shot.png", {
+      type: "image/png",
+    });
+    fireEvent.paste(details, {
+      clipboardData: {
+        items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+        files: [file],
+      },
+    });
+
+    // the card will be born two levels deep, so the link needs two ../
+    await vi.waitFor(() => {
+      expect(details.value).toBe("![shot](../../assets/c0007/shot.png)");
+    });
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "With screenshot" },
+    });
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Enter" });
+
+    expect(writeMock).toHaveBeenCalledExactlyOnceWith(
+      "/repo/.gello/epics/m02-board-ui/c0007-with-screenshot.md",
+      expect.stringContaining("![shot](../../assets/c0007/shot.png)"),
+    );
+  });
+
   it("i0013: an image pasted into quick-create is saved under the card's reserved id", async () => {
     loadMock.mockResolvedValueOnce(loadedFixture());
     writeMock.mockResolvedValueOnce(undefined);

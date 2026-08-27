@@ -478,6 +478,31 @@ describe("c0116: Escape guards a draft that has content", () => {
     expect(onDiscard).not.toHaveBeenCalled();
   });
 
+  it("c0174: names the epic a captured card will land in", () => {
+    render(
+      <QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} epicName="Board UI" />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    expect(screen.getByText("Epic: Board UI")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: /new issue/i }));
+    expect(screen.getByText("Epic: Board UI")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+
+    // an epic draft is not itself assigned to an epic
+    fireEvent.click(screen.getByRole("button", { name: /new epic/i }));
+    expect(screen.queryByText("Epic: Board UI")).not.toBeInTheDocument();
+  });
+
+  it("c0174: says nothing when no epic filter is active", () => {
+    render(<QuickCapture onCreate={vi.fn()} onCreateEpic={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /new idea/i }));
+    expect(screen.queryByText(/^Epic: /)).not.toBeInTheDocument();
+  });
+
   it("does not let Escape reach a card detail behind the panel", () => {
     const onOuterEscape = vi.fn();
     render(
